@@ -1,0 +1,55 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: bgstore
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: [missingkey=error]
+  generators:
+    - list:
+        elements:
+          - { environment: dev, namespace: bgstore-dev }
+          - { environment: staging, namespace: bgstore-staging }
+          - { environment: production, namespace: bgstore }
+  template:
+    metadata:
+      name: 'bgstore-{{ .environment }}'
+      labels:
+        {
+          app.kubernetes.io/part-of: bgstore,
+          environment: '{{ .environment }}',
+        }
+    spec:
+      project: bgstore
+      source:
+        repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
+        targetRevision: main
+        path: deploy/charts/bgstore
+        helm:
+          valueFiles:
+            - ../../environments/{{ .environment }}.yaml
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{ .namespace }}'
+      syncPolicy:
+        automated: { prune: true, selfHeal: true }
+        syncOptions: [CreateNamespace=true, ServerSideApply=true]
+        retry:
+          limit: 5
+          backoff: { duration: 5s, factor: 2, maxDuration: 3m }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: bgstore
+  namespace: argocd
+spec:
+  description: BGStore application environments
+  sourceRepos: [https://github.com/MUDST-2026-BGStore/bgstore.git]
+  destinations:
+    - { namespace: 'bgstore*', server: https://kubernetes.default.svc }
+  clusterResourceWhitelist:
+    - { group: '', kind: Namespace }
+  namespaceResourceWhitelist:
+    - { group: '*', kind: '*' }

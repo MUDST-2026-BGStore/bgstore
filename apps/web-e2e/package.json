@@ -1,0 +1,10 @@
+{
+  "name": "@mudst-2026-bgstore/web-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "implicitDependencies": [
+      "@mudst-2026-bgstore/web"
+    ]
+  }
+}

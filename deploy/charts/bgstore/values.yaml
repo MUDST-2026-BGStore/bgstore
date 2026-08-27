@@ -1,0 +1,68 @@
+global:
+  domain: bgstore.chanakanlabs.com
+
+images:
+  api:
+    repository: ghcr.io/mudst-2026-bgstore/bgstore-api
+    tag: latest
+    digest: ''
+  web:
+    repository: ghcr.io/mudst-2026-bgstore/bgstore-web
+    tag: latest
+    digest: ''
+  pullPolicy: IfNotPresent
+
+replicas:
+  api: 2
+  web: 2
+
+resources:
+  api:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { cpu: '1', memory: 768Mi }
+  web:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 250m, memory: 128Mi }
+
+config:
+  databaseUrl: jdbc:postgresql://bgstore-postgresql-rw:5432/bgstore
+  redisHost: bgstore-valkey
+  keycloakPublicUrl: https://auth.bgstore.chanakanlabs.com
+  keycloakInternalUrl: http://keycloakx-http.keycloak.svc.cluster.local:80
+  otelEndpoint: http://otel-collector-opentelemetry-collector.observability.svc:4318
+  traceSamplingProbability: '0.1'
+
+secret:
+  existingSecret: bgstore-api
+  databaseCredentialsSecret: bgstore-database
+  externalSecret:
+    enabled: false
+    secretStoreRef: bgstore
+    remoteKey: environments/production/bgstore-api
+
+gateway:
+  create: false
+  className: eg
+  name: bgstore
+  namespace: bgstore
+  certificateIssuer: letsencrypt-production
+
+route:
+  parentGatewayName: bgstore
+  parentGatewayNamespace: bgstore
+
+autoscaling:
+  enabled: true
+  api: { minReplicas: 2, maxReplicas: 10, cpuUtilization: 70 }
+  web: { minReplicas: 2, maxReplicas: 6, cpuUtilization: 70 }
+
+networkPolicy:
+  enabled: true
+
+serviceMonitor:
+  enabled: true
+
+postgresql:
+  createCluster: false
+  instances: 3
+  storageSize: 10Gi

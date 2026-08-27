@@ -1,0 +1,16 @@
+{{- if .Values.postgresql.createCluster }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata: { name: bgstore-postgresql }
+spec:
+  instances: {{ .Values.postgresql.instances }}
+  bootstrap:
+    initdb:
+      database: bgstore
+      owner: bgstore
+      secret: { name: {{ .Values.secret.databaseCredentialsSecret }} }
+  storage:
+    size: {{ .Values.postgresql.storageSize }}
+  monitoring:
+    enablePodMonitor: true
+{{- end }}

@@ -1,0 +1,76 @@
+openapi: 3.0.3
+info:
+  title: BGStore API
+  version: 0.1.0
+  description: Contract for the BGStore management platform.
+  license:
+    name: Apache-2.0
+servers:
+  - url: /api/v1
+security:
+  - cookieAuth: []
+tags:
+  - name: Hello
+    description: Walking-skeleton operations.
+paths:
+  /hello:
+    get:
+      tags: [Hello]
+      operationId: getHello
+      summary: Verify the authenticated application path.
+      responses:
+        '200':
+          description: The API and database are reachable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HelloResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: __Host-bgstore-session
+  responses:
+    Unauthorized:
+      description: Authentication is required.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+  schemas:
+    HelloResponse:
+      type: object
+      additionalProperties: false
+      required: [message, service, database]
+      properties:
+        message:
+          type: string
+          example: Hello, BGStore!
+        service:
+          type: string
+          enum: [bgstore-api]
+        database:
+          type: string
+          enum: [connected]
+    ProblemDetail:
+      type: object
+      additionalProperties: true
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference

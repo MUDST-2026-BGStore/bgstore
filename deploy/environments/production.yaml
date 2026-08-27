@@ -1,0 +1,7 @@
+global:
+  domain: bgstore.chanakanlabs.com
+gateway: { create: true }
+postgresql: { createCluster: true, instances: 3, storageSize: 20Gi }
+secret:
+  externalSecret: { enabled: true }
+config: { traceSamplingProbability: '0.1' }

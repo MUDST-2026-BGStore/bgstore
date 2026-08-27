@@ -1,0 +1,30 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata: { name: keycloak-tls, namespace: keycloak }
+spec:
+  secretName: keycloak-tls
+  issuerRef: { name: letsencrypt-production, kind: ClusterIssuer }
+  dnsNames: [auth.bgstore.chanakanlabs.com]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: { name: keycloak, namespace: keycloak }
+spec:
+  gatewayClassName: eg
+  listeners:
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: auth.bgstore.chanakanlabs.com
+      tls:
+        mode: Terminate
+        certificateRefs: [{ kind: Secret, name: keycloak-tls }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: { name: keycloak, namespace: keycloak }
+spec:
+  parentRefs: [{ name: keycloak }]
+  hostnames: [auth.bgstore.chanakanlabs.com]
+  rules:
+    - backendRefs: [{ name: keycloakx-http, port: 80 }]

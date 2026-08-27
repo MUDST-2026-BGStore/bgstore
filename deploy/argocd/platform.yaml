@@ -1,0 +1,249 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata: { name: bgstore-platform, namespace: argocd }
+spec:
+  description: Cluster services required by BGStore
+  sourceRepos: ['*']
+  destinations: [{ namespace: '*', server: https://kubernetes.default.svc }]
+  clusterResourceWhitelist: [{ group: '*', kind: '*' }]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: cert-manager, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: v1.21.1
+    helm: { values: 'crds:\n  enabled: true\n' }
+  destination:
+    { server: https://kubernetes.default.svc, namespace: cert-manager }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: cloudnative-pg, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://cloudnative-pg.github.io/charts
+    chart: cloudnative-pg
+    targetRevision: 0.29.0
+  destination:
+    { server: https://kubernetes.default.svc, namespace: cnpg-system }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: external-secrets, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://charts.external-secrets.io
+    chart: external-secrets
+    targetRevision: 2.9.0
+    helm: { values: 'installCRDs: true\n' }
+  destination:
+    { server: https://kubernetes.default.svc, namespace: external-secrets }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: envoy-gateway, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: docker.io/envoyproxy
+    chart: gateway-helm
+    targetRevision: v1.8.3
+  destination:
+    { server: https://kubernetes.default.svc, namespace: envoy-gateway-system }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: valkey, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://valkey.io/valkey-helm
+    chart: valkey
+    targetRevision: 0.11.0
+    helm:
+      values: |
+        fullnameOverride: bgstore-valkey
+        auth:
+          enabled: true
+          usersExistingSecret: bgstore-api
+          aclUsers:
+            default:
+              permissions: '~* &* +@all'
+              passwordKey: REDIS_PASSWORD
+        dataStorage:
+          enabled: true
+          requestedSize: 2Gi
+          accessModes: [ReadWriteOnce]
+  destination: { server: https://kubernetes.default.svc, namespace: bgstore }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: keycloak-database, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
+    targetRevision: main
+    path: deploy/platform/keycloak-database
+  destination: { server: https://kubernetes.default.svc, namespace: keycloak }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: keycloak, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://codecentric.github.io/helm-charts
+    chart: keycloakx
+    targetRevision: 7.2.3
+    helm:
+      values: |
+        replicas: 2
+        image:
+          tag: 26.7.1
+        command: ['/opt/keycloak/bin/kc.sh', 'start', '--http-enabled=true']
+        extraEnv: |
+          - name: KC_HOSTNAME
+            value: https://auth.bgstore.chanakanlabs.com
+          - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
+            value: 'true'
+        proxy:
+          enabled: true
+          mode: xforwarded
+        http:
+          relativePath: '/'
+          managementRelativePath: '/'
+        database:
+          vendor: postgres
+          hostname: keycloak-postgresql-rw.keycloak.svc.cluster.local
+          database: keycloak
+          username: keycloak
+          existingSecret: keycloak-database
+          existingSecretKey: password
+  destination: { server: https://kubernetes.default.svc, namespace: keycloak }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: kube-prometheus-stack, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 88.5.4
+  destination:
+    { server: https://kubernetes.default.svc, namespace: observability }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: otel-collector, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    targetRevision: 0.170.0
+    helm:
+      values: |
+        mode: deployment
+        fullnameOverride: otel-collector
+        config:
+          exporters:
+            otlphttp/tempo: { endpoint: http://tempo-distributor.observability.svc:4318 }
+            otlphttp/loki: { endpoint: http://loki-gateway.observability.svc/otlp }
+            prometheus: { endpoint: 0.0.0.0:8889 }
+          service:
+            pipelines:
+              traces: { exporters: [otlphttp/tempo] }
+              metrics: { exporters: [prometheus] }
+              logs: { exporters: [otlphttp/loki] }
+  destination:
+    { server: https://kubernetes.default.svc, namespace: observability }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: loki, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: 7.3.0
+    helm:
+      values: |
+        deploymentMode: SingleBinary
+        loki:
+          auth_enabled: false
+          commonConfig: { replication_factor: 1 }
+          storage: { type: filesystem }
+        singleBinary: { replicas: 1 }
+        read: { replicas: 0 }
+        write: { replicas: 0 }
+        backend: { replicas: 0 }
+  destination:
+    { server: https://kubernetes.default.svc, namespace: observability }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: tempo, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: tempo-distributed
+    targetRevision: 1.61.3
+  destination:
+    { server: https://kubernetes.default.svc, namespace: observability }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: keycloak-routing, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
+    targetRevision: main
+    path: deploy/platform/keycloak-routing
+  destination: { server: https://kubernetes.default.svc, namespace: keycloak }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]

@@ -1,0 +1,77 @@
+{
+  "realm": "bgstore",
+  "enabled": true,
+  "displayName": "BGStore",
+  "registrationAllowed": true,
+  "loginWithEmailAllowed": true,
+  "verifyEmail": false,
+  "resetPasswordAllowed": true,
+  "roles": {
+    "realm": [{ "name": "CLIENT" }, { "name": "STAFF" }, { "name": "MANAGER" }]
+  },
+  "defaultRole": {
+    "name": "default-roles-bgstore",
+    "composite": true,
+    "composites": { "realm": ["CLIENT"] }
+  },
+  "clients": [
+    {
+      "clientId": "bgstore-web",
+      "name": "BGStore web BFF",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "bgstore-local-client-secret",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:4200/login/oauth2/code/keycloak",
+        "http://localhost:8080/login/oauth2/code/keycloak"
+      ],
+      "webOrigins": []
+    }
+  ],
+  "users": [
+    {
+      "username": "client@example.test",
+      "email": "client@example.test",
+      "firstName": "Local",
+      "lastName": "Client",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["CLIENT"],
+      "credentials": [
+        { "type": "password", "value": "client-local-only", "temporary": false }
+      ]
+    },
+    {
+      "username": "staff@example.test",
+      "email": "staff@example.test",
+      "firstName": "Local",
+      "lastName": "Staff",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["STAFF"],
+      "credentials": [
+        { "type": "password", "value": "staff-local-only", "temporary": false }
+      ]
+    },
+    {
+      "username": "manager@example.test",
+      "email": "manager@example.test",
+      "firstName": "Local",
+      "lastName": "Manager",
+      "enabled": true,
+      "emailVerified": true,
+      "realmRoles": ["MANAGER"],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "manager-local-only",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

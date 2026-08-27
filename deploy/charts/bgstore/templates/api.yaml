@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  labels:
+    {{- include "bgstore.labels" . | nindent 4 }}
+    app.kubernetes.io/name: bgstore-api
+spec:
+  replicas: {{ .Values.replicas.api }}
+  selector:
+    matchLabels: { app.kubernetes.io/name: bgstore-api }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: bgstore-api, app.kubernetes.io/part-of: bgstore }
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: api
+          image: {{ include "bgstore.image" (dict "Values" .Values "component" "api") }}
+          imagePullPolicy: {{ .Values.images.pullPolicy }}
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - { name: DATABASE_URL, value: {{ .Values.config.databaseUrl | quote }} }
+            - { name: REDIS_HOST, value: {{ .Values.config.redisHost | quote }} }
+            - { name: KEYCLOAK_PUBLIC_URL, value: {{ .Values.config.keycloakPublicUrl | quote }} }
+            - { name: KEYCLOAK_INTERNAL_URL, value: {{ .Values.config.keycloakInternalUrl | quote }} }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: {{ .Values.config.otelEndpoint | quote }} }
+            - { name: OTEL_TRACES_SAMPLER_ARG, value: {{ .Values.config.traceSamplingProbability | quote }} }
+            - { name: SESSION_COOKIE_NAME, value: __Host-bgstore-session }
+            - { name: SESSION_COOKIE_SECURE, value: 'true' }
+            - name: POSTGRES_USER
+              valueFrom: { secretKeyRef: { name: {{ .Values.secret.existingSecret }}, key: POSTGRES_USER } }
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.secret.existingSecret }}, key: POSTGRES_PASSWORD } }
+            - name: REDIS_PASSWORD
+              valueFrom: { secretKeyRef: { name: {{ .Values.secret.existingSecret }}, key: REDIS_PASSWORD } }
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: {{ .Values.secret.existingSecret }}, key: KEYCLOAK_CLIENT_SECRET } }
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            initialDelaySeconds: 15
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            initialDelaySeconds: 30
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            failureThreshold: 30
+            periodSeconds: 5
+          resources: {{- toYaml .Values.resources.api | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+            readOnlyRootFilesystem: true
+            runAsUser: 10001
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      terminationGracePeriodSeconds: 30
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+  labels: { app.kubernetes.io/name: bgstore-api, app.kubernetes.io/part-of: bgstore }
+spec:
+  selector: { app.kubernetes.io/name: bgstore-api }
+  ports:
+    - { name: http, port: 8080, targetPort: http }

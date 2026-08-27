@@ -1,0 +1,8 @@
+global:
+  domain: bgstore.dev.chanakanlabs.com
+replicas: { api: 1, web: 1 }
+autoscaling: { enabled: false }
+gateway: { create: true }
+route: { parentGatewayNamespace: bgstore-dev }
+postgresql: { createCluster: true, instances: 1, storageSize: 2Gi }
+config: { traceSamplingProbability: '1.0' }

@@ -1,0 +1,35 @@
+{{- if .Values.gateway.create }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata: { name: bgstore-tls }
+spec:
+  secretName: bgstore-tls
+  issuerRef: { name: {{ .Values.gateway.certificateIssuer }}, kind: ClusterIssuer }
+  dnsNames: [{{ .Values.global.domain | quote }}]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata: { name: {{ .Values.gateway.name }} }
+spec:
+  gatewayClassName: {{ .Values.gateway.className }}
+  listeners:
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: {{ .Values.global.domain | quote }}
+      tls:
+        mode: Terminate
+        certificateRefs: [{ kind: Secret, name: bgstore-tls }]
+{{- end }}
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: { name: bgstore }
+spec:
+  parentRefs:
+    - name: {{ .Values.route.parentGatewayName }}
+      namespace: {{ .Values.route.parentGatewayNamespace }}
+  hostnames: [{{ .Values.global.domain | quote }}]
+  rules:
+    - backendRefs:
+        - { name: web, port: 80 }

@@ -1,0 +1,70 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: default-deny }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: web }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: bgstore-web } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - ports: [{ port: 8080, protocol: TCP }]
+  egress:
+    - to: [{ podSelector: { matchLabels: { app.kubernetes.io/name: bgstore-api } } }]
+      ports: [{ port: 8080, protocol: TCP }]
+    - ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: api }
+spec:
+  podSelector: { matchLabels: { app.kubernetes.io/name: bgstore-api } }
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app.kubernetes.io/name: bgstore-web } } }]
+      ports: [{ port: 8080, protocol: TCP }]
+  egress:
+    - ports: [{ port: 53, protocol: UDP }, { port: 53, protocol: TCP }]
+    - ports: [{ port: 5432, protocol: TCP }, { port: 6379, protocol: TCP }, { port: 80, protocol: TCP }, { port: 4318, protocol: TCP }]
+{{- end }}
+{{- if .Values.secret.externalSecret.enabled }}
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: bgstore-api }
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: {{ .Values.secret.externalSecret.secretStoreRef }}
+    kind: ClusterSecretStore
+  target: { name: {{ .Values.secret.existingSecret }}, creationPolicy: Owner }
+  dataFrom:
+    - extract: { key: {{ .Values.secret.externalSecret.remoteKey }} }
+---
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata: { name: bgstore-database }
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    name: {{ .Values.secret.externalSecret.secretStoreRef }}
+    kind: ClusterSecretStore
+  target:
+    name: {{ .Values.secret.databaseCredentialsSecret }}
+    creationPolicy: Owner
+    template: { type: kubernetes.io/basic-auth }
+  data:
+    - secretKey: username
+      remoteRef:
+        key: {{ .Values.secret.externalSecret.remoteKey }}
+        property: POSTGRES_USER
+    - secretKey: password
+      remoteRef:
+        key: {{ .Values.secret.externalSecret.remoteKey }}
+        property: POSTGRES_PASSWORD
+{{- end }}

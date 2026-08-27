@@ -1,0 +1,21 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: ['config:recommended', 'helpers:pinGitHubActionDigests'],
+  labels: ['dependencies'],
+  dependencyDashboard: true,
+  rangeStrategy: 'pin',
+  packageRules: [
+    {
+      matchManagers: ['github-actions'],
+      pinDigests: true,
+    },
+    {
+      matchDatasources: ['docker'],
+      pinDigests: true,
+    },
+    {
+      matchUpdateTypes: ['major'],
+      dependencyDashboardApproval: true,
+    },
+  ],
+}

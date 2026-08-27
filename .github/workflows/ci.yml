@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with: { fetch-depth: 0 }
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.33.0, run_install: false }
+      - uses: actions/setup-node@v5
+        with: { node-version: 24.19.0, cache: pnpm }
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: '21', cache: gradle }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm exec nx run-many -t lint,typecheck,test,check --parallel=3
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports
+          path: |
+            apps/api/build/reports
+            apps/web/test-output
+
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.33.0, run_install: false }
+      - uses: actions/setup-node@v5
+        with: { node-version: 24.19.0, cache: pnpm }
+      - uses: actions/setup-java@v5
+        with: { distribution: temurin, java-version: '21', cache: gradle }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: docker compose --env-file .env.example --profile app up --build --wait --wait-timeout 180
+      - run: pnpm e2e
+        env:
+          BASE_URL: http://localhost:4200
+          BGSTORE_FULL_STACK: '1'
+      - if: always()
+        run: docker compose --profile app logs --no-color
+      - if: always()
+        run: docker compose --profile app down --volumes
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: apps/web-e2e/playwright-report
+
+  delivery-manifests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: azure/setup-helm@v4
+        with: { version: v3.19.0 }
+      - run: helm lint deploy/charts/bgstore
+      - name: Render every environment
+        run: |
+          for environment in dev staging production; do
+            helm template bgstore deploy/charts/bgstore \
+              --namespace bgstore \
+              --values "deploy/environments/${environment}.yaml" \
+              > "/tmp/bgstore-${environment}.yaml"
+          done
+      - uses: aquasecurity/trivy-action@0.33.1
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: sarif
+          output: trivy-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - run: docker compose --env-file .env.example config --quiet

@@ -1,0 +1,10 @@
+.git
+.gradle
+.nx
+**/.gradle
+**/build
+**/dist
+**/node_modules
+**/test-output
+.env*
+!.env.example

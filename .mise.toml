@@ -1,0 +1,7 @@
+[tools]
+java = "21.0.2"
+node = "24.19.0"
+pnpm = "10.33.0"
+
+[env]
+_.file = ".env.local"

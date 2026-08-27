@@ -1,0 +1,6 @@
+global:
+  domain: bgstore.staging.chanakanlabs.com
+gateway: { create: true }
+route: { parentGatewayNamespace: bgstore-staging }
+postgresql: { createCluster: true, instances: 2, storageSize: 10Gi }
+config: { traceSamplingProbability: '0.5' }

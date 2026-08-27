@@ -1,0 +1,8 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+autoInstallPeers: true
+onlyBuiltDependencies:
+  - lefthook
+  - nx

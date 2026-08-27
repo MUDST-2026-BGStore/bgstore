@@ -1,0 +1,33 @@
+{
+  "name": "@mudst-2026-bgstore/contracts",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "targets": {
+      "generate": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "inputs": [
+          "{projectRoot}/openapi.yaml",
+          "{workspaceRoot}/openapi-ts.config.ts"
+        ],
+        "outputs": [
+          "{workspaceRoot}/apps/web/src/generated/api"
+        ],
+        "options": {
+          "command": "openapi-ts --file openapi-ts.config.ts"
+        }
+      },
+      "check": {
+        "executor": "nx:run-commands",
+        "cache": true,
+        "inputs": [
+          "{projectRoot}/openapi.yaml"
+        ],
+        "options": {
+          "command": "./apps/api/gradlew -p apps/api openApiValidate"
+        }
+      }
+    }
+  }
+}
