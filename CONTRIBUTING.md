@@ -1,5 +1,7 @@
 # Contributing
 
+Start with the [development guide](docs/development-guide.md) for the repository map, local workflow, and test commands.
+
 ## Workflow
 
 1. Branch from `main` with a short descriptive name.

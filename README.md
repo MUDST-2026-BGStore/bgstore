@@ -12,7 +12,7 @@ BGStore is a board-game store operations platform for table reservations, client
 - **Platform:** OCI containers, Helm, Argo CD, Gateway API, CloudNativePG, cert-manager
 - **Telemetry:** OpenTelemetry, Prometheus, Loki, Tempo, Grafana
 
-See [architecture](docs/architecture.md), [domain model](docs/domain-model.md), and [architecture decisions](docs/decisions/README.md).
+See the [development guide](docs/development-guide.md) for repository navigation and change routing, plus the [architecture](docs/architecture.md), [domain model](docs/domain-model.md), and [architecture decisions](docs/decisions/README.md).
 
 ## Start locally
 
@@ -59,7 +59,7 @@ pnpm build              # production builds
 pnpm e2e                # fast browser contract smoke test
 pnpm format             # format supported source files
 pnpm graph              # inspect the Nx project graph
-pnpm nx run contracts:generate
+pnpm nx run @mudst-2026-bgstore/contracts:generate
 ```
 
 The OpenAPI document at `packages/contracts/openapi.yaml` is authoritative. Regenerate both sides after changing it; generated sources are not hand-edited.
