@@ -16,11 +16,23 @@ jobs:
   analyze:
     strategy:
       fail-fast: false
-      matrix: { language: [java-kotlin, javascript-typescript] }
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: github/codeql-action/init@v4
         with: { languages: '${{ matrix.language }}' }
-      - uses: github/codeql-action/autobuild@v4
+      - if: matrix.language == 'java-kotlin'
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - if: matrix.build-mode == 'manual'
+        run: ./apps/api/gradlew -p apps/api --no-daemon classes
       - uses: github/codeql-action/analyze@v4

@@ -80,7 +80,7 @@ jobs:
               --values "deploy/environments/${environment}.yaml" \
               > "/tmp/bgstore-${environment}.yaml"
           done
-      - uses: aquasecurity/trivy-action@0.33.1
+      - uses: aquasecurity/trivy-action@v0.33.1
         with:
           scan-type: fs
           scan-ref: .
