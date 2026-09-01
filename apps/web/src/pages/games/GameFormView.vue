@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
 import OwnerLayout from '../../layouts/OwnerLayout.vue';
 import PageBreadcrumb from '../../components/PageBreadcrumb.vue';
@@ -10,7 +10,7 @@ import UiSelect from '../../components/ui/UiSelect.vue';
 import UiTextInput from '../../components/ui/UiTextInput.vue';
 import {
   descriptionMaxLength,
-  gameCategories,
+  categoryOptions,
   type GameFormValues,
 } from './form';
 
@@ -38,13 +38,15 @@ const emit = defineEmits<{ submit: [values: GameFormValues] }>();
 
 const { t } = useI18n();
 
-// A local copy so typing never mutates what the query cache holds. Re-seeded
-// when the loaded game arrives after the first render.
+/**
+ * A local copy, seeded once. Typing never reaches the query cache, and a
+ * background refetch never reaches the form: the pages above only render this
+ * view once the game and the branch directory have loaded, so `props.values` is
+ * already complete here, and re-seeding on every new object identity would
+ * discard whatever the user had typed. A different game means a different route,
+ * which remounts the view (see AppRoot.vue).
+ */
 const form = reactive<GameFormValues>(clone(props.values));
-watch(
-  () => props.values,
-  (values) => Object.assign(form, clone(values)),
-);
 
 const descriptionCount = computed(() => form.description.length);
 const lastBranchIndex = computed(() => form.copies.length - 1);
@@ -71,10 +73,7 @@ function clone(values: GameFormValues): GameFormValues {
   };
 }
 
-const categoryOptions = gameCategories.map((category) => ({
-  value: category,
-  label: t('games.category.' + category),
-}));
+const categories = categoryOptions(t);
 
 const submitLabel = computed(() =>
   props.pending ? t('games.form.saving') : props.primaryLabel,
@@ -207,7 +206,7 @@ const submitLabel = computed(() =>
                 class="w-full"
                 :invalid="Boolean(messageFor('category'))"
                 :placeholder="t('games.form.categoryPlaceholder')"
-                :options="categoryOptions"
+                :options="categories"
               />
             </UiField>
             <!--

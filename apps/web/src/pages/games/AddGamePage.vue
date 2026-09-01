@@ -4,8 +4,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import GameFormView from './GameFormView.vue';
-import OwnerLayout from '../../layouts/OwnerLayout.vue';
-import UiButton from '../../components/ui/UiButton.vue';
+import ScreenStatus from '../../components/ScreenStatus.vue';
 import { branchesQueryOptions, createGameRequest } from '../../queries/games';
 import {
   emptyForm,
@@ -27,11 +26,12 @@ const errors = ref<Record<string, string>>({});
 
 const create = useMutation({
   mutationFn: createGameRequest,
-  onSuccess: async () => {
+  onSuccess: async (game) => {
     errors.value = {};
     await queryClient.invalidateQueries({ queryKey: ['games'] });
-    // The flow ends back on the inventory, with the new row in it.
-    await router.push('/games');
+    // Back to the inventory, which reports the saved title as the success
+    // state — the row itself is the other half of the confirmation.
+    await router.push({ path: '/games', query: { saved: game.title } });
   },
   onError: (failure) => {
     errors.value = fieldErrorsOf(failure);
@@ -44,26 +44,18 @@ function submit(form: GameFormValues) {
 </script>
 
 <template>
-  <OwnerLayout v-if="branches.isPending.value">
-    <p data-testid="form-loading" class="px-8 py-10 text-[14px] text-ink-muted">
-      {{ t('games.state.loading') }}
-    </p>
-  </OwnerLayout>
+  <ScreenStatus
+    v-if="branches.isPending.value"
+    state="loading"
+    testid="form-loading"
+  />
 
-  <OwnerLayout v-else-if="branches.isError.value">
-    <div class="flex flex-col items-start gap-3 px-8 py-10">
-      <p
-        data-testid="form-load-error"
-        role="alert"
-        class="text-[14px] text-danger-fg"
-      >
-        {{ t('games.state.loadFailed') }}
-      </p>
-      <UiButton variant="outline" size="sm" @click="branches.refetch()">
-        {{ t('games.state.retry') }}
-      </UiButton>
-    </div>
-  </OwnerLayout>
+  <ScreenStatus
+    v-else-if="branches.isError.value"
+    state="failed"
+    testid="form-load-error"
+    @retry="branches.refetch()"
+  />
 
   <GameFormView
     v-else

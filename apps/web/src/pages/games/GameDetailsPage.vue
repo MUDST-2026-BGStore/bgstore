@@ -4,6 +4,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import OwnerLayout from '../../layouts/OwnerLayout.vue';
+import ScreenStatus from '../../components/ScreenStatus.vue';
 import PageBreadcrumb from '../../components/PageBreadcrumb.vue';
 import UiBadge from '../../components/ui/UiBadge.vue';
 import UiButton from '../../components/ui/UiButton.vue';
@@ -21,6 +22,11 @@ const query = useQuery(computed(() => gameQueryOptions(gameId.value)));
 
 const game = computed(() => query.data.value);
 const missing = computed(() => hasStatus(query.error.value, 404));
+
+// Edit game lands here carrying the saved title, as its success state.
+const savedTitle = computed(() =>
+  typeof route.query.saved === 'string' ? route.query.saved : undefined,
+);
 
 const unknown = computed(() => t('games.state.unknown'));
 
@@ -97,40 +103,20 @@ const lastStockIndex = computed(() => (game.value?.stock.length ?? 0) - 1);
 </script>
 
 <template>
-  <OwnerLayout v-if="query.isPending.value">
-    <p
-      data-testid="details-loading"
-      class="px-8 py-10 text-[14px] text-ink-muted"
-    >
-      {{ t('games.state.loading') }}
-    </p>
-  </OwnerLayout>
+  <ScreenStatus
+    v-if="query.isPending.value"
+    state="loading"
+    testid="details-loading"
+  />
 
-  <OwnerLayout v-else-if="missing">
-    <div class="flex flex-col items-start gap-3 px-8 py-10">
-      <p data-testid="game-not-found" role="alert" class="text-[14px] text-ink">
-        {{ t('games.state.notFound') }}
-      </p>
-      <UiButton variant="outline" to="/games">
-        {{ t('games.details.back') }}
-      </UiButton>
-    </div>
-  </OwnerLayout>
+  <ScreenStatus v-else-if="missing" state="missing" testid="game-not-found" />
 
-  <OwnerLayout v-else-if="query.isError.value || !game">
-    <div class="flex flex-col items-start gap-3 px-8 py-10">
-      <p
-        data-testid="details-error"
-        role="alert"
-        class="text-[14px] text-danger-fg"
-      >
-        {{ t('games.state.loadFailed') }}
-      </p>
-      <UiButton variant="outline" size="sm" @click="query.refetch()">
-        {{ t('games.state.retry') }}
-      </UiButton>
-    </div>
-  </OwnerLayout>
+  <ScreenStatus
+    v-else-if="query.isError.value || !game"
+    state="failed"
+    testid="details-error"
+    @retry="query.refetch()"
+  />
 
   <OwnerLayout v-else>
     <div
@@ -141,6 +127,15 @@ const lastStockIndex = computed(() => (game.value?.stock.length ?? 0) - 1);
     </div>
 
     <div class="flex w-full shrink-0 flex-col items-end gap-6 px-8 pt-6 pb-8">
+      <p
+        v-if="savedTitle"
+        data-testid="details-saved"
+        role="status"
+        class="w-full text-[13px] leading-[20px] text-success-fg"
+      >
+        {{ t('games.inventory.saved', { title: savedTitle }) }}
+      </p>
+
       <header class="flex w-full flex-col items-start gap-1">
         <div class="flex w-full items-center gap-3">
           <h1 class="text-[28px] leading-[42px] font-semibold text-ink">

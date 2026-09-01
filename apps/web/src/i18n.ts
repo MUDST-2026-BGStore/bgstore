@@ -87,6 +87,7 @@ export const messages = {
         emptyFiltered: 'No games match these filters.',
         previousPage: 'Previous',
         nextPage: 'Next',
+        saved: '“{title}” was saved.',
         deleteFailed: 'That game could not be retired.',
         stats: {
           titles: 'Titles',
@@ -269,6 +270,7 @@ export const messages = {
         emptyFiltered: 'ไม่มีเกมที่ตรงกับตัวกรองนี้',
         previousPage: 'ก่อนหน้า',
         nextPage: 'ถัดไป',
+        saved: 'บันทึก “{title}” แล้ว',
         deleteFailed: 'ไม่สามารถปลดระวางเกมนี้ได้',
         stats: {
           titles: 'จำนวนชื่อเกม',

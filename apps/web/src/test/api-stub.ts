@@ -91,7 +91,7 @@ function jsonResponse({ status = 200, body }: StubbedResponse): Response {
 export async function renderScreen(
   component: Component,
   path: string,
-  options: { flush?: boolean } = {},
+  options: { flush?: boolean; props?: Record<string, unknown> } = {},
 ) {
   const router = createRouter({
     history: createMemoryHistory(),
@@ -101,6 +101,7 @@ export async function renderScreen(
   await router.isReady();
 
   const wrapper = mount(component, {
+    props: options.props,
     global: {
       plugins: [
         router,

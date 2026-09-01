@@ -2,6 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import OwnerLayout from '../../layouts/OwnerLayout.vue';
 import StatCard from '../../components/ui/StatCard.vue';
 import UiBadge from '../../components/ui/UiBadge.vue';
@@ -19,7 +20,7 @@ import {
   type GameListQuery,
 } from '../../queries/games';
 import { branchLabel, pageRange } from './display';
-import { gameCategories } from './form';
+import { categoryOptions } from './form';
 import { gameStatuses, statusTone } from './status';
 import type {
   GameAvailability,
@@ -27,7 +28,14 @@ import type {
 } from '../../generated/api/types.gen';
 
 const { t } = useI18n();
+const route = useRoute();
 const queryClient = useQueryClient();
+
+// Add game lands here carrying the saved title, which is this screen's half of
+// its success state; the new row is the other half.
+const savedTitle = computed(() =>
+  typeof route.query.saved === 'string' ? route.query.saved : undefined,
+);
 
 const branchFilter = ref('');
 const search = ref('');
@@ -102,10 +110,7 @@ const branchOptions = computed(() =>
   })),
 );
 
-const categoryOptions = gameCategories.map((category) => ({
-  value: category,
-  label: t('games.category.' + category),
-}));
+const categories = categoryOptions(t);
 
 const statusOptions = gameStatuses.map((status) => ({
   value: status,
@@ -202,7 +207,7 @@ function branchOf(row: Parameters<typeof branchLabel>[0]) {
           class="w-[170px] shrink-0"
           :placeholder="t('games.inventory.allCategories')"
           placeholder-selectable
-          :options="categoryOptions"
+          :options="categories"
         />
         <UiSelect
           id="status-filter"
@@ -244,6 +249,15 @@ function branchOf(row: Parameters<typeof branchLabel>[0]) {
           {{ t('games.inventory.nextPage') }}
         </UiButton>
       </div>
+
+      <p
+        v-if="savedTitle"
+        data-testid="inventory-saved"
+        role="status"
+        class="w-full text-[13px] leading-[1.5] text-success-fg"
+      >
+        {{ t('games.inventory.saved', { title: savedTitle }) }}
+      </p>
 
       <p
         v-if="retire.isError.value"

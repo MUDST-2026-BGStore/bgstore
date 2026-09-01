@@ -1,15 +1,13 @@
 package com.chanakanlabs.bgstore.inventory;
 
-import static org.jooq.impl.DSL.field;
-import static org.jooq.impl.DSL.name;
+import static com.chanakanlabs.bgstore.database.Tables.GAME;
+import static com.chanakanlabs.bgstore.database.Tables.GAME_BRANCH_STOCK;
 import static org.jooq.impl.DSL.noCondition;
-import static org.jooq.impl.DSL.table;
 
-import com.chanakanlabs.bgstore.contract.model.GameAvailability;
 import com.chanakanlabs.bgstore.contract.model.GameCategory;
 import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -19,52 +17,30 @@ import java.util.UUID;
 import org.jooq.DSLContext;
 import org.jooq.Field;
 import org.jooq.Record;
-import org.jooq.Table;
 import org.jooq.impl.DSL;
 import org.springframework.stereotype.Repository;
 
 /**
- * jOOQ access to the game catalogue.
+ * jOOQ access to the game catalogue, through the table types the {@code jooqCodegen} task generates
+ * from the Flyway migrations.
  *
- * <p>The project runs jOOQ without generated tables (see {@code HelloController}), so columns are
- * named through {@link DSL#field}. Only {@code game} and {@code game_branch_stock} are touched
- * here; branch names come from the branches module rather than a cross-module join.
+ * <p>Only {@code game} and {@code game_branch_stock} are touched here; branch names come from the
+ * branches module rather than a cross-module join.
  */
 @Repository
 class GameRepository {
 
-  private static final Table<?> GAME = table(name("game"));
-  private static final Field<UUID> ID = field(name("id"), UUID.class);
-  private static final Field<String> TITLE = field(name("title"), String.class);
-  private static final Field<String> DESCRIPTION = field(name("description"), String.class);
-  private static final Field<String> CATEGORY = field(name("category"), String.class);
-  private static final Field<Integer> MIN_PLAYERS = field(name("min_players"), Integer.class);
-  private static final Field<Integer> MAX_PLAYERS = field(name("max_players"), Integer.class);
-  private static final Field<Integer> PLAY_TIME = field(name("play_time_minutes"), Integer.class);
-  private static final Field<String> DIFFICULTY = field(name("difficulty"), String.class);
-  private static final Field<String[]> TAGS = field(name("tags"), String[].class);
-  private static final Field<String> LIFECYCLE = field(name("lifecycle"), String.class);
-  private static final Field<OffsetDateTime> CREATED_AT =
-      field(name("created_at"), OffsetDateTime.class);
-  private static final Field<OffsetDateTime> UPDATED_AT =
-      field(name("updated_at"), OffsetDateTime.class);
-  private static final Field<OffsetDateTime> LAST_PLAYED_AT =
-      field(name("last_played_at"), OffsetDateTime.class);
-
-  private static final Table<?> STOCK = table(name("game_branch_stock"));
-  private static final Field<UUID> STOCK_GAME_ID = field(name("game_id"), UUID.class);
-  private static final Field<UUID> STOCK_BRANCH_ID = field(name("branch_id"), UUID.class);
-  private static final Field<Integer> STOCK_COPIES = field(name("copies"), Integer.class);
-  private static final Field<Integer> STOCK_IN_USE = field(name("copies_in_use"), Integer.class);
-
   /**
-   * Rolls stock up per game, derives the display status from it, then pages the result. The window
-   * functions run before {@code limit}, so one round trip yields both the page and the totals the
-   * stat tiles show for the whole filtered set.
+   * Rolls stock up per game over the branches the filter selects, and derives the status the {@code
+   * status} filter matches on.
    *
-   * <p>The three placeholders take the optional filters; every value is bound, never inlined.
+   * <p>The {@code status} case has to live in SQL so the filter can be applied and paged in the
+   * database. What a row actually reports is still derived once, in {@link GameAvailabilities},
+   * from the lifecycle and counts selected here — the case below only decides which rows come back.
+   *
+   * <p>The placeholders take the optional filters; every value is bound, never inlined.
    */
-  private static final String LIST_SQL =
+  private static final String ROLLED_STOCK_SQL =
       """
       with scoped_stock as (
           select s.game_id,
@@ -83,6 +59,7 @@ class GameRepository {
                  g.category,
                  g.min_players,
                  g.max_players,
+                 g.lifecycle,
                  coalesce(st.copies, 0) as copies,
                  coalesce(st.available, 0) as available,
                  coalesce(st.in_use, 0) as in_use,
@@ -98,16 +75,32 @@ class GameRepository {
           left join scoped_stock st on st.game_id = g.id
           ${gameFilter}
       )
-      select id, title, category, min_players, max_players, copies, available,
-             branch_count, single_branch_id, status,
-             count(*) over () as total_elements,
-             sum(available) over () as total_available,
-             sum(in_use) over () as total_in_use
-      from rolled
-      ${statusFilter}
-      order by title, id
-      limit ? offset ?
       """;
+
+  private static final String PAGE_SQL =
+      ROLLED_STOCK_SQL
+          + """
+          select id, title, category, min_players, max_players, lifecycle,
+                 copies, available, branch_count, single_branch_id
+          from rolled
+          ${statusFilter}
+          order by title, id
+          limit ? offset ?
+          """;
+
+  /**
+   * The stat tiles and the "showing x of y" line describe the whole filtered set, so they are
+   * counted separately. Reading them off the page would report zero for any page past the last one.
+   */
+  private static final String TOTALS_SQL =
+      ROLLED_STOCK_SQL
+          + """
+          select count(*) as total_elements,
+                 coalesce(sum(available), 0) as total_available,
+                 coalesce(sum(in_use), 0) as total_in_use
+          from rolled
+          ${statusFilter}
+          """;
 
   private final DSLContext database;
 
@@ -142,105 +135,105 @@ class GameRepository {
       binds.add(filter.status().getValue());
     }
 
-    binds.add(filter.size());
-    binds.add(filter.page() * filter.size());
+    var totals =
+        database.fetchSingle(
+            applyFilters(TOTALS_SQL, stockWhere, gameWhere, statusWhere), binds.toArray());
 
+    var pageBinds = new ArrayList<>(binds);
+    pageBinds.add(filter.size());
+    pageBinds.add(filter.page() * filter.size());
     var rows =
         database.fetch(
-            LIST_SQL
-                .replace("${stockFilter}", stockWhere)
-                .replace("${gameFilter}", gameWhere)
-                .replace("${statusFilter}", statusWhere),
-            binds.toArray());
-    if (rows.isEmpty()) {
-      return GamePage.EMPTY;
-    }
-
-    var first = rows.getFirst();
+            applyFilters(PAGE_SQL, stockWhere, gameWhere, statusWhere), pageBinds.toArray());
 
     return new GamePage(
         rows.map(GameRepository::toSummaryRow),
-        first.get("total_elements", Long.class),
-        first.get("total_available", Long.class),
-        first.get("total_in_use", Long.class));
+        totals.get("total_elements", Long.class),
+        totals.get("total_available", Long.class),
+        totals.get("total_in_use", Long.class));
+  }
+
+  private static String applyFilters(
+      String sql, String stockWhere, String gameWhere, String statusWhere) {
+    return sql.replace("${stockFilter}", stockWhere)
+        .replace("${gameFilter}", gameWhere)
+        .replace("${statusFilter}", statusWhere);
   }
 
   Optional<StoredGame> findById(UUID id) {
     return database
         .select(
-            ID,
-            TITLE,
-            DESCRIPTION,
-            CATEGORY,
-            MIN_PLAYERS,
-            MAX_PLAYERS,
-            PLAY_TIME,
-            DIFFICULTY,
-            TAGS,
-            LIFECYCLE,
-            CREATED_AT,
-            LAST_PLAYED_AT)
+            GAME.ID,
+            GAME.TITLE,
+            GAME.DESCRIPTION,
+            GAME.CATEGORY,
+            GAME.MIN_PLAYERS,
+            GAME.MAX_PLAYERS,
+            GAME.PLAY_TIME_MINUTES,
+            GAME.DIFFICULTY,
+            GAME.TAGS,
+            GAME.LIFECYCLE,
+            GAME.CREATED_AT,
+            GAME.LAST_PLAYED_AT)
         .from(GAME)
-        .where(ID.eq(id))
+        .where(GAME.ID.eq(id))
         .fetchOptional(GameRepository::toStoredGame);
   }
 
   List<BranchStockRow> findStock(UUID gameId) {
     return database
-        .select(STOCK_BRANCH_ID, STOCK_COPIES, STOCK_IN_USE)
-        .from(STOCK)
-        .where(STOCK_GAME_ID.eq(gameId))
+        .select(
+            GAME_BRANCH_STOCK.BRANCH_ID, GAME_BRANCH_STOCK.COPIES, GAME_BRANCH_STOCK.COPIES_IN_USE)
+        .from(GAME_BRANCH_STOCK)
+        .where(GAME_BRANCH_STOCK.GAME_ID.eq(gameId))
         .fetch(
             row ->
                 new BranchStockRow(
-                    row.get(STOCK_BRANCH_ID), row.get(STOCK_COPIES), row.get(STOCK_IN_USE)));
+                    row.get(GAME_BRANCH_STOCK.BRANCH_ID),
+                    row.get(GAME_BRANCH_STOCK.COPIES),
+                    row.get(GAME_BRANCH_STOCK.COPIES_IN_USE)));
   }
 
   UUID insert(GameCommand command) {
     var id = UUID.randomUUID();
-    database
-        .insertInto(GAME)
-        .set(ID, id)
-        .set(TITLE, command.title())
-        .set(DESCRIPTION, command.description())
-        .set(CATEGORY, command.category().getValue())
-        .set(MIN_PLAYERS, command.minPlayers())
-        .set(MAX_PLAYERS, command.maxPlayers())
-        .set(PLAY_TIME, command.playTimeMinutes())
-        .set(DIFFICULTY, command.difficulty())
-        .set(TAGS, command.tags().toArray(String[]::new))
-        .set(LIFECYCLE, command.lifecycle().getValue())
-        .execute();
+    var columns = new LinkedHashMap<Field<?>, Object>(columnsOf(command));
+    columns.put(GAME.ID, id);
+    database.insertInto(GAME).set(columns).execute();
 
     return id;
   }
 
   /** Returns whether a game with this id existed. */
   boolean update(UUID id, GameCommand command) {
-    return database
-            .update(GAME)
-            .set(TITLE, command.title())
-            .set(DESCRIPTION, command.description())
-            .set(CATEGORY, command.category().getValue())
-            .set(MIN_PLAYERS, command.minPlayers())
-            .set(MAX_PLAYERS, command.maxPlayers())
-            .set(PLAY_TIME, command.playTimeMinutes())
-            .set(DIFFICULTY, command.difficulty())
-            .set(TAGS, command.tags().toArray(String[]::new))
-            .set(LIFECYCLE, command.lifecycle().getValue())
-            .set(UPDATED_AT, DSL.currentOffsetDateTime())
-            .where(ID.eq(id))
-            .execute()
-        > 0;
+    var columns = new LinkedHashMap<Field<?>, Object>(columnsOf(command));
+    columns.put(GAME.UPDATED_AT, DSL.currentOffsetDateTime());
+
+    return database.update(GAME).set(columns).where(GAME.ID.eq(id)).execute() > 0;
+  }
+
+  /** The columns a create and a replace both write, so the two cannot drift apart. */
+  private static Map<Field<?>, Object> columnsOf(GameCommand command) {
+    var columns = new LinkedHashMap<Field<?>, Object>();
+    columns.put(GAME.TITLE, command.title());
+    columns.put(GAME.DESCRIPTION, command.description());
+    columns.put(GAME.CATEGORY, command.category().getValue());
+    columns.put(GAME.MIN_PLAYERS, command.minPlayers());
+    columns.put(GAME.MAX_PLAYERS, command.maxPlayers());
+    columns.put(GAME.PLAY_TIME_MINUTES, command.playTimeMinutes());
+    columns.put(GAME.DIFFICULTY, command.difficulty());
+    columns.put(GAME.TAGS, command.tags().toArray(String[]::new));
+    columns.put(GAME.LIFECYCLE, command.lifecycle().getValue());
+
+    return columns;
   }
 
   /** Returns whether a game with this id existed. */
   boolean retire(UUID id) {
     return database
             .update(GAME)
-            .set(LIFECYCLE, GameLifecycle.RETIRED.getValue())
-            .set(UPDATED_AT, DSL.currentOffsetDateTime())
-            .where(ID.eq(id))
+            .set(GAME.LIFECYCLE, GameLifecycle.RETIRED.getValue())
+            .set(GAME.UPDATED_AT, DSL.currentOffsetDateTime())
+            .where(GAME.ID.eq(id))
             .execute()
         > 0;
   }
@@ -251,26 +244,36 @@ class GameRepository {
    */
   void replaceStock(UUID gameId, Map<UUID, Integer> copies) {
     database
-        .deleteFrom(STOCK)
+        .deleteFrom(GAME_BRANCH_STOCK)
         .where(
-            STOCK_GAME_ID
+            GAME_BRANCH_STOCK
+                .GAME_ID
                 .eq(gameId)
-                .and(copies.isEmpty() ? noCondition() : STOCK_BRANCH_ID.notIn(copies.keySet())))
+                .and(
+                    copies.isEmpty()
+                        ? noCondition()
+                        : GAME_BRANCH_STOCK.BRANCH_ID.notIn(copies.keySet())))
         .execute();
 
     copies.forEach(
         (branchId, count) ->
             database
-                .insertInto(STOCK, STOCK_GAME_ID, STOCK_BRANCH_ID, STOCK_COPIES)
+                .insertInto(
+                    GAME_BRANCH_STOCK,
+                    GAME_BRANCH_STOCK.GAME_ID,
+                    GAME_BRANCH_STOCK.BRANCH_ID,
+                    GAME_BRANCH_STOCK.COPIES)
                 .values(gameId, branchId, count)
-                .onConflict(STOCK_GAME_ID, STOCK_BRANCH_ID)
+                .onConflict(GAME_BRANCH_STOCK.GAME_ID, GAME_BRANCH_STOCK.BRANCH_ID)
                 .doUpdate()
-                .set(STOCK_COPIES, count)
+                .set(GAME_BRANCH_STOCK.COPIES, count)
                 .execute());
   }
 
   private static GameSummaryRow toSummaryRow(Record row) {
-    var lifecycle = row.get("status", String.class);
+    var lifecycle = GameLifecycle.fromValue(row.get("lifecycle", String.class));
+    int copies = row.get("copies", Integer.class);
+    int available = row.get("available", Integer.class);
 
     return new GameSummaryRow(
         row.get("id", UUID.class),
@@ -278,27 +281,28 @@ class GameRepository {
         GameCategory.fromValue(row.get("category", String.class)),
         row.get("min_players", Integer.class),
         row.get("max_players", Integer.class),
-        row.get("copies", Integer.class),
-        row.get("available", Integer.class),
+        copies,
+        available,
         row.get("branch_count", Integer.class),
         row.get("single_branch_id", UUID.class),
-        GameAvailability.fromValue(lifecycle));
+        // The list and the detail report the same status for the same numbers.
+        GameAvailabilities.of(lifecycle, copies, available));
   }
 
   private static StoredGame toStoredGame(Record row) {
     return new StoredGame(
-        row.get(ID),
-        row.get(TITLE),
-        row.get(DESCRIPTION),
-        GameCategory.fromValue(row.get(CATEGORY)),
-        row.get(MIN_PLAYERS),
-        row.get(MAX_PLAYERS),
-        row.get(PLAY_TIME),
-        row.get(DIFFICULTY),
-        List.of(Objects.requireNonNullElse(row.get(TAGS), new String[0])),
-        GameLifecycle.fromValue(row.get(LIFECYCLE)),
-        row.get(CREATED_AT),
-        row.get(LAST_PLAYED_AT));
+        row.get(GAME.ID),
+        row.get(GAME.TITLE),
+        row.get(GAME.DESCRIPTION),
+        GameCategory.fromValue(row.get(GAME.CATEGORY)),
+        row.get(GAME.MIN_PLAYERS),
+        row.get(GAME.MAX_PLAYERS),
+        row.get(GAME.PLAY_TIME_MINUTES),
+        row.get(GAME.DIFFICULTY),
+        List.of(Objects.requireNonNullElse(row.get(GAME.TAGS), new String[0])),
+        GameLifecycle.fromValue(row.get(GAME.LIFECYCLE)),
+        row.get(GAME.CREATED_AT),
+        row.get(GAME.LAST_PLAYED_AT));
   }
 
   /** Wildcards typed into the search box match themselves rather than acting as wildcards. */

@@ -1,9 +1,6 @@
 package com.chanakanlabs.bgstore.inventory;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.everyItem;
-import static org.hamcrest.Matchers.is;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -83,6 +80,17 @@ class GameApiIntegrationTest {
   @Test
   void anonymousUserCannotReachTheGameEndpoints() throws Exception {
     mockMvc.perform(get("/api/v1/games")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void refusesAWriteThatCarriesNoCsrfToken() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/games")
+                .with(oidcLogin())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload("Uno", "card", 2, 10).toString()))
+        .andExpect(status().isForbidden());
   }
 
   @Test
@@ -324,14 +332,88 @@ class GameApiIntegrationTest {
 
   @Test
   void rejectsASchemaViolationWithTheOffendingFieldNames() throws Exception {
-    var payload = payload("", "card", 0, 10);
+    var payload = payload("Uno", "card", 0, 10);
 
     create(payload)
         .andExpect(status().isUnprocessableEntity())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
         .andExpect(jsonPath("$.status").value(422))
-        .andExpect(jsonPath("$.errors[*].field", containsInAnyOrder("title", "minPlayers")))
-        .andExpect(jsonPath("$.errors[*].message", everyItem(is("invalid"))));
+        .andExpect(jsonPath("$.errors[0].field").value("minPlayers"))
+        .andExpect(jsonPath("$.errors[0].message").value("invalid"));
+  }
+
+  @Test
+  void separatesAFieldLeftBlankFromAFieldFilledInWrongly() throws Exception {
+    var blankTitle = payload("", "card", 2, 10);
+
+    create(blankTitle)
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].field").value("title"))
+        .andExpect(jsonPath("$.errors[0].message").value("required"));
+
+    var noCategory = json.createObjectNode();
+    noCategory.put("title", "Uno");
+    noCategory.put("minPlayers", 2);
+    noCategory.put("maxPlayers", 10);
+
+    create(noCategory)
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].field").value("category"))
+        .andExpect(jsonPath("$.errors[0].message").value("required"));
+  }
+
+  @Test
+  void namesTheBodyPropertyJacksonCouldNotRead() throws Exception {
+    var unknownCategory = payload("Uno", "boardgame", 2, 10);
+
+    create(unknownCategory)
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].field").value("category"))
+        .andExpect(jsonPath("$.errors[0].message").value("invalid"));
+
+    var badCopies = payload("Uno", "card", 2, 10);
+    badCopies.putArray("copies").addObject().put("branchId", "not-a-uuid").put("copies", 1);
+
+    create(badCopies)
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].field").value("copies[0].branchId"));
+  }
+
+  @Test
+  void answersUnreadableJsonAsAMalformedRequestRatherThanARuleViolation() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/games")
+                .with(oidcLogin())
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{ not json"))
+        .andExpect(status().isBadRequest())
+        .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON));
+  }
+
+  @Test
+  void rejectsAPageSizePastTheContractMaximum() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/games").param("size", "500").with(oidcLogin()))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].field").value("size"));
+  }
+
+  @Test
+  void keepsReportingTheFilteredTotalsOnAPagePastTheLastOne() throws Exception {
+    var uno = payloadWithCopies("Uno", "card", 2, 10, CENTRAL_RAMA_II, 5);
+    create(uno).andExpect(status().isCreated());
+
+    mockMvc
+        .perform(get("/api/v1/games").param("page", "9").param("size", "20").with(oidcLogin()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(0))
+        // The stat tiles describe the filtered set, not the empty page.
+        .andExpect(jsonPath("$.page.totalElements").value(1))
+        .andExpect(jsonPath("$.page.totalPages").value(1))
+        .andExpect(jsonPath("$.stats.titles").value(1))
+        .andExpect(jsonPath("$.stats.availableNow").value(5));
   }
 
   @Test

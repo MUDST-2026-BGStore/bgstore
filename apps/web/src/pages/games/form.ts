@@ -108,7 +108,10 @@ export function toGameRequest(values: GameFormValues): GameRequest {
   return {
     title: values.title.trim(),
     description: values.description.trim() || null,
-    category: values.category as GameCategory,
+    // An unchosen category is left out rather than sent as "", which the API
+    // could only read as an unknown category. Absent, it is reported as
+    // required — which is what it is.
+    category: (values.category || undefined) as GameCategory,
     minPlayers: toNumber(values.minPlayers) as number,
     maxPlayers: toNumber(values.maxPlayers) as number,
     playTimeMinutes: toNumber(values.playTimeMinutes),
@@ -155,4 +158,14 @@ export function fieldErrorsOf(failure: unknown): Record<string, string> {
 /** Whether a failure carries the given HTTP status. */
 export function hasStatus(failure: unknown, status: number): boolean {
   return (failure as { status?: unknown } | undefined)?.status === status;
+}
+
+/** Category `<option>`s, labelled through the caller's translator. */
+export function categoryOptions(
+  translate: (key: string) => string,
+): { value: string; label: string }[] {
+  return gameCategories.map((category) => ({
+    value: category,
+    label: translate('games.category.' + category),
+  }));
 }

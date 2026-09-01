@@ -70,13 +70,11 @@ class GameService {
   GameDetail update(UUID id, GameRequest request) {
     accessPolicy.requireStaffOrManager();
     var command = GameValidator.validate(request, branchIds());
-
-    if (games.findById(id).isEmpty()) {
-      throw new ResourceNotFoundException(GAME, id);
-    }
     rejectRemovingCopiesInUse(id, command);
 
-    games.update(id, command);
+    if (!games.update(id, command)) {
+      throw new ResourceNotFoundException(GAME, id);
+    }
     games.replaceStock(id, command.copiesByBranch());
 
     return get(id);

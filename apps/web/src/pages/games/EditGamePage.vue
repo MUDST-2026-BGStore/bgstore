@@ -4,8 +4,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import GameFormView from './GameFormView.vue';
-import OwnerLayout from '../../layouts/OwnerLayout.vue';
-import UiButton from '../../components/ui/UiButton.vue';
+import ScreenStatus from '../../components/ScreenStatus.vue';
 import {
   branchesQueryOptions,
   gameQueryOptions,
@@ -50,10 +49,14 @@ const errors = ref<Record<string, string>>({});
 const update = useMutation({
   mutationFn: (body: ReturnType<typeof toGameRequest>) =>
     updateGameRequest(gameId.value, body),
-  onSuccess: async () => {
+  onSuccess: async (game) => {
     errors.value = {};
     await queryClient.invalidateQueries({ queryKey: ['games'] });
-    await router.push('/games/' + gameId.value);
+    // The detail screen shows the saved record, which is the success state.
+    await router.push({
+      path: '/games/' + gameId.value,
+      query: { saved: game.title },
+    });
   },
   onError: (failure) => {
     errors.value = fieldErrorsOf(failure);
@@ -66,37 +69,16 @@ function submit(form: GameFormValues) {
 </script>
 
 <template>
-  <OwnerLayout v-if="loading">
-    <p data-testid="form-loading" class="px-8 py-10 text-[14px] text-ink-muted">
-      {{ t('games.state.loading') }}
-    </p>
-  </OwnerLayout>
+  <ScreenStatus v-if="loading" state="loading" testid="form-loading" />
 
-  <OwnerLayout v-else-if="missing">
-    <div class="flex flex-col items-start gap-3 px-8 py-10">
-      <p data-testid="game-not-found" role="alert" class="text-[14px] text-ink">
-        {{ t('games.state.notFound') }}
-      </p>
-      <UiButton variant="outline" to="/games">
-        {{ t('games.details.back') }}
-      </UiButton>
-    </div>
-  </OwnerLayout>
+  <ScreenStatus v-else-if="missing" state="missing" testid="game-not-found" />
 
-  <OwnerLayout v-else-if="failedToLoad">
-    <div class="flex flex-col items-start gap-3 px-8 py-10">
-      <p
-        data-testid="form-load-error"
-        role="alert"
-        class="text-[14px] text-danger-fg"
-      >
-        {{ t('games.state.loadFailed') }}
-      </p>
-      <UiButton variant="outline" size="sm" @click="game.refetch()">
-        {{ t('games.state.retry') }}
-      </UiButton>
-    </div>
-  </OwnerLayout>
+  <ScreenStatus
+    v-else-if="failedToLoad"
+    state="failed"
+    testid="form-load-error"
+    @retry="game.refetch()"
+  />
 
   <GameFormView
     v-else

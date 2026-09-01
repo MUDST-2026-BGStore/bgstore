@@ -359,6 +359,37 @@ describe('add game screen', () => {
       ],
     });
     expect(router.currentRoute.value.path).toBe('/games');
+    // The inventory reports the save; the new row is the rest of the story.
+    expect(router.currentRoute.value.query.saved).toBe(ticketToRide.title);
+  });
+
+  it('leaves an unchosen category out rather than sending an empty value', async () => {
+    const calls = stubApi([
+      branchDirectory,
+      (request) =>
+        request.method === 'POST'
+          ? {
+              status: 422,
+              body: {
+                status: 422,
+                errors: [{ field: 'category', message: 'required' }],
+              },
+            }
+          : undefined,
+    ]);
+    const { wrapper } = await renderScreen(AddGamePage, '/games/new');
+
+    await wrapper.get('#game-title').setValue('Catan');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    const posted = JSON.parse(
+      calls.find((call) => call.method === 'POST')?.body ?? '{}',
+    );
+    expect(posted).not.toHaveProperty('category');
+    expect(wrapper.get('[data-testid="game-category-error"]').text()).toBe(
+      'This is required.',
+    );
   });
 
   it('marks the fields the API rejected and stays on the form', async () => {

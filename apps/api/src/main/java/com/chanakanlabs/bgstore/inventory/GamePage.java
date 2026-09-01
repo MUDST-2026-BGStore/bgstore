@@ -12,5 +12,6 @@ import java.util.List;
 record GamePage(
     List<GameSummaryRow> rows, long totalElements, long totalAvailable, long totalInUse) {
 
+  /** No games matched, which the stat tiles still have to render as zeros. */
   static final GamePage EMPTY = new GamePage(List.of(), 0L, 0L, 0L);
 }

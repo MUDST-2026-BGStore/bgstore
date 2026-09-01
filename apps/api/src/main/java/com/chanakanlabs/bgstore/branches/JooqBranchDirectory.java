@@ -1,26 +1,18 @@
 package com.chanakanlabs.bgstore.branches;
 
-import static org.jooq.impl.DSL.field;
-import static org.jooq.impl.DSL.name;
-import static org.jooq.impl.DSL.table;
+import static com.chanakanlabs.bgstore.database.Tables.BRANCH;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.jooq.DSLContext;
-import org.jooq.Field;
 import org.jooq.Record;
-import org.jooq.Table;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 @Transactional(readOnly = true)
 class JooqBranchDirectory implements BranchDirectory {
-
-  private static final Table<?> BRANCH = table(name("branch"));
-  private static final Field<UUID> ID = field(name("branch", "id"), UUID.class);
-  private static final Field<String> NAME = field(name("branch", "name"), String.class);
 
   private final DSLContext database;
 
@@ -31,22 +23,22 @@ class JooqBranchDirectory implements BranchDirectory {
   @Override
   public List<Branch> findAll() {
     return database
-        .select(ID, NAME)
+        .select(BRANCH.ID, BRANCH.NAME)
         .from(BRANCH)
-        .orderBy(NAME.asc())
+        .orderBy(BRANCH.NAME.asc())
         .fetch(JooqBranchDirectory::toBranch);
   }
 
   @Override
   public Optional<Branch> findById(UUID id) {
     return database
-        .select(ID, NAME)
+        .select(BRANCH.ID, BRANCH.NAME)
         .from(BRANCH)
-        .where(ID.eq(id))
+        .where(BRANCH.ID.eq(id))
         .fetchOptional(JooqBranchDirectory::toBranch);
   }
 
   private static Branch toBranch(Record row) {
-    return new Branch(row.get(ID), row.get(NAME));
+    return new Branch(row.get(BRANCH.ID), row.get(BRANCH.NAME));
   }
 }

@@ -1,8 +1,12 @@
 -- Game catalogue and per-branch stock, plus the branch directory it needs.
+--
+-- Text columns are sized rather than unbounded: the lengths are the ones the
+-- contract publishes, and jOOQ's code generator reads this file to produce the
+-- table types, which needs an indexable type on `branch.name`.
 
 create table branch (
     id uuid primary key,
-    name text not null unique,
+    name varchar(120) not null unique,
     created_at timestamptz not null default now()
 );
 
@@ -17,16 +21,16 @@ values ('3f0d7d5a-9a2b-4a71-8f0e-000000000001', 'Central Rama II'),
        ('3f0d7d5a-9a2b-4a71-8f0e-000000000006', 'Thonglor');
 
 create table game (
-    id uuid primary key default gen_random_uuid(),
-    title text not null,
-    description text,
-    category text not null,
+    id uuid primary key,
+    title varchar(120) not null,
+    description varchar(160),
+    category varchar(16) not null,
     min_players integer not null,
     max_players integer not null,
     play_time_minutes integer,
-    difficulty text,
-    tags text[] not null default '{}',
-    lifecycle text not null default 'active',
+    difficulty varchar(60),
+    tags varchar(40) array not null default array[]::varchar[],
+    lifecycle varchar(16) not null default 'active',
     -- Owned by the play-session module once it exists; null until a session
     -- has used this game.
     last_played_at timestamptz,
@@ -34,9 +38,7 @@ create table game (
     updated_at timestamptz not null default now(),
     constraint game_category_known check (category in ('family', 'card', 'party', 'strategy')),
     constraint game_lifecycle_known check (lifecycle in ('active', 'retired')),
-    constraint game_title_not_blank check (length(btrim(title)) between 1 and 120),
-    constraint game_description_length check (description is null or length(description) <= 160),
-    constraint game_difficulty_length check (difficulty is null or length(difficulty) <= 60),
+    constraint game_title_not_blank check (length(btrim(title)) > 0),
     constraint game_min_players_range check (min_players between 1 and 99),
     constraint game_max_players_range check (max_players between 1 and 99),
     constraint game_player_range check (max_players >= min_players),
@@ -44,8 +46,12 @@ create table game (
 );
 
 -- The inventory list searches on a case-insensitive title match and orders by
--- title, so the index carries the folded value.
+-- title, so the index carries the folded value. jOOQ's code generator reads
+-- this file through a simulator that has no expression indexes, and generates
+-- nothing from an index anyway, so it skips this one.
+-- [jooq ignore start]
 create index game_title_folded_idx on game (lower(title));
+-- [jooq ignore stop]
 
 create table game_branch_stock (
     game_id uuid not null references game (id) on delete cascade,
