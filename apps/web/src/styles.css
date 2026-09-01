@@ -25,13 +25,16 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#app {
+  min-height: 100vh;
+}
+
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
-  background:
-    radial-gradient(circle at 80% 0%, rgb(222 97 58 / 12%), transparent 30rem),
-    #f3f0e8;
+  background: #ffffff;
 }
 
 a {
@@ -40,8 +43,9 @@ a {
 }
 
 .shell {
-  width: min(1120px, calc(100% - 2rem));
-  margin: 0 auto;
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
 }
 
 .masthead {
@@ -202,5 +206,47 @@ h1 {
 @media (prefers-reduced-motion: reduce) {
   .status-dot--pending {
     animation: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .topbar {
+    flex-wrap: wrap;
+  }
+
+  .summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .toolbar {
+    flex-wrap: wrap;
+  }
+
+  .compact-select {
+    min-width: 140px;
+  }
+}
+
+@media (max-width: 640px) {
+  .nav {
+    flex-wrap: wrap;
+  }
+
+  .content-panel {
+    padding-inline: 0.75rem;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .summary-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .table-card {
+    overflow-x: auto;
   }
 }
