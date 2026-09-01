@@ -1,5 +1,48 @@
 @import 'tailwindcss';
 
+/* Design tokens from the BGStore Figma library (file IzVNLaxEDIodhsAAYvzaRo).
+   Names mirror the Figma variable names so the two stay traceable. */
+@theme {
+  --color-canvas: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f9fafb;
+
+  --color-line: #e5e7eb;
+  --color-line-strong: #8a92a0;
+
+  --color-ink: #1b2027;
+  --color-ink-secondary: #454e5a;
+  --color-ink-muted: #5a6472;
+
+  --color-primary: #497883;
+  --color-primary-fg: #ffffff;
+  --color-primary-subtle: #eff5f6;
+  --color-primary-subtle-fg: #375a62;
+
+  --color-success-fg: #276635;
+  --color-success-bg: #eef8f0;
+  --color-success-border: #b0dcb9;
+
+  --color-warning-fg: #855500;
+  --color-warning-bg: #fdf6e7;
+  --color-warning-border: #f6d68c;
+
+  /* Error tone from the design-system palette (color.feedback.error.500). */
+  --color-danger-fg: #d92d20;
+  --color-danger-bg: #fef3f2;
+  --color-danger-border: #fecdc9;
+
+  --color-neutral-fg: #454e5a;
+  --color-neutral-bg: #f3f4f6;
+  --color-neutral-border: #d1d5db;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-table: 10px;
+  --radius-card: 14px;
+}
+
 :root {
   color: #20252d;
   background: #f8fafb;
@@ -99,7 +142,7 @@ a {
   letter-spacing: 0.14em;
 }
 
-h1 {
+.hero h1 {
   margin: 0;
   font-family: inherit;
   font-size: clamp(3rem, 9vw, 6rem);

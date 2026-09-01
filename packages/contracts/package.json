@@ -19,14 +19,14 @@
         }
       },
       "check": {
-        "executor": "nx:run-commands",
+        "executor": "nx:noop",
         "cache": true,
         "inputs": [
           "{projectRoot}/openapi.yaml"
         ],
-        "options": {
-          "command": "./apps/api/gradlew -p apps/api openApiValidate"
-        }
+        "dependsOn": [
+          "bgstore-api:openApiValidate"
+        ]
       }
     }
   }

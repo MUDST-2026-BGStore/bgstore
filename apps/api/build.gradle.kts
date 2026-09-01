@@ -23,6 +23,23 @@ java {
   }
 }
 
+val applicationMainClass = "com.chanakanlabs.bgstore.BgstoreApiApplication"
+
+springBoot {
+  mainClass = applicationMainClass
+}
+
+// Nx schedules resolveMainClassName as its own task, so bootRun and bootJar
+// cannot read that task output. Setting the main class directly bypasses the
+// resolver.
+tasks.bootRun {
+  mainClass = applicationMainClass
+}
+
+tasks.bootJar {
+  mainClass = applicationMainClass
+}
+
 repositories {
   mavenCentral()
 }
