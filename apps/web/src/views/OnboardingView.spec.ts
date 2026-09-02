@@ -96,5 +96,10 @@ describe('client onboarding', () => {
     expect(trigger.text()).toContain('+81');
     await trigger.trigger('keydown', { key: 'Escape' });
     expect(wrapper.find('#country-options').exists()).toBe(false);
+    await trigger.trigger('click');
+    expect(wrapper.find('#country-options').exists()).toBe(true);
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    await flushPromises();
+    expect(wrapper.find('#country-options').exists()).toBe(false);
   });
 });
