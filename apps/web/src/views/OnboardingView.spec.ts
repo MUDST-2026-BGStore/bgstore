@@ -102,4 +102,22 @@ describe('client onboarding', () => {
     await flushPromises();
     expect(wrapper.find('#country-options').exists()).toBe(false);
   });
+
+  it('jumps to a country when its name is typed while the picker is focused', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const i18n = createI18n({ legacy: false, locale: 'en', messages });
+    await router.push('/onboarding');
+    await router.isReady();
+
+    const wrapper = mount(OnboardingView, {
+      global: { plugins: [[VueQueryPlugin, { queryClient }], router, i18n] },
+    });
+    const trigger = wrapper.get('[data-testid="country-trigger"]');
+    await trigger.trigger('keydown', { key: 'j' });
+
+    expect(trigger.text()).toContain('+81');
+    expect(wrapper.find('#country-options').exists()).toBe(true);
+  });
 });

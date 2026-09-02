@@ -23,6 +23,8 @@ const { locale, t } = useI18n();
 
 const pickerRoot = ref<HTMLElement | null>(null);
 const countryMenuOpen = ref(false);
+const searchBuffer = ref('');
+let searchResetTimer: ReturnType<typeof setTimeout> | undefined;
 
 const countryCodes: readonly CountryOption[] = [
   { code: '+66', flag: '🇹🇭', nameEn: 'Thailand', nameTh: 'ไทย' },
@@ -61,16 +63,19 @@ const countryName = (country: CountryOption) =>
 
 function toggleCountryMenu() {
   countryMenuOpen.value = !countryMenuOpen.value;
+  resetSearchBuffer();
 }
 
 function chooseCountry(code: string) {
   emit('update:modelValue', code);
   countryMenuOpen.value = false;
+  resetSearchBuffer();
 }
 
 function handleCountryKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape') {
     countryMenuOpen.value = false;
+    resetSearchBuffer();
   } else if (
     event.key === 'ArrowDown' ||
     event.key === 'Enter' ||
@@ -78,6 +83,45 @@ function handleCountryKeydown(event: KeyboardEvent) {
   ) {
     event.preventDefault();
     countryMenuOpen.value = true;
+    resetSearchBuffer();
+  } else if (
+    event.key.length === 1 &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.altKey
+  ) {
+    event.preventDefault();
+    const typedCharacter = event.key.toLowerCase();
+    const accumulatedQuery = `${searchBuffer.value}${typedCharacter}`;
+    const match = findCountry(accumulatedQuery) ?? findCountry(typedCharacter);
+
+    if (match) {
+      emit('update:modelValue', match.code);
+      countryMenuOpen.value = true;
+    }
+
+    searchBuffer.value = match ? accumulatedQuery : typedCharacter;
+    if (searchResetTimer) clearTimeout(searchResetTimer);
+    searchResetTimer = setTimeout(resetSearchBuffer, 700);
+  }
+}
+
+function findCountry(query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+  const numericQuery = normalizedQuery.replace(/\D/g, '');
+  return countryCodes.find(
+    (country) =>
+      countryName(country).toLowerCase().startsWith(normalizedQuery) ||
+      (numericQuery.length > 0 &&
+        country.code.replace(/\D/g, '').startsWith(numericQuery)),
+  );
+}
+
+function resetSearchBuffer() {
+  searchBuffer.value = '';
+  if (searchResetTimer) {
+    clearTimeout(searchResetTimer);
+    searchResetTimer = undefined;
   }
 }
 
@@ -94,15 +138,17 @@ function handleDocumentPointerDown(event: PointerEvent) {
     !pickerRoot.value.contains(target)
   ) {
     countryMenuOpen.value = false;
+    resetSearchBuffer();
   }
 }
 
 onMounted(() =>
   document.addEventListener('pointerdown', handleDocumentPointerDown),
 );
-onBeforeUnmount(() =>
-  document.removeEventListener('pointerdown', handleDocumentPointerDown),
-);
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', handleDocumentPointerDown);
+  resetSearchBuffer();
+});
 </script>
 
 <template>
