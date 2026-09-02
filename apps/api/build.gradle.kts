@@ -233,7 +233,11 @@ jooq {
         properties {
           property {
             key = "scripts"
-            value = "src/main/resources/db/migration/*.sql"
+            // Identity tables are accessed through the application-owned JDBC
+            // repositories; only catalogue tables need generated jOOQ types.
+            // Keeping this scoped also avoids asking jOOQ's DDL parser to
+            // interpret provider-specific identity constraints.
+            value = "src/main/resources/db/migration/V3__games.sql"
           }
           property {
             key = "sort"
