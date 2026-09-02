@@ -77,4 +77,24 @@ describe('client onboarding', () => {
     expect(wrapper.text()).toContain('We could not save that number');
     expect(router.currentRoute.value.name).toBe('onboarding');
   });
+
+  it('opens the country picker and formats its selected state for Thai users', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const i18n = createI18n({ legacy: false, locale: 'th', messages });
+    await router.push('/onboarding');
+    await router.isReady();
+
+    const wrapper = mount(OnboardingView, {
+      global: { plugins: [[VueQueryPlugin, { queryClient }], router, i18n] },
+    });
+    const trigger = wrapper.get('[data-testid="country-trigger"]');
+    await trigger.trigger('keydown', { key: 'ArrowDown' });
+    expect(wrapper.get('#country-options').text()).toContain('ไทย');
+    await wrapper.get('[data-testid="country-option-+81"]').trigger('click');
+    expect(trigger.text()).toContain('+81');
+    await trigger.trigger('keydown', { key: 'Escape' });
+    expect(wrapper.find('#country-options').exists()).toBe(false);
+  });
 });

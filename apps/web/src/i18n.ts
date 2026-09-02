@@ -40,6 +40,7 @@ export const messages = {
       countryCode: 'Country code',
       phoneNumber: 'Phone number',
       phoneNumberPlaceholder: '081 234 5678',
+      phoneHint: 'Include your local number without the country code.',
       error:
         'We could not save that number. Check the country code and phone number and try again.',
       saving: 'Saving…',
@@ -85,6 +86,7 @@ export const messages = {
       countryCode: 'รหัสประเทศ',
       phoneNumber: 'หมายเลขโทรศัพท์',
       phoneNumberPlaceholder: '081 234 5678',
+      phoneHint: 'กรอกหมายเลขโทรศัพท์โดยไม่ต้องใส่รหัสประเทศ',
       error:
         'ไม่สามารถบันทึกหมายเลขนี้ได้ โปรดตรวจสอบรหัสประเทศและหมายเลขโทรศัพท์แล้วลองอีกครั้ง',
       saving: 'กำลังบันทึก…',

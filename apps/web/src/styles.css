@@ -274,6 +274,11 @@ h1 {
   font-weight: 700;
 }
 
+.phone-label {
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
 .onboarding-form input {
   min-height: 2.75rem;
   padding: 0.65rem 0.75rem;
@@ -286,6 +291,190 @@ h1 {
 .onboarding-form input:focus {
   border-color: var(--accent);
   outline: 3px solid rgb(76 131 143 / 18%);
+}
+
+.phone-control {
+  position: relative;
+  display: flex;
+  min-height: 3.65rem;
+  overflow: visible;
+  border: 1px solid #dce2e6;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #fbfdfd 0%, #f2f8f8 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 90%),
+    0 0.65rem 1.25rem rgb(43 78 86 / 6%);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.phone-control:focus-within {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 4px rgb(76 131 143 / 15%),
+    inset 0 1px 0 rgb(255 255 255 / 90%),
+    0 0.8rem 1.5rem rgb(43 78 86 / 10%);
+  transform: translateY(-1px);
+}
+
+.phone-country-picker {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.phone-country-trigger {
+  display: flex;
+  height: 100%;
+  min-width: 7.8rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.8rem;
+  border: 0;
+  border-radius: 0.95rem 0 0 0.95rem;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.phone-country-trigger:hover,
+.phone-country-trigger[aria-expanded='true'] {
+  background: rgb(76 131 143 / 9%);
+}
+
+.phone-country-trigger:focus-visible,
+.phone-country-option:focus-visible {
+  outline: 3px solid rgb(76 131 143 / 25%);
+  outline-offset: -3px;
+}
+
+.phone-flag {
+  display: inline-grid;
+  width: 1.55rem;
+  height: 1.55rem;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 0.5rem;
+  background: white;
+  box-shadow: 0 1px 3px rgb(24 48 56 / 16%);
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.phone-country-code {
+  letter-spacing: 0.01em;
+}
+
+.phone-chevron {
+  width: 1rem;
+  height: 1rem;
+  margin-left: auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.7;
+  opacity: 0.65;
+  transition: transform 160ms ease;
+}
+
+.phone-country-trigger[aria-expanded='true'] .phone-chevron {
+  transform: rotate(180deg);
+}
+
+.phone-country-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 0.55rem);
+  left: 0;
+  width: min(18rem, 70vw);
+  padding: 0.4rem;
+  overflow: auto;
+  border: 1px solid #dce8e9;
+  border-radius: 0.9rem;
+  background: rgb(255 255 255 / 98%);
+  box-shadow: 0 1rem 2.25rem rgb(30 58 65 / 18%);
+  animation: phone-menu-in 140ms ease-out;
+}
+
+.phone-country-option {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.62rem 0.65rem;
+  border: 0;
+  border-radius: 0.65rem;
+  color: var(--ink);
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.phone-country-option:hover,
+.phone-country-option[aria-selected='true'] {
+  background: #eaf4f4;
+}
+
+.phone-country-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.86rem;
+}
+
+.phone-country-option-code {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.phone-divider {
+  width: 1px;
+  margin: 0.75rem 0;
+  background: #d5e1e2;
+}
+
+.onboarding-form .phone-number-input {
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 0 1rem 1rem 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.onboarding-form .phone-number-input::placeholder {
+  color: #9aa9ae;
+}
+
+.phone-hint {
+  margin: -0.15rem 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+@keyframes phone-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .onboarding-form .button {
