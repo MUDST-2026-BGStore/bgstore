@@ -368,13 +368,20 @@ components:
     CompleteClientProfileRequest:
       type: object
       additionalProperties: false
-      required: [phone]
+      required: [countryCode, phoneNumber]
       properties:
-        phone:
+        countryCode:
           type: string
-          description: A Thai mobile number, with or without the +66 country code.
-          minLength: 10
-          maxLength: 13
+          description: International dialing prefix in E.164 form.
+          pattern: '^\+[1-9][0-9]{0,3}$'
+          example: '+66'
+        phoneNumber:
+          type: string
+          description: National phone number, entered without the country code.
+          minLength: 4
+          maxLength: 15
+          pattern: '^[0-9][0-9() .-]*$'
+          example: '081 234 5678'
     Branch:
       type: object
       additionalProperties: false

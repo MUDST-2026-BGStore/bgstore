@@ -14,8 +14,8 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 public class CurrentUserService {
 
-  private static final Pattern THAI_LOCAL_MOBILE = Pattern.compile("^0([689][0-9]{8})$");
-  private static final Pattern THAI_E164_MOBILE = Pattern.compile("^\\+66([689][0-9]{8})$");
+  private static final Pattern COUNTRY_CODE = Pattern.compile("^\\+[1-9][0-9]{0,3}$");
+  private static final Pattern PHONE_NUMBER = Pattern.compile("^[0-9][0-9() .-]*$");
 
   private final CurrentIdentityProvider currentIdentityProvider;
   private final IdentityAccountService identityAccounts;
@@ -39,7 +39,7 @@ public class CurrentUserService {
   }
 
   @Transactional
-  public ClientProfileData completeClientProfile(String phone) {
+  public ClientProfileData completeClientProfile(String countryCode, String phoneNumber) {
     AuthenticatedIdentity identity = currentIdentityProvider.currentIdentity();
     if (!identity.isClientOnly()) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Client onboarding is not required.");
@@ -47,7 +47,7 @@ public class CurrentUserService {
 
     identityAccounts.synchronize(identity);
     clientProfiles.createIfAbsent(identity.subject());
-    return clientProfiles.complete(identity.subject(), normalizeThaiMobile(phone));
+    return clientProfiles.complete(identity.subject(), normalizePhone(countryCode, phoneNumber));
   }
 
   @Transactional(readOnly = true)
@@ -67,16 +67,23 @@ public class CurrentUserService {
     return clientProfiles.findBySubject(identity.subject());
   }
 
-  private static String normalizeThaiMobile(String phone) {
-    String compact = phone.replaceAll("[\\s-]", "");
-    var localMatch = THAI_LOCAL_MOBILE.matcher(compact);
-    if (localMatch.matches()) {
-      return "+66" + localMatch.group(1);
+  private static String normalizePhone(String countryCode, String phoneNumber) {
+    String rawCountryCode = countryCode == null ? "" : countryCode;
+    String rawPhoneNumber = phoneNumber == null ? "" : phoneNumber;
+    String compactCountryCode = rawCountryCode.replaceAll("[\\s-]", "");
+    String compactNumber = rawPhoneNumber.replaceAll("[()\\s.-]", "");
+    if (!COUNTRY_CODE.matcher(compactCountryCode).matches()
+        || !PHONE_NUMBER.matcher(rawPhoneNumber).matches()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a valid phone number.");
     }
-    if (THAI_E164_MOBILE.matcher(compact).matches()) {
-      return compact;
+    if (compactNumber.startsWith("0")) {
+      compactNumber = compactNumber.substring(1);
     }
-    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a valid Thai mobile number.");
+    String e164 = compactCountryCode + compactNumber;
+    if (!e164.matches("^\\+[1-9][0-9]{7,14}$")) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a valid phone number.");
+    }
+    return e164;
   }
 
   public record CurrentUser(

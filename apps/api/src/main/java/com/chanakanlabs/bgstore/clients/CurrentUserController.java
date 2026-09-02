@@ -29,7 +29,10 @@ public class CurrentUserController implements IdentityApi {
   public ResponseEntity<ClientProfile> completeClientProfile(
       CompleteClientProfileRequest completeClientProfileRequest) {
     return ResponseEntity.ok(
-        toResponse(currentUsers.completeClientProfile(completeClientProfileRequest.getPhone())));
+        toResponse(
+            currentUsers.completeClientProfile(
+                completeClientProfileRequest.getCountryCode(),
+                completeClientProfileRequest.getPhoneNumber())));
   }
 
   private static CurrentUserResponse toResponse(CurrentUserService.CurrentUser currentUser) {

@@ -63,13 +63,13 @@ class CurrentUserServiceTest {
   }
 
   @Test
-  void completesAClientProfileUsingANormalizedThaiMobileNumber() {
+  void completesAClientProfileUsingANormalizedInternationalNumber() {
     AuthenticatedIdentity client = identity(Set.of(ApplicationRole.CLIENT));
     when(currentIdentityProvider.currentIdentity()).thenReturn(client);
     when(clientProfiles.complete(SUBJECT, "+66812345678"))
         .thenReturn(new ClientProfileData("+66812345678", true));
 
-    var profile = service.completeClientProfile("081 234-5678");
+    var profile = service.completeClientProfile("+66", "081 234-5678");
 
     assertThat(profile.phone()).isEqualTo("+66812345678");
     verify(identityAccounts).synchronize(client);
@@ -77,17 +77,29 @@ class CurrentUserServiceTest {
   }
 
   @Test
+  void acceptsForeignNumbersWhenTheCountryCodeIsExplicit() {
+    AuthenticatedIdentity client = identity(Set.of(ApplicationRole.CLIENT));
+    when(currentIdentityProvider.currentIdentity()).thenReturn(client);
+    when(clientProfiles.complete(SUBJECT, "+14155552671"))
+        .thenReturn(new ClientProfileData("+14155552671", true));
+
+    var profile = service.completeClientProfile("+1", "415 555 2671");
+
+    assertThat(profile.phone()).isEqualTo("+14155552671");
+  }
+
+  @Test
   void rejectsInvalidNumbersAndNonClientProfileUpdates() {
     when(currentIdentityProvider.currentIdentity())
         .thenReturn(identity(Set.of(ApplicationRole.CLIENT)));
 
-    assertThatThrownBy(() -> service.completeClientProfile("0312345678"))
+    assertThatThrownBy(() -> service.completeClientProfile("+66", "abc123"))
         .isInstanceOf(ResponseStatusException.class)
-        .hasMessageContaining("valid Thai mobile");
+        .hasMessageContaining("valid phone");
 
     when(currentIdentityProvider.currentIdentity())
         .thenReturn(identity(Set.of(ApplicationRole.STAFF)));
-    assertThatThrownBy(() -> service.completeClientProfile("0812345678"))
+    assertThatThrownBy(() -> service.completeClientProfile("+66", "0812345678"))
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("not required");
   }

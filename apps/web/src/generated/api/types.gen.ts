@@ -36,9 +36,13 @@ export type CurrentUserResponse = {
 
 export type CompleteClientProfileRequest = {
   /**
-   * A Thai mobile number, with or without the +66 country code.
+   * International dialing prefix in E.164 form.
    */
-  phone: string;
+  countryCode: string;
+  /**
+   * National phone number, entered without the country code.
+   */
+  phoneNumber: string;
 };
 
 export type Branch = {

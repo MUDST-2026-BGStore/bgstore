@@ -317,6 +317,11 @@ a {
   font-weight: 700;
 }
 
+.phone-label {
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
 .onboarding-form input {
   min-height: 2.75rem;
   padding: 0.65rem 0.75rem;
@@ -331,6 +336,32 @@ a {
   outline: 3px solid rgb(76 131 143 / 18%);
 }
 
+.phone-control {
+  position: relative;
+  display: flex;
+  min-height: 3.65rem;
+  overflow: visible;
+  border: 1px solid #dce2e6;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #fbfdfd 0%, #f2f8f8 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 90%),
+    0 0.65rem 1.25rem rgb(43 78 86 / 6%);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.phone-control:focus-within {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 4px rgb(76 131 143 / 15%),
+    inset 0 1px 0 rgb(255 255 255 / 90%),
+    0 0.8rem 1.5rem rgb(43 78 86 / 10%);
+  transform: translateY(-1px);
+}
+
 .onboarding-form .button {
   width: 100%;
   margin: 0.5rem 0 0;
@@ -341,6 +372,29 @@ a {
 .onboarding-form .button:disabled {
   cursor: wait;
   opacity: 0.65;
+}
+
+.onboarding-form .phone-number-input {
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 0 1rem 1rem 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.onboarding-form .phone-number-input::placeholder {
+  color: #9aa9ae;
+}
+
+.phone-hint {
+  margin: -0.15rem 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
 }
 
 .form-error {
