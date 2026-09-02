@@ -16,10 +16,33 @@ export const messages = {
       authenticationRequired: 'Sign in required',
       authenticationHint:
         'Your session is handled securely by the BGStore backend.',
+      serviceUnavailable: 'Service unavailable',
+      serviceUnavailableHint: 'We could not reach the BGStore service.',
       connected: 'Service {service} · Database {database}',
     },
     actions: {
       signIn: 'Sign in',
+    },
+    navigation: {
+      home: 'Home',
+      game: 'Game',
+      branch: 'Branch',
+    },
+    auth: {
+      loading: 'Loading your BGStore session…',
+      signInTitle: 'Sign in to BGStore',
+    },
+    onboarding: {
+      eyebrow: 'Welcome to BGStore',
+      title: 'One last detail',
+      description:
+        'Add your Thai mobile number so we can associate reservations and visits with your account.',
+      phone: 'Thai mobile number',
+      phonePlaceholder: '081 234 5678',
+      error:
+        'We could not save that number. Use a valid Thai mobile number and try again.',
+      saving: 'Saving…',
+      continue: 'Continue',
     },
   },
   th: {
@@ -37,10 +60,33 @@ export const messages = {
       authenticationRequired: 'กรุณาเข้าสู่ระบบ',
       authenticationHint:
         'เซสชันของคุณได้รับการจัดการอย่างปลอดภัยโดยระบบ BGStore',
+      serviceUnavailable: 'บริการไม่พร้อมใช้งาน',
+      serviceUnavailableHint: 'ไม่สามารถเชื่อมต่อกับบริการ BGStore ได้',
       connected: 'บริการ {service} · ฐานข้อมูล {database}',
     },
     actions: {
       signIn: 'เข้าสู่ระบบ',
+    },
+    navigation: {
+      home: 'หน้าแรก',
+      game: 'เกม',
+      branch: 'สาขา',
+    },
+    auth: {
+      loading: 'กำลังโหลดเซสชัน BGStore ของคุณ…',
+      signInTitle: 'เข้าสู่ระบบ BGStore',
+    },
+    onboarding: {
+      eyebrow: 'ยินดีต้อนรับสู่ BGStore',
+      title: 'เหลืออีกหนึ่งขั้นตอน',
+      description:
+        'เพิ่มหมายเลขโทรศัพท์มือถือไทยเพื่อให้เราผูกการจองและการเข้าใช้บริการกับบัญชีของคุณได้',
+      phone: 'หมายเลขโทรศัพท์มือถือไทย',
+      phonePlaceholder: '081 234 5678',
+      error:
+        'ไม่สามารถบันทึกหมายเลขนี้ได้ โปรดใช้หมายเลขโทรศัพท์มือถือไทยที่ถูกต้องแล้วลองอีกครั้ง',
+      saving: 'กำลังบันทึก…',
+      continue: 'ดำเนินการต่อ',
     },
   },
 } as const;

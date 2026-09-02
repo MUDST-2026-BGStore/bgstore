@@ -12,6 +12,24 @@ client.setConfig({
   credentials: 'include',
 });
 
+client.interceptors.request.use((request) => {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
+    return request;
+  }
+
+  const csrfToken = document.cookie
+    .split('; ')
+    .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+    ?.split('=')[1];
+  if (!csrfToken) {
+    return request;
+  }
+
+  const headers = new Headers(request.headers);
+  headers.set('X-XSRF-TOKEN', decodeURIComponent(csrfToken));
+  return new Request(request, { headers });
+});
+
 const app = createApp(App);
 app.use(createPinia());
 app.use(router);

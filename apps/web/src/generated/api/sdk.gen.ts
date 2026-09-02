@@ -9,6 +9,12 @@ import type {
 } from './client';
 import { client } from './client.gen';
 import type {
+  CompleteClientProfileData,
+  CompleteClientProfileErrors,
+  CompleteClientProfileResponses,
+  GetCurrentUserData,
+  GetCurrentUserErrors,
+  GetCurrentUserResponses,
   GetHelloData,
   GetHelloErrors,
   GetHelloResponses,
@@ -52,4 +58,56 @@ export const getHello = <ThrowOnError extends boolean = false>(
     ],
     url: '/hello',
     ...options,
+  });
+
+/**
+ * Get the authenticated BGStore user context.
+ */
+export const getCurrentUser = <ThrowOnError extends boolean = false>(
+  options?: Options<GetCurrentUserData, ThrowOnError>,
+): RequestResult<GetCurrentUserResponses, GetCurrentUserErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    GetCurrentUserResponses,
+    GetCurrentUserErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/me',
+    ...options,
+  });
+
+/**
+ * Complete the authenticated client's required profile data.
+ */
+export const completeClientProfile = <ThrowOnError extends boolean = false>(
+  options: Options<CompleteClientProfileData, ThrowOnError>,
+): RequestResult<
+  CompleteClientProfileResponses,
+  CompleteClientProfileErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    CompleteClientProfileResponses,
+    CompleteClientProfileErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/me/client-profile',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   });

@@ -4,3 +4,4 @@
 - [ADR-0002: Backend-for-frontend authentication](0002-bff-authentication.md)
 - [ADR-0003: Modular monolith](0003-modular-monolith.md)
 - [ADR-0004: GitOps delivery](0004-gitops-delivery.md)
+- [ADR-0005: Application authorization policy](0005-application-authorization-policy.md)
