@@ -12,6 +12,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.jooq.DSLContext;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.OidcLoginRequestPostProcessor;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
@@ -80,6 +83,25 @@ class GameApiIntegrationTest {
   @Test
   void anonymousUserCannotReachTheGameEndpoints() throws Exception {
     mockMvc.perform(get("/api/v1/games")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void clientCannotWriteGamesEvenAfterCompletingOnboarding() throws Exception {
+    var subject = "catalogue-client";
+    mockMvc.perform(get("/api/v1/me").with(clientLogin(subject))).andExpect(status().isOk());
+    database.execute(
+        "update client_profiles set phone_e164 = ?, completed_at = current_timestamp where subject = ?",
+        "+66812345678",
+        subject);
+
+    mockMvc
+        .perform(
+            post("/api/v1/games")
+                .with(clientLogin(subject))
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload("Uno", "card", 2, 10).toString()))
+        .andExpect(status().isForbidden());
   }
 
   @Test
@@ -490,6 +512,40 @@ class GameApiIntegrationTest {
             .with(csrf())
             .contentType(MediaType.APPLICATION_JSON)
             .content(payload.toString()));
+  }
+
+  private static OidcLoginRequestPostProcessor oidcLogin() {
+    return org.springframework.security.test.web.servlet.request
+        .SecurityMockMvcRequestPostProcessors.oidcLogin()
+        .idToken(
+            token ->
+                token.claims(
+                    claims ->
+                        claims.putAll(
+                            Map.of(
+                                "sub", "catalogue-staff",
+                                "preferred_username", "staff@example.test",
+                                "email", "staff@example.test",
+                                "given_name", "Local",
+                                "family_name", "Staff",
+                                "realm_access", Map.of("roles", List.of("STAFF"))))));
+  }
+
+  private static OidcLoginRequestPostProcessor clientLogin(String subject) {
+    return org.springframework.security.test.web.servlet.request
+        .SecurityMockMvcRequestPostProcessors.oidcLogin()
+        .idToken(
+            token ->
+                token.claims(
+                    claims ->
+                        claims.putAll(
+                            Map.of(
+                                "sub", subject,
+                                "preferred_username", "client@example.test",
+                                "email", "client@example.test",
+                                "given_name", "Local",
+                                "family_name", "Client",
+                                "realm_access", Map.of("roles", List.of("CLIENT"))))));
   }
 
   private ObjectNode payload(String title, String category, int minPlayers, int maxPlayers) {
