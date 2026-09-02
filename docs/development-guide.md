@@ -22,6 +22,7 @@ The containerized path is useful when checking production boundaries: `docker co
 | Domain behavior                         | `apps/api/src/main/java/com/chanakanlabs/bgstore`  | The owning module package and its tests                      |
 | Database tables or indexes              | `apps/api/src/main/resources/db/migration`         | jOOQ configuration in `apps/api/build.gradle.kts`            |
 | Authentication, sessions, or CSRF       | `apps/api/.../security`                            | `docs/decisions/0002-bff-authentication.md`                  |
+| Application role authorization          | `apps/api/.../identity/AccessPolicy`               | `docs/decisions/0005-application-authorization-policy.md`    |
 | Unit/integration/architecture tests     | `apps/api/src/test` or `apps/web/src/**/*.spec.ts` | `apps/web-e2e/src` for browser behavior                      |
 | Local services or seeded identities     | `compose.yaml`                                     | `infra/local`                                                |
 | Application Kubernetes resources        | `deploy/charts/bgstore`                            | `deploy/environments`                                        |
@@ -56,6 +57,19 @@ The backend test suite uses Testcontainers for real PostgreSQL and Redis-compati
 5. Add an append-only Flyway migration for schema changes. Never edit a migration that has reached a shared environment.
 6. Run `pnpm check`, `pnpm e2e`, and the relevant deployment rendering checks.
 7. Use a Conventional Commit and update an ADR or runbook when the operational or architectural behavior changes.
+
+## Authorization policy
+
+Use the identity module's `AccessPolicy` at the start of a domain service command:
+
+- `requireStaffOrManager()` for operational behavior, including inventory,
+  reservations, visits, and play sessions.
+- `requireManager()` for administrative policies and staff permissions.
+
+Do not enforce these policies only in a controller or Vue route guard. Vue can
+use `/me.roles` to present navigation, while the backend remains authoritative.
+Document the resulting `403` response in the OpenAPI contract and test a
+denied client request alongside the allowed staff or manager path.
 
 ## Generated and derived files
 

@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -51,7 +52,21 @@ class HelloApiIntegrationTest {
   @Test
   void authenticatedUserCanReachApiAndDatabase() throws Exception {
     mockMvc
-        .perform(get("/api/v1/hello").with(oidcLogin()))
+        .perform(
+            get("/api/v1/hello")
+                .with(
+                    oidcLogin()
+                        .idToken(
+                            token ->
+                                token.claims(
+                                    claims ->
+                                        claims.putAll(
+                                            Map.of(
+                                                "sub", "hello-test-user",
+                                                "preferred_username", "hello@example.test",
+                                                "email", "hello@example.test",
+                                                "given_name", "Hello",
+                                                "family_name", "Test"))))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.message").value("Hello, BGStore!"))
         .andExpect(jsonPath("$.service").value("bgstore-api"))

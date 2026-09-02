@@ -1,0 +1,241 @@
+:root {
+  color: #20252d;
+  background: #f8fafb;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: #f8fafb;
+}
+
+a {
+  color: #3f7580;
+  font-weight: 650;
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+.bgstore-auth-shell {
+  width: min(100% - 2rem, 68rem);
+  margin: 0 auto;
+}
+
+.bgstore-auth-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 5.5rem;
+  border-bottom: 1px solid #e7ebee;
+}
+
+.bgstore-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+.bgstore-brand-mark {
+  display: grid;
+  width: 2.1rem;
+  height: 2.1rem;
+  place-items: center;
+  border-radius: 0.6rem;
+  background: #4c838f;
+  color: white;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+}
+.bgstore-locale {
+  display: flex;
+  gap: 0.25rem;
+  font-size: 0.86rem;
+}
+.bgstore-locale a {
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.45rem;
+  color: #53606b;
+}
+.bgstore-locale a.is-active,
+.bgstore-locale a:hover {
+  color: #2b5f6c;
+  background: #edf5f6;
+  text-decoration: none;
+}
+
+.bgstore-auth-card {
+  width: min(100%, 34rem);
+  margin: clamp(3rem, 12vh, 7rem) auto;
+  padding: clamp(1.75rem, 4vw, 2.5rem);
+  border: 1px solid #e2e6e9;
+  border-radius: 1.1rem;
+  background: #fff;
+  box-shadow: 0 1.25rem 2.5rem rgb(30 43 52 / 8%);
+}
+.bgstore-auth-card > h1 {
+  margin: 1rem 0 0.45rem;
+  color: #20252d;
+  font-size: 1.65rem;
+  letter-spacing: -0.035em;
+  text-align: center;
+}
+.bgstore-auth-card > p {
+  margin: 0 0 1.8rem;
+  color: #64717a;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  text-align: center;
+}
+.bgstore-auth-icon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  margin: 0 auto;
+  place-items: center;
+  border-radius: 999px;
+  background: #4c838f;
+  color: #fff;
+  font-size: 1.7rem;
+  font-weight: 500;
+}
+
+.bgstore-form {
+  display: grid;
+  gap: 1rem;
+}
+.bgstore-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+}
+.bgstore-field {
+  display: grid;
+  gap: 0.45rem;
+}
+.bgstore-field label {
+  color: #20252d;
+  font-size: 0.86rem;
+  font-weight: 650;
+}
+.bgstore-field input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid #dce2e6;
+  border-radius: 0.5rem;
+  color: #20252d;
+  background: #fff;
+  font: inherit;
+}
+.bgstore-field input:focus {
+  border-color: #4c838f;
+  outline: 3px solid rgb(76 131 143 / 18%);
+}
+.bgstore-field input[aria-invalid='true'] {
+  border-color: #b44d4d;
+}
+.bgstore-field-error {
+  margin: 0;
+  color: #b44d4d;
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+.bgstore-form-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.82rem;
+}
+.bgstore-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #53606b;
+}
+.bgstore-check input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #4c838f;
+}
+.bgstore-submit {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 0;
+  border-radius: 0.5rem;
+  color: #fff;
+  background: #4c838f;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+}
+.bgstore-submit:hover {
+  background: #3f7580;
+}
+.bgstore-submit:focus-visible {
+  outline: 3px solid #20252d;
+  outline-offset: 3px;
+}
+.bgstore-auth-footer {
+  margin-top: 1.5rem;
+  padding-top: 1.35rem;
+  border-top: 1px solid #e7ebee;
+  color: #53606b;
+  font-size: 0.86rem;
+  text-align: center;
+}
+.bgstore-auth-footer p {
+  margin: 0;
+}
+.bgstore-alert {
+  margin: 1rem 0;
+  padding: 0.8rem 1rem;
+  border-radius: 0.55rem;
+  font-size: 0.87rem;
+  line-height: 1.45;
+}
+.bgstore-alert--error {
+  color: #843c3c;
+  background: #fff2f2;
+}
+.bgstore-alert--success {
+  color: #266541;
+  background: #eff9f2;
+}
+.bgstore-alert--warning {
+  color: #795919;
+  background: #fff8e5;
+}
+
+@media (max-width: 560px) {
+  .bgstore-auth-shell {
+    width: min(100% - 1.25rem, 34rem);
+  }
+  .bgstore-auth-header {
+    min-height: 4.5rem;
+  }
+  .bgstore-auth-card {
+    margin: 2rem auto;
+    padding: 1.4rem;
+  }
+  .bgstore-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,69 +1,83 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query';
+import { computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { helloQueryOptions } from '../queries/hello';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
+import { currentUserQueryOptions } from '../queries/current-user';
 
+const route = useRoute();
+const router = useRouter();
 const { t } = useI18n();
-const hello = useQuery(helloQueryOptions());
+const currentUser = useQuery(currentUserQueryOptions());
+
+const signInHref = computed(
+  () =>
+    `/oauth2/authorization/keycloak?returnTo=${encodeURIComponent(route.fullPath)}`,
+);
+
+watch(
+  () => currentUser.data.value,
+  (user) => {
+    if (!user) {
+      return;
+    }
+    if (user.onboardingRequired && route.name !== 'onboarding') {
+      void router.replace({
+        name: 'onboarding',
+        query: { returnTo: route.fullPath },
+      });
+      return;
+    }
+    if (!user.onboardingRequired && route.name === 'onboarding') {
+      const returnTo = route.query.returnTo;
+      void router.replace(
+        typeof returnTo === 'string' &&
+          returnTo.startsWith('/') &&
+          !returnTo.startsWith('//')
+          ? returnTo
+          : '/',
+      );
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
   <main class="shell">
     <header class="masthead">
-      <a class="brand" href="/" aria-label="BGStore home">
+      <RouterLink class="brand" to="/" aria-label="BGStore home">
         <span class="brand-mark" aria-hidden="true">BG</span>
-        <span>{{ t('app.title') }}</span>
-      </a>
-      <span class="environment">{{ t('app.walkingSkeleton') }}</span>
+        <span>BGStore</span>
+      </RouterLink>
+      <nav class="site-nav" aria-label="Primary navigation">
+        <RouterLink to="/">{{ t('navigation.home') }}</RouterLink>
+        <span>{{ t('navigation.game') }}</span>
+        <span>{{ t('navigation.branch') }}</span>
+      </nav>
     </header>
 
-    <section class="hero" aria-labelledby="page-title">
-      <p class="eyebrow">
-        {{ t('home.eyebrow') }}
-      </p>
-      <h1 id="page-title">
-        {{ t('app.title') }}
-      </h1>
-      <p class="lede">
-        {{ t('home.description') }}
-      </p>
+    <section
+      v-if="currentUser.isPending.value"
+      class="auth-state"
+      aria-live="polite"
+    >
+      {{ t('auth.loading') }}
+    </section>
 
-      <div class="status-card" aria-live="polite">
-        <template v-if="hello.isPending.value">
-          <span class="status-dot status-dot--pending" aria-hidden="true" />
-          <p>{{ t('status.connecting') }}</p>
-        </template>
-
-        <template v-else-if="hello.isError.value">
-          <span class="status-dot status-dot--error" aria-hidden="true" />
-          <div>
-            <p class="status-title">
-              {{ t('status.authenticationRequired') }}
-            </p>
-            <p>{{ t('status.authenticationHint') }}</p>
-          </div>
-          <a class="button" href="/oauth2/authorization/keycloak">
-            {{ t('actions.signIn') }}
-          </a>
-        </template>
-
-        <template v-else>
-          <span class="status-dot status-dot--ready" aria-hidden="true" />
-          <div>
-            <p class="status-title" data-testid="api-message">
-              {{ hello.data.value?.message }}
-            </p>
-            <p>
-              {{
-                t('status.connected', {
-                  service: hello.data.value?.service,
-                  database: hello.data.value?.database,
-                })
-              }}
-            </p>
-          </div>
-        </template>
+    <section
+      v-else-if="currentUser.isError.value"
+      class="auth-state"
+      aria-labelledby="sign-in-title"
+    >
+      <div class="auth-state-card">
+        <span class="auth-state-icon" aria-hidden="true">BG</span>
+        <h1 id="sign-in-title">{{ t('auth.signInTitle') }}</h1>
+        <p>{{ t('status.authenticationHint') }}</p>
+        <a class="button" :href="signInHref">{{ t('actions.signIn') }}</a>
       </div>
     </section>
+
+    <RouterView v-else />
   </main>
 </template>

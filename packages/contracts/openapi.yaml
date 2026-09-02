@@ -12,6 +12,8 @@ security:
 tags:
   - name: Hello
     description: Walking-skeleton operations.
+  - name: Identity
+    description: The authenticated BGStore user context and client onboarding.
 paths:
   /hello:
     get:
@@ -27,6 +29,46 @@ paths:
                 $ref: '#/components/schemas/HelloResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '428':
+          $ref: '#/components/responses/OnboardingRequired'
+  /me:
+    get:
+      tags: [Identity]
+      operationId: getCurrentUser
+      summary: Get the authenticated BGStore user context.
+      responses:
+        '200':
+          description: The cookie-backed user context.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CurrentUserResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /me/client-profile:
+    put:
+      tags: [Identity]
+      operationId: completeClientProfile
+      summary: Complete the authenticated client's required profile data.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteClientProfileRequest'
+      responses:
+        '200':
+          description: The completed client profile.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClientProfile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 components:
   securitySchemes:
     cookieAuth:
@@ -36,6 +78,24 @@ components:
   responses:
     Unauthorized:
       description: Authentication is required.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    Forbidden:
+      description: The authenticated user is not allowed to perform this action.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    BadRequest:
+      description: The request is invalid.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    OnboardingRequired:
+      description: The client must complete onboarding before using this endpoint.
       content:
         application/problem+json:
           schema:
@@ -74,3 +134,63 @@ components:
         instance:
           type: string
           format: uri-reference
+    ApplicationRole:
+      type: string
+      enum: [CLIENT, STAFF, MANAGER]
+    ClientProfile:
+      type: object
+      additionalProperties: false
+      required: [completed]
+      properties:
+        phone:
+          type: string
+          description: Thai mobile number in E.164 format.
+          example: '+66812345678'
+        completed:
+          type: boolean
+    CurrentUserResponse:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          subject,
+          username,
+          email,
+          firstName,
+          lastName,
+          roles,
+          onboardingRequired,
+        ]
+      properties:
+        subject:
+          type: string
+          description: Immutable external identity subject.
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        roles:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApplicationRole'
+        clientProfile:
+          allOf:
+            - $ref: '#/components/schemas/ClientProfile'
+          nullable: true
+        onboardingRequired:
+          type: boolean
+    CompleteClientProfileRequest:
+      type: object
+      additionalProperties: false
+      required: [phone]
+      properties:
+        phone:
+          type: string
+          description: A Thai mobile number, with or without the +66 country code.
+          minLength: 10
+          maxLength: 13
