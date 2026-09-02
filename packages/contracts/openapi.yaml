@@ -333,7 +333,15 @@ components:
       type: object
       additionalProperties: false
       required:
-        [subject, username, email, firstName, lastName, roles, onboardingRequired]
+        [
+          subject,
+          username,
+          email,
+          firstName,
+          lastName,
+          roles,
+          onboardingRequired,
+        ]
       properties:
         subject:
           type: string
