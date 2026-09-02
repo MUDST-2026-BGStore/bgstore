@@ -36,11 +36,12 @@ export const messages = {
       eyebrow: 'Welcome to BGStore',
       title: 'One last detail',
       description:
-        'Add your Thai mobile number so we can associate reservations and visits with your account.',
-      phone: 'Thai mobile number',
-      phonePlaceholder: '081 234 5678',
+        'Add your phone number so we can associate reservations and visits with your account.',
+      countryCode: 'Country code',
+      phoneNumber: 'Phone number',
+      phoneNumberPlaceholder: '081 234 5678',
       error:
-        'We could not save that number. Use a valid Thai mobile number and try again.',
+        'We could not save that number. Check the country code and phone number and try again.',
       saving: 'Saving…',
       continue: 'Continue',
     },
@@ -80,11 +81,12 @@ export const messages = {
       eyebrow: 'ยินดีต้อนรับสู่ BGStore',
       title: 'เหลืออีกหนึ่งขั้นตอน',
       description:
-        'เพิ่มหมายเลขโทรศัพท์มือถือไทยเพื่อให้เราผูกการจองและการเข้าใช้บริการกับบัญชีของคุณได้',
-      phone: 'หมายเลขโทรศัพท์มือถือไทย',
-      phonePlaceholder: '081 234 5678',
+        'เพิ่มหมายเลขโทรศัพท์เพื่อให้เราผูกการจองและการเข้าใช้บริการกับบัญชีของคุณได้',
+      countryCode: 'รหัสประเทศ',
+      phoneNumber: 'หมายเลขโทรศัพท์',
+      phoneNumberPlaceholder: '081 234 5678',
       error:
-        'ไม่สามารถบันทึกหมายเลขนี้ได้ โปรดใช้หมายเลขโทรศัพท์มือถือไทยที่ถูกต้องแล้วลองอีกครั้ง',
+        'ไม่สามารถบันทึกหมายเลขนี้ได้ โปรดตรวจสอบรหัสประเทศและหมายเลขโทรศัพท์แล้วลองอีกครั้ง',
       saving: 'กำลังบันทึก…',
       continue: 'ดำเนินการต่อ',
     },

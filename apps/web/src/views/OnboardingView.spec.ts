@@ -12,7 +12,7 @@ describe('client onboarding', () => {
     vi.unstubAllGlobals();
   });
 
-  it('saves a Thai mobile number then returns to the requested page', async () => {
+  it('saves a country-coded phone number then returns to the requested page', async () => {
     client.setConfig({ baseUrl: 'http://localhost/api/v1' });
     vi.stubGlobal(
       'fetch',
@@ -36,13 +36,16 @@ describe('client onboarding', () => {
     const wrapper = mount(OnboardingView, {
       global: { plugins: [[VueQueryPlugin, { queryClient }], router, i18n] },
     });
-    await wrapper.get('#phone').setValue('081 234 5678');
+    await wrapper.get('#countryCode').setValue('+66');
+    await wrapper.get('#phoneNumber').setValue('081 234 5678');
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
     const request = vi.mocked(fetch).mock.calls[0]?.[0] as Request;
     expect(request.url).toBe('http://localhost/api/v1/me/client-profile');
-    expect(await request.text()).toBe('{"phone":"081 234 5678"}');
+    expect(await request.text()).toBe(
+      '{"countryCode":"+66","phoneNumber":"081 234 5678"}',
+    );
     expect(router.currentRoute.value.fullPath).toBe('/');
   });
 
@@ -67,7 +70,7 @@ describe('client onboarding', () => {
     const wrapper = mount(OnboardingView, {
       global: { plugins: [[VueQueryPlugin, { queryClient }], router, i18n] },
     });
-    await wrapper.get('#phone').setValue('not a phone number');
+    await wrapper.get('#phoneNumber').setValue('not a phone number');
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 

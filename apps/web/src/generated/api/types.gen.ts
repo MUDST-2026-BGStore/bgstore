@@ -23,7 +23,7 @@ export type ApplicationRole = 'CLIENT' | 'STAFF' | 'MANAGER';
 
 export type ClientProfile = {
   /**
-   * Thai mobile number in E.164 format.
+   * Phone number normalized to E.164 format.
    */
   phone?: string;
   completed: boolean;
@@ -45,9 +45,13 @@ export type CurrentUserResponse = {
 
 export type CompleteClientProfileRequest = {
   /**
-   * A Thai mobile number, with or without the +66 country code.
+   * International dialing prefix in E.164 form.
    */
-  phone: string;
+  countryCode: string;
+  /**
+   * National phone number, entered without the country code.
+   */
+  phoneNumber: string;
 };
 
 export type GetHelloData = {
