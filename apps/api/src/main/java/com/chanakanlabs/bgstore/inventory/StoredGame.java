@@ -10,8 +10,8 @@ import org.springframework.lang.Nullable;
 /** A catalogue row as stored, without the per-branch stock that hangs off it. */
 record StoredGame(
     UUID id,
-    String title,
-    @Nullable String description,
+    LocalizedText title,
+    LocalizedText description,
     GameCategory category,
     int minPlayers,
     int maxPlayers,

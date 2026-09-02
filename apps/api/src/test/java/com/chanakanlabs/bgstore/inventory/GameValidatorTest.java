@@ -7,6 +7,8 @@ import com.chanakanlabs.bgstore.contract.model.BranchCopiesRequest;
 import com.chanakanlabs.bgstore.contract.model.GameCategory;
 import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
 import com.chanakanlabs.bgstore.contract.model.GameRequest;
+import com.chanakanlabs.bgstore.contract.model.LocalizedDescription;
+import com.chanakanlabs.bgstore.contract.model.LocalizedTitle;
 import com.chanakanlabs.bgstore.web.FieldViolation;
 import com.chanakanlabs.bgstore.web.ValidationFailedException;
 import java.util.List;
@@ -14,6 +16,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.lang.Nullable;
 
 class GameValidatorTest {
 
@@ -24,15 +27,15 @@ class GameValidatorTest {
   @Test
   void keepsTrimmedValuesAndDefaultsAnAbsentLifecycleToActive() {
     var request = request();
-    request.setDescription("  Build routes across the map.  ");
+    request.setDescription(description("  Build routes across the map.  ", null));
     request.setDifficulty(" Easy to teach ");
     request.setPlayTimeMinutes(60);
     request.setCopies(List.of(new BranchCopiesRequest(SILOM, 2)));
 
     var command = GameValidator.validate(request, KNOWN_BRANCHES);
 
-    assertThat(command.title()).isEqualTo("Ticket to Ride");
-    assertThat(command.description()).isEqualTo("Build routes across the map.");
+    assertThat(command.title().english()).isEqualTo("Ticket to Ride");
+    assertThat(command.description().english()).isEqualTo("Build routes across the map.");
     assertThat(command.difficulty()).isEqualTo("Easy to teach");
     assertThat(command.playTimeMinutes()).isEqualTo(60);
     assertThat(command.lifecycle()).isEqualTo(GameLifecycle.ACTIVE);
@@ -42,13 +45,55 @@ class GameValidatorTest {
   @Test
   void collapsesBlankOptionalTextToNothingRatherThanEmptyStrings() {
     var request = request();
-    request.setDescription("   ");
+    request.setTitle(title("Ticket to Ride", "   "));
+    request.setDescription(description("   ", ""));
     request.setDifficulty("");
 
     var command = GameValidator.validate(request, KNOWN_BRANCHES);
 
-    assertThat(command.description()).isNull();
+    // A blank translation is an absent one, in either language of either field.
+    assertThat(command.title().thai()).isNull();
+    assertThat(command.description().isEmpty()).isTrue();
     assertThat(command.difficulty()).isNull();
+  }
+
+  @Test
+  void keepsBothLanguagesOfATitleAndDescription() {
+    var request = request();
+    request.setTitle(title(" Ticket to Ride ", "  ตั๋วรถไฟ  "));
+    request.setDescription(description(" Build routes. ", " สร้างเส้นทาง "));
+
+    var command = GameValidator.validate(request, KNOWN_BRANCHES);
+
+    assertThat(command.title().english()).isEqualTo("Ticket to Ride");
+    assertThat(command.title().thai()).isEqualTo("ตั๋วรถไฟ");
+    assertThat(command.description().english()).isEqualTo("Build routes.");
+    assertThat(command.description().thai()).isEqualTo("สร้างเส้นทาง");
+  }
+
+  @Test
+  void acceptsAGameThatIsOnlyTranslatedIntoThai() {
+    var request = request();
+    request.setTitle(title("Ticket to Ride", "ตั๋วรถไฟ"));
+    request.setDescription(description(null, "สร้างเส้นทาง"));
+
+    var command = GameValidator.validate(request, KNOWN_BRANCHES);
+
+    // Only the English title is required; an English description is not, so a
+    // Thai-only description is stored as it was entered.
+    assertThat(command.description().english()).isNull();
+    assertThat(command.description().thai()).isEqualTo("สร้างเส้นทาง");
+  }
+
+  @Test
+  void rejectsATitleThatCarriesOnlyAThaiTranslation() {
+    var request = request();
+    request.setTitle(title("   ", "ตั๋วรถไฟ"));
+
+    // English is the entry every game carries, so a Thai-only title is missing
+    // the required half rather than being a complete title.
+    assertThat(violationsOf(request))
+        .containsExactly(new FieldViolation("title.en", FieldViolation.REQUIRED));
   }
 
   @Test
@@ -64,10 +109,10 @@ class GameValidatorTest {
   @Test
   void rejectsATitleThatIsOnlyWhitespace() {
     var request = request();
-    request.setTitle("   ");
+    request.setTitle(title("   ", null));
 
     assertThat(violationsOf(request))
-        .containsExactly(new FieldViolation("title", FieldViolation.REQUIRED));
+        .containsExactly(new FieldViolation("title.en", FieldViolation.REQUIRED));
   }
 
   @Test
@@ -113,14 +158,14 @@ class GameValidatorTest {
   @Test
   void reportsEveryBrokenRuleAtOnceSoAFormCanMarkAllOfItsFields() {
     var request = request();
-    request.setTitle(" ");
+    request.setTitle(title(" ", null));
     request.setMinPlayers(6);
     request.setMaxPlayers(2);
     request.setCopies(List.of(new BranchCopiesRequest(UUID.randomUUID(), 1)));
 
     assertThat(violationsOf(request))
         .containsExactly(
-            new FieldViolation("title", FieldViolation.REQUIRED),
+            new FieldViolation("title.en", FieldViolation.REQUIRED),
             new FieldViolation("maxPlayers", GameValidator.BELOW_MINIMUM),
             new FieldViolation("copies[0].branchId", GameValidator.UNKNOWN_BRANCH));
   }
@@ -135,6 +180,21 @@ class GameValidatorTest {
   }
 
   private static GameRequest request() {
-    return new GameRequest("  Ticket to Ride  ", GameCategory.FAMILY, 2, 5);
+    return new GameRequest(title("  Ticket to Ride  ", null), GameCategory.FAMILY, 2, 5);
+  }
+
+  private static LocalizedTitle title(String english, @Nullable String thai) {
+    var title = new LocalizedTitle(english);
+    title.setTh(thai);
+
+    return title;
+  }
+
+  private static LocalizedDescription description(@Nullable String english, @Nullable String thai) {
+    var description = new LocalizedDescription();
+    description.setEn(english);
+    description.setTh(thai);
+
+    return description;
   }
 }

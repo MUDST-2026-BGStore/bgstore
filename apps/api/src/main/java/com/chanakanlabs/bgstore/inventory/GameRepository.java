@@ -4,6 +4,7 @@ import static com.chanakanlabs.bgstore.database.Tables.GAME;
 import static com.chanakanlabs.bgstore.database.Tables.GAME_BRANCH_STOCK;
 import static org.jooq.impl.DSL.noCondition;
 
+import com.chanakanlabs.bgstore.contract.model.CatalogueLocale;
 import com.chanakanlabs.bgstore.contract.model.GameCategory;
 import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
 import java.util.ArrayList;
@@ -55,7 +56,8 @@ class GameRepository {
       ),
       rolled as (
           select g.id,
-                 g.title,
+                 g.title_en,
+                 g.title_th,
                  g.category,
                  g.min_players,
                  g.max_players,
@@ -80,11 +82,11 @@ class GameRepository {
   private static final String PAGE_SQL =
       ROLLED_STOCK_SQL
           + """
-          select id, title, category, min_players, max_players, lifecycle,
+          select id, title_en, title_th, category, min_players, max_players, lifecycle,
                  copies, available, branch_count, single_branch_id
           from rolled
           ${statusFilter}
-          order by title, id
+          order by ${titleOrder}, id
           limit ? offset ?
           """;
 
@@ -124,7 +126,10 @@ class GameRepository {
     }
     var search = filter.search();
     if (search != null && !search.isBlank()) {
-      gameConditions.add("lower(g.title) like ?");
+      // Either published title can match, so Thai text finds a Thai title and
+      // English text an English one. A null Thai title simply never matches.
+      gameConditions.add("(lower(g.title_en) like ? or lower(g.title_th) like ?)");
+      binds.add(likePattern(search));
       binds.add(likePattern(search));
     }
     var gameWhere = gameConditions.isEmpty() ? "" : "where " + String.join(" and ", gameConditions);
@@ -137,14 +142,16 @@ class GameRepository {
 
     var totals =
         database.fetchSingle(
-            applyFilters(TOTALS_SQL, stockWhere, gameWhere, statusWhere), binds.toArray());
+            applyFilters(TOTALS_SQL, stockWhere, gameWhere, statusWhere, titleOrder(filter)),
+            binds.toArray());
 
     var pageBinds = new ArrayList<>(binds);
     pageBinds.add(filter.size());
     pageBinds.add(filter.page() * filter.size());
     var rows =
         database.fetch(
-            applyFilters(PAGE_SQL, stockWhere, gameWhere, statusWhere), pageBinds.toArray());
+            applyFilters(PAGE_SQL, stockWhere, gameWhere, statusWhere, titleOrder(filter)),
+            pageBinds.toArray());
 
     return new GamePage(
         rows.map(GameRepository::toSummaryRow),
@@ -154,18 +161,33 @@ class GameRepository {
   }
 
   private static String applyFilters(
-      String sql, String stockWhere, String gameWhere, String statusWhere) {
+      String sql, String stockWhere, String gameWhere, String statusWhere, String titleOrder) {
     return sql.replace("${stockFilter}", stockWhere)
         .replace("${gameFilter}", gameWhere)
-        .replace("${statusFilter}", statusWhere);
+        .replace("${statusFilter}", statusWhere)
+        .replace("${titleOrder}", titleOrder);
+  }
+
+  /**
+   * The one place the server applies the fallback rule the contract's {@code LocalizedTitle}
+   * publishes: order on the title the requested locale resolves to, so a paged list reads in the
+   * order the reader sees. The English title is never null, so this always orders on a value.
+   *
+   * <p>An ordering expression cannot be a bind value, so this returns SQL — from the locale enum,
+   * never from anything a caller typed.
+   */
+  private static String titleOrder(GameFilter filter) {
+    return filter.locale() == CatalogueLocale.TH ? "coalesce(title_th, title_en)" : "title_en";
   }
 
   Optional<StoredGame> findById(UUID id) {
     return database
         .select(
             GAME.ID,
-            GAME.TITLE,
-            GAME.DESCRIPTION,
+            GAME.TITLE_EN,
+            GAME.TITLE_TH,
+            GAME.DESCRIPTION_EN,
+            GAME.DESCRIPTION_TH,
             GAME.CATEGORY,
             GAME.MIN_PLAYERS,
             GAME.MAX_PLAYERS,
@@ -214,8 +236,10 @@ class GameRepository {
   /** The columns a create and a replace both write, so the two cannot drift apart. */
   private static Map<Field<?>, Object> columnsOf(GameCommand command) {
     var columns = new LinkedHashMap<Field<?>, Object>();
-    columns.put(GAME.TITLE, command.title());
-    columns.put(GAME.DESCRIPTION, command.description());
+    columns.put(GAME.TITLE_EN, command.title().english());
+    columns.put(GAME.TITLE_TH, command.title().thai());
+    columns.put(GAME.DESCRIPTION_EN, command.description().english());
+    columns.put(GAME.DESCRIPTION_TH, command.description().thai());
     columns.put(GAME.CATEGORY, command.category().getValue());
     columns.put(GAME.MIN_PLAYERS, command.minPlayers());
     columns.put(GAME.MAX_PLAYERS, command.maxPlayers());
@@ -277,7 +301,7 @@ class GameRepository {
 
     return new GameSummaryRow(
         row.get("id", UUID.class),
-        row.get("title", String.class),
+        new LocalizedText(row.get("title_en", String.class), row.get("title_th", String.class)),
         GameCategory.fromValue(row.get("category", String.class)),
         row.get("min_players", Integer.class),
         row.get("max_players", Integer.class),
@@ -292,8 +316,8 @@ class GameRepository {
   private static StoredGame toStoredGame(Record row) {
     return new StoredGame(
         row.get(GAME.ID),
-        row.get(GAME.TITLE),
-        row.get(GAME.DESCRIPTION),
+        new LocalizedText(row.get(GAME.TITLE_EN), row.get(GAME.TITLE_TH)),
+        new LocalizedText(row.get(GAME.DESCRIPTION_EN), row.get(GAME.DESCRIPTION_TH)),
         GameCategory.fromValue(row.get(GAME.CATEGORY)),
         row.get(GAME.MIN_PLAYERS),
         row.get(GAME.MAX_PLAYERS),

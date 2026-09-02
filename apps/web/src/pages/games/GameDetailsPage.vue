@@ -12,6 +12,7 @@ import UiCard from '../../components/ui/UiCard.vue';
 import { gameQueryOptions } from '../../queries/games';
 import { formatDate } from './display';
 import { hasStatus } from './form';
+import { resolveLocalized } from './localized';
 import { statusTone } from './status';
 
 const { t, locale } = useI18n();
@@ -29,6 +30,13 @@ const savedTitle = computed(() =>
 );
 
 const unknown = computed(() => t('games.state.unknown'));
+
+// Catalogue metadata is stored in both languages; this screen renders the
+// reader's, falling back to English as the contract's fallback rule says.
+const title = computed(() => resolveLocalized(game.value?.title, locale.value));
+const description = computed(() =>
+  resolveLocalized(game.value?.description, locale.value),
+);
 
 const players = computed(() =>
   game.value
@@ -122,7 +130,7 @@ const lastStockIndex = computed(() => (game.value?.stock.length ?? 0) - 1);
     <div
       class="flex w-full shrink-0 items-center gap-3 border-b border-line bg-surface px-8 py-3.5"
     >
-      <PageBreadcrumb :current="game.title" />
+      <PageBreadcrumb :current="title" />
       <div class="h-px min-w-0 flex-1" />
     </div>
 
@@ -139,7 +147,7 @@ const lastStockIndex = computed(() => (game.value?.stock.length ?? 0) - 1);
       <header class="flex w-full flex-col items-start gap-1">
         <div class="flex w-full items-center gap-3">
           <h1 class="text-[28px] leading-[42px] font-semibold text-ink">
-            {{ game.title }}
+            {{ title }}
           </h1>
           <UiBadge :tone="statusTone(game.status)">
             {{ t('games.status.' + game.status) }}
@@ -158,11 +166,11 @@ const lastStockIndex = computed(() => (game.value?.stock.length ?? 0) - 1);
             />
             <div class="flex min-w-0 flex-1 flex-col items-start gap-3.5">
               <p
-                v-if="game.description"
+                v-if="description"
                 data-testid="game-description"
                 class="w-full text-[13px] leading-[20px] text-ink-secondary"
               >
-                {{ game.description }}
+                {{ description }}
               </p>
               <dl class="flex w-full flex-col items-start gap-3">
                 <div

@@ -3,6 +3,8 @@ package com.chanakanlabs.bgstore.inventory;
 import com.chanakanlabs.bgstore.contract.model.BranchCopiesRequest;
 import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
 import com.chanakanlabs.bgstore.contract.model.GameRequest;
+import com.chanakanlabs.bgstore.contract.model.LocalizedDescription;
+import com.chanakanlabs.bgstore.contract.model.LocalizedTitle;
 import com.chanakanlabs.bgstore.web.FieldViolation;
 import com.chanakanlabs.bgstore.web.ValidationFailedException;
 import java.util.ArrayList;
@@ -39,10 +41,7 @@ final class GameValidator {
   static GameCommand validate(GameRequest request, Set<UUID> knownBranchIds) {
     var violations = new ArrayList<FieldViolation>();
 
-    var title = trimmed(request.getTitle());
-    if (title == null) {
-      violations.add(new FieldViolation("title", FieldViolation.REQUIRED));
-    }
+    var title = titleOf(request.getTitle(), violations);
 
     int minPlayers = request.getMinPlayers();
     int maxPlayers = request.getMaxPlayers();
@@ -57,8 +56,8 @@ final class GameValidator {
     }
 
     return new GameCommand(
-        Objects.requireNonNull(title),
-        trimmed(request.getDescription()),
+        title,
+        descriptionOf(request.getDescription()),
         request.getCategory(),
         minPlayers,
         maxPlayers,
@@ -67,6 +66,34 @@ final class GameValidator {
         tags(request),
         Objects.requireNonNullElse(request.getLifecycle(), GameLifecycle.ACTIVE),
         copies);
+  }
+
+  /**
+   * The catalogue's canonical entry is the English title, so a payload without one is missing a
+   * required value. Thai rides alongside and stays optional: a blank Thai title is an absent
+   * translation, not a rejected one.
+   *
+   * <p>The schema already requires {@code title.en} to be present and within its length, so this
+   * only has to catch a title that is present but blank — which the schema's {@code minLength}
+   * cannot see past the whitespace.
+   */
+  private static LocalizedText titleOf(
+      @Nullable LocalizedTitle title, List<FieldViolation> violations) {
+    var english = title == null ? null : trimmed(title.getEn());
+    if (english == null) {
+      violations.add(new FieldViolation("title.en", FieldViolation.REQUIRED));
+    }
+
+    return new LocalizedText(english, title == null ? null : trimmed(title.getTh()));
+  }
+
+  /** Both languages are optional here, so a description may carry neither. */
+  private static LocalizedText descriptionOf(@Nullable LocalizedDescription description) {
+    if (description == null) {
+      return LocalizedText.NONE;
+    }
+
+    return new LocalizedText(trimmed(description.getEn()), trimmed(description.getTh()));
   }
 
   private static Map<UUID, Integer> copiesByBranch(

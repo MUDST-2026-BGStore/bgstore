@@ -37,7 +37,7 @@ describe('game form view', () => {
     const values = formValuesOf(ticketToRide, branches);
     const { wrapper } = await renderForm(values);
 
-    await wrapper.get('#game-title').setValue('Half-typed title');
+    await wrapper.get('#game-title-en').setValue('Half-typed title');
     await wrapper.get('#copies-0').setValue('7');
 
     // vue-query refetches on its own (window focus, an invalidation elsewhere)
@@ -45,7 +45,7 @@ describe('game form view', () => {
     await wrapper.setProps(props(formValuesOf(ticketToRide, branches)));
     await flushPromises();
 
-    expect(wrapper.get<HTMLInputElement>('#game-title').element.value).toBe(
+    expect(wrapper.get<HTMLInputElement>('#game-title-en').element.value).toBe(
       'Half-typed title',
     );
     expect(wrapper.get<HTMLInputElement>('#copies-0').element.value).toBe('7');
@@ -55,10 +55,10 @@ describe('game form view', () => {
     const values = formValuesOf(ticketToRide, branches);
     const { wrapper } = await renderForm(values);
 
-    await wrapper.get('#game-title').setValue('Something else');
+    await wrapper.get('#game-title-en').setValue('Something else');
     await wrapper.get('#copies-0').setValue('9');
 
-    expect(values.title).toBe('Ticket to Ride');
+    expect(values.titleEn).toBe('Ticket to Ride');
     expect(values.copies[0].copies).toBe('1');
   });
 
@@ -84,15 +84,46 @@ describe('game form view', () => {
     );
   });
 
+  it('gives each language its own field and carries both back out', async () => {
+    const { wrapper } = await renderForm(formValuesOf(ticketToRide, branches));
+
+    expect(wrapper.get<HTMLInputElement>('#game-title-th').element.value).toBe(
+      'ตั๋วรถไฟ',
+    );
+    expect(
+      wrapper.get<HTMLTextAreaElement>('#game-description-th').element.value,
+    ).toBe('สร้างเส้นทางข้ามแผนที่ — สอนง่าย');
+
+    await wrapper.get('#game-title-th').setValue('ตั๋วรถไฟ ยุโรป');
+    await wrapper.get('form').trigger('submit');
+
+    const submitted = wrapper.emitted('submit')?.[0][0] as GameFormValues;
+    expect(submitted.titleEn).toBe('Ticket to Ride');
+    expect(submitted.titleTh).toBe('ตั๋วรถไฟ ยุโรป');
+  });
+
+  it('marks the language the API rejected, not the whole title', async () => {
+    const { wrapper } = await renderForm(formValuesOf(ticketToRide, branches), {
+      'title.en': 'required',
+    });
+
+    expect(wrapper.get('[data-testid="game-title-en-error"]').text()).toBe(
+      'This is required.',
+    );
+    expect(wrapper.find('[data-testid="game-title-th-error"]').exists()).toBe(
+      false,
+    );
+  });
+
   it('emits the current values on submit', async () => {
     const { wrapper } = await renderForm(formValuesOf(ticketToRide, branches));
 
-    await wrapper.get('#game-title').setValue('Ticket to Ride Europe');
+    await wrapper.get('#game-title-en').setValue('Ticket to Ride Europe');
     await wrapper.get('form').trigger('submit');
 
     const submitted = wrapper.emitted('submit');
     expect(submitted).toHaveLength(1);
-    expect((submitted?.[0][0] as GameFormValues).title).toBe(
+    expect((submitted?.[0][0] as GameFormValues).titleEn).toBe(
       'Ticket to Ride Europe',
     );
   });

@@ -5,7 +5,7 @@ import type {
   GameSummary,
 } from '../generated/api/types.gen';
 
-/** Ids match the branches `V2__games.sql` seeds. */
+/** Ids match the branches `V3__games.sql` seeds. */
 export const branches: Branch[] = [
   { id: '3f0d7d5a-9a2b-4a71-8f0e-000000000002', name: 'Big C Rama I' },
   { id: '3f0d7d5a-9a2b-4a71-8f0e-000000000001', name: 'Central Rama II' },
@@ -16,7 +16,7 @@ export const ticketToRideId = '9b1f0e4c-1d3a-4a0b-8f21-4c6f5a0d7e11';
 
 export const explodingKittens: GameSummary = {
   id: '1a1f0e4c-1d3a-4a0b-8f21-4c6f5a0d7e12',
-  title: 'Exploding Kittens',
+  title: { en: 'Exploding Kittens', th: 'แมวระเบิด' },
   category: 'card',
   minPlayers: 2,
   maxPlayers: 5,
@@ -27,9 +27,10 @@ export const explodingKittens: GameSummary = {
   status: 'available',
 };
 
+/** Untranslated, so a Thai reader sees it fall back to the English title. */
 export const splendor: GameSummary = {
   id: '2a1f0e4c-1d3a-4a0b-8f21-4c6f5a0d7e13',
-  title: 'Splendor',
+  title: { en: 'Splendor', th: null },
   category: 'strategy',
   minPlayers: 2,
   maxPlayers: 4,
@@ -53,8 +54,11 @@ export function gameList(
 
 export const ticketToRide: GameDetail = {
   id: ticketToRideId,
-  title: 'Ticket to Ride',
-  description: 'Build routes across the map — easy to teach.',
+  title: { en: 'Ticket to Ride', th: 'ตั๋วรถไฟ' },
+  description: {
+    en: 'Build routes across the map — easy to teach.',
+    th: 'สร้างเส้นทางข้ามแผนที่ — สอนง่าย',
+  },
   category: 'family',
   minPlayers: 2,
   maxPlayers: 5,

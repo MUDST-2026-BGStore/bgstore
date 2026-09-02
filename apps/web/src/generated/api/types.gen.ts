@@ -55,6 +55,29 @@ export type BranchList = {
 };
 
 /**
+ * A language the catalogue publishes metadata in. `en` is the canonical entry every game carries; `th` is the Thai translation.
+ */
+export type CatalogueLocale = 'en' | 'th';
+
+/**
+ * A game title in the languages the catalogue publishes.
+ *
+ * Fallback rule: to render in a locale, take that locale's value when it is present and not blank, and fall back to `en` otherwise. `en` is required, so a title always resolves to something.
+ */
+export type LocalizedTitle = {
+  en: string;
+  th?: string | null;
+};
+
+/**
+ * A short description in the languages the catalogue publishes. Both languages are optional; the `LocalizedTitle` fallback rule applies, and here it can resolve to nothing when neither language carries text.
+ */
+export type LocalizedDescription = {
+  en?: string | null;
+  th?: string | null;
+};
+
+/**
  * Catalogue category. Values map to `games.category.*` messages.
  */
 export type GameCategory = 'family' | 'card' | 'party' | 'strategy';
@@ -84,7 +107,7 @@ export type BranchStock = {
 
 export type GameSummary = {
   id: string;
-  title: string;
+  title: LocalizedTitle;
   category: GameCategory;
   minPlayers: number;
   maxPlayers: number;
@@ -122,8 +145,8 @@ export type GameListResponse = {
 
 export type GameDetail = {
   id: string;
-  title: string;
-  description?: string | null;
+  title: LocalizedTitle;
+  description?: LocalizedDescription | null;
   category: GameCategory;
   minPlayers: number;
   maxPlayers: number;
@@ -154,8 +177,8 @@ export type BranchCopiesRequest = {
 };
 
 export type GameRequest = {
-  title: string;
-  description?: string | null;
+  title: LocalizedTitle;
+  description?: LocalizedDescription | null;
   category: GameCategory;
   minPlayers: number;
   maxPlayers: number;
@@ -325,9 +348,13 @@ export type ListGamesData = {
     category?: GameCategory;
     status?: GameAvailability;
     /**
-     * Case-insensitive match on the game title.
+     * Case-insensitive match on either published title, so a Thai title is found by typing Thai and an English one by typing English.
      */
     search?: string;
+    /**
+     * Language the page is ordered by. Rows are sorted on the title this locale resolves to under the `LocalizedTitle` fallback rule, so the order matches what a reader in that locale sees.
+     */
+    locale?: CatalogueLocale;
     /**
      * Zero-based page index.
      */

@@ -55,7 +55,7 @@ class GameApiIntegrationTest {
           .withExposedPorts(6379)
           .withCommand("redis-server", "--requirepass", "test-password");
 
-  /** Seeded by {@code V2__games.sql}; the game screens address branches by id. */
+  /** Seeded by {@code V3__games.sql}; the game screens address branches by id. */
   private static final UUID CENTRAL_RAMA_II =
       UUID.fromString("3f0d7d5a-9a2b-4a71-8f0e-000000000001");
 
@@ -127,8 +127,8 @@ class GameApiIntegrationTest {
 
   @Test
   void createsAGameAndReadsItBackWithItsPerBranchStock() throws Exception {
-    var payload = payload("Ticket to Ride", "family", 2, 5);
-    payload.put("description", "Build routes across the map.");
+    var payload = translatedPayload("Ticket to Ride", "ตั๋วรถไฟ", "family", 2, 5);
+    payload.putObject("description").put("en", "Build routes across the map.");
     payload.put("playTimeMinutes", 60);
     payload.put("difficulty", "Easy to teach");
     payload.putArray("tags").add("beginner friendly").add("30–60 min");
@@ -138,7 +138,7 @@ class GameApiIntegrationTest {
         create(payload)
             .andExpect(status().isCreated())
             .andExpect(header().exists("Location"))
-            .andExpect(jsonPath("$.title").value("Ticket to Ride"))
+            .andExpect(jsonPath("$.title.en").value("Ticket to Ride"))
             .andReturn();
 
     var created = json.readTree(id.getResponse().getContentAsString()).get("id").asText();
@@ -147,7 +147,12 @@ class GameApiIntegrationTest {
     mockMvc
         .perform(get("/api/v1/games/{id}", created).with(oidcLogin()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.description").value("Build routes across the map."))
+        .andExpect(jsonPath("$.title.en").value("Ticket to Ride"))
+        .andExpect(jsonPath("$.title.th").value("ตั๋วรถไฟ"))
+        .andExpect(jsonPath("$.description.en").value("Build routes across the map."))
+        // An untranslated half comes back as nothing rather than as the other
+        // language standing in for it; resolving is the reader's job.
+        .andExpect(jsonPath("$.description.th").doesNotExist())
         .andExpect(jsonPath("$.playTimeMinutes").value(60))
         .andExpect(jsonPath("$.difficulty").value("Easy to teach"))
         .andExpect(jsonPath("$.tags[0]").value("beginner friendly"))
@@ -178,11 +183,11 @@ class GameApiIntegrationTest {
     mockMvc
         .perform(get("/api/v1/games").with(oidcLogin()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.items[0].title").value("Catan"))
+        .andExpect(jsonPath("$.items[0].title.en").value("Catan"))
         .andExpect(jsonPath("$.items[0].branchCount").value(2))
         .andExpect(jsonPath("$.items[0].copies").value(3))
         .andExpect(jsonPath("$.items[0].branchName").doesNotExist())
-        .andExpect(jsonPath("$.items[1].title").value("Uno"))
+        .andExpect(jsonPath("$.items[1].title.en").value("Uno"))
         .andExpect(jsonPath("$.items[1].branchName").value("Central Rama II"));
   }
 
@@ -212,22 +217,107 @@ class GameApiIntegrationTest {
     mockMvc
         .perform(get("/api/v1/games").param("category", "card").with(oidcLogin()))
         .andExpect(jsonPath("$.items.length()").value(1))
-        .andExpect(jsonPath("$.items[0].title").value("Uno"));
+        .andExpect(jsonPath("$.items[0].title.en").value("Uno"));
 
     mockMvc
         .perform(get("/api/v1/games").param("status", "notStocked").with(oidcLogin()))
         .andExpect(jsonPath("$.items.length()").value(1))
-        .andExpect(jsonPath("$.items[0].title").value("Splendor"));
+        .andExpect(jsonPath("$.items[0].title.en").value("Splendor"));
 
     mockMvc
         .perform(get("/api/v1/games").param("search", "nO").with(oidcLogin()))
         .andExpect(jsonPath("$.items.length()").value(1))
-        .andExpect(jsonPath("$.items[0].title").value("Uno"));
+        .andExpect(jsonPath("$.items[0].title.en").value("Uno"));
 
     // A wildcard typed into the search box matches itself, not everything.
     mockMvc
         .perform(get("/api/v1/games").param("search", "%").with(oidcLogin()))
         .andExpect(jsonPath("$.items.length()").value(0));
+  }
+
+  @Test
+  void findsAGameByEitherOfItsPublishedTitles() throws Exception {
+    create(translatedPayload("Ticket to Ride", "ตั๋วรถไฟ", "family", 2, 5))
+        .andExpect(status().isCreated());
+    create(payload("Splendor", "strategy", 2, 4)).andExpect(status().isCreated());
+
+    mockMvc
+        .perform(get("/api/v1/games").param("search", "ตั๋ว").with(oidcLogin()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].title.en").value("Ticket to Ride"));
+
+    mockMvc
+        .perform(get("/api/v1/games").param("search", "ticket").with(oidcLogin()))
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].title.th").value("ตั๋วรถไฟ"));
+
+    // A game with no Thai title is simply not a match for Thai text; it is not
+    // an error, and it does not match through its English title either.
+    mockMvc
+        .perform(get("/api/v1/games").param("search", "สเปลนดอร์").with(oidcLogin()))
+        .andExpect(jsonPath("$.items.length()").value(0));
+  }
+
+  @Test
+  void ordersThePageByTheTitleTheRequestedLocaleResolvesTo() throws Exception {
+    // In English: Azul, Uno. In Thai the first is "อูโน่" and the second has no
+    // translation, so it falls back to "Zeus" — which reverses the order.
+    create(translatedPayload("Uno", "อูโน่", "card", 2, 10)).andExpect(status().isCreated());
+    create(payload("Zeus", "party", 2, 6)).andExpect(status().isCreated());
+
+    mockMvc
+        .perform(get("/api/v1/games").with(oidcLogin()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].title.en").value("Uno"))
+        .andExpect(jsonPath("$.items[1].title.en").value("Zeus"));
+
+    mockMvc
+        .perform(get("/api/v1/games").param("locale", "th").with(oidcLogin()))
+        .andExpect(status().isOk())
+        // "Zeus" sorts before "อูโน่": an untranslated title takes part in the
+        // Thai ordering through its English text rather than dropping out.
+        .andExpect(jsonPath("$.items[0].title.en").value("Zeus"))
+        .andExpect(jsonPath("$.items[1].title.en").value("Uno"));
+  }
+
+  @Test
+  void rejectsALocaleTheCatalogueDoesNotPublish() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/games").param("locale", "fr").with(oidcLogin()))
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].field").value("locale"))
+        .andExpect(jsonPath("$.errors[0].message").value("invalid"));
+  }
+
+  @Test
+  void storesAndReplacesBothLanguagesOfTheCatalogueMetadata() throws Exception {
+    var translated = translatedPayload("Ticket to Ride", "ตั๋วรถไฟ", "family", 2, 5);
+    var description = translated.putObject("description");
+    description.put("en", "Build routes across the map.");
+    description.put("th", "สร้างเส้นทางข้ามแผนที่");
+    var id = createGame(translated);
+
+    mockMvc
+        .perform(get("/api/v1/games/{id}", id).with(oidcLogin()))
+        .andExpect(jsonPath("$.title.th").value("ตั๋วรถไฟ"))
+        .andExpect(jsonPath("$.description.th").value("สร้างเส้นทางข้ามแผนที่"));
+
+    // Dropping the translation on an edit clears it rather than leaving the old
+    // Thai text attached to a retitled game.
+    var untranslate = payload("Ticket to Ride Europe", "family", 2, 5);
+
+    mockMvc
+        .perform(
+            put("/api/v1/games/{id}", id)
+                .with(oidcLogin())
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(untranslate.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.title.en").value("Ticket to Ride Europe"))
+        .andExpect(jsonPath("$.title.th").doesNotExist())
+        .andExpect(jsonPath("$.description").doesNotExist());
   }
 
   @Test
@@ -241,7 +331,7 @@ class GameApiIntegrationTest {
         .perform(get("/api/v1/games").param("page", "1").param("size", "1").with(oidcLogin()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.items.length()").value(1))
-        .andExpect(jsonPath("$.items[0].title").value("Uno"))
+        .andExpect(jsonPath("$.items[0].title.en").value("Uno"))
         .andExpect(jsonPath("$.page.number").value(1))
         .andExpect(jsonPath("$.page.totalElements").value(2))
         .andExpect(jsonPath("$.page.totalPages").value(2))
@@ -277,7 +367,7 @@ class GameApiIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(update.toString()))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.title").value("Uno Flip"))
+        .andExpect(jsonPath("$.title.en").value("Uno Flip"))
         .andExpect(jsonPath("$.category").value("party"))
         .andExpect(jsonPath("$.totalCopies").value(3))
         .andExpect(jsonPath("$.branchCount").value(1))
@@ -303,7 +393,7 @@ class GameApiIntegrationTest {
     mockMvc
         .perform(get("/api/v1/games").param("status", "retired").with(oidcLogin()))
         .andExpect(jsonPath("$.items.length()").value(1))
-        .andExpect(jsonPath("$.items[0].title").value("Dixit"));
+        .andExpect(jsonPath("$.items[0].title.en").value("Dixit"));
   }
 
   @Test
@@ -366,15 +456,26 @@ class GameApiIntegrationTest {
 
   @Test
   void separatesAFieldLeftBlankFromAFieldFilledInWrongly() throws Exception {
-    var blankTitle = payload("", "card", 2, 10);
+    // What the form actually sends for a title left untouched: the empty string
+    // it trimmed, which the schema's minLength rejects.
+    var emptyTitle = payload("", "card", 2, 10);
+
+    create(emptyTitle)
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].field").value("title.en"))
+        .andExpect(jsonPath("$.errors[0].message").value("required"));
+
+    // Whitespace gets past the schema's length, so the validator has to catch it
+    // and report it the same way rather than storing a blank title.
+    var blankTitle = payload("   ", "card", 2, 10);
 
     create(blankTitle)
         .andExpect(status().isUnprocessableEntity())
-        .andExpect(jsonPath("$.errors[0].field").value("title"))
+        .andExpect(jsonPath("$.errors[0].field").value("title.en"))
         .andExpect(jsonPath("$.errors[0].message").value("required"));
 
     var noCategory = json.createObjectNode();
-    noCategory.put("title", "Uno");
+    noCategory.putObject("title").put("en", "Uno");
     noCategory.put("minPlayers", 2);
     noCategory.put("maxPlayers", 10);
 
@@ -548,12 +649,22 @@ class GameApiIntegrationTest {
                                 "realm_access", Map.of("roles", List.of("CLIENT"))))));
   }
 
+  /** A payload carrying only the English title, which is the one a game must have. */
   private ObjectNode payload(String title, String category, int minPlayers, int maxPlayers) {
     var payload = json.createObjectNode();
-    payload.put("title", title);
+    payload.putObject("title").put("en", title);
     payload.put("category", category);
     payload.put("minPlayers", minPlayers);
     payload.put("maxPlayers", maxPlayers);
+
+    return payload;
+  }
+
+  /** The same, translated into Thai as well. */
+  private ObjectNode translatedPayload(
+      String english, String thai, String category, int minPlayers, int maxPlayers) {
+    var payload = payload(english, category, minPlayers, maxPlayers);
+    ((ObjectNode) payload.get("title")).put("th", thai);
 
     return payload;
   }

@@ -13,7 +13,7 @@ import org.springframework.lang.Nullable;
  */
 record GameSummaryRow(
     UUID id,
-    String title,
+    LocalizedText title,
     GameCategory category,
     int minPlayers,
     int maxPlayers,

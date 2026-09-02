@@ -48,7 +48,6 @@ const { t } = useI18n();
  */
 const form = reactive<GameFormValues>(clone(props.values));
 
-const descriptionCount = computed(() => form.description.length);
 const lastBranchIndex = computed(() => form.copies.length - 1);
 
 const errorSummary = computed(() => {
@@ -119,44 +118,96 @@ const submitLabel = computed(() =>
       </p>
 
       <div class="flex w-full flex-col items-start gap-5">
+        <!--
+          The catalogue publishes each title and description in both languages
+          the store serves. English is the entry every game carries; Thai is the
+          translation a Thai reader sees, and a game without one falls back to
+          English rather than showing nothing.
+        -->
         <UiCard :title="t('games.form.gameInformation')">
-          <UiField
-            :label="t('games.form.gameTitle')"
-            input-id="game-title"
-            :error="messageFor('title')"
-          >
-            <UiTextInput
-              id="game-title"
-              v-model="form.title"
-              class="w-full"
-              :invalid="Boolean(messageFor('title'))"
-              :placeholder="t('games.form.gameTitlePlaceholder')"
-            />
-          </UiField>
-
-          <UiField
-            :label="t('games.form.shortDescription')"
-            input-id="game-description"
-            :error="messageFor('description')"
-          >
-            <textarea
-              id="game-description"
-              v-model="form.description"
-              :placeholder="t('games.form.descriptionPlaceholder')"
-              :maxlength="descriptionMaxLength"
-              class="h-[92px] w-full resize-none rounded-md border border-line bg-surface px-3.5 py-3 text-[13px] leading-[20px] text-ink outline-none placeholder:text-ink-muted focus:border-primary"
-            />
-            <p
-              class="w-full text-[12px] leading-[18px] whitespace-pre-wrap text-ink-muted"
+          <div class="flex w-full items-start gap-4">
+            <UiField
+              :label="t('games.form.gameTitleEn')"
+              input-id="game-title-en"
+              :error="messageFor('title.en')"
             >
-              {{
-                t('games.form.descriptionHint', {
-                  count: descriptionCount,
-                  max: descriptionMaxLength,
-                })
-              }}
-            </p>
-          </UiField>
+              <UiTextInput
+                id="game-title-en"
+                v-model="form.titleEn"
+                class="w-full"
+                :invalid="Boolean(messageFor('title.en'))"
+                :placeholder="t('games.form.gameTitlePlaceholder')"
+              />
+            </UiField>
+            <UiField
+              :label="t('games.form.gameTitleTh')"
+              input-id="game-title-th"
+              :error="messageFor('title.th')"
+            >
+              <UiTextInput
+                id="game-title-th"
+                v-model="form.titleTh"
+                class="w-full"
+                lang="th"
+                :invalid="Boolean(messageFor('title.th'))"
+                :placeholder="t('games.form.gameTitleThPlaceholder')"
+              />
+            </UiField>
+          </div>
+
+          <p class="w-full text-[12px] leading-[18px] text-ink-muted">
+            {{ t('games.form.fallbackHint') }}
+          </p>
+
+          <div class="flex w-full items-start gap-4">
+            <UiField
+              :label="t('games.form.shortDescriptionEn')"
+              input-id="game-description-en"
+              :error="messageFor('description.en')"
+            >
+              <textarea
+                id="game-description-en"
+                v-model="form.descriptionEn"
+                :placeholder="t('games.form.descriptionPlaceholder')"
+                :maxlength="descriptionMaxLength"
+                class="h-[92px] w-full resize-none rounded-md border border-line bg-surface px-3.5 py-3 text-[13px] leading-[20px] text-ink outline-none placeholder:text-ink-muted focus:border-primary"
+              />
+              <p
+                class="w-full text-[12px] leading-[18px] whitespace-pre-wrap text-ink-muted"
+              >
+                {{
+                  t('games.form.descriptionHint', {
+                    count: form.descriptionEn.length,
+                    max: descriptionMaxLength,
+                  })
+                }}
+              </p>
+            </UiField>
+            <UiField
+              :label="t('games.form.shortDescriptionTh')"
+              input-id="game-description-th"
+              :error="messageFor('description.th')"
+            >
+              <textarea
+                id="game-description-th"
+                v-model="form.descriptionTh"
+                lang="th"
+                :placeholder="t('games.form.descriptionThPlaceholder')"
+                :maxlength="descriptionMaxLength"
+                class="h-[92px] w-full resize-none rounded-md border border-line bg-surface px-3.5 py-3 text-[13px] leading-[20px] text-ink outline-none placeholder:text-ink-muted focus:border-primary"
+              />
+              <p
+                class="w-full text-[12px] leading-[18px] whitespace-pre-wrap text-ink-muted"
+              >
+                {{
+                  t('games.form.descriptionHint', {
+                    count: form.descriptionTh.length,
+                    max: descriptionMaxLength,
+                  })
+                }}
+              </p>
+            </UiField>
+          </div>
         </UiCard>
 
         <!--

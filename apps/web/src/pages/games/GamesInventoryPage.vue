@@ -21,13 +21,15 @@ import {
 } from '../../queries/games';
 import { branchLabel, pageRange } from './display';
 import { categoryOptions } from './form';
+import { catalogueLocaleOf, resolveLocalized } from './localized';
 import { gameStatuses, statusTone } from './status';
 import type {
   GameAvailability,
   GameCategory,
+  GameSummary,
 } from '../../generated/api/types.gen';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const route = useRoute();
 const queryClient = useQueryClient();
 
@@ -68,6 +70,10 @@ const query = computed<GameListQuery>(() => ({
   ...(debouncedSearch.value.trim()
     ? { search: debouncedSearch.value.trim() }
     : {}),
+  // The list is paged in the database, so it has to be ordered there too. The
+  // locale tells the API which title to sort on, so the order matches the
+  // titles this page renders.
+  locale: catalogueLocaleOf(locale.value),
   page: page.value,
   size: gamesPageSize,
 }));
@@ -130,6 +136,11 @@ function playerRange(row: { minPlayers: number; maxPlayers: number }) {
     min: row.minPlayers,
     max: row.maxPlayers,
   });
+}
+
+/** The row's title in the reader's language, falling back as the contract says. */
+function titleOf(row: { title: GameSummary['title'] }) {
+  return resolveLocalized(row.title, locale.value);
 }
 
 function branchOf(row: Parameters<typeof branchLabel>[0]) {
@@ -368,7 +379,7 @@ function branchOf(row: Parameters<typeof branchLabel>[0]) {
                 class="px-[7px] py-3 text-left text-[13.5px] leading-[1.5] font-semibold text-ink"
               >
                 <router-link :to="'/games/' + row.id">
-                  {{ row.title }}
+                  {{ titleOf(row) }}
                 </router-link>
               </th>
               <td class="px-[7px] py-3">

@@ -9,11 +9,13 @@ import { branchesQueryOptions, createGameRequest } from '../../queries/games';
 import {
   emptyForm,
   fieldErrorsOf,
+  numericErrorsOf,
   toGameRequest,
   type GameFormValues,
 } from './form';
+import { resolveLocalized } from './localized';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const router = useRouter();
 const queryClient = useQueryClient();
 
@@ -30,8 +32,12 @@ const create = useMutation({
     errors.value = {};
     await queryClient.invalidateQueries({ queryKey: ['games'] });
     // Back to the inventory, which reports the saved title as the success
-    // state — the row itself is the other half of the confirmation.
-    await router.push({ path: '/games', query: { saved: game.title } });
+    // state — the row itself is the other half of the confirmation. The title
+    // is resolved here so the notice reads in the same language as the row.
+    await router.push({
+      path: '/games',
+      query: { saved: resolveLocalized(game.title, locale.value) },
+    });
   },
   onError: (failure) => {
     errors.value = fieldErrorsOf(failure);
@@ -39,6 +45,15 @@ const create = useMutation({
 });
 
 function submit(form: GameFormValues) {
+  // A number the browser cannot read is reported here rather than sent, so it
+  // is marked as a wrong value and not as a missing one. Everything else is
+  // still the API's to judge.
+  const malformed = numericErrorsOf(form);
+  errors.value = malformed;
+  if (Object.keys(malformed).length > 0) {
+    return;
+  }
+
   create.mutate(toGameRequest(form));
 }
 </script>

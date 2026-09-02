@@ -1,12 +1,14 @@
 package com.chanakanlabs.bgstore.inventory;
 
 import com.chanakanlabs.bgstore.contract.api.GamesApi;
+import com.chanakanlabs.bgstore.contract.model.CatalogueLocale;
 import com.chanakanlabs.bgstore.contract.model.GameAvailability;
 import com.chanakanlabs.bgstore.contract.model.GameCategory;
 import com.chanakanlabs.bgstore.contract.model.GameDetail;
 import com.chanakanlabs.bgstore.contract.model.GameListResponse;
 import com.chanakanlabs.bgstore.contract.model.GameRequest;
 import java.net.URI;
+import java.util.Objects;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.lang.Nullable;
@@ -29,9 +31,20 @@ class GameController implements GamesApi {
       @Nullable GameCategory category,
       @Nullable GameAvailability status,
       @Nullable String search,
+      @Nullable CatalogueLocale locale,
       Integer page,
       Integer size) {
-    var filter = new GameFilter(branchId, category, status, search, page, size);
+    // The contract documents `en` as the default; a caller that names no locale
+    // gets the language every game is guaranteed to carry.
+    var filter =
+        new GameFilter(
+            branchId,
+            category,
+            status,
+            search,
+            Objects.requireNonNullElse(locale, CatalogueLocale.EN),
+            page,
+            size);
 
     return ResponseEntity.ok(games.list(filter));
   }

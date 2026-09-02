@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import com.chanakanlabs.bgstore.branches.Branch;
 import com.chanakanlabs.bgstore.contract.model.BranchStock;
+import com.chanakanlabs.bgstore.contract.model.CatalogueLocale;
 import com.chanakanlabs.bgstore.contract.model.GameAvailability;
 import com.chanakanlabs.bgstore.contract.model.GameCategory;
 import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
@@ -75,6 +76,45 @@ class GameResponsesTest {
   }
 
   @Test
+  void publishesBothLanguagesSoTheBrowserCanChooseAndTheFormCanEditEither() {
+    var detail =
+        GameResponses.toDetail(
+            game(GameLifecycle.ACTIVE), List.of(new BranchStockRow(CENTRAL.id(), 1, 0)), DIRECTORY);
+
+    assertThat(detail.getTitle().getEn()).isEqualTo("Ticket to Ride");
+    assertThat(detail.getTitle().getTh()).isEqualTo("ตั๋วรถไฟ");
+    // An untranslated description travels as a null member rather than as an
+    // English string standing in for the Thai one.
+    assertThat(detail.getDescription().getEn()).isEqualTo("Build routes across the map.");
+    assertThat(detail.getDescription().getTh()).isNull();
+    assertThat(GameResponses.toSummary(summary(1, CENTRAL.id()), Map.of()).getTitle().getEn())
+        .isEqualTo("Uno");
+  }
+
+  @Test
+  void publishesNoDescriptionAtAllWhenNeitherLanguageCarriesOne() {
+    var untranslated =
+        new StoredGame(
+            UUID.randomUUID(),
+            new LocalizedText("Uno", null),
+            LocalizedText.NONE,
+            GameCategory.CARD,
+            2,
+            10,
+            null,
+            null,
+            List.of(),
+            GameLifecycle.ACTIVE,
+            ADDED,
+            null);
+
+    var detail = GameResponses.toDetail(untranslated, List.of(), DIRECTORY);
+
+    assertThat(detail.getDescription()).isNull();
+    assertThat(detail.getTitle().getTh()).isNull();
+  }
+
+  @Test
   void namesTheBranchOnASummaryOnlyWhenTheFiguresComeFromExactlyOne() {
     var names = Map.of(CENTRAL.id(), CENTRAL.name(), BIG_C.id(), BIG_C.name());
 
@@ -87,7 +127,7 @@ class GameResponsesTest {
   @Test
   void reportsTheFilteredTotalsRatherThanThePageOnTheStatTiles() {
     var page = new GamePage(List.of(summary(1, CENTRAL.id())), 24L, 46L, 12L);
-    var filter = new GameFilter(null, null, null, null, 0, 6);
+    var filter = new GameFilter(null, null, null, null, CatalogueLocale.EN, 0, 6);
 
     var response = GameResponses.toListResponse(page, filter, Map.of());
 
@@ -102,7 +142,7 @@ class GameResponsesTest {
 
   @Test
   void reportsNoPagesForAnEmptyResult() {
-    var filter = new GameFilter(null, null, null, null, 0, 20);
+    var filter = new GameFilter(null, null, null, null, CatalogueLocale.EN, 0, 20);
 
     var response = GameResponses.toListResponse(GamePage.EMPTY, filter, Map.of());
 
@@ -114,8 +154,8 @@ class GameResponsesTest {
   private static StoredGame game(GameLifecycle lifecycle) {
     return new StoredGame(
         UUID.randomUUID(),
-        "Ticket to Ride",
-        "Build routes across the map.",
+        new LocalizedText("Ticket to Ride", "ตั๋วรถไฟ"),
+        new LocalizedText("Build routes across the map.", null),
         GameCategory.FAMILY,
         2,
         5,
@@ -130,7 +170,7 @@ class GameResponsesTest {
   private static GameSummaryRow summary(int branchCount, UUID singleBranchId) {
     return new GameSummaryRow(
         UUID.randomUUID(),
-        "Uno",
+        new LocalizedText("Uno", null),
         GameCategory.CARD,
         2,
         10,

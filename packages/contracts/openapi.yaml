@@ -119,10 +119,21 @@ paths:
         - name: search
           in: query
           required: false
-          description: Case-insensitive match on the game title.
+          description: >-
+            Case-insensitive match on either published title, so a Thai title is
+            found by typing Thai and an English one by typing English.
           schema:
             type: string
             maxLength: 120
+        - name: locale
+          in: query
+          required: false
+          description: >-
+            Language the page is ordered by. Rows are sorted on the title this
+            locale resolves to under the `LocalizedTitle` fallback rule, so the
+            order matches what a reader in that locale sees.
+          schema:
+            $ref: '#/components/schemas/CatalogueLocale'
         - name: page
           in: query
           required: false
@@ -402,6 +413,49 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Branch'
+    CatalogueLocale:
+      type: string
+      description: >-
+        A language the catalogue publishes metadata in. `en` is the canonical
+        entry every game carries; `th` is the Thai translation.
+      enum: [en, th]
+      default: en
+    LocalizedTitle:
+      type: object
+      additionalProperties: false
+      description: >-
+        A game title in the languages the catalogue publishes.
+
+
+        Fallback rule: to render in a locale, take that locale's value when it
+        is present and not blank, and fall back to `en` otherwise. `en` is
+        required, so a title always resolves to something.
+      required: [en]
+      properties:
+        en:
+          type: string
+          minLength: 1
+          maxLength: 120
+        th:
+          type: string
+          nullable: true
+          maxLength: 120
+    LocalizedDescription:
+      type: object
+      additionalProperties: false
+      description: >-
+        A short description in the languages the catalogue publishes. Both
+        languages are optional; the `LocalizedTitle` fallback rule applies, and
+        here it can resolve to nothing when neither language carries text.
+      properties:
+        en:
+          type: string
+          nullable: true
+          maxLength: 160
+        th:
+          type: string
+          nullable: true
+          maxLength: 160
     GameCategory:
       type: string
       description: Catalogue category. Values map to `games.category.*` messages.
@@ -461,7 +515,7 @@ components:
           type: string
           format: uuid
         title:
-          type: string
+          $ref: '#/components/schemas/LocalizedTitle'
         category:
           $ref: '#/components/schemas/GameCategory'
         minPlayers:
@@ -566,9 +620,10 @@ components:
           type: string
           format: uuid
         title:
-          type: string
+          $ref: '#/components/schemas/LocalizedTitle'
         description:
-          type: string
+          allOf:
+            - $ref: '#/components/schemas/LocalizedDescription'
           nullable: true
         category:
           $ref: '#/components/schemas/GameCategory'
@@ -634,13 +689,11 @@ components:
       required: [title, category, minPlayers, maxPlayers]
       properties:
         title:
-          type: string
-          minLength: 1
-          maxLength: 120
+          $ref: '#/components/schemas/LocalizedTitle'
         description:
-          type: string
+          allOf:
+            - $ref: '#/components/schemas/LocalizedDescription'
           nullable: true
-          maxLength: 160
         category:
           $ref: '#/components/schemas/GameCategory'
         minPlayers:
@@ -712,7 +765,7 @@ components:
             Message key the browser resolves through `games.form.errors.*`,
             falling back to the text itself when no message exists.
       example:
-        field: title
+        field: title.en
         message: required
     ValidationProblem:
       allOf:

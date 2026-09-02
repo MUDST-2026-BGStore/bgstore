@@ -264,7 +264,7 @@ describe('game details screen', () => {
     expect(wrapper.text()).toContain('added 12 Jan 2025');
     expect(wrapper.text()).toContain('3 copies across 2 branches');
     expect(wrapper.get('[data-testid="game-description"]').text()).toBe(
-      ticketToRide.description,
+      ticketToRide.description?.en,
     );
 
     expect(wrapper.findAll('dt').map((term) => term.text())).toEqual([
@@ -335,7 +335,7 @@ describe('add game screen', () => {
       wrapper.findAll('tbody tr').map((row) => row.get('th').text()),
     ).toEqual(['Big C Rama I', 'Central Rama II', 'Sukhumvit']);
 
-    await wrapper.get('#game-title').setValue('Catan');
+    await wrapper.get('#game-title-en').setValue('Catan');
     await wrapper.get('#game-category').setValue('strategy');
     await wrapper.get('#game-min').setValue('3');
     await wrapper.get('#game-max').setValue('4');
@@ -346,7 +346,7 @@ describe('add game screen', () => {
 
     const posted = calls.find((call) => call.method === 'POST');
     expect(JSON.parse(posted?.body ?? '{}')).toMatchObject({
-      title: 'Catan',
+      title: { en: 'Catan', th: null },
       category: 'strategy',
       minPlayers: 3,
       maxPlayers: 4,
@@ -360,7 +360,7 @@ describe('add game screen', () => {
     });
     expect(router.currentRoute.value.path).toBe('/games');
     // The inventory reports the save; the new row is the rest of the story.
-    expect(router.currentRoute.value.query.saved).toBe(ticketToRide.title);
+    expect(router.currentRoute.value.query.saved).toBe(ticketToRide.title.en);
   });
 
   it('leaves an unchosen category out rather than sending an empty value', async () => {
@@ -379,7 +379,7 @@ describe('add game screen', () => {
     ]);
     const { wrapper } = await renderScreen(AddGamePage, '/games/new');
 
-    await wrapper.get('#game-title').setValue('Catan');
+    await wrapper.get('#game-title-en').setValue('Catan');
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
@@ -388,6 +388,52 @@ describe('add game screen', () => {
     );
     expect(posted).not.toHaveProperty('category');
     expect(wrapper.get('[data-testid="game-category-error"]').text()).toBe(
+      'This is required.',
+    );
+  });
+
+  it('tells a wrongly typed number apart from one that was never filled in', async () => {
+    const calls = stubApi([
+      branchDirectory,
+      (request) =>
+        request.method === 'POST'
+          ? {
+              status: 422,
+              body: {
+                status: 422,
+                // What the API answers once a readable minimum is sent and the
+                // maximum is still empty.
+                errors: [{ field: 'maxPlayers', message: 'required' }],
+              },
+            }
+          : undefined,
+    ]);
+    const { wrapper } = await renderScreen(AddGamePage, '/games/new');
+
+    await wrapper.get('#game-title-en').setValue('Catan');
+    await wrapper.get('#game-min').setValue('four');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    // "four" is a wrong value, not a missing one, and JSON cannot carry it in a
+    // field the contract types as an integer — so nothing is sent at all.
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
+    expect(wrapper.get('[data-testid="game-min-error"]').text()).toBe(
+      'This value is not allowed.',
+    );
+    // Max players was left blank, which is missing rather than wrong, so it is
+    // not flagged here; the API is what answers for it.
+    expect(wrapper.find('[data-testid="game-max-error"]').exists()).toBe(false);
+
+    // Corrected, the same submit reaches the API, which reports the field that
+    // really was left empty as required.
+    await wrapper.get('#game-min').setValue('3');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(calls.some((call) => call.method === 'POST')).toBe(true);
+    expect(wrapper.find('[data-testid="game-min-error"]').exists()).toBe(false);
+    expect(wrapper.get('[data-testid="game-max-error"]').text()).toBe(
       'This is required.',
     );
   });
@@ -403,7 +449,7 @@ describe('add game screen', () => {
                 status: 422,
                 title: 'Unprocessable Content',
                 errors: [
-                  { field: 'title', message: 'required' },
+                  { field: 'title.en', message: 'required' },
                   { field: 'maxPlayers', message: 'belowMinimum' },
                 ],
               },
@@ -418,7 +464,7 @@ describe('add game screen', () => {
     expect(wrapper.get('[data-testid="form-error"]').text()).toBe(
       'Check the highlighted fields and try again.',
     );
-    expect(wrapper.get('[data-testid="game-title-error"]').text()).toBe(
+    expect(wrapper.get('[data-testid="game-title-en-error"]').text()).toBe(
       'This is required.',
     );
     expect(wrapper.get('[data-testid="game-max-error"]').text()).toBe(
@@ -460,15 +506,15 @@ describe('edit game screen', () => {
     );
 
     expect(wrapper.get('h1').text()).toBe('Edit game — Ticket to Ride');
-    expect(wrapper.get<HTMLInputElement>('#game-title').element.value).toBe(
+    expect(wrapper.get<HTMLInputElement>('#game-title-en').element.value).toBe(
       'Ticket to Ride',
     );
     expect(wrapper.get<HTMLSelectElement>('#game-category').element.value).toBe(
       'family',
     );
     expect(
-      wrapper.get<HTMLTextAreaElement>('#game-description').element.value,
-    ).toBe(ticketToRide.description);
+      wrapper.get<HTMLTextAreaElement>('#game-description-en').element.value,
+    ).toBe(ticketToRide.description?.en);
     expect(wrapper.get<HTMLInputElement>('#game-play-time').element.value).toBe(
       '60',
     );
@@ -479,14 +525,14 @@ describe('edit game screen', () => {
         .map((input) => (input.element as HTMLInputElement).value),
     ).toEqual(['1', '2', '0']);
 
-    await wrapper.get('#game-title').setValue('Ticket to Ride Europe');
+    await wrapper.get('#game-title-en').setValue('Ticket to Ride Europe');
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
     const put = calls.find((call) => call.method === 'PUT');
     expect(put?.url).toContain('/games/' + ticketToRideId);
     expect(JSON.parse(put?.body ?? '{}')).toMatchObject({
-      title: 'Ticket to Ride Europe',
+      title: { en: 'Ticket to Ride Europe', th: 'ตั๋วรถไฟ' },
       lifecycle: 'active',
       // Neither has a control in the design, so the edit must not drop them.
       tags: ticketToRide.tags,

@@ -4,6 +4,7 @@ import type {
   GameDetail,
   GameLifecycle,
   GameRequest,
+  LocalizedDescription,
   ValidationProblem,
 } from '../../generated/api/types.gen';
 
@@ -34,8 +35,11 @@ export interface BranchCopies {
  * edit does not silently retire a game or drop its tags.
  */
 export interface GameFormValues {
-  title: string;
-  description: string;
+  /** The catalogue's canonical title; the only one of the four that is required. */
+  titleEn: string;
+  titleTh: string;
+  descriptionEn: string;
+  descriptionTh: string;
   /** A {@link GameCategory} value, or empty while the select is unset. */
   category: string;
   playTimeMinutes: string;
@@ -49,8 +53,10 @@ export interface GameFormValues {
 
 export function emptyForm(branches: readonly Branch[]): GameFormValues {
   return {
-    title: '',
-    description: '',
+    titleEn: '',
+    titleTh: '',
+    descriptionEn: '',
+    descriptionTh: '',
     category: '',
     playTimeMinutes: '',
     minPlayers: '',
@@ -72,8 +78,12 @@ export function formValuesOf(
   }
 
   return {
-    title: game.title,
-    description: game.description ?? '',
+    // The form edits each language on its own, so it fills in what is stored
+    // rather than what the reader's locale resolves to.
+    titleEn: game.title.en,
+    titleTh: game.title.th ?? '',
+    descriptionEn: game.description?.en ?? '',
+    descriptionTh: game.description?.th ?? '',
     category: game.category,
     playTimeMinutes: game.playTimeMinutes?.toString() ?? '',
     minPlayers: game.minPlayers.toString(),
@@ -99,15 +109,16 @@ function branchRows(
 /**
  * Builds the request body.
  *
- * Numbers that the user has not filled in are sent as they were typed rather
- * than coerced to a placeholder, so the API — the single source of validation —
- * decides what is acceptable. `NaN` would not survive JSON, so an unparseable
- * number is sent as null and comes back as "required".
+ * A number the user left blank is sent as null rather than coerced to a
+ * placeholder, so the API — the single source of validation — reports it as the
+ * missing value it is. Text the browser could not read as a number never gets
+ * here: {@link numericErrorsOf} stops the submit, because JSON has no way to
+ * carry "four" in a field the contract types as an integer.
  */
 export function toGameRequest(values: GameFormValues): GameRequest {
   return {
-    title: values.title.trim(),
-    description: values.description.trim() || null,
+    title: { en: values.titleEn.trim(), th: values.titleTh.trim() || null },
+    description: descriptionOf(values),
     // An unchosen category is left out rather than sent as "", which the API
     // could only read as an unknown category. Absent, it is reported as
     // required — which is what it is.
@@ -125,14 +136,54 @@ export function toGameRequest(values: GameFormValues): GameRequest {
   };
 }
 
+/** Nothing at all when neither language was filled in, matching the API. */
+function descriptionOf(values: GameFormValues): LocalizedDescription | null {
+  const en = values.descriptionEn.trim();
+  const th = values.descriptionTh.trim();
+
+  return en || th ? { en: en || null, th: th || null } : null;
+}
+
+/**
+ * Numeric fields holding text the browser cannot read as a number, as the field
+ * paths the API would use.
+ *
+ * A blank field is deliberately not reported here. Blank means the value is
+ * missing, and the API answers that with `required`; text such as "four" means
+ * the value is wrong, and only the browser can say so, because the conversion
+ * to a number happens here and a malformed one cannot be put into the request
+ * at all. Reporting both the same way — which is what sending null for each did
+ * — tells someone who typed "four" that they typed nothing.
+ */
+export function numericErrorsOf(
+  values: GameFormValues,
+): Record<string, string> {
+  const errors: Record<string, string> = {};
+  const check = (field: string, value: string) => {
+    if (value.trim() !== '' && toNumber(value) === null) {
+      errors[field] = 'invalid';
+    }
+  };
+
+  check('minPlayers', values.minPlayers);
+  check('maxPlayers', values.maxPlayers);
+  check('playTimeMinutes', values.playTimeMinutes);
+  values.copies.forEach((row, index) => {
+    check('copies[' + index + '].copies', row.copies);
+  });
+
+  return errors;
+}
+
+/**
+ * Blank is nothing; anything that is not a whole number is unreadable. Every
+ * numeric field on this form is a count, so a decimal or a sign is as wrong as
+ * a word, and saying so here beats a round-trip that reports a range violation.
+ */
 function toNumber(value: string): number | null {
   const trimmed = value.trim();
-  if (trimmed === '') {
-    return null;
-  }
-  const parsed = Number(trimmed);
 
-  return Number.isFinite(parsed) ? parsed : null;
+  return /^\d+$/.test(trimmed) ? Number(trimmed) : null;
 }
 
 /**

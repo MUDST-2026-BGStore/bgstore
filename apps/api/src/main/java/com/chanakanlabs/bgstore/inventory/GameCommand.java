@@ -12,8 +12,8 @@ import org.springframework.lang.Nullable;
  * blanks are collapsed to null, and every branch in {@code copies} is known to exist.
  */
 record GameCommand(
-    String title,
-    @Nullable String description,
+    LocalizedText title,
+    LocalizedText description,
     GameCategory category,
     int minPlayers,
     int maxPlayers,

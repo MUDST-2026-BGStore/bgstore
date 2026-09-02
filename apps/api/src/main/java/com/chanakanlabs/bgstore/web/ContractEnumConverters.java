@@ -1,5 +1,6 @@
 package com.chanakanlabs.bgstore.web;
 
+import com.chanakanlabs.bgstore.contract.model.CatalogueLocale;
 import com.chanakanlabs.bgstore.contract.model.GameAvailability;
 import com.chanakanlabs.bgstore.contract.model.GameCategory;
 import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
@@ -19,6 +20,7 @@ class ContractEnumConverters implements WebMvcConfigurer {
 
   @Override
   public void addFormatters(FormatterRegistry registry) {
+    registry.addConverter(String.class, CatalogueLocale.class, CatalogueLocale::fromValue);
     registry.addConverter(String.class, GameAvailability.class, GameAvailability::fromValue);
     registry.addConverter(String.class, GameCategory.class, GameCategory::fromValue);
     registry.addConverter(String.class, GameLifecycle.class, GameLifecycle::fromValue);

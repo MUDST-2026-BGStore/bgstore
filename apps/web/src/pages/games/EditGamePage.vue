@@ -15,11 +15,13 @@ import {
   fieldErrorsOf,
   formValuesOf,
   hasStatus,
+  numericErrorsOf,
   toGameRequest,
   type GameFormValues,
 } from './form';
+import { resolveLocalized } from './localized';
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const queryClient = useQueryClient();
@@ -44,6 +46,12 @@ const values = computed<GameFormValues>(() => {
   return loaded ? formValuesOf(loaded, directory) : emptyForm(directory);
 });
 
+// The heading names the game, so it reads the title in the reader's language
+// even though the form below edits each language on its own.
+const title = computed(() =>
+  resolveLocalized(game.data.value?.title, locale.value),
+);
+
 const errors = ref<Record<string, string>>({});
 
 const update = useMutation({
@@ -55,7 +63,7 @@ const update = useMutation({
     // The detail screen shows the saved record, which is the success state.
     await router.push({
       path: '/games/' + gameId.value,
-      query: { saved: game.title },
+      query: { saved: resolveLocalized(game.title, locale.value) },
     });
   },
   onError: (failure) => {
@@ -64,6 +72,14 @@ const update = useMutation({
 });
 
 function submit(form: GameFormValues) {
+  // See AddGamePage: unreadable numbers are named here, not sent as nulls the
+  // API can only report as missing.
+  const malformed = numericErrorsOf(form);
+  errors.value = malformed;
+  if (Object.keys(malformed).length > 0) {
+    return;
+  }
+
   update.mutate(toGameRequest(form));
 }
 </script>
@@ -83,7 +99,7 @@ function submit(form: GameFormValues) {
   <GameFormView
     v-else
     :breadcrumb="t('games.form.editBreadcrumb')"
-    :page-title="t('games.form.editTitle', { title: values.title })"
+    :page-title="t('games.form.editTitle', { title })"
     :secondary-label="t('games.form.cancel')"
     :primary-label="t('games.form.submitEdit')"
     :values="values"

@@ -54,7 +54,7 @@ The backend test suite uses Testcontainers for real PostgreSQL and Redis-compati
 2. Change the owning boundary, keeping controllers thin and domain behavior inside a Spring Modulith module.
 3. Add the narrowest test first; add an integration or browser test when the behavior crosses a process boundary.
 4. If the HTTP shape changes, edit `packages/contracts/openapi.yaml`, regenerate clients/server code, and review the generated diff.
-5. Add an append-only Flyway migration for schema changes. Never edit a migration that has reached a shared environment.
+5. Add an append-only Flyway migration for schema changes. Never edit a migration that has reached a shared environment. A migration that shapes a catalogue table must be named `V*__games*.sql`: jOOQ's code generator reads that one pattern (see `jooq { }` in `apps/api/build.gradle.kts`), and a catalogue migration named anything else leaves the generated types behind the schema.
 6. Run `pnpm check`, `pnpm e2e`, and the relevant deployment rendering checks.
 7. Use a Conventional Commit and update an ADR or runbook when the operational or architectural behavior changes.
 

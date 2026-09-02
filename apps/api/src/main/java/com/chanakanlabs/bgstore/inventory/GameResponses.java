@@ -6,12 +6,16 @@ import com.chanakanlabs.bgstore.contract.model.GameDetail;
 import com.chanakanlabs.bgstore.contract.model.GameListResponse;
 import com.chanakanlabs.bgstore.contract.model.GameStats;
 import com.chanakanlabs.bgstore.contract.model.GameSummary;
+import com.chanakanlabs.bgstore.contract.model.LocalizedDescription;
+import com.chanakanlabs.bgstore.contract.model.LocalizedTitle;
 import com.chanakanlabs.bgstore.contract.model.PageMeta;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import org.springframework.lang.Nullable;
 
 /** Turns the stored shapes into the contract models. Pure: no database, no branch lookups. */
 final class GameResponses {
@@ -33,7 +37,7 @@ final class GameResponses {
     var summary =
         new GameSummary(
             row.id(),
-            row.title(),
+            titleOf(row.title()),
             row.category(),
             row.minPlayers(),
             row.maxPlayers(),
@@ -85,7 +89,7 @@ final class GameResponses {
     var detail =
         new GameDetail(
             game.id(),
-            game.title(),
+            titleOf(game.title()),
             game.category(),
             game.minPlayers(),
             game.maxPlayers(),
@@ -96,11 +100,37 @@ final class GameResponses {
             totalCopies,
             branchCount,
             rows);
-    detail.setDescription(game.description());
+    detail.setDescription(descriptionOf(game.description()));
     detail.setPlayTimeMinutes(game.playTimeMinutes());
     detail.setDifficulty(game.difficulty());
     detail.setLastPlayedAt(game.lastPlayedAt());
 
     return detail;
+  }
+
+  /**
+   * Both languages go out on every response: the browser renders one through the fallback rule the
+   * contract publishes, and the edit form fills in both.
+   */
+  private static LocalizedTitle titleOf(LocalizedText title) {
+    // Stored titles always carry English: the column is not null and the
+    // validator requires it before a row is written.
+    var model = new LocalizedTitle(Objects.requireNonNull(title.english()));
+    model.setTh(title.thai());
+
+    return model;
+  }
+
+  /** Null when neither language carries text, which is how "no description" is published. */
+  private static @Nullable LocalizedDescription descriptionOf(LocalizedText description) {
+    if (description.isEmpty()) {
+      return null;
+    }
+
+    var model = new LocalizedDescription();
+    model.setEn(description.english());
+    model.setTh(description.thai());
+
+    return model;
   }
 }
