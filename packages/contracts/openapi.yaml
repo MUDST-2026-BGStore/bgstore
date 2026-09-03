@@ -14,6 +14,8 @@ tags:
     description: Walking-skeleton operations.
   - name: Identity
     description: The authenticated BGStore user context and client onboarding.
+  - name: Tables
+    description: Store table inventory and operational status management.
 paths:
   /hello:
     get:
@@ -69,6 +71,158 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /tables:
+    get:
+      tags: [Tables]
+      operationId: listTables
+      summary: List store tables with optional filtering and pagination.
+      parameters:
+        - name: branch
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: zone
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TableStatus'
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: A paginated list of tables matching the query.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TableListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Tables]
+      operationId: createTable
+      summary: Create a new store table.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTableRequest'
+      responses:
+        '201':
+          description: The created table record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TableResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+  /tables/{tableId}:
+    get:
+      tags: [Tables]
+      operationId: getTable
+      summary: Get details of a single store table by ID.
+      parameters:
+        - name: tableId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: The table record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TableResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Tables]
+      operationId: updateTable
+      summary: Update an existing store table.
+      parameters:
+        - name: tableId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTableRequest'
+      responses:
+        '200':
+          description: The updated table record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TableResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Tables]
+      operationId: deleteTable
+      summary: Delete a store table.
+      parameters:
+        - name: tableId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: The table was successfully deleted.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
 components:
   securitySchemes:
     cookieAuth:
@@ -96,6 +250,12 @@ components:
             $ref: '#/components/schemas/ProblemDetail'
     OnboardingRequired:
       description: The client must complete onboarding before using this endpoint.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    NotFound:
+      description: The requested resource was not found.
       content:
         application/problem+json:
           schema:
@@ -194,3 +354,114 @@ components:
           description: A Thai mobile number, with or without the +66 country code.
           minLength: 10
           maxLength: 13
+    TableStatus:
+      type: string
+      enum: [Available, Reserved, Occupied, Unavailable]
+    TableShape:
+      type: string
+      enum: [Round, Square, Oval, Rectangle]
+    TableResponse:
+      type: object
+      additionalProperties: false
+      required:
+        [id, name, branch, capacity, shape, status, active, zone, lastUpdated]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        branch:
+          type: string
+          minLength: 1
+          maxLength: 100
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 100
+        shape:
+          $ref: '#/components/schemas/TableShape'
+        status:
+          $ref: '#/components/schemas/TableStatus'
+        active:
+          type: boolean
+        zone:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lastUpdated:
+          type: string
+          format: date-time
+    TableListResponse:
+      type: object
+      additionalProperties: false
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TableResponse'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+    CreateTableRequest:
+      type: object
+      additionalProperties: false
+      required: [name, branch, capacity, shape, status, active, zone]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        branch:
+          type: string
+          minLength: 1
+          maxLength: 100
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 100
+        shape:
+          $ref: '#/components/schemas/TableShape'
+        status:
+          $ref: '#/components/schemas/TableStatus'
+        active:
+          type: boolean
+        zone:
+          type: string
+          minLength: 1
+          maxLength: 100
+    UpdateTableRequest:
+      type: object
+      additionalProperties: false
+      required: [name, branch, capacity, shape, status, active, zone]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        branch:
+          type: string
+          minLength: 1
+          maxLength: 100
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 100
+        shape:
+          $ref: '#/components/schemas/TableShape'
+        status:
+          $ref: '#/components/schemas/TableStatus'
+        active:
+          type: boolean
+        zone:
+          type: string
+          minLength: 1
+          maxLength: 100

@@ -255,28 +255,6 @@ describe('Owner table management screen', () => {
     expect(wrapper.text()).not.toContain('Table 1');
   });
 
-  it('switches navigation sections in top header', async () => {
-    vi.useFakeTimers();
-    const wrapper = await mountView();
-
-    const navButtons = wrapper.findAll(
-      'nav[aria-label="Primary navigation"] button',
-    );
-    expect(navButtons).toHaveLength(4);
-
-    // Click Branches
-    await navButtons[1].trigger('click');
-    expect(navButtons[1].attributes('aria-current')).toBe('page');
-
-    // Click Dashboard
-    await navButtons[0].trigger('click');
-    expect(navButtons[0].attributes('aria-current')).toBe('page');
-
-    // Click Tables
-    await navButtons[2].trigger('click');
-    expect(navButtons[2].attributes('aria-current')).toBe('page');
-  });
-
   it('navigates through paginated pages', async () => {
     vi.useFakeTimers();
     const wrapper = await mountView();

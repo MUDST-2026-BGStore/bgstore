@@ -330,7 +330,6 @@ const isLoading = ref(true);
 const currentView = ref<ViewMode>('list');
 const editingId = ref<number | null>(null);
 const viewedTable = ref<TableRecord | null>(null);
-const activeNav = ref<'Dashboard' | 'Branches' | 'Tables' | 'Games'>('Tables');
 
 const defaultForm = {
   name: '',
@@ -431,13 +430,6 @@ onUnmounted(() => {
   document.body.style.background = '';
   document.body.style.color = '';
 });
-
-function handleNavClick(
-  section: 'Dashboard' | 'Branches' | 'Tables' | 'Games',
-) {
-  activeNav.value = section;
-  if (section === 'Tables') closeForm();
-}
 
 function openCreateForm() {
   editingId.value = null;
@@ -588,143 +580,6 @@ function formatUpdated(value: string) {
   <main
     class="m-0 min-h-screen w-full bg-white p-0 font-[Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,Helvetica,Arial,sans-serif] text-[#1e293b] antialiased [box-sizing:border-box]"
   >
-    <!-- ─── GLOBAL HEADER ──────────────────────────────────── -->
-    <header class="sticky top-0 z-30 border-b border-gray-200 bg-white">
-      <div
-        class="mx-auto flex max-w-6xl items-center justify-between px-6 py-3"
-      >
-        <!-- Logo -->
-        <div
-          class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#1b4d4f]"
-          aria-label="BGStore"
-        />
-
-        <!-- Nav -->
-        <nav class="flex items-center gap-1" aria-label="Primary navigation">
-          <!-- Dashboard -->
-          <button
-            type="button"
-            :class="[
-              'flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition',
-              activeNav === 'Dashboard'
-                ? 'bg-[#e8efef] font-semibold text-[#1b2b30]'
-                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800',
-            ]"
-            :aria-current="activeNav === 'Dashboard' ? 'page' : undefined"
-            @click="handleNavClick('Dashboard')"
-          >
-            <svg
-              class="h-3.5 w-3.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-            Dashboard
-          </button>
-
-          <!-- Branches -->
-          <button
-            type="button"
-            :class="[
-              'flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition',
-              activeNav === 'Branches'
-                ? 'bg-[#e8efef] font-semibold text-[#1b2b30]'
-                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800',
-            ]"
-            :aria-current="activeNav === 'Branches' ? 'page' : undefined"
-            @click="handleNavClick('Branches')"
-          >
-            <svg
-              class="h-3.5 w-3.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
-            Branches
-          </button>
-
-          <!-- Tables -->
-          <button
-            type="button"
-            :class="[
-              'flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition',
-              activeNav === 'Tables'
-                ? 'bg-[#e8efef] font-semibold text-[#1b2b30]'
-                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800',
-            ]"
-            :aria-current="activeNav === 'Tables' ? 'page' : undefined"
-            @click="handleNavClick('Tables')"
-          >
-            <svg
-              class="h-3.5 w-3.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="4" width="18" height="4" rx="1" />
-              <line x1="6" y1="8" x2="6" y2="20" />
-              <line x1="18" y1="8" x2="18" y2="20" />
-              <line x1="4" y1="20" x2="20" y2="20" />
-            </svg>
-            Tables
-          </button>
-
-          <!-- Games -->
-          <button
-            type="button"
-            :class="[
-              'flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium transition',
-              activeNav === 'Games'
-                ? 'bg-[#e8efef] font-semibold text-[#1b2b30]'
-                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-800',
-            ]"
-            :aria-current="activeNav === 'Games' ? 'page' : undefined"
-            @click="handleNavClick('Games')"
-          >
-            <svg
-              class="h-3.5 w-3.5"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="2" y="7" width="20" height="12" rx="4" />
-              <path d="M7 13h2m-1-1v2" />
-              <circle cx="16" cy="12" r="1" fill="currentColor" stroke="none" />
-              <circle
-                cx="18.5"
-                cy="14"
-                r="1"
-                fill="currentColor"
-                stroke="none"
-              />
-            </svg>
-            Games
-          </button>
-        </nav>
-
-        <!-- Spacer so nav stays centred visually -->
-        <div class="h-9 w-9" aria-hidden="true" />
-      </div>
-    </header>
-
     <!-- ─── LIST VIEW ──────────────────────────────────────── -->
     <div v-if="currentView === 'list'" class="mx-auto max-w-6xl px-6 py-6">
       <!-- Subheader toolbar -->
@@ -734,14 +589,27 @@ function formatUpdated(value: string) {
         <span class="text-sm font-semibold text-gray-500">Tables</span>
         <div class="flex items-center gap-3">
           <label class="sr-only" for="panel-branch">Branch</label>
-          <select
-            id="panel-branch"
-            v-model="selectedBranch"
-            aria-label="Select branch"
-            class="h-9 min-w-[150px] rounded-full border border-gray-300 bg-white px-4 text-xs font-medium text-gray-800 outline-none transition hover:border-gray-400 focus:border-[#1b4d4f]"
-          >
-            <option v-for="b in branches" :key="b" :value="b">{{ b }}</option>
-          </select>
+          <div class="relative">
+            <select
+              id="panel-branch"
+              v-model="selectedBranch"
+              aria-label="Select branch"
+              class="h-9 min-w-[150px] appearance-none rounded-full border border-gray-300 bg-white pl-4 pr-9 text-xs font-medium text-gray-800 outline-none transition hover:border-gray-400 focus:border-[#1b4d4f]"
+            >
+              <option v-for="b in branches" :key="b" :value="b">{{ b }}</option>
+            </select>
+            <div
+              class="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-gray-500"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                <path
+                  fill-rule="evenodd"
+                  d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                  clip-rule="evenodd"
+                />
+              </svg>
+            </div>
+          </div>
           <button
             type="button"
             class="inline-flex items-center rounded-full bg-[#1b4d4f] px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-[#153b3d]"
@@ -926,23 +794,51 @@ function formatUpdated(value: string) {
           />
         </label>
 
-        <select
-          v-model="zoneFilter"
-          aria-label="Filter by zone"
-          class="h-9 min-w-[150px] rounded-lg border border-gray-300 bg-white px-3 text-xs font-medium text-gray-800 outline-none transition hover:border-gray-400 focus:border-[#1b4d4f]"
-        >
-          <option v-for="z in zoneOptions" :key="z" :value="z">{{ z }}</option>
-        </select>
+        <div class="relative">
+          <select
+            v-model="zoneFilter"
+            aria-label="Filter by zone"
+            class="h-9 min-w-[150px] appearance-none rounded-lg border border-gray-300 bg-white pl-3.5 pr-9 text-xs font-medium text-gray-800 outline-none transition hover:border-gray-400 focus:border-[#1b4d4f]"
+          >
+            <option v-for="z in zoneOptions" :key="z" :value="z">
+              {{ z }}
+            </option>
+          </select>
+          <div
+            class="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-gray-500"
+          >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </div>
+        </div>
 
-        <select
-          v-model="statusFilter"
-          aria-label="Filter by status"
-          class="h-9 min-w-[150px] rounded-lg border border-gray-300 bg-white px-3 text-xs font-medium text-gray-800 outline-none transition hover:border-gray-400 focus:border-[#1b4d4f]"
-        >
-          <option v-for="s in statusOptions" :key="s" :value="s">
-            {{ s }}
-          </option>
-        </select>
+        <div class="relative">
+          <select
+            v-model="statusFilter"
+            aria-label="Filter by status"
+            class="h-9 min-w-[150px] appearance-none rounded-lg border border-gray-300 bg-white pl-3.5 pr-9 text-xs font-medium text-gray-800 outline-none transition hover:border-gray-400 focus:border-[#1b4d4f]"
+          >
+            <option v-for="s in statusOptions" :key="s" :value="s">
+              {{ s }}
+            </option>
+          </select>
+          <div
+            class="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-gray-500"
+          >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </div>
+        </div>
       </div>
 
       <!-- Table container -->
@@ -987,17 +883,17 @@ function formatUpdated(value: string) {
 
         <template v-else>
           <div class="overflow-x-auto">
-            <table class="w-full border-collapse text-left">
+            <table class="w-full table-fixed border-collapse text-left">
               <thead>
                 <tr
                   class="border-b border-gray-200 bg-gray-50 text-[0.68rem] font-semibold uppercase tracking-wider text-gray-500"
                 >
-                  <th class="px-5 py-3">Table</th>
-                  <th class="px-5 py-3">Capacity</th>
-                  <th class="px-5 py-3">Shape</th>
-                  <th class="px-5 py-3">Status</th>
-                  <th class="px-5 py-3">Last updated</th>
-                  <th class="px-5 py-3 text-right">Actions</th>
+                  <th class="w-1/6 px-5 py-3.5">Table</th>
+                  <th class="w-1/6 px-5 py-3.5">Capacity</th>
+                  <th class="w-1/6 px-5 py-3.5">Shape</th>
+                  <th class="w-1/6 px-5 py-3.5">Status</th>
+                  <th class="w-1/6 px-5 py-3.5">Last updated</th>
+                  <th class="w-1/6 px-5 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
@@ -1006,24 +902,26 @@ function formatUpdated(value: string) {
                   :key="table.id"
                   class="transition hover:bg-gray-50/60"
                 >
-                  <td class="px-5 py-3.5 text-xs font-semibold text-gray-900">
+                  <td
+                    class="w-1/6 px-5 py-3.5 text-xs font-semibold text-gray-900 truncate"
+                  >
                     {{ table.name }}
                   </td>
-                  <td class="px-5 py-3.5 text-xs text-gray-600">
+                  <td class="w-1/6 px-5 py-3.5 text-xs text-gray-600 truncate">
                     {{ table.capacity }} seats
                   </td>
-                  <td class="px-5 py-3.5 text-xs text-gray-600">
+                  <td class="w-1/6 px-5 py-3.5 text-xs text-gray-600 truncate">
                     {{ table.shape }}
                   </td>
-                  <td class="px-5 py-3.5">
+                  <td class="w-1/6 px-5 py-3.5">
                     <span :class="statusClasses[table.status]">{{
                       table.status
                     }}</span>
                   </td>
-                  <td class="px-5 py-3.5 text-xs text-gray-500">
+                  <td class="w-1/6 px-5 py-3.5 text-xs text-gray-500 truncate">
                     {{ formatUpdated(table.lastUpdated) }}
                   </td>
-                  <td class="px-5 py-3.5 text-right">
+                  <td class="w-1/6 px-5 py-3.5 text-right">
                     <div
                       class="inline-flex items-center gap-3 text-xs font-semibold"
                     >
@@ -1060,57 +958,88 @@ function formatUpdated(value: string) {
       <!-- Pagination -->
       <div
         v-if="!isLoading && filteredTables.length > 0"
-        class="mt-5 flex items-center justify-end gap-3 pb-2"
+        class="mt-6 flex flex-wrap items-center justify-between gap-4 py-2"
         aria-label="Table pagination"
       >
-        <div class="mr-2 text-xs font-medium text-gray-500">
+        <div class="text-sm font-normal text-slate-500">
           Showing
           {{
             Math.min((currentPage - 1) * pageSize + 1, filteredTables.length)
           }}-{{ Math.min(currentPage * pageSize, filteredTables.length) }} of
           {{ filteredTables.length }}
         </div>
-        <button
-          type="button"
-          aria-label="Previous page"
-          class="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-white text-sm text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-          :disabled="currentPage === 1"
-          @click="currentPage -= 1"
-        >
-          ←
-        </button>
 
-        <div class="flex items-center gap-1 text-xs font-semibold">
-          <template
-            v-for="(page, index) in pageNumbers"
-            :key="`page-${String(page)}-${index}`"
+        <div class="flex items-center gap-6">
+          <button
+            type="button"
+            aria-label="Previous page"
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100/90 text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-30"
+            :disabled="currentPage === 1"
+            @click="currentPage -= 1"
           >
-            <button
-              v-if="page !== 'ellipsis'"
-              type="button"
-              :class="[
-                'flex h-7 w-7 items-center justify-center rounded-md transition',
-                page === currentPage
-                  ? 'bg-[#1b4d4f] text-white'
-                  : 'text-gray-600 hover:bg-gray-100',
-              ]"
-              @click="currentPage = Number(page)"
+            <svg
+              class="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
             >
-              {{ page }}
-            </button>
-            <span v-else class="px-1 text-sm text-gray-400">...</span>
-          </template>
-        </div>
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
 
-        <button
-          type="button"
-          aria-label="Next page"
-          class="flex h-8 w-8 items-center justify-center rounded-full border border-gray-300 bg-white text-sm text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-          :disabled="currentPage >= totalPages"
-          @click="currentPage += 1"
-        >
-          →
-        </button>
+          <div class="flex items-center gap-6 text-sm">
+            <template
+              v-for="(page, index) in pageNumbers"
+              :key="`page-${String(page)}-${index}`"
+            >
+              <button
+                v-if="page !== 'ellipsis'"
+                type="button"
+                :class="[
+                  'relative flex flex-col items-center justify-center px-1 py-1 transition cursor-pointer',
+                  page === currentPage
+                    ? 'font-bold text-slate-900'
+                    : 'font-normal text-slate-500 hover:text-slate-900',
+                ]"
+                :aria-current="page === currentPage ? 'page' : undefined"
+                @click="currentPage = Number(page)"
+              >
+                <span>{{ page }}</span>
+                <span
+                  v-if="page === currentPage"
+                  class="absolute -bottom-1 h-[2.5px] w-4 rounded-full bg-slate-900"
+                  aria-hidden="true"
+                />
+              </button>
+              <span v-else class="px-0.5 text-sm font-normal text-slate-500">
+                ...
+              </span>
+            </template>
+          </div>
+
+          <button
+            type="button"
+            aria-label="Next page"
+            class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100/90 text-slate-700 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-30"
+            :disabled="currentPage >= totalPages"
+            @click="currentPage += 1"
+          >
+            <svg
+              class="h-4 w-4"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
 

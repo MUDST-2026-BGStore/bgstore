@@ -50,6 +50,50 @@ export type CompleteClientProfileRequest = {
   phone: string;
 };
 
+export type TableStatus = 'Available' | 'Reserved' | 'Occupied' | 'Unavailable';
+
+export type TableShape = 'Round' | 'Square' | 'Oval' | 'Rectangle';
+
+export type TableResponse = {
+  id: number;
+  name: string;
+  branch: string;
+  capacity: number;
+  shape: TableShape;
+  status: TableStatus;
+  active: boolean;
+  zone: string;
+  lastUpdated: string;
+};
+
+export type TableListResponse = {
+  items: Array<TableResponse>;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type CreateTableRequest = {
+  name: string;
+  branch: string;
+  capacity: number;
+  shape: TableShape;
+  status: TableStatus;
+  active: boolean;
+  zone: string;
+};
+
+export type UpdateTableRequest = {
+  name: string;
+  branch: string;
+  capacity: number;
+  shape: TableShape;
+  status: TableStatus;
+  active: boolean;
+  zone: string;
+};
+
 export type GetHelloData = {
   body?: never;
   path?: never;
@@ -140,3 +184,184 @@ export type CompleteClientProfileResponses = {
 
 export type CompleteClientProfileResponse =
   CompleteClientProfileResponses[keyof CompleteClientProfileResponses];
+
+export type ListTablesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    branch?: string;
+    zone?: string;
+    status?: TableStatus;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  };
+  url: '/tables';
+};
+
+export type ListTablesErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type ListTablesError = ListTablesErrors[keyof ListTablesErrors];
+
+export type ListTablesResponses = {
+  /**
+   * A paginated list of tables matching the query.
+   */
+  200: TableListResponse;
+};
+
+export type ListTablesResponse = ListTablesResponses[keyof ListTablesResponses];
+
+export type CreateTableData = {
+  body: CreateTableRequest;
+  path?: never;
+  query?: never;
+  url: '/tables';
+};
+
+export type CreateTableErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type CreateTableError = CreateTableErrors[keyof CreateTableErrors];
+
+export type CreateTableResponses = {
+  /**
+   * The created table record.
+   */
+  201: TableResponse;
+};
+
+export type CreateTableResponse =
+  CreateTableResponses[keyof CreateTableResponses];
+
+export type DeleteTableData = {
+  body?: never;
+  path: {
+    tableId: number;
+  };
+  query?: never;
+  url: '/tables/{tableId}';
+};
+
+export type DeleteTableErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The requested resource was not found.
+   */
+  404: ProblemDetail;
+};
+
+export type DeleteTableError = DeleteTableErrors[keyof DeleteTableErrors];
+
+export type DeleteTableResponses = {
+  /**
+   * The table was successfully deleted.
+   */
+  204: void;
+};
+
+export type DeleteTableResponse =
+  DeleteTableResponses[keyof DeleteTableResponses];
+
+export type GetTableData = {
+  body?: never;
+  path: {
+    tableId: number;
+  };
+  query?: never;
+  url: '/tables/{tableId}';
+};
+
+export type GetTableErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The requested resource was not found.
+   */
+  404: ProblemDetail;
+};
+
+export type GetTableError = GetTableErrors[keyof GetTableErrors];
+
+export type GetTableResponses = {
+  /**
+   * The table record.
+   */
+  200: TableResponse;
+};
+
+export type GetTableResponse = GetTableResponses[keyof GetTableResponses];
+
+export type UpdateTableData = {
+  body: UpdateTableRequest;
+  path: {
+    tableId: number;
+  };
+  query?: never;
+  url: '/tables/{tableId}';
+};
+
+export type UpdateTableErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The requested resource was not found.
+   */
+  404: ProblemDetail;
+};
+
+export type UpdateTableError = UpdateTableErrors[keyof UpdateTableErrors];
+
+export type UpdateTableResponses = {
+  /**
+   * The updated table record.
+   */
+  200: TableResponse;
+};
+
+export type UpdateTableResponse =
+  UpdateTableResponses[keyof UpdateTableResponses];
