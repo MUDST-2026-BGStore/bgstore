@@ -318,15 +318,6 @@ function validateForm() {
   return !Object.values(nextErrors).some(Boolean);
 }
 
-const isSubmitDisabled = computed(() => {
-  return !(
-    form.name.trim() &&
-    form.branch &&
-    String(form.capacity).trim() &&
-    form.status
-  );
-});
-
 function saveTable() {
   if (!validateForm()) return;
 

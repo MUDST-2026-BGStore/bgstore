@@ -25,7 +25,7 @@
           "{projectRoot}/openapi.yaml"
         ],
         "options": {
-          "command": "./apps/api/gradlew -p apps/api openApiValidate"
+          "command": "nx run bgstore-api:openApiValidate"
         }
       }
     }
