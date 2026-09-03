@@ -361,7 +361,11 @@ a {
     0 0.8rem 1.5rem rgb(43 78 86 / 10%);
   transform: translateY(-1px);
 }
-
+.phone-divider {
+  width: 1px;
+  margin: 0.75rem 0;
+  background: #b9ced0;
+}
 .onboarding-form .button {
   width: 100%;
   margin: 0.5rem 0 0;
