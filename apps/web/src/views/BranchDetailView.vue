@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useBranches } from '../composables/useBranches';
 
 const route = useRoute();
@@ -53,9 +53,13 @@ const handleEdit = () => {
         class="flex items-center gap-2 text-sm font-bold text-gray-900"
         aria-label="Breadcrumb"
       >
-        <RouterLink to="/branches" class="text-gray-900 hover:underline">
+        <a
+          href="/branches"
+          class="text-gray-900 hover:underline cursor-pointer"
+          @click.prevent="handleCancel"
+        >
           Branches
-        </RouterLink>
+        </a>
         <span class="text-gray-400 font-normal">›</span>
         <span class="text-gray-900">{{ branch.name }}</span>
       </nav>
