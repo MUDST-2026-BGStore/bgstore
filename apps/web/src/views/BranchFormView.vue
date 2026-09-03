@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
-import { RouterLink, useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useBranches } from '../composables/useBranches';
 
 const route = useRoute();
 const router = useRouter();
 const { getBranchById, addBranch, updateBranch } = useBranches();
 
-const isEdit = computed(() => route.path.includes('/edit'));
-const branchId = computed(() => (route.params.id as string) || '');
+const isEdit = computed(() => Boolean(route?.path?.includes('/edit')));
+const branchId = computed(() => (route?.params?.id as string) || '');
 
 const form = ref({
   name: '',
@@ -155,9 +155,13 @@ const handleSubmit = () => {
         class="flex items-center gap-2 text-sm font-bold text-gray-900"
         aria-label="Breadcrumb"
       >
-        <RouterLink to="/branches" class="text-gray-900 hover:underline">
+        <a
+          href="/branches"
+          class="text-gray-900 hover:underline cursor-pointer"
+          @click.prevent="handleCancel"
+        >
           Branches
-        </RouterLink>
+        </a>
         <span class="text-gray-400 font-normal">›</span>
         <span class="text-gray-900">
           {{ isEdit ? 'Edit branch' : 'Add branch' }}
@@ -292,9 +296,9 @@ const handleSubmit = () => {
               />
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-700 mb-1"
-                >Postcode</label
-              >
+              <label class="block text-xs font-semibold text-gray-700 mb-1">
+                Postcode
+              </label>
               <input
                 v-model="form.postcode"
                 type="text"
@@ -303,9 +307,9 @@ const handleSubmit = () => {
               />
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-700 mb-1"
-                >District</label
-              >
+              <label class="block text-xs font-semibold text-gray-700 mb-1">
+                District
+              </label>
               <input
                 v-model="form.district"
                 type="text"
@@ -340,9 +344,9 @@ const handleSubmit = () => {
               </span>
             </div>
             <div>
-              <label class="block text-xs font-semibold text-gray-700 mb-1"
-                >Email</label
-              >
+              <label class="block text-xs font-semibold text-gray-700 mb-1">
+                Email
+              </label>
               <input
                 v-model="form.email"
                 type="email"
