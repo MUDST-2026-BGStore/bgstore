@@ -1,10 +1,51 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router';
+import { useQuery } from '@tanstack/vue-query';
+import { computed, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
+import { currentUserQueryOptions } from '../queries/current-user';
+
+const route = useRoute();
+const router = useRouter();
+const { t } = useI18n();
+const currentUser = useQuery(currentUserQueryOptions());
+
+const signInHref = computed(
+  () =>
+    `/oauth2/authorization/keycloak?returnTo=${encodeURIComponent(route.fullPath)}`,
+);
+
+watch(
+  () => currentUser.data.value,
+  (user) => {
+    if (!user) {
+      return;
+    }
+    if (user.onboardingRequired && route.name !== 'onboarding') {
+      void router.replace({
+        name: 'onboarding',
+        query: { returnTo: route.fullPath },
+      });
+      return;
+    }
+    if (!user.onboardingRequired && route.name === 'onboarding') {
+      const returnTo = route.query.returnTo;
+      void router.replace(
+        typeof returnTo === 'string' &&
+          returnTo.startsWith('/') &&
+          !returnTo.startsWith('//')
+          ? returnTo
+          : '/',
+      );
+    }
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
-  <main class="w-full min-h-screen bg-white">
-    <!-- Top Navigation Bar (Figma Design - ย่อขนาดให้สมดุล) -->
+  <main class="shell w-full min-h-screen bg-white">
+    <!-- Top Navigation Bar (Figma Design - คงเดิม 100%) -->
     <header
       class="masthead w-full h-12 border-b border-gray-200 bg-white px-12 flex justify-between items-center"
     >
@@ -114,7 +155,29 @@ import { RouterLink, RouterView } from 'vue-router';
       </nav>
     </header>
 
-    <!-- Page Content (เต็มความกว้างจอ) -->
-    <RouterView />
+    <!-- Authentication State Views (สำหรับ Unit Test & Login Session) -->
+    <section
+      v-if="currentUser.isPending.value"
+      class="auth-state"
+      aria-live="polite"
+    >
+      {{ t('auth.loading') }}
+    </section>
+
+    <section
+      v-else-if="currentUser.isError.value"
+      class="auth-state"
+      aria-labelledby="sign-in-title"
+    >
+      <div class="auth-state-card">
+        <span class="auth-state-icon" aria-hidden="true">BG</span>
+        <h1 id="sign-in-title">{{ t('auth.signInTitle') }}</h1>
+        <p>{{ t('status.authenticationHint') }}</p>
+        <a class="button" :href="signInHref">{{ t('actions.signIn') }}</a>
+      </div>
+    </section>
+
+    <!-- Page Content ปกติ (แสดงผลเมื่อ Login เรียบร้อย) -->
+    <RouterView v-else />
   </main>
 </template>
