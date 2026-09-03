@@ -1,6 +1,6 @@
 -- Game titles and descriptions become language-aware catalogue metadata.
 --
--- `docs/domain-model.md` already calls a game title "language-aware catalog
+-- `docs/domain-model.md` already calls a game title "language-aware catalogue
 -- metadata"; this is the schema catching up. English is the canonical entry
 -- every game carries, so the existing columns are renamed rather than replaced:
 -- what is already in the catalogue was entered in English. Thai is added
