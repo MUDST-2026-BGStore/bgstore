@@ -101,7 +101,7 @@ a {
   letter-spacing: 0.14em;
 }
 
-h1 {
+.hero h1 {
   margin: 0;
   font-family: Georgia, 'Times New Roman', serif;
   font-size: clamp(4rem, 13vw, 9.5rem);
