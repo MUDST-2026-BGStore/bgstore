@@ -336,11 +336,6 @@ onBeforeUnmount(() => {
   font-variant-numeric: tabular-nums;
 }
 
-.phone-divider {
-  width: 1px;
-  margin: 0.75rem 0;
-  background: #b9ced0;
-}
 
 @keyframes phone-menu-in {
   from {
