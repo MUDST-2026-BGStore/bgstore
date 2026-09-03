@@ -1,8 +1,8 @@
 import './styles.css';
 import { VueQueryPlugin } from '@tanstack/vue-query';
 import { createPinia } from 'pinia';
-import { createApp, h } from 'vue';
-import { RouterView } from 'vue-router';
+import { createApp } from 'vue';
+import App from './app/App.vue';
 import { client } from './generated/api/client.gen';
 import { i18n } from './i18n';
 import { router } from './router';
@@ -12,10 +12,25 @@ client.setConfig({
   credentials: 'include',
 });
 
-const app = createApp({
-  render: () => h(RouterView),
+client.interceptors.request.use((request) => {
+  if (!['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
+    return request;
+  }
+
+  const csrfToken = document.cookie
+    .split('; ')
+    .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+    ?.split('=')[1];
+  if (!csrfToken) {
+    return request;
+  }
+
+  const headers = new Headers(request.headers);
+  headers.set('X-XSRF-TOKEN', decodeURIComponent(csrfToken));
+  return new Request(request, { headers });
 });
 
+const app = createApp(App);
 app.use(createPinia());
 app.use(router);
 app.use(i18n);

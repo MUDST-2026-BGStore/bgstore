@@ -2,10 +2,23 @@
   "realm": "bgstore",
   "enabled": true,
   "displayName": "BGStore",
+  "loginTheme": "bgstore",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["en", "th"],
+  "defaultLocale": "en",
   "registrationAllowed": true,
   "loginWithEmailAllowed": true,
-  "verifyEmail": false,
+  "verifyEmail": true,
   "resetPasswordAllowed": true,
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "no-reply@bgstore.test",
+    "fromDisplayName": "BGStore",
+    "auth": "false",
+    "starttls": "false",
+    "ssl": "false"
+  },
   "roles": {
     "realm": [{ "name": "CLIENT" }, { "name": "STAFF" }, { "name": "MANAGER" }]
   },
@@ -25,6 +38,22 @@
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
+      "protocolMappers": [
+        {
+          "name": "BGStore realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "multivalued": "true",
+            "userinfo.token.claim": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "claim.name": "realm_access.roles",
+            "jsonType.label": "String"
+          }
+        }
+      ],
       "redirectUris": [
         "http://localhost:4200/login/oauth2/code/keycloak",
         "http://localhost:8080/login/oauth2/code/keycloak"

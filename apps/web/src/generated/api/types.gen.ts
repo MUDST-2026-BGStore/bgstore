@@ -19,6 +19,37 @@ export type ProblemDetail = {
   [key: string]: unknown;
 };
 
+export type ApplicationRole = 'CLIENT' | 'STAFF' | 'MANAGER';
+
+export type ClientProfile = {
+  /**
+   * Thai mobile number in E.164 format.
+   */
+  phone?: string;
+  completed: boolean;
+};
+
+export type CurrentUserResponse = {
+  /**
+   * Immutable external identity subject.
+   */
+  subject: string;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  roles: Array<ApplicationRole>;
+  clientProfile?: ClientProfile | null;
+  onboardingRequired: boolean;
+};
+
+export type CompleteClientProfileRequest = {
+  /**
+   * A Thai mobile number, with or without the +66 country code.
+   */
+  phone: string;
+};
+
 export type GetHelloData = {
   body?: never;
   path?: never;
@@ -31,6 +62,10 @@ export type GetHelloErrors = {
    * Authentication is required.
    */
   401: ProblemDetail;
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
 };
 
 export type GetHelloError = GetHelloErrors[keyof GetHelloErrors];
@@ -43,3 +78,65 @@ export type GetHelloResponses = {
 };
 
 export type GetHelloResponse = GetHelloResponses[keyof GetHelloResponses];
+
+export type GetCurrentUserData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/me';
+};
+
+export type GetCurrentUserErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+};
+
+export type GetCurrentUserError =
+  GetCurrentUserErrors[keyof GetCurrentUserErrors];
+
+export type GetCurrentUserResponses = {
+  /**
+   * The cookie-backed user context.
+   */
+  200: CurrentUserResponse;
+};
+
+export type GetCurrentUserResponse =
+  GetCurrentUserResponses[keyof GetCurrentUserResponses];
+
+export type CompleteClientProfileData = {
+  body: CompleteClientProfileRequest;
+  path?: never;
+  query?: never;
+  url: '/me/client-profile';
+};
+
+export type CompleteClientProfileErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type CompleteClientProfileError =
+  CompleteClientProfileErrors[keyof CompleteClientProfileErrors];
+
+export type CompleteClientProfileResponses = {
+  /**
+   * The completed client profile.
+   */
+  200: ClientProfile;
+};
+
+export type CompleteClientProfileResponse =
+  CompleteClientProfileResponses[keyof CompleteClientProfileResponses];

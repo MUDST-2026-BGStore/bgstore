@@ -47,13 +47,27 @@ jobs:
           provenance: mode=max
           cache-from: type=gha,scope=web
           cache-to: type=gha,mode=max,scope=web
+      - id: keycloak
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/keycloak/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/mudst-2026-bgstore/bgstore-keycloak:${{ github.event.release.tag_name }}
+          sbom: true
+          provenance: mode=max
+          cache-from: type=gha,scope=keycloak
+          cache-to: type=gha,mode=max,scope=keycloak
       - name: Sign images with GitHub OIDC
         env:
           API_DIGEST: ${{ steps.api.outputs.digest }}
           WEB_DIGEST: ${{ steps.web.outputs.digest }}
+          KEYCLOAK_DIGEST: ${{ steps.keycloak.outputs.digest }}
         run: |
           cosign sign --yes "ghcr.io/mudst-2026-bgstore/bgstore-api@${API_DIGEST}"
           cosign sign --yes "ghcr.io/mudst-2026-bgstore/bgstore-web@${WEB_DIGEST}"
+          cosign sign --yes "ghcr.io/mudst-2026-bgstore/bgstore-keycloak@${KEYCLOAK_DIGEST}"
       - uses: mikefarah/yq@v4.47.2
         env:
           API_DIGEST: ${{ steps.api.outputs.digest }}
@@ -63,6 +77,11 @@ jobs:
             yq -i '.images.api.digest = strenv(API_DIGEST) |
             .images.web.digest = strenv(WEB_DIGEST)'
             deploy/environments/production.yaml
+      - name: Promote the Keycloak theme image
+        env:
+          KEYCLOAK_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          perl -0pi -e 's/image:\n          tag: [^\n]+/image:\n          repository: ghcr.io\/mudst-2026-bgstore\/bgstore-keycloak\n          tag: $ENV{KEYCLOAK_TAG}/' deploy/argocd/platform.yaml
       - uses: peter-evans/create-pull-request@v8
         with:
           branch: release/${{ github.event.release.tag_name }}-production
