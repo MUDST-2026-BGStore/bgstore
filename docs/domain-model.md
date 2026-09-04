@@ -2,7 +2,7 @@
 
 ## Ubiquitous language
 
-- **Location:** a physical store with its own opening hours, tables, inventory copies, and pricing policy.
+- **Location:** a physical store with its own opening hours, tables, inventory copies, and pricing policy. The design, the UI, and the `branches` module call this a **branch**; the two words name the same thing.
 - **Client:** a person who may be a guest or a registered account. Registration enables self-service reservations and durable profile access.
 - **Staff member:** an authenticated employee allowed to check clients in/out and operate sessions. A manager can administer policies and staff permissions.
 - **Party:** one or more clients visiting or reserving together. A party may contain guests and registered clients.

@@ -4,12 +4,14 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { completeClientProfile } from '../generated/api/sdk.gen';
+import CountryCodePicker from '../components/CountryCodePicker.vue';
 
 const queryClient = useQueryClient();
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
-const phone = ref('');
+const countryCode = ref('+66');
+const phoneNumber = ref('');
 
 const returnTo = computed(() => {
   const value = route.query.returnTo;
@@ -23,7 +25,7 @@ const returnTo = computed(() => {
 const completeProfile = useMutation({
   mutationFn: async () => {
     const { data } = await completeClientProfile({
-      body: { phone: phone.value },
+      body: { countryCode: countryCode.value, phoneNumber: phoneNumber.value },
       throwOnError: true,
     });
     return data;
@@ -44,16 +46,30 @@ const completeProfile = useMutation({
       <p>{{ t('onboarding.description') }}</p>
 
       <form class="onboarding-form" @submit.prevent="completeProfile.mutate()">
-        <label for="phone">{{ t('onboarding.phone') }}</label>
-        <input
-          id="phone"
-          v-model="phone"
-          name="phone"
-          inputmode="tel"
-          autocomplete="tel-national"
-          :placeholder="t('onboarding.phonePlaceholder')"
-          required
-        />
+        <span id="country-code-label" class="phone-label">{{
+          t('onboarding.phoneNumber')
+        }}</span>
+        <div class="phone-control">
+          <CountryCodePicker
+            v-model="countryCode"
+            :label="t('onboarding.countryCode')"
+          />
+          <span class="phone-divider" aria-hidden="true"></span>
+          <label class="sr-only" for="phoneNumber">{{
+            t('onboarding.phoneNumber')
+          }}</label>
+          <input
+            id="phoneNumber"
+            v-model="phoneNumber"
+            class="phone-number-input"
+            name="phoneNumber"
+            inputmode="tel"
+            autocomplete="tel"
+            :placeholder="t('onboarding.phoneNumberPlaceholder')"
+            required
+          />
+        </div>
+        <p class="phone-hint">{{ t('onboarding.phoneHint') }}</p>
         <p v-if="completeProfile.isError.value" class="form-error" role="alert">
           {{ t('onboarding.error') }}
         </p>
