@@ -1,13 +1,19 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useBranches, type Branch } from '../composables/useBranches';
 
 const router = useRouter();
+const { t } = useI18n();
 const { branches, deleteBranch } = useBranches();
 
 const searchQuery = ref('');
 const statusFilter = ref('All statuses');
+
+// Pagination State (AC ข้อ 3)
+const currentPage = ref(1);
+const itemsPerPage = ref(5);
 
 // State สำหรับ Delete Confirmation Modal
 const showDeleteModal = ref(false);
@@ -28,6 +34,28 @@ const filteredBranches = computed(() => {
 
     return matchesSearch && matchesStatus;
   });
+});
+
+// คำนวณจำนวนหน้าทั้งหมด
+const totalPages = computed(() => {
+  return Math.max(
+    1,
+    Math.ceil(filteredBranches.value.length / itemsPerPage.value),
+  );
+});
+
+// ตัดแถวข้อมูลตามหน้าปัจจุบัน
+const paginatedBranches = computed(() => {
+  const startIndex = (currentPage.value - 1) * itemsPerPage.value;
+  return filteredBranches.value.slice(
+    startIndex,
+    startIndex + itemsPerPage.value,
+  );
+});
+
+// รีเซ็ตหน้ากลับไปที่ 1 เมื่อ Search หรือ Filter เปลี่ยน
+watch([searchQuery, statusFilter], () => {
+  currentPage.value = 1;
 });
 
 const handleAddBranch = () => {
@@ -54,6 +82,9 @@ const confirmDelete = () => {
     deleteBranch(branchToDelete.value.id);
     branchToDelete.value = null;
     showDeleteModal.value = false;
+    if (currentPage.value > totalPages.value) {
+      currentPage.value = totalPages.value;
+    }
   }
 };
 
@@ -70,7 +101,9 @@ const cancelDelete = () => {
     <div
       class="w-full border-b border-gray-200 px-12 py-3 flex justify-between items-center bg-white"
     >
-      <span class="text-sm font-bold text-gray-900">Branches</span>
+      <span class="text-sm font-bold text-gray-900">{{
+        t('branch.list')
+      }}</span>
 
       <button
         type="button"
@@ -90,7 +123,7 @@ const cancelDelete = () => {
             d="M12 4v16m8-8H4"
           />
         </svg>
-        <span>Add branch</span>
+        <span>{{ t('branch.add') }}</span>
       </button>
     </div>
 
@@ -106,7 +139,7 @@ const cancelDelete = () => {
           margin-bottom: 24px !important;
         "
       >
-        Branch management
+        {{ t('branch.management') }}
       </h1>
 
       <!-- Search & Filters -->
@@ -133,7 +166,7 @@ const cancelDelete = () => {
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Search branch name or code"
+            :placeholder="t('branch.searchPlaceholder')"
             class="w-full h-10 bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 text-xs rounded-lg pl-9 pr-3 focus:outline-hidden focus:ring-1 focus:ring-[#386671]"
           />
         </div>
@@ -144,9 +177,9 @@ const cancelDelete = () => {
             v-model="statusFilter"
             class="w-full h-10 appearance-none bg-white border border-gray-200 text-gray-800 text-xs rounded-lg px-3 pr-8 focus:outline-hidden focus:ring-1 focus:ring-[#386671] cursor-pointer"
           >
-            <option value="All statuses">All statuses</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
+            <option value="All statuses">{{ t('branch.allStatuses') }}</option>
+            <option value="Active">{{ t('branch.statusActive') }}</option>
+            <option value="Inactive">{{ t('branch.statusInactive') }}</option>
           </select>
           <span
             class="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none text-gray-400"
@@ -177,19 +210,19 @@ const cancelDelete = () => {
             <tr
               class="border-b border-gray-200 bg-gray-50/60 text-[11px] font-semibold text-gray-600"
             >
-              <th class="px-6 py-3.5">Branch</th>
-              <th class="px-6 py-3.5">Address</th>
-              <th class="px-6 py-3.5">Contact</th>
-              <th class="px-6 py-3.5">Opening hours</th>
-              <th class="px-6 py-3.5">Tables</th>
-              <th class="px-6 py-3.5">Status</th>
+              <th class="px-6 py-3.5">{{ t('branch.table.branch') }}</th>
+              <th class="px-6 py-3.5">{{ t('branch.table.address') }}</th>
+              <th class="px-6 py-3.5">{{ t('branch.table.contact') }}</th>
+              <th class="px-6 py-3.5">{{ t('branch.table.openingHours') }}</th>
+              <th class="px-6 py-3.5">{{ t('branch.table.tables') }}</th>
+              <th class="px-6 py-3.5">{{ t('branch.table.status') }}</th>
               <th class="px-6 py-3.5 text-right"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100 text-xs">
-            <!-- แสดงรายการเมื่อมีข้อมูล -->
+            <!-- รายการแสดงผลตามหน้า Pagination -->
             <tr
-              v-for="branch in filteredBranches"
+              v-for="branch in paginatedBranches"
               :key="branch.id"
               class="hover:bg-gray-50/70 transition"
             >
@@ -227,26 +260,26 @@ const cancelDelete = () => {
                   class="text-[#386671] hover:underline font-medium cursor-pointer"
                   @click="handleView(branch.id)"
                 >
-                  View
+                  {{ t('branch.view') }}
                 </button>
                 <button
                   type="button"
                   class="text-[#386671] hover:underline font-medium cursor-pointer"
                   @click="handleEdit(branch.id)"
                 >
-                  Edit
+                  {{ t('branch.edit') }}
                 </button>
                 <button
                   type="button"
                   class="text-red-600 hover:underline font-medium cursor-pointer"
                   @click="openDeleteModal(branch)"
                 >
-                  Delete
+                  {{ t('branch.delete') }}
                 </button>
               </td>
             </tr>
 
-            <!-- Empty State (กรณีค้นหาไม่พบข้อมูล) -->
+            <!-- Empty State -->
             <tr v-if="filteredBranches.length === 0">
               <td colspan="7" class="px-6 py-12 text-center text-gray-500">
                 <div class="flex flex-col items-center justify-center gap-2">
@@ -264,10 +297,10 @@ const cancelDelete = () => {
                     />
                   </svg>
                   <p class="text-sm font-semibold text-gray-700">
-                    No branches found
+                    {{ t('branch.empty.title') }}
                   </p>
                   <p class="text-xs text-gray-400">
-                    Try adjusting your search query or filter criteria.
+                    {{ t('branch.empty.description') }}
                   </p>
                 </div>
               </td>
@@ -276,54 +309,59 @@ const cancelDelete = () => {
         </table>
       </div>
 
-      <!-- Pagination -->
+      <!-- Dynamic Pagination Controls -->
       <div
         v-if="filteredBranches.length > 0"
         class="flex items-center justify-end gap-2 text-xs text-gray-600"
       >
         <button
           type="button"
-          class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 transition cursor-pointer"
+          class="w-7 h-7 flex items-center justify-center rounded-lg transition"
+          :class="
+            currentPage === 1
+              ? 'text-gray-300 cursor-not-allowed'
+              : 'hover:bg-gray-100 text-gray-700 cursor-pointer'
+          "
+          :disabled="currentPage === 1"
           aria-label="Previous page"
+          @click="currentPage = Math.max(1, currentPage - 1)"
         >
           ‹
         </button>
+
         <button
+          v-for="page in totalPages"
+          :key="page"
           type="button"
-          class="w-7 h-7 flex items-center justify-center font-bold text-gray-900 border-b-2 border-gray-900"
+          class="w-7 h-7 flex items-center justify-center rounded-lg transition cursor-pointer"
+          :class="
+            page === currentPage
+              ? 'font-bold text-gray-900 border-b-2 border-gray-900'
+              : 'hover:bg-gray-100 text-gray-700'
+          "
+          @click="currentPage = page"
         >
-          1
+          {{ page }}
         </button>
+
         <button
           type="button"
-          class="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded-lg transition cursor-pointer"
-        >
-          2
-        </button>
-        <button
-          type="button"
-          class="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded-lg transition cursor-pointer"
-        >
-          3
-        </button>
-        <span class="px-1 text-gray-400">...</span>
-        <button
-          type="button"
-          class="w-7 h-7 flex items-center justify-center hover:bg-gray-100 rounded-lg transition cursor-pointer"
-        >
-          9
-        </button>
-        <button
-          type="button"
-          class="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 transition cursor-pointer"
+          class="w-7 h-7 flex items-center justify-center rounded-lg transition"
+          :class="
+            currentPage === totalPages
+              ? 'text-gray-300 cursor-not-allowed'
+              : 'hover:bg-gray-100 text-gray-700 cursor-pointer'
+          "
+          :disabled="currentPage === totalPages"
           aria-label="Next page"
+          @click="currentPage = Math.min(totalPages, currentPage + 1)"
         >
           ›
         </button>
       </div>
     </div>
 
-    <!-- Delete Confirmation Modal (AC 8) -->
+    <!-- Delete Confirmation Modal -->
     <div
       v-if="showDeleteModal"
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs px-4"
@@ -350,7 +388,9 @@ const cancelDelete = () => {
             </svg>
           </div>
           <div>
-            <h3 class="text-sm font-bold text-gray-900">Delete branch</h3>
+            <h3 class="text-sm font-bold text-gray-900">
+              {{ t('branch.modal.deleteTitle') }}
+            </h3>
             <p class="text-xs text-gray-500">
               Are you sure you want to delete
               <span class="font-bold text-gray-800">{{
@@ -364,8 +404,7 @@ const cancelDelete = () => {
         <p
           class="text-xs text-gray-500 bg-gray-50 p-2.5 rounded-lg border border-gray-100"
         >
-          This action cannot be undone. All associated branch details will be
-          permanently removed.
+          {{ t('branch.modal.deleteWarning') }}
         </p>
 
         <div class="flex items-center justify-end gap-2.5 pt-1">
@@ -374,14 +413,14 @@ const cancelDelete = () => {
             class="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition cursor-pointer"
             @click="cancelDelete"
           >
-            Cancel
+            {{ t('branch.cancel') }}
           </button>
           <button
             type="button"
             class="px-4 py-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition cursor-pointer"
             @click="confirmDelete"
           >
-            Delete
+            {{ t('branch.delete') }}
           </button>
         </div>
       </div>
