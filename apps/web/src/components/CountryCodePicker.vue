@@ -336,7 +336,6 @@ onBeforeUnmount(() => {
   font-variant-numeric: tabular-nums;
 }
 
-
 @keyframes phone-menu-in {
   from {
     opacity: 0;

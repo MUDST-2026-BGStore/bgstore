@@ -78,6 +78,8 @@ watch(
       </div>
     </section>
 
-    <RouterView v-else />
+    <RouterView v-else v-slot="{ Component, route: renderedRoute }">
+      <component :is="Component" :key="renderedRoute.path" />
+    </RouterView>
   </main>
 </template>
