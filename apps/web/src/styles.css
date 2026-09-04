@@ -25,6 +25,12 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#app {
+  min-height: 100vh;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -99,7 +105,7 @@ a {
   letter-spacing: 0.14em;
 }
 
-h1 {
+.hero h1 {
   margin: 0;
   font-family: inherit;
   font-size: clamp(3rem, 9vw, 6rem);

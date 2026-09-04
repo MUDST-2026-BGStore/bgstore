@@ -12,12 +12,27 @@ import type {
   CompleteClientProfileData,
   CompleteClientProfileErrors,
   CompleteClientProfileResponses,
+  CreateTableData,
+  CreateTableErrors,
+  CreateTableResponses,
+  DeleteTableData,
+  DeleteTableErrors,
+  DeleteTableResponses,
   GetCurrentUserData,
   GetCurrentUserErrors,
   GetCurrentUserResponses,
   GetHelloData,
   GetHelloErrors,
   GetHelloResponses,
+  GetTableData,
+  GetTableErrors,
+  GetTableResponses,
+  ListTablesData,
+  ListTablesErrors,
+  ListTablesResponses,
+  UpdateTableData,
+  UpdateTableErrors,
+  UpdateTableResponses,
 } from './types.gen';
 
 export type Options<
@@ -105,6 +120,124 @@ export const completeClientProfile = <ThrowOnError extends boolean = false>(
       },
     ],
     url: '/me/client-profile',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * List store tables with optional filtering and pagination.
+ */
+export const listTables = <ThrowOnError extends boolean = false>(
+  options?: Options<ListTablesData, ThrowOnError>,
+): RequestResult<ListTablesResponses, ListTablesErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListTablesResponses,
+    ListTablesErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/tables',
+    ...options,
+  });
+
+/**
+ * Create a new store table.
+ */
+export const createTable = <ThrowOnError extends boolean = false>(
+  options: Options<CreateTableData, ThrowOnError>,
+): RequestResult<CreateTableResponses, CreateTableErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateTableResponses,
+    CreateTableErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/tables',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete a store table.
+ */
+export const deleteTable = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteTableData, ThrowOnError>,
+): RequestResult<DeleteTableResponses, DeleteTableErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    DeleteTableResponses,
+    DeleteTableErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/tables/{tableId}',
+    ...options,
+  });
+
+/**
+ * Get details of a single store table by ID.
+ */
+export const getTable = <ThrowOnError extends boolean = false>(
+  options: Options<GetTableData, ThrowOnError>,
+): RequestResult<GetTableResponses, GetTableErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetTableResponses,
+    GetTableErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/tables/{tableId}',
+    ...options,
+  });
+
+/**
+ * Update an existing store table.
+ */
+export const updateTable = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateTableData, ThrowOnError>,
+): RequestResult<UpdateTableResponses, UpdateTableErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    UpdateTableResponses,
+    UpdateTableErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/tables/{tableId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
