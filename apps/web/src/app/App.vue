@@ -53,7 +53,7 @@ watch(
       <nav class="site-nav" aria-label="Primary navigation">
         <RouterLink to="/">{{ t('navigation.home') }}</RouterLink>
         <span>{{ t('navigation.game') }}</span>
-        <span>{{ t('navigation.branch') }}</span>
+        <RouterLink to="/branches">{{ t('navigation.branch') }}</RouterLink>
       </nav>
     </header>
 
