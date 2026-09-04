@@ -30,6 +30,17 @@
 | Billing             | pricing policies, calculated charges, payment records | play sessions                |
 | Audit               | append-only security and operational events           | module events                |
 
+## Account profile ownership
+
+- Keycloak is the source of truth for username, first name, last name, email,
+  and password. `identity_accounts` is only the BGStore-side projection keyed
+  by the immutable OIDC subject.
+- The Clients module and BGStore PostgreSQL database own the phone number and
+  profile image. Profile-image bytes are limited to 5 MiB and JPEG, PNG, or
+  WebP until the account API contract is introduced.
+- Password changes use a separate Keycloak boundary and are never mixed into a
+  general profile-update command.
+
 ## Initial invariants
 
 1. A table cannot host overlapping active play sessions.

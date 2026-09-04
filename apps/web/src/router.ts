@@ -5,6 +5,12 @@ import HomeView from './views/HomeView.vue';
 import OnboardingView from './views/OnboardingView.vue';
 import BranchDetailView from './views/BranchDetailView.vue';
 import BranchListView from './views/BranchListView.vue';
+import UserProfileView from './views/UserProfileView.vue';
+
+const fallbackRoute = {
+  path: '/:pathMatch(.*)*',
+  redirect: '/',
+} as const;
 
 export const routes = [
   { path: '/', name: 'home', component: HomeView },
@@ -57,10 +63,19 @@ export const routes = [
   },
   // The SPA is served for every path (see apps/web/nginx.conf), so unmatched
   // URLs must resolve to a real screen instead of an empty router view.
-  { path: '/:pathMatch(.*)*', redirect: '/' },
+  fallbackRoute,
 ] as const;
 
 export const router = createRouter({
   history: createWebHistory(),
-  routes: [...routes],
+  routes: [
+    ...routes.slice(0, -1),
+    {
+      path: '/profile',
+      alias: ['/user-profile', '/account/manage'],
+      name: 'user-profile',
+      component: UserProfileView,
+    },
+    fallbackRoute,
+  ],
 });
