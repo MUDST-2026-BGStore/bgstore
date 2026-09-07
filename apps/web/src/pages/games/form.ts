@@ -182,8 +182,12 @@ export function numericErrorsOf(
  */
 function toNumber(value: string): number | null {
   const trimmed = value.trim();
+  if (!/^\d+$/.test(trimmed)) {
+    return null;
+  }
 
-  return /^\d+$/.test(trimmed) ? Number(trimmed) : null;
+  const parsed = Number(trimmed);
+  return Number.isSafeInteger(parsed) ? parsed : null;
 }
 
 /**

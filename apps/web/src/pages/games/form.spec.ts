@@ -180,6 +180,16 @@ describe('numericErrorsOf', () => {
 
     expect(errors).toEqual({ minPlayers: 'invalid' });
   });
+
+  it('treats numbers outside JavaScript safe-integer range as wrong', () => {
+    const errors = numericErrorsOf({
+      ...emptyForm(branches),
+      titleEn: 'Catan',
+      minPlayers: '9007199254740992',
+    });
+
+    expect(errors).toEqual({ minPlayers: 'invalid' });
+  });
 });
 
 describe('fieldErrorsOf', () => {
