@@ -36,6 +36,10 @@ test('renders data from the API contract', async ({ page }) => {
 test('authenticates through the BFF and reaches the real API', async ({
   page,
 }) => {
+  // A cold Compose stack needs more than the 30s default for the Keycloak
+  // round trip plus the BFF session exchange.
+  test.setTimeout(60_000);
+
   test.skip(
     !process.env['BGSTORE_FULL_STACK'],
     'requires the Docker Compose stack',
@@ -46,7 +50,9 @@ test('authenticates through the BFF and reaches the real API', async ({
   await page.getByLabel('Username').fill('client@example.test');
   await page.getByLabel('Password', { exact: true }).fill('client-local-only');
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await page.getByLabel('Thai mobile number').fill('0812345678');
+  const phoneInput = page.getByTestId('phone-input');
+  await expect(phoneInput).toBeVisible();
+  await phoneInput.fill('0812345678');
   await page.getByRole('button', { name: 'Continue' }).click();
 
   await expect(page.getByTestId('api-message')).toHaveText('Hello, BGStore!');

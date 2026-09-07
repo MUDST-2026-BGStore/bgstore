@@ -15,13 +15,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.jooq.DSLContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.OidcLoginRequestPostProcessor;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -35,7 +35,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
-/** Exercises the game endpoints against a real PostgreSQL, migrations included. */
+/** Exercises the game endpoints against a real PostgreSQL, schema created by Hibernate. */
 @SpringBootTest(
     properties = {
       "management.logging.export.otlp.enabled=false",
@@ -55,7 +55,7 @@ class GameApiIntegrationTest {
           .withExposedPorts(6379)
           .withCommand("redis-server", "--requirepass", "test-password");
 
-  /** Seeded by {@code V3__games.sql}; the game screens address branches by id. */
+  /** Seeded by {@code BranchDirectorySeed}; the game screens address branches by id. */
   private static final UUID CENTRAL_RAMA_II =
       UUID.fromString("3f0d7d5a-9a2b-4a71-8f0e-000000000001");
 
@@ -73,10 +73,12 @@ class GameApiIntegrationTest {
 
   @Autowired private MockMvc mockMvc;
   @Autowired private ObjectMapper json;
-  @Autowired private DSLContext database;
+  @Autowired private JdbcTemplate database;
 
   @BeforeEach
   void clearCatalogue() {
+    // Hibernate maps the stock key as plain columns, so there is no cascade to rely on.
+    database.execute("delete from game_branch_stock");
     database.execute("delete from game");
   }
 
@@ -89,7 +91,7 @@ class GameApiIntegrationTest {
   void clientCannotWriteGamesEvenAfterCompletingOnboarding() throws Exception {
     var subject = "catalogue-client";
     mockMvc.perform(get("/api/v1/me").with(clientLogin(subject))).andExpect(status().isOk());
-    database.execute(
+    database.update(
         "update client_profiles set phone_e164 = ?, completed_at = current_timestamp where subject = ?",
         "+66812345678",
         subject);
@@ -567,7 +569,7 @@ class GameApiIntegrationTest {
     var id = createGame(payloadWithCopies("Splendor", "strategy", 2, 4, CENTRAL_RAMA_II, 2));
 
     // Stands in for the play-session module, which does not exist yet.
-    database.execute(
+    database.update(
         "update game_branch_stock set copies_in_use = 2 where game_id = ?", UUID.fromString(id));
 
     mockMvc

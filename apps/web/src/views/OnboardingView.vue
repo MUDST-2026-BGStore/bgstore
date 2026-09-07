@@ -62,6 +62,7 @@ const completeProfile = useMutation({
             id="phoneNumber"
             v-model="phoneNumber"
             class="phone-number-input"
+            data-testid="phone-input"
             name="phoneNumber"
             inputmode="tel"
             autocomplete="tel"

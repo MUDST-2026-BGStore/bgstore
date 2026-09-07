@@ -5,7 +5,7 @@ BGStore is a board-game store operations platform for table reservations, client
 ## Architecture
 
 - **Web:** Vue 3, TypeScript, Vite, Pinia, TanStack Query, Tailwind CSS, Vue I18n
-- **API:** Java 21, Spring Boot, Spring Modulith, Spring Security BFF, jOOQ, Flyway
+- **API:** Java 21, Spring Boot, Spring Modulith, Spring Security BFF, Spring Data JPA (Hibernate)
 - **Data:** PostgreSQL; Valkey/Redis protocol for shared sessions
 - **Identity:** Keycloak over OIDC; the browser receives only a secure HTTP-only application session
 - **Monorepo:** pnpm and Nx with the official Gradle integration; Gradle remains the Java build authority

@@ -9,7 +9,6 @@ plugins {
   id("org.springframework.boot") version "4.1.1"
   id("io.spring.dependency-management") version "1.1.7"
   id("net.ltgt.errorprone") version "5.1.0"
-  id("org.jooq.jooq-codegen-gradle") version "3.21.7"
 }
 
 group = "com.chanakanlabs.bgstore"
@@ -49,19 +48,16 @@ extra["springModulithVersion"] = "2.1.0"
 
 dependencies {
   implementation("org.springframework.boot:spring-boot-starter-actuator")
-  implementation("org.springframework.boot:spring-boot-starter-flyway")
+  implementation("org.springframework.boot:spring-boot-starter-data-jpa")
   implementation("org.springframework.boot:spring-boot-starter-jdbc")
-  implementation("org.springframework.boot:spring-boot-starter-jooq")
   implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
   implementation("org.springframework.boot:spring-boot-starter-security")
   implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
   implementation("org.springframework.boot:spring-boot-starter-session-data-redis")
   implementation("org.springframework.boot:spring-boot-starter-validation")
   implementation("org.springframework.boot:spring-boot-starter-webmvc")
-  implementation("org.flywaydb:flyway-database-postgresql")
   implementation("org.springframework.modulith:spring-modulith-starter-core")
   implementation("org.springframework.modulith:spring-modulith-starter-insight")
-  jooqCodegen("org.jooq:jooq-meta-extensions:3.21.7")
   errorprone("com.google.errorprone:error_prone_core:2.50.0")
   errorprone("com.uber.nullaway:nullaway:0.13.8")
   runtimeOnly("io.micrometer:micrometer-registry-prometheus")
@@ -92,11 +88,6 @@ tasks.withType<Test> {
 }
 
 val generatedOpenApiDirectory = layout.buildDirectory.dir("generated/openapi")
-
-// CONTRIBUTING.md requires jOOQ types generated from the migrated schema. The
-// generator reads the Flyway scripts directly, so neither the build nor CI
-// needs a database to produce them.
-val generatedJooqDirectory = layout.buildDirectory.dir("generated/jooq")
 
 openApiGenerate {
   generatorName.set("spring")
@@ -133,12 +124,11 @@ openApiValidate {
 sourceSets {
   main {
     java.srcDir(generatedOpenApiDirectory.map { it.dir("src/main/java") })
-    java.srcDir(generatedJooqDirectory)
   }
 }
 
 tasks.compileJava {
-  dependsOn(tasks.openApiGenerate, tasks.jooqCodegen)
+  dependsOn(tasks.openApiGenerate)
   options.errorprone {
     disableWarningsInGeneratedCode.set(true)
     excludedPaths.set(".*/build/generated/.*")
@@ -222,50 +212,5 @@ tasks.check {
 allprojects {
   apply {
     plugin("dev.nx.gradle.project-graph")
-  }
-}
-
-jooq {
-  configuration {
-    generator {
-      database {
-        name = "org.jooq.meta.extensions.ddl.DDLDatabase"
-        properties {
-          property {
-            key = "scripts"
-            // Identity tables are accessed through the application-owned JDBC
-            // repositories; only catalogue tables need generated jOOQ types.
-            // Keeping this scoped also avoids asking jOOQ's DDL parser to
-            // interpret provider-specific identity constraints, which it cannot
-            // simulate.
-            //
-            // jOOQ takes one Ant-style pattern rather than a list, so every
-            // migration that shapes a catalogue table is named `V*__games*.sql`
-            // to be matched here; `sort` below replays them in Flyway order.
-            value = "src/main/resources/db/migration/V*__games*.sql"
-          }
-          property {
-            key = "sort"
-            value = "flyway"
-          }
-          property {
-            key = "defaultNameCase"
-            value = "lower"
-          }
-          property {
-            key = "parseDialect"
-            value = "POSTGRES"
-          }
-          property {
-            key = "parseIgnoreComments"
-            value = "true"
-          }
-        }
-      }
-      target {
-        packageName = "com.chanakanlabs.bgstore.database"
-        directory = generatedJooqDirectory.get().asFile.absolutePath
-      }
-    }
   }
 }

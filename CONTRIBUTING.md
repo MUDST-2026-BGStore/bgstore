@@ -29,4 +29,6 @@ Lefthook formats and lints staged changes, validates commit messages with Commit
 
 ## Database changes
 
-Flyway migrations are append-only after merge. Never edit a migration that may have run in another environment. Prefer expand-and-contract changes, and generate jOOQ types from the migrated schema when business tables are introduced.
+Hibernate owns the schema. Tables come from the `@Entity` classes and `spring.jpa.hibernate.ddl-auto=update` applies them at startup, so a schema change means editing an entity, not writing DDL.
+
+`update` only adds; it never drops, renames, or retypes anything that already exists. A rename or a type change has to be applied to shared environments by hand, and reference rows (the branch directory) are seeded from application code rather than the schema.
