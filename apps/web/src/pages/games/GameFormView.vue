@@ -44,7 +44,7 @@ const { t } = useI18n();
  * view once the game and the branch directory have loaded, so `props.values` is
  * already complete here, and re-seeding on every new object identity would
  * discard whatever the user had typed. A different game means a different route,
- * which remounts the view (see AppRoot.vue).
+ * and the mounted app shell keys the rendered route component.
  */
 const form = reactive<GameFormValues>(clone(props.values));
 

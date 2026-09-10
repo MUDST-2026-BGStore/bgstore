@@ -12,9 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
  * The stores BGStore operates. Reference data rather than sample data: the game screens cannot
  * record copies without a branch to record them against.
  *
- * <p>This ran as an {@code insert} inside the schema migration until Hibernate took the schema
- * over. {@code ddl-auto} creates tables but never rows, so the directory is seeded here instead, on
- * every start and only for the branches that are missing.
+ * <p>This ran as an {@code insert} inside the schema migration until the directory became a JPA
+ * module. The seed remains idempotent and only fills missing reference rows.
  */
 @Component
 class BranchDirectorySeed implements ApplicationRunner {

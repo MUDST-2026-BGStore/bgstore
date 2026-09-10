@@ -49,6 +49,7 @@ extra["springModulithVersion"] = "2.1.0"
 dependencies {
   implementation("org.springframework.boot:spring-boot-starter-actuator")
   implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+  implementation("org.springframework.boot:spring-boot-starter-flyway")
   implementation("org.springframework.boot:spring-boot-starter-jdbc")
   implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
   implementation("org.springframework.boot:spring-boot-starter-security")
@@ -56,6 +57,7 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-session-data-redis")
   implementation("org.springframework.boot:spring-boot-starter-validation")
   implementation("org.springframework.boot:spring-boot-starter-webmvc")
+  implementation("org.flywaydb:flyway-database-postgresql")
   implementation("org.springframework.modulith:spring-modulith-starter-core")
   implementation("org.springframework.modulith:spring-modulith-starter-insight")
   errorprone("com.google.errorprone:error_prone_core:2.50.0")

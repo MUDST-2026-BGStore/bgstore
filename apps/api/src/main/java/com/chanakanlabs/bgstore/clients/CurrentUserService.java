@@ -4,6 +4,7 @@ import com.chanakanlabs.bgstore.identity.AuthenticatedIdentity;
 import com.chanakanlabs.bgstore.identity.CurrentIdentityProvider;
 import com.chanakanlabs.bgstore.identity.IdentityAccountService;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
@@ -16,6 +17,10 @@ public class CurrentUserService {
 
   private static final Pattern COUNTRY_CODE = Pattern.compile("^\\+[1-9][0-9]{0,3}$");
   private static final Pattern PHONE_NUMBER = Pattern.compile("^[0-9][0-9() .-]*$");
+
+  /** Countries in the picker whose local format uses a removable trunk prefix. */
+  private static final Set<String> TRUNK_PREFIX_COUNTRY_CODES =
+      Set.of("+1", "+33", "+44", "+49", "+60", "+61", "+65", "+66", "+81", "+82", "+86", "+91");
 
   private final CurrentIdentityProvider currentIdentityProvider;
   private final IdentityAccountService identityAccounts;
@@ -76,7 +81,7 @@ public class CurrentUserService {
         || !PHONE_NUMBER.matcher(rawPhoneNumber).matches()) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a valid phone number.");
     }
-    if (compactNumber.startsWith("0")) {
+    if (TRUNK_PREFIX_COUNTRY_CODES.contains(compactCountryCode) && compactNumber.startsWith("0")) {
       compactNumber = compactNumber.substring(1);
     }
     String e164 = compactCountryCode + compactNumber;

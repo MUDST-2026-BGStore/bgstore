@@ -8,7 +8,7 @@ import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
 
-/** The {@code branch} table, created from this class by {@code ddl-auto}. */
+/** JPA mapping for the migration-owned {@code branch} table. */
 @Entity
 @Table(name = "branch")
 @SuppressWarnings("NullAway.Init")

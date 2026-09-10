@@ -11,7 +11,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.springframework.lang.Nullable;
 
 /**
- * The {@code client_profiles} table, created from this class by {@code ddl-auto}.
+ * JPA mapping for the migration-owned {@code client_profiles} table.
  *
  * <p>Named {@code ...Record} rather than {@code ClientProfile} because the contract model this
  * module answers with already owns that name.

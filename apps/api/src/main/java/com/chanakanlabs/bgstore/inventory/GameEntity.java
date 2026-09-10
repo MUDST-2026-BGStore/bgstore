@@ -16,7 +16,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.type.SqlTypes;
 import org.springframework.lang.Nullable;
 
-/** The {@code game} table, created from this class by {@code ddl-auto}. */
+/** JPA mapping for the migration-owned {@code game} table. */
 @Entity
 @Table(name = "game")
 @SuppressWarnings("NullAway.Init")

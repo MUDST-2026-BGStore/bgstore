@@ -89,6 +89,18 @@ class CurrentUserServiceTest {
   }
 
   @Test
+  void preservesCountriesWhereTheNationalLeadingZeroIsSignificant() {
+    AuthenticatedIdentity client = identity(Set.of(ApplicationRole.CLIENT));
+    when(currentIdentityProvider.currentIdentity()).thenReturn(client);
+    when(clientProfiles.complete(SUBJECT, "+390212345678"))
+        .thenReturn(new ClientProfileData("+390212345678", true));
+
+    var profile = service.completeClientProfile("+39", "02 1234 5678");
+
+    assertThat(profile.phone()).isEqualTo("+390212345678");
+  }
+
+  @Test
   void rejectsInvalidNumbersAndNonClientProfileUpdates() {
     when(currentIdentityProvider.currentIdentity())
         .thenReturn(identity(Set.of(ApplicationRole.CLIENT)));

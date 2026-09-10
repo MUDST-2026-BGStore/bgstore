@@ -8,7 +8,7 @@ import java.time.OffsetDateTime;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-/** The {@code identity_accounts} table, created from this class by {@code ddl-auto}. */
+/** JPA mapping for the migration-owned {@code identity_accounts} table. */
 @Entity
 @Table(name = "identity_accounts")
 @SuppressWarnings("NullAway.Init")

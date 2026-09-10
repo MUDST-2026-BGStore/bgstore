@@ -49,6 +49,7 @@ const countryCodes: readonly CountryOption[] = [
   { code: '+91', flag: '🇮🇳', nameEn: 'India', nameTh: 'อินเดีย' },
   { code: '+33', flag: '🇫🇷', nameEn: 'France', nameTh: 'ฝรั่งเศส' },
   { code: '+49', flag: '🇩🇪', nameEn: 'Germany', nameTh: 'เยอรมนี' },
+  { code: '+39', flag: '🇮🇹', nameEn: 'Italy', nameTh: 'อิตาลี' },
 ];
 
 const selectedCountry = computed(

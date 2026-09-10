@@ -57,3 +57,30 @@ test('authenticates through the BFF and reaches the real API', async ({
 
   await expect(page.getByTestId('api-message')).toHaveText('Hello, BGStore!');
 });
+
+test('staff can create a game through the authenticated browser flow', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+
+  test.skip(
+    !process.env['BGSTORE_FULL_STACK'],
+    'requires the Docker Compose stack',
+  );
+
+  await page.goto('/');
+  await page.getByRole('link', { name: 'Sign in' }).click();
+  await page.getByLabel('Username').fill('staff@example.test');
+  await page.getByLabel('Password', { exact: true }).fill('staff-local-only');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+
+  await page.goto('/games/new');
+  await page.getByLabel('Game title (English)').fill('Browser Smoke Game');
+  await page.getByLabel('Category').selectOption('family');
+  await page.getByLabel('Min players').fill('2');
+  await page.getByLabel('Max players').fill('4');
+  await page.getByRole('button', { name: 'Add game', exact: true }).click();
+
+  await expect(page).toHaveURL(/\/games\?saved=Browser%20Smoke%20Game/);
+  await expect(page.getByText('Browser Smoke Game')).toBeVisible();
+});

@@ -5,7 +5,7 @@ import jakarta.persistence.EmbeddedId;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
 
-/** The {@code game_branch_stock} table, created from this class by {@code ddl-auto}. */
+/** JPA mapping for the migration-owned {@code game_branch_stock} table. */
 @Entity
 @Table(name = "game_branch_stock")
 @SuppressWarnings("NullAway.Init")
