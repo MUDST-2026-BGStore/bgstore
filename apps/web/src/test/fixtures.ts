@@ -65,6 +65,8 @@ export const ticketToRide: GameDetail = {
   playTimeMinutes: 60,
   difficulty: 'Easy to teach',
   tags: ['beginner friendly', '30–60 min'],
+  imageUrls: [],
+  guide: { steps: [] },
   lifecycle: 'active',
   status: 'available',
   addedAt: '2025-01-12T09:00:00Z',
@@ -86,6 +88,70 @@ export const ticketToRide: GameDetail = {
       copies: 2,
       available: 1,
       inUse: 1,
+      status: 'available',
+    },
+    {
+      branchId: branches[2].id,
+      branchName: 'Sukhumvit',
+      copies: 0,
+      available: 0,
+      inUse: 0,
+      status: 'notStocked',
+    },
+  ],
+};
+
+/** A game written up for guests: photos, a guide and a walkthrough. */
+export const explodingKittensDetail: GameDetail = {
+  id: explodingKittens.id,
+  title: { en: 'Exploding Kittens', th: 'เหมียวระเบิด' },
+  description: null,
+  category: 'card',
+  minPlayers: 2,
+  maxPlayers: 5,
+  playTimeMinutes: 15,
+  difficulty: 'Easy',
+  tags: ['Popular'],
+  imageUrls: [
+    'https://cdn.example.com/ek-box.jpg',
+    'https://cdn.example.com/ek-cards.jpg',
+  ],
+  guide: {
+    goal: {
+      en: 'Be the last player left standing.',
+      th: 'เอาตัวรอดให้เป็นคนสุดท้าย',
+    },
+    players: { en: '2–5 (up to 10 with the Party Pack)', th: null },
+    equipment: null,
+    steps: [
+      {
+        title: { en: 'Deal the cards', th: 'แจกการ์ด' },
+        body: { en: 'Everyone gets a Defuse card and four more.', th: null },
+      },
+      { title: { en: 'End your turn', th: null }, body: null },
+    ],
+  },
+  lifecycle: 'active',
+  status: 'available',
+  addedAt: '2025-01-12T09:00:00Z',
+  lastPlayedAt: null,
+  totalCopies: 4,
+  branchCount: 2,
+  stock: [
+    {
+      branchId: branches[0].id,
+      branchName: 'Big C Rama I',
+      copies: 1,
+      available: 0,
+      inUse: 1,
+      status: 'allCopiesOut',
+    },
+    {
+      branchId: branches[1].id,
+      branchName: 'Central Rama II',
+      copies: 3,
+      available: 3,
+      inUse: 0,
       status: 'available',
     },
     {

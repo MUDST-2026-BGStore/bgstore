@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
+import ClientLayout from '../layouts/ClientLayout.vue';
 import OwnerLayout from '../layouts/OwnerLayout.vue';
 import UiButton from './ui/UiButton.vue';
 
@@ -10,11 +11,16 @@ import UiButton from './ui/UiButton.vue';
  * Every game screen needs the same three, so they live here rather than being
  * repeated per page.
  */
-const props = defineProps<{
-  state: 'loading' | 'failed' | 'missing';
-  /** Test hook, so a page's own state can be addressed by name. */
-  testid: string;
-}>();
+const props = withDefaults(
+  defineProps<{
+    state: 'loading' | 'failed' | 'missing';
+    /** Test hook, so a page's own state can be addressed by name. */
+    testid: string;
+    /** Whose header frames the message: the store's staff or a guest. */
+    audience?: 'staff' | 'client';
+  }>(),
+  { audience: 'staff' },
+);
 
 const emit = defineEmits<{ retry: [] }>();
 
@@ -25,10 +31,12 @@ const message = {
   failed: 'games.state.loadFailed',
   missing: 'games.state.notFound',
 }[props.state];
+
+const layout = props.audience === 'client' ? ClientLayout : OwnerLayout;
 </script>
 
 <template>
-  <OwnerLayout>
+  <component :is="layout">
     <div class="flex flex-col items-start gap-3 px-8 py-10">
       <p
         :data-testid="testid"
@@ -51,5 +59,5 @@ const message = {
         {{ t('games.details.back') }}
       </UiButton>
     </div>
-  </OwnerLayout>
+  </component>
 </template>

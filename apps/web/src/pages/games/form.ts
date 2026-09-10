@@ -2,6 +2,7 @@ import type {
   Branch,
   GameCategory,
   GameDetail,
+  GameGuide,
   GameLifecycle,
   GameRequest,
   LocalizedDescription,
@@ -31,8 +32,9 @@ export interface BranchCopies {
  * The form's own shape: every field is a string because it is bound to an
  * input, and `toGameRequest` converts back to the contract types on submit.
  *
- * `lifecycle` and `tags` have no control in the design; they ride along so an
- * edit does not silently retire a game or drop its tags.
+ * `lifecycle`, `tags`, `imageUrls` and `guide` have no control in the design;
+ * they ride along so an edit does not silently retire a game or drop its tags,
+ * photos or how-to-play content.
  */
 export interface GameFormValues {
   /** The catalogue's canonical title; the only one of the four that is required. */
@@ -49,6 +51,8 @@ export interface GameFormValues {
   copies: BranchCopies[];
   lifecycle: GameLifecycle;
   tags: string[];
+  imageUrls: string[];
+  guide: GameGuide;
 }
 
 export function emptyForm(branches: readonly Branch[]): GameFormValues {
@@ -65,6 +69,8 @@ export function emptyForm(branches: readonly Branch[]): GameFormValues {
     copies: branchRows(branches, {}),
     lifecycle: 'active',
     tags: [],
+    imageUrls: [],
+    guide: { steps: [] },
   };
 }
 
@@ -92,6 +98,8 @@ export function formValuesOf(
     copies: branchRows(branches, stocked),
     lifecycle: game.lifecycle,
     tags: [...game.tags],
+    imageUrls: [...game.imageUrls],
+    guide: game.guide,
   };
 }
 
@@ -128,6 +136,8 @@ export function toGameRequest(values: GameFormValues): GameRequest {
     playTimeMinutes: toNumber(values.playTimeMinutes),
     difficulty: values.difficulty.trim() || null,
     tags: values.tags,
+    imageUrls: values.imageUrls,
+    guide: values.guide,
     lifecycle: values.lifecycle,
     copies: values.copies.map((row) => ({
       branchId: row.branchId,
