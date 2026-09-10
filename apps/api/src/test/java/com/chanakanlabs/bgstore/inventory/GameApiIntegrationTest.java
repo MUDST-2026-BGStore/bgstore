@@ -1,6 +1,7 @@
 package com.chanakanlabs.bgstore.inventory;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -79,6 +80,7 @@ class GameApiIntegrationTest {
   void clearCatalogue() {
     // Hibernate maps the stock key as plain columns, so there is no cascade to rely on.
     database.execute("delete from game_branch_stock");
+    database.execute("delete from game_guide_step");
     database.execute("delete from game");
   }
 
@@ -104,6 +106,35 @@ class GameApiIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(payload("Uno", "card", 2, 10).toString()))
         .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void clientBrowsesTheActiveCatalogueAndReadsAGame() throws Exception {
+    var id = createGame(payloadWithCopies("Uno", "card", 2, 10, CENTRAL_RAMA_II, 2));
+    var retired = createGame(payloadWithCopies("Dixit", "party", 3, 6, CENTRAL_RAMA_II, 1));
+    mockMvc
+        .perform(delete("/api/v1/games/{id}", retired).with(oidcLogin()).with(csrf()))
+        .andExpect(status().isNoContent());
+
+    var subject = "catalogue-reader";
+    mockMvc.perform(get("/api/v1/me").with(clientLogin(subject))).andExpect(status().isOk());
+    database.update(
+        "update client_profiles set phone_e164 = ?, completed_at = current_timestamp where subject = ?",
+        "+66812345678",
+        subject);
+
+    // The client catalogue's own request: active games only.
+    mockMvc
+        .perform(get("/api/v1/games").param("lifecycle", "active").with(clientLogin(subject)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].title.en").value("Uno"));
+
+    mockMvc
+        .perform(get("/api/v1/games/{id}", id).with(clientLogin(subject)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.guide.steps.length()").value(0))
+        .andExpect(jsonPath("$.imageUrls.length()").value(0));
   }
 
   @Test
@@ -417,6 +448,80 @@ class GameApiIntegrationTest {
                 .content(revive.toString()))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.status").value("available"));
+  }
+
+  @Test
+  void hidesRetiredGamesFromAListThatAsksForActiveOnes() throws Exception {
+    createGame(payloadWithCopies("Catan", "strategy", 3, 4, CENTRAL_RAMA_II, 1));
+    var retired = createGame(payloadWithCopies("Dixit", "party", 3, 6, CENTRAL_RAMA_II, 3));
+    mockMvc
+        .perform(delete("/api/v1/games/{id}", retired).with(oidcLogin()).with(csrf()))
+        .andExpect(status().isNoContent());
+
+    mockMvc
+        .perform(get("/api/v1/games").param("lifecycle", "active").with(oidcLogin()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].title.en").value("Catan"))
+        .andExpect(jsonPath("$.stats.titles").value(1));
+  }
+
+  @Test
+  void storesPhotosAndAHowToPlayGuideAndClearsThemWhenAnUpdateLeavesThemOut() throws Exception {
+    var payload = translatedPayload("Exploding Kittens", "เหมียวระเบิด", "card", 2, 5);
+    payload.put("playTimeMinutes", 15);
+    payload
+        .putArray("imageUrls")
+        .add("https://cdn.example.com/ek-box.jpg")
+        .add("https://cdn.example.com/ek-cards.jpg");
+    var guide = payload.putObject("guide");
+    guide.putObject("goal").put("en", "Be the last one standing.").put("th", "เอาตัวรอด");
+    var steps = guide.putArray("steps");
+    var deal = steps.addObject();
+    deal.putObject("title").put("en", "Deal cards").put("th", "แจกการ์ด");
+    deal.putObject("body").put("en", "Everyone takes a Defuse card.");
+    steps.addObject().putObject("title").put("en", "End your turn");
+    copies(payload, CENTRAL_RAMA_II, 3);
+
+    var id = createGame(payload);
+
+    mockMvc
+        .perform(get("/api/v1/games/{id}", id).with(oidcLogin()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.imageUrls.length()").value(2))
+        .andExpect(jsonPath("$.guide.goal.th").value("เอาตัวรอด"))
+        .andExpect(jsonPath("$.guide.players").doesNotExist())
+        .andExpect(jsonPath("$.guide.steps.length()").value(2))
+        .andExpect(jsonPath("$.guide.steps[0].title.th").value("แจกการ์ด"))
+        .andExpect(jsonPath("$.guide.steps[1].title.en").value("End your turn"));
+
+    mockMvc
+        .perform(get("/api/v1/games").with(oidcLogin()))
+        .andExpect(jsonPath("$.items[0].coverImageUrl").value("https://cdn.example.com/ek-box.jpg"))
+        .andExpect(jsonPath("$.items[0].playTimeMinutes").value(15));
+
+    var bare = payloadWithCopies("Exploding Kittens", "card", 2, 5, CENTRAL_RAMA_II, 3);
+    mockMvc
+        .perform(
+            put("/api/v1/games/{id}", id)
+                .with(oidcLogin())
+                .with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(bare.toString()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.imageUrls.length()").value(0))
+        .andExpect(jsonPath("$.guide.goal").doesNotExist())
+        .andExpect(jsonPath("$.guide.steps.length()").value(0));
+  }
+
+  @Test
+  void rejectsAPhotoAddressThatIsNotAWebAddress() throws Exception {
+    var payload = payload("Uno", "card", 2, 10);
+    payload.putArray("imageUrls").add("javascript:alert(1)");
+
+    create(payload)
+        .andExpect(status().isUnprocessableEntity())
+        .andExpect(jsonPath("$.errors[0].field", startsWith("imageUrls")));
   }
 
   @Test

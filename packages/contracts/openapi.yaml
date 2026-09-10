@@ -116,6 +116,15 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/GameAvailability'
+        - name: lifecycle
+          in: query
+          required: false
+          description: >-
+            Restrict results to active or retired games. The client catalogue
+            asks for `active` so a customer never browses a game the store no
+            longer offers; the inventory leaves it unset to see both.
+          schema:
+            $ref: '#/components/schemas/GameLifecycle'
         - name: search
           in: query
           required: false
@@ -456,6 +465,70 @@ components:
           type: string
           nullable: true
           maxLength: 160
+    LocalizedGuideText:
+      type: object
+      additionalProperties: false
+      description: >-
+        A paragraph of how-to-play text. Both languages are optional; the
+        `LocalizedTitle` fallback rule applies, and it can resolve to nothing.
+      properties:
+        en:
+          type: string
+          nullable: true
+          maxLength: 600
+        th:
+          type: string
+          nullable: true
+          maxLength: 600
+    GameImageUrl:
+      type: string
+      description: >-
+        Absolute http(s) address of a game photo. The browser loads it as an
+        image; the API stores the address and never fetches it.
+      maxLength: 2048
+      pattern: '^https?://\S+$'
+      example: https://cdn.example.com/games/exploding-kittens.jpg
+    GameGuideStep:
+      type: object
+      additionalProperties: false
+      description: One numbered step of the "how to play" walkthrough.
+      required: [title]
+      properties:
+        title:
+          $ref: '#/components/schemas/LocalizedTitle'
+        body:
+          allOf:
+            - $ref: '#/components/schemas/LocalizedGuideText'
+          nullable: true
+    GameGuide:
+      type: object
+      additionalProperties: false
+      description: >-
+        What a customer reads before arriving at the store: the goal, a note on
+        player count, the components in the box, and a short walkthrough. Every
+        part is optional; an empty guide has no text and no steps.
+      required: [steps]
+      properties:
+        goal:
+          allOf:
+            - $ref: '#/components/schemas/LocalizedGuideText'
+          nullable: true
+        players:
+          allOf:
+            - $ref: '#/components/schemas/LocalizedGuideText'
+          nullable: true
+          description: >-
+            Replaces the plain player range when set, for counts that need a
+            qualifier such as "2–5 (up to 10 with the Party Pack)".
+        equipment:
+          allOf:
+            - $ref: '#/components/schemas/LocalizedGuideText'
+          nullable: true
+        steps:
+          type: array
+          maxItems: 12
+          items:
+            $ref: '#/components/schemas/GameGuideStep'
     GameCategory:
       type: string
       description: Catalogue category. Values map to `games.category.*` messages.
@@ -524,6 +597,14 @@ components:
         maxPlayers:
           type: integer
           format: int32
+        playTimeMinutes:
+          type: integer
+          format: int32
+          nullable: true
+        coverImageUrl:
+          type: string
+          nullable: true
+          description: The game's first photo, for list thumbnails. Null when it has none.
         branchName:
           type: string
           nullable: true
@@ -608,6 +689,8 @@ components:
           minPlayers,
           maxPlayers,
           tags,
+          imageUrls,
+          guide,
           lifecycle,
           status,
           addedAt,
@@ -644,6 +727,13 @@ components:
           type: array
           items:
             type: string
+        imageUrls:
+          type: array
+          description: Game photos in display order; the first is the cover.
+          items:
+            type: string
+        guide:
+          $ref: '#/components/schemas/GameGuide'
         lifecycle:
           $ref: '#/components/schemas/GameLifecycle'
         status:
@@ -723,6 +813,17 @@ components:
             type: string
             minLength: 1
             maxLength: 40
+        imageUrls:
+          type: array
+          description: Game photos in display order. Left out, the game keeps no photos.
+          maxItems: 8
+          items:
+            $ref: '#/components/schemas/GameImageUrl'
+        guide:
+          allOf:
+            - $ref: '#/components/schemas/GameGuide'
+          nullable: true
+          description: Left out or null, the game keeps no how-to-play content.
         lifecycle:
           $ref: '#/components/schemas/GameLifecycle'
         copies:

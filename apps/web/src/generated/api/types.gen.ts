@@ -78,6 +78,40 @@ export type LocalizedDescription = {
 };
 
 /**
+ * A paragraph of how-to-play text. Both languages are optional; the `LocalizedTitle` fallback rule applies, and it can resolve to nothing.
+ */
+export type LocalizedGuideText = {
+  en?: string | null;
+  th?: string | null;
+};
+
+/**
+ * Absolute http(s) address of a game photo. The browser loads it as an image; the API stores the address and never fetches it.
+ */
+export type GameImageUrl = string;
+
+/**
+ * One numbered step of the "how to play" walkthrough.
+ */
+export type GameGuideStep = {
+  title: LocalizedTitle;
+  body?: LocalizedGuideText | null;
+};
+
+/**
+ * What a customer reads before arriving at the store: the goal, a note on player count, the components in the box, and a short walkthrough. Every part is optional; an empty guide has no text and no steps.
+ */
+export type GameGuide = {
+  goal?: LocalizedGuideText | null;
+  /**
+   * Replaces the plain player range when set, for counts that need a qualifier such as "2–5 (up to 10 with the Party Pack)".
+   */
+  players?: LocalizedGuideText | null;
+  equipment?: LocalizedGuideText | null;
+  steps: Array<GameGuideStep>;
+};
+
+/**
  * Catalogue category. Values map to `games.category.*` messages.
  */
 export type GameCategory = 'family' | 'card' | 'party' | 'strategy';
@@ -111,6 +145,11 @@ export type GameSummary = {
   category: GameCategory;
   minPlayers: number;
   maxPlayers: number;
+  playTimeMinutes?: number | null;
+  /**
+   * The game's first photo, for list thumbnails. Null when it has none.
+   */
+  coverImageUrl?: string | null;
   /**
    * The branch this row's figures come from, when they come from exactly one branch. Null when the game is stocked at several branches and no branch filter is applied.
    */
@@ -153,6 +192,11 @@ export type GameDetail = {
   playTimeMinutes?: number | null;
   difficulty?: string | null;
   tags: Array<string>;
+  /**
+   * Game photos in display order; the first is the cover.
+   */
+  imageUrls: Array<string>;
+  guide: GameGuide;
   lifecycle: GameLifecycle;
   status: GameAvailability;
   addedAt: string;
@@ -185,6 +229,14 @@ export type GameRequest = {
   playTimeMinutes?: number | null;
   difficulty?: string | null;
   tags?: Array<string>;
+  /**
+   * Game photos in display order. Left out, the game keeps no photos.
+   */
+  imageUrls?: Array<GameImageUrl>;
+  /**
+   * Left out or null, the game keeps no how-to-play content.
+   */
+  guide?: GameGuide | null;
   lifecycle?: GameLifecycle;
   /**
    * Per-branch copy counts. Branches left out keep no copies; on update, branches left out are cleared.
@@ -347,6 +399,10 @@ export type ListGamesData = {
     branchId?: string;
     category?: GameCategory;
     status?: GameAvailability;
+    /**
+     * Restrict results to active or retired games. The client catalogue asks for `active` so a customer never browses a game the store no longer offers; the inventory leaves it unset to see both.
+     */
+    lifecycle?: GameLifecycle;
     /**
      * Case-insensitive match on either published title, so a Thai title is found by typing Thai and an English one by typing English.
      */

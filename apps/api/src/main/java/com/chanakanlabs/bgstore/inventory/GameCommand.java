@@ -20,5 +20,7 @@ record GameCommand(
     @Nullable Integer playTimeMinutes,
     @Nullable String difficulty,
     List<String> tags,
+    List<String> imageUrls,
+    PlayGuide guide,
     GameLifecycle lifecycle,
     Map<UUID, Integer> copiesByBranch) {}

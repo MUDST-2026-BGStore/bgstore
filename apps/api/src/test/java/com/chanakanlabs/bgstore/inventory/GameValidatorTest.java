@@ -5,12 +5,16 @@ import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 import com.chanakanlabs.bgstore.contract.model.BranchCopiesRequest;
 import com.chanakanlabs.bgstore.contract.model.GameCategory;
+import com.chanakanlabs.bgstore.contract.model.GameGuide;
+import com.chanakanlabs.bgstore.contract.model.GameGuideStep;
 import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
 import com.chanakanlabs.bgstore.contract.model.GameRequest;
 import com.chanakanlabs.bgstore.contract.model.LocalizedDescription;
+import com.chanakanlabs.bgstore.contract.model.LocalizedGuideText;
 import com.chanakanlabs.bgstore.contract.model.LocalizedTitle;
 import com.chanakanlabs.bgstore.web.FieldViolation;
 import com.chanakanlabs.bgstore.web.ValidationFailedException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -107,6 +111,75 @@ class GameValidatorTest {
   }
 
   @Test
+  void keepsPhotosInOrderWithoutRepeatingOne() {
+    var request = request();
+    request.setImageUrls(
+        List.of(
+            "https://cdn.example.com/box.jpg",
+            "https://cdn.example.com/board.jpg",
+            "https://cdn.example.com/box.jpg"));
+
+    var command = GameValidator.validate(request, KNOWN_BRANCHES);
+
+    assertThat(command.imageUrls())
+        .containsExactly("https://cdn.example.com/box.jpg", "https://cdn.example.com/board.jpg");
+  }
+
+  @Test
+  void storesAnEmptyGuideAndNoPhotosWhenTheRequestCarriesNeither() {
+    var command = GameValidator.validate(request(), KNOWN_BRANCHES);
+
+    // An update that leaves them out clears them, as it does tags.
+    assertThat(command.imageUrls()).isEmpty();
+    assertThat(command.guide()).isEqualTo(PlayGuide.EMPTY);
+  }
+
+  @Test
+  void trimsGuideTextAndCollapsesBlankPartsToNothing() {
+    var request = request();
+    var guide = new GameGuide(List.of(step(" Deal cards ", "  แจกการ์ด ", " Four each. ")));
+    guide.setGoal(guideText("  Be the last one standing.  ", " "));
+    guide.setPlayers(guideText("", null));
+    request.setGuide(guide);
+
+    var command = GameValidator.validate(request, KNOWN_BRANCHES);
+
+    assertThat(command.guide().goal().english()).isEqualTo("Be the last one standing.");
+    assertThat(command.guide().goal().thai()).isNull();
+    assertThat(command.guide().players().isEmpty()).isTrue();
+    assertThat(command.guide().equipment().isEmpty()).isTrue();
+    assertThat(command.guide().steps())
+        .containsExactly(
+            new PlayGuide.Step(
+                new LocalizedText("Deal cards", "แจกการ์ด"),
+                new LocalizedText("Four each.", null)));
+  }
+
+  @Test
+  void rejectsAGuideStepWithoutAnEnglishTitle() {
+    var request = request();
+    request.setGuide(
+        new GameGuide(List.of(step("Deal cards", null, null), step("  ", "จบตา", null))));
+
+    assertThat(violationsOf(request))
+        .containsExactly(new FieldViolation("guide.steps[1].title.en", FieldViolation.REQUIRED));
+  }
+
+  @Test
+  void rejectsANullPhotoOrStepRatherThanFailingOnIt() {
+    // Bean validation passes a null list element through untouched, so the
+    // validator is the last line before it would reach the database.
+    var request = request();
+    request.setImageUrls(Arrays.asList("https://cdn.example.com/box.jpg", null));
+    request.setGuide(new GameGuide(Arrays.asList(null, step("Deal cards", null, null))));
+
+    assertThat(violationsOf(request))
+        .containsExactlyInAnyOrder(
+            new FieldViolation("imageUrls[1]", FieldViolation.REQUIRED),
+            new FieldViolation("guide.steps[0]", FieldViolation.REQUIRED));
+  }
+
+  @Test
   void rejectsATitleThatIsOnlyWhitespace() {
     var request = request();
     request.setTitle(title("   ", null));
@@ -188,6 +261,21 @@ class GameValidatorTest {
     title.setTh(thai);
 
     return title;
+  }
+
+  private static GameGuideStep step(String english, @Nullable String thai, @Nullable String body) {
+    var step = new GameGuideStep(title(english, thai));
+    step.setBody(body == null ? null : guideText(body, null));
+
+    return step;
+  }
+
+  private static LocalizedGuideText guideText(@Nullable String english, @Nullable String thai) {
+    var text = new LocalizedGuideText();
+    text.setEn(english);
+    text.setTh(thai);
+
+    return text;
   }
 
   private static LocalizedDescription description(@Nullable String english, @Nullable String thai) {

@@ -10,7 +10,7 @@
 - **Reservation:** a registered client's hold on a time interval and required capacity. Assignment to a specific table may happen later.
 - **Visit:** the store presence begun by staff check-in and ended by check-out.
 - **Play session:** the billable interval for a party using a table. Only in-store sessions are in scope.
-- **Game title:** language-aware catalog metadata for a board game.
+- **Game title:** language-aware catalog metadata for a board game, including the photos and how-to-play guide clients read before a visit.
 - **Game copy:** a physical, location-owned copy with an availability and condition state.
 - **Pricing policy:** a versioned rule that calculates a session fee from time, party, location, and adjustments.
 - **Payment record:** an operational record of amount, method, and status; no card data is stored or processed.
