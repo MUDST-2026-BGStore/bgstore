@@ -81,6 +81,8 @@ test('staff can create a game through the authenticated browser flow', async ({
   await page.getByLabel('Max players').fill('4');
   await page.getByRole('button', { name: 'Add game', exact: true }).click();
 
-  await expect(page).toHaveURL(/\/games\?saved=Browser%20Smoke%20Game/);
+  await expect(page).toHaveURL(
+    /\/games\?saved=Browser(?:%20|\+)Smoke(?:%20|\+)Game/,
+  );
   await expect(page.getByText('Browser Smoke Game')).toBeVisible();
 });
