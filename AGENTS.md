@@ -24,7 +24,7 @@ These instructions apply to the whole repository. Read [the development guide](d
 - Keep the backend-for-frontend security model: OIDC tokens stay server-side; browser code uses the secure application session.
 - Change `packages/contracts/openapi.yaml` before changing generated clients or contract-generated server code.
 - Never hand-edit `apps/web/src/generated/api`; regenerate it from the OpenAPI contract.
-- Change the schema by editing the `@Entity` classes; `ddl-auto=update` applies them at startup. It never drops, renames, or retypes an existing column, so plan those by hand.
+- Add append-only Flyway migrations for shared database changes. Never modify an already-applied migration.
 - Preserve English/Thai support, Bangkok/THB assumptions, and the current in-store-only session scope unless requirements change.
 - Prefer existing dependencies and native project tooling over ad-hoc scripts or monorepo workarounds.
 - Keep local Keycloak accounts, passwords, and Compose secrets clearly marked as test/local-only. Never introduce production credentials.

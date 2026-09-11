@@ -48,6 +48,18 @@ export type CompleteClientProfileRequest = {
 export type Branch = {
   id: string;
   name: string;
+  /**
+   * The postal address guests are shown. Null until the store records one.
+   */
+  address?: string | null;
+  /**
+   * Opening time, Bangkok local time. Null, together with `closesAt`, until the store records its hours.
+   */
+  opensAt?: string | null;
+  /**
+   * Closing time, Bangkok local time. Null exactly when `opensAt` is.
+   */
+  closesAt?: string | null;
 };
 
 export type BranchList = {
@@ -403,10 +415,6 @@ export type ListBranchesData = {
 };
 
 export type ListBranchesErrors = {
-  /**
-   * Authentication is required.
-   */
-  401: ProblemDetail;
   /**
    * The client must complete onboarding before using this endpoint.
    */

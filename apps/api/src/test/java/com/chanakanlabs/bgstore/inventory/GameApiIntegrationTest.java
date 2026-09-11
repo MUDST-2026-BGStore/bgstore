@@ -36,7 +36,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
-/** Exercises the game endpoints against a real PostgreSQL, schema created by Hibernate. */
+/** Exercises the game endpoints against a real PostgreSQL schema managed by Flyway. */
 @SpringBootTest(
     properties = {
       "management.logging.export.otlp.enabled=false",
@@ -56,7 +56,9 @@ class GameApiIntegrationTest {
           .withExposedPorts(6379)
           .withCommand("redis-server", "--requirepass", "test-password");
 
-  /** Seeded by {@code BranchDirectorySeed}; the game screens address branches by id. */
+  /**
+   * Reference branches are ensured by {@code BranchDirectorySeed}; the screens address them by id.
+   */
   private static final UUID CENTRAL_RAMA_II =
       UUID.fromString("3f0d7d5a-9a2b-4a71-8f0e-000000000001");
 
@@ -156,6 +158,23 @@ class GameApiIntegrationTest {
         .andExpect(jsonPath("$.items.length()").value(6))
         .andExpect(jsonPath("$.items[0].name").value("Big C Rama I"))
         .andExpect(jsonPath("$.items[5].name").value("Thonglor"));
+  }
+
+  @Test
+  void aGuestReadsWhereEachBranchIsAndWhenItIsOpen() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/branches"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].name").value("Big C Rama I"))
+        .andExpect(
+            jsonPath("$.items[0].address")
+                .value("999/9 ถ. พระรามที่ 1 แขวงปทุมวัน เขตปทุมวัน กรุงเทพฯ 10330"))
+        .andExpect(jsonPath("$.items[0].opensAt").value("10:00"))
+        .andExpect(jsonPath("$.items[0].closesAt").value("20:00"))
+        // A branch the store has not described yet answers nulls, not a guess.
+        .andExpect(jsonPath("$.items[5].name").value("Thonglor"))
+        .andExpect(jsonPath("$.items[5].address").doesNotExist())
+        .andExpect(jsonPath("$.items[5].opensAt").doesNotExist());
   }
 
   @Test

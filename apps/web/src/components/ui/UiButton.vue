@@ -8,6 +8,8 @@ const props = withDefaults(
     size?: ButtonSize;
     /** Renders a router-link instead of a button when set. */
     to?: string;
+    /** Renders a plain link, for a destination outside the SPA such as sign-in. */
+    href?: string;
     type?: 'button' | 'submit' | 'reset';
     disabled?: boolean;
   }>(),
@@ -15,6 +17,7 @@ const props = withDefaults(
     variant: 'primary',
     size: 'md',
     to: undefined,
+    href: undefined,
     type: 'button',
     disabled: false,
   },
@@ -38,10 +41,11 @@ const sizeClass = computed(() =>
 
 <template>
   <component
-    :is="to ? 'router-link' : 'button'"
+    :is="to ? 'router-link' : href ? 'a' : 'button'"
     :to="to"
-    :type="to ? undefined : type"
-    :disabled="to ? undefined : disabled"
+    :href="href"
+    :type="to || href ? undefined : type"
+    :disabled="to || href ? undefined : disabled"
     class="inline-flex shrink-0 items-center justify-center text-center whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
     :class="[variantClass, sizeClass]"
   >
