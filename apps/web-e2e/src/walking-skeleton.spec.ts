@@ -115,5 +115,7 @@ test('staff can create a game through the authenticated browser flow', async ({
   await expect(page).toHaveURL(
     /\/games\?saved=Browser(?:%20|\+)Smoke(?:%20|\+)Game/,
   );
-  await expect(page.getByText('Browser Smoke Game')).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: 'Browser Smoke Game' }),
+  ).toBeVisible();
 });
