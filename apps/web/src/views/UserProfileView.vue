@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
-import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import BaseFormField from '../components/form/BaseFormField.vue';
 import ProfileAvatar from '../components/profile/ProfileAvatar.vue';
@@ -13,8 +13,6 @@ const currentUser = useQuery(currentUserQueryOptions());
 const isEditing = ref(false);
 const saveSucceeded = ref(false);
 const accountApiRequired = ref(false);
-const selectedAvatar = ref<File | null>(null);
-const avatarPreviewUrl = ref<string | null>(null);
 
 const form = reactive({
   username: '',
@@ -49,10 +47,7 @@ const passwordMismatch = computed(
   () => passwordChanged.value && form.password !== form.confirmPassword,
 );
 const pendingApiChanges = computed(
-  () =>
-    keycloakProfileChanged.value ||
-    passwordChanged.value ||
-    selectedAvatar.value !== null,
+  () => keycloakProfileChanged.value || passwordChanged.value,
 );
 const hasChanges = computed(
   () => phoneChanged.value || pendingApiChanges.value,
@@ -88,7 +83,7 @@ watch(
 const updatePhone = useMutation({
   mutationFn: async () => {
     const { data } = await completeClientProfile({
-      body: { phone: form.phone },
+      body: { countryCode: '+66', phoneNumber: form.phone },
       throwOnError: true,
     });
     return data;
@@ -108,14 +103,6 @@ const updatePhone = useMutation({
   },
 });
 
-const clearAvatarPreview = () => {
-  if (avatarPreviewUrl.value) {
-    URL.revokeObjectURL(avatarPreviewUrl.value);
-  }
-  avatarPreviewUrl.value = null;
-  selectedAvatar.value = null;
-};
-
 const startEditing = () => {
   saveSucceeded.value = false;
   accountApiRequired.value = false;
@@ -125,17 +112,9 @@ const startEditing = () => {
 
 const cancelEditing = () => {
   restoreSavedValues();
-  clearAvatarPreview();
   saveSucceeded.value = false;
   accountApiRequired.value = false;
   isEditing.value = false;
-};
-
-const selectAvatar = (file: File) => {
-  clearAvatarPreview();
-  selectedAvatar.value = file;
-  avatarPreviewUrl.value = URL.createObjectURL(file);
-  accountApiRequired.value = false;
 };
 
 const saveProfile = () => {
@@ -158,8 +137,6 @@ const saveProfile = () => {
 
   isEditing.value = false;
 };
-
-onBeforeUnmount(clearAvatarPreview);
 </script>
 
 <template>
@@ -174,9 +151,6 @@ onBeforeUnmount(clearAvatarPreview);
         class="user-profile-avatar"
         :label="t('userProfile.profilePhoto')"
         :change-label="t('userProfile.changePhoto')"
-        :editable="isEditing"
-        :src="avatarPreviewUrl"
-        @selected="selectAvatar"
       />
 
       <form

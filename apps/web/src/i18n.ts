@@ -102,7 +102,7 @@ export const messages = {
       cancelChanges: 'Cancel',
       confirm: 'Confirm',
       accountApiRequired:
-        'This change is ready in the UI, but it needs the account/profile-image API before it can be saved.',
+        'This account change needs an account API before it can be saved.',
       saving: 'Saving…',
       saveSuccess: 'Your phone number has been updated.',
       saveError:
@@ -389,7 +389,7 @@ export const messages = {
       cancelChanges: 'ยกเลิก',
       confirm: 'ยืนยัน',
       accountApiRequired:
-        'หน้าจอรองรับการแก้ไขแล้ว แต่ต้องมี Account/Profile image API ก่อนจึงจะบันทึกข้อมูลนี้ได้',
+        'การเปลี่ยนแปลงบัญชีนี้ต้องมี Account API ก่อนจึงจะบันทึกได้',
       saving: 'กำลังบันทึก…',
       saveSuccess: 'อัปเดตเบอร์โทรศัพท์เรียบร้อยแล้ว',
       saveError:

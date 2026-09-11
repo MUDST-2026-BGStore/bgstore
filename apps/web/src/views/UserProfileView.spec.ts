@@ -76,7 +76,7 @@ describe('user profile view', () => {
 
     await wrapper.get('.primary-button').trigger('click');
     expect(wrapper.find('#profile-confirm-password').exists()).toBe(true);
-    expect(wrapper.find('input[type="file"]').exists()).toBe(true);
+    expect(wrapper.find('input[type="file"]').exists()).toBe(false);
     expect(
       wrapper.get('#profile-username').attributes('readonly'),
     ).toBeUndefined();
@@ -104,7 +104,9 @@ describe('user profile view', () => {
 
     const request = vi.mocked(fetch).mock.calls[0]?.[0] as Request;
     expect(request.url).toBe('http://localhost/api/v1/me/client-profile');
-    expect(await request.text()).toBe('{"phone":"098 765 4321"}');
+    expect(await request.text()).toBe(
+      '{"countryCode":"+66","phoneNumber":"098 765 4321"}',
+    );
     expect(wrapper.text()).toContain('Your phone number has been updated.');
     expect(wrapper.find('button[type="submit"]').exists()).toBe(false);
   });
@@ -136,7 +138,7 @@ describe('user profile view', () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
     expect(wrapper.get('.status-pending').text()).toContain(
-      'needs the account/profile-image API',
+      'needs an account API',
     );
     expect(wrapper.find('button[type="submit"]').exists()).toBe(true);
   });

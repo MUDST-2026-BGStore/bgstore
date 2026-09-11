@@ -35,11 +35,9 @@
 - Keycloak is the source of truth for username, first name, last name, email,
   and password. `identity_accounts` is only the BGStore-side projection keyed
   by the immutable OIDC subject.
-- The Clients module and BGStore PostgreSQL database own the phone number and
-  profile image. Profile-image bytes are limited to 5 MiB and JPEG, PNG, or
-  WebP until the account API contract is introduced.
-- Password changes use a separate Keycloak boundary and are never mixed into a
-  general profile-update command.
+- The Clients module and BGStore PostgreSQL database own the phone number.
+- Profile images and password changes remain outside this slice until their
+  explicit API contracts and provider adapters are introduced.
 
 ## Initial invariants
 
