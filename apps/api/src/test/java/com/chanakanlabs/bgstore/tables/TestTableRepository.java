@@ -5,6 +5,7 @@ import java.time.ZoneOffset;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import org.springframework.lang.Nullable;
@@ -30,7 +31,7 @@ final class TestTableRepository implements TableRepository {
       @Nullable String zone,
       @Nullable String status,
       @Nullable String search) {
-    var normalizedSearch = search == null ? "" : search.trim().toLowerCase();
+    var normalizedSearch = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
     return tables.values().stream()
         .filter(
             t -> branch == null || branch.isBlank() || t.branch().equalsIgnoreCase(branch.trim()))
@@ -38,7 +39,9 @@ final class TestTableRepository implements TableRepository {
         .filter(
             t -> status == null || status.isBlank() || t.status().equalsIgnoreCase(status.trim()))
         .filter(
-            t -> normalizedSearch.isEmpty() || t.name().toLowerCase().contains(normalizedSearch))
+            t ->
+                normalizedSearch.isEmpty()
+                    || t.name().toLowerCase(Locale.ROOT).contains(normalizedSearch))
         .sorted(Comparator.comparingLong(t -> t.id() == null ? 0 : t.id()))
         .toList();
   }

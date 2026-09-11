@@ -19,7 +19,7 @@ class TableEntity {
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   @Column(name = "id", nullable = false)
-  private Long id;
+  private @Nullable Long id;
 
   @Column(name = "name", nullable = false, length = 100)
   private String name;
