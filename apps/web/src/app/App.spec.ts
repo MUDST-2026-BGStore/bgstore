@@ -36,9 +36,7 @@ describe('BGStore authentication context', () => {
         }
         return new Response(
           JSON.stringify({
-            message: 'Hello, BGStore!',
-            service: 'bgstore-api',
-            database: 'connected',
+            items: [{ id: 'branch-1', name: 'Central Rama II' }],
           }),
           { status: 200, headers: { 'Content-Type': 'application/json' } },
         );
@@ -59,9 +57,10 @@ describe('BGStore authentication context', () => {
     await flushPromises();
 
     expect(wrapper.get('h1').text()).toBe('BGStore');
-    expect(wrapper.get('[data-testid="api-message"]').text()).toBe(
-      'Hello, BGStore!',
+    expect(wrapper.get('[data-testid="home-branch"] h3').text()).toBe(
+      'Central Rama II',
     );
+    expect(wrapper.text()).toContain('Book a table');
   });
 
   it('opens on the floor overview for staff', async () => {
@@ -112,16 +111,24 @@ describe('BGStore authentication context', () => {
     ).toBe('Home');
   });
 
-  it('offers BFF sign-in when no application session exists', async () => {
+  it('lets a guest without a session look around the home page', async () => {
     client.setConfig({ baseUrl: 'http://localhost/api/v1' });
     vi.stubGlobal(
       'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify({ title: 'Unauthorized', status: 401 }), {
-          status: 401,
-          headers: { 'Content-Type': 'application/json' },
-        }),
-      ),
+      vi.fn(async (input: string | URL | Request) => {
+        const url = input instanceof Request ? input.url : input.toString();
+        return url.endsWith('/me')
+          ? new Response(null, { status: 401 })
+          : new Response(
+              JSON.stringify({
+                items: [{ id: 'branch-1', name: 'Central Rama II' }],
+              }),
+              {
+                status: 200,
+                headers: { 'Content-Type': 'application/json' },
+              },
+            );
+      }),
     );
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -137,9 +144,43 @@ describe('BGStore authentication context', () => {
     });
     await flushPromises();
 
+    expect(wrapper.text()).not.toContain('Sign in to BGStore');
+    expect(wrapper.get('[data-testid="home-branch"] h3').text()).toBe(
+      'Central Rama II',
+    );
+    expect(wrapper.get('a[href$="&signup"]').attributes('href')).toBe(
+      '/oauth2/authorization/keycloak?returnTo=%2F&signup',
+    );
+  });
+
+  it('offers BFF sign-in when a guest opens a screen that needs a session', async () => {
+    client.setConfig({ baseUrl: 'http://localhost/api/v1' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ title: 'Unauthorized', status: 401 }), {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      ),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const i18n = createI18n({ legacy: false, locale: 'en', messages });
+    await router.push('/games');
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient }], router, i18n],
+      },
+    });
+    await flushPromises();
+
     expect(wrapper.text()).toContain('Sign in to BGStore');
     expect(wrapper.get('a.button').attributes('href')).toBe(
-      '/oauth2/authorization/keycloak?returnTo=%2F',
+      '/oauth2/authorization/keycloak?returnTo=%2Fgames',
     );
   });
 

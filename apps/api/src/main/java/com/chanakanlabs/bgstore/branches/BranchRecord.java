@@ -4,9 +4,11 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.lang.Nullable;
 
 /** JPA mapping for the migration-owned {@code branch} table. */
 @Entity
@@ -21,6 +23,18 @@ class BranchRecord {
   @Column(name = "name", nullable = false, length = 120, unique = true)
   private String name;
 
+  @Nullable
+  @Column(name = "address", length = 300)
+  private String address;
+
+  @Nullable
+  @Column(name = "opens_at")
+  private LocalTime opensAt;
+
+  @Nullable
+  @Column(name = "closes_at")
+  private LocalTime closesAt;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
@@ -33,6 +47,6 @@ class BranchRecord {
   }
 
   Branch toBranch() {
-    return new Branch(id, name);
+    return new Branch(id, name, address, opensAt, closesAt);
   }
 }

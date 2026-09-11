@@ -68,7 +68,6 @@
   --muted: #64717a;
   --line: #e2e6e9;
   --accent: #4c838f;
-  --green: #34796a;
 }
 
 * {
@@ -82,9 +81,13 @@ body {
   background: #f8fafb;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* In the base layer so a link's colour utility (a button styled as a link,
+   an active nav item) wins over it; unlayered, this rule would beat them. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 .shell {
@@ -133,13 +136,6 @@ a {
   font-weight: 700;
 }
 
-.home-hero {
-  display: grid;
-  align-content: center;
-  min-height: calc(100vh - 5.5rem);
-  padding: 5rem 0 8rem;
-}
-
 .eyebrow {
   margin: 0 0 1rem;
   color: var(--accent);
@@ -147,72 +143,6 @@ a {
   font-weight: 750;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-}
-
-.hero h1 {
-  margin: 0;
-  font-family: inherit;
-  font-size: clamp(3rem, 9vw, 6rem);
-  font-weight: 750;
-  line-height: 0.95;
-  letter-spacing: -0.06em;
-}
-
-.lede {
-  max-width: 44rem;
-  margin: 2.5rem 0 3rem;
-  color: var(--muted);
-  font-size: clamp(1.05rem, 2vw, 1.35rem);
-  line-height: 1.55;
-}
-
-.status-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  width: min(100%, 40rem);
-  min-height: 5.5rem;
-  padding: 1.15rem 1.25rem;
-  border: 1px solid var(--line);
-  border-radius: 1rem;
-  background: rgb(255 255 255 / 88%);
-  box-shadow: 0 1.5rem 4rem rgb(30 43 52 / 7%);
-  backdrop-filter: blur(12px);
-}
-
-.status-card p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.status-card .status-title {
-  margin-bottom: 0.2rem;
-  color: var(--ink);
-  font-weight: 700;
-}
-
-.status-dot {
-  flex: 0 0 auto;
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 999px;
-  background: var(--muted);
-  box-shadow: 0 0 0 0.3rem rgb(101 112 105 / 12%);
-}
-
-.status-dot--ready {
-  background: var(--green);
-  box-shadow: 0 0 0 0.3rem rgb(39 117 87 / 12%);
-}
-
-.status-dot--error {
-  background: #b44d4d;
-  box-shadow: 0 0 0 0.3rem rgb(180 77 77 / 12%);
-}
-
-.status-dot--pending {
-  animation: pulse 1.4s ease-in-out infinite;
 }
 
 .button {
@@ -230,20 +160,9 @@ a {
   outline-offset: 3px;
 }
 
-@keyframes pulse {
-  50% {
-    opacity: 0.35;
-  }
-}
-
 @media (max-width: 640px) {
   .site-nav {
     gap: 0.75rem;
-  }
-
-  .status-card {
-    align-items: flex-start;
-    flex-wrap: wrap;
   }
 
   .button {
@@ -413,10 +332,4 @@ a {
   color: #b44d4d;
   font-size: 0.85rem;
   line-height: 1.45;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .status-dot--pending {
-    animation: none;
-  }
 }

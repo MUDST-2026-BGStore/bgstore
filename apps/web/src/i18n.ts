@@ -7,18 +7,30 @@ export const messages = {
       walkingSkeleton: 'Walking skeleton',
     },
     home: {
-      eyebrow: 'Board game store operations',
-      description:
-        'A production-shaped foundation for reservations, play sessions, tables, and in-store game inventory.',
+      hero: {
+        label: 'Highlights',
+        previous: 'Previous slide',
+        next: 'Next slide',
+        slide: 'Slide {index} of {total}',
+      },
+      branches: {
+        title: 'Our branches',
+        viewAll: 'View all',
+        showFewer: 'Show fewer',
+        address: 'Address',
+        openingHours: 'Opening hours',
+        hours: '{opens}–{closes}',
+        bookHere: 'Book at this branch',
+        loading: 'Loading branches…',
+        loadFailed: 'We could not load the branches.',
+        retry: 'Try again',
+        empty: 'There are no branches to show yet.',
+      },
     },
     status: {
-      connecting: 'Connecting to the BGStore API…',
       authenticationRequired: 'Sign in required',
       authenticationHint:
         'Your session is handled securely by the BGStore backend.',
-      serviceUnavailable: 'Service unavailable',
-      serviceUnavailableHint: 'We could not reach the BGStore service.',
-      connected: 'Service {service} · Database {database}',
     },
     actions: {
       signIn: 'Sign in',
@@ -65,6 +77,8 @@ export const messages = {
       loadError: 'We could not load the floor overview.',
       retry: 'Try again',
       empty: 'No tables match your filters.',
+      login: 'Login',
+      signUp: 'Sign up',
     },
     catalogue: {
       title: 'All games',
@@ -385,18 +399,30 @@ export const messages = {
       walkingSkeleton: 'โครงระบบเริ่มต้น',
     },
     home: {
-      eyebrow: 'ระบบจัดการร้านบอร์ดเกม',
-      description:
-        'รากฐานระบบสำหรับการจองโต๊ะ เซสชันการเล่น โต๊ะ และคลังบอร์ดเกมภายในร้าน',
+      hero: {
+        label: 'ไฮไลต์',
+        previous: 'สไลด์ก่อนหน้า',
+        next: 'สไลด์ถัดไป',
+        slide: 'สไลด์ที่ {index} จาก {total}',
+      },
+      branches: {
+        title: 'สาขาของเรา',
+        viewAll: 'ดูทั้งหมด',
+        showFewer: 'ดูน้อยลง',
+        address: 'ที่อยู่',
+        openingHours: 'เวลาเปิดทำการ',
+        hours: '{opens}–{closes}',
+        bookHere: 'จองที่สาขานี้',
+        loading: 'กำลังโหลดสาขา…',
+        loadFailed: 'ไม่สามารถโหลดรายการสาขาได้',
+        retry: 'ลองอีกครั้ง',
+        empty: 'ยังไม่มีสาขาที่จะแสดง',
+      },
     },
     status: {
-      connecting: 'กำลังเชื่อมต่อ BGStore API…',
       authenticationRequired: 'กรุณาเข้าสู่ระบบ',
       authenticationHint:
         'เซสชันของคุณได้รับการจัดการอย่างปลอดภัยโดยระบบ BGStore',
-      serviceUnavailable: 'บริการไม่พร้อมใช้งาน',
-      serviceUnavailableHint: 'ไม่สามารถเชื่อมต่อกับบริการ BGStore ได้',
-      connected: 'บริการ {service} · ฐานข้อมูล {database}',
     },
     actions: {
       signIn: 'เข้าสู่ระบบ',
@@ -443,6 +469,8 @@ export const messages = {
       loadError: 'ไม่สามารถโหลดภาพรวมโต๊ะได้',
       retry: 'ลองอีกครั้ง',
       empty: 'ไม่มีโต๊ะที่ตรงกับตัวกรองนี้',
+      login: 'เข้าสู่ระบบ',
+      signUp: 'สมัครสมาชิก',
     },
     catalogue: {
       title: 'เกมทั้งหมด',

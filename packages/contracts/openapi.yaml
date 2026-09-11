@@ -82,6 +82,12 @@ paths:
       tags: [Branches]
       operationId: listBranches
       summary: List the store branches games can be stocked at.
+      description: >-
+        Public, so a guest can choose where to visit before signing in. A
+        signed-in client still has to finish onboarding first.
+      security:
+        - {}
+        - cookieAuth: []
       responses:
         '200':
           description: The branch directory, ordered by name.
@@ -89,8 +95,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BranchList'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
         '428':
           $ref: '#/components/responses/OnboardingRequired'
   /games:
@@ -606,6 +610,25 @@ components:
         name:
           type: string
           example: Central Rama II
+        address:
+          type: string
+          nullable: true
+          description: The postal address guests are shown. Null until the store records one.
+          example: 160 ถ. พระรามที่ 2 แขวงแสมดำ เขตบางขุนเทียน กรุงเทพฯ 10150
+        opensAt:
+          type: string
+          nullable: true
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          description: >-
+            Opening time, Bangkok local time. Null, together with `closesAt`,
+            until the store records its hours.
+          example: '09:00'
+        closesAt:
+          type: string
+          nullable: true
+          pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'
+          description: Closing time, Bangkok local time. Null exactly when `opensAt` is.
+          example: '19:00'
     BranchList:
       type: object
       additionalProperties: false

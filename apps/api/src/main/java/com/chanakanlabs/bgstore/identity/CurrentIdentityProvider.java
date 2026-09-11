@@ -16,11 +16,24 @@ import org.springframework.web.server.ResponseStatusException;
 public class CurrentIdentityProvider {
 
   public AuthenticatedIdentity currentIdentity() {
+    return findCurrentIdentity()
+        .orElseThrow(
+            () ->
+                new ResponseStatusException(
+                    HttpStatus.UNAUTHORIZED, "An OIDC session is required."));
+  }
+
+  /** The signed-in identity, or empty for a guest on a public endpoint. */
+  public Optional<AuthenticatedIdentity> findCurrentIdentity() {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     if (authentication == null || !(authentication.getPrincipal() instanceof OidcUser oidcUser)) {
-      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "An OIDC session is required.");
+      return Optional.empty();
     }
 
+    return Optional.of(identityOf(oidcUser));
+  }
+
+  private static AuthenticatedIdentity identityOf(OidcUser oidcUser) {
     return new AuthenticatedIdentity(
         requiredClaim(oidcUser, "sub"),
         requiredClaim(oidcUser, "preferred_username"),
