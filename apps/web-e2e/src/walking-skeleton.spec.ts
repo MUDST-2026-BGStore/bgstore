@@ -21,6 +21,19 @@ async function stubBranches(page: Page) {
   );
 }
 
+async function finishClientOnboarding(page: Page) {
+  const phoneInput = page.getByTestId('phone-input');
+  const homeBranch = page.getByTestId('home-branch').first();
+  await expect(phoneInput.or(homeBranch)).toBeVisible();
+
+  if (await phoneInput.isVisible()) {
+    await phoneInput.fill('0812345678');
+    await page.getByRole('button', { name: 'Continue' }).click();
+  }
+
+  await expect(homeBranch).toBeVisible();
+}
+
 test('renders data from the API contract', async ({ page }) => {
   await page.route('**/api/v1/me', (route) =>
     route.fulfill({
@@ -80,15 +93,7 @@ test('authenticates through the BFF and reaches the real API', async ({
   await page.getByLabel('Username').fill('client@example.test');
   await page.getByLabel('Password', { exact: true }).fill('client-local-only');
   await page.getByRole('button', { name: 'Sign in' }).click();
-  const phoneInput = page.getByTestId('phone-input');
-  const homeBranch = page.getByTestId('home-branch').first();
-  await expect(phoneInput.or(homeBranch)).toBeVisible();
-  if (await phoneInput.isVisible()) {
-    await phoneInput.fill('0812345678');
-    await page.getByRole('button', { name: 'Continue' }).click();
-  }
-
-  await expect(homeBranch).toBeVisible();
+  await finishClientOnboarding(page);
 });
 
 test('staff can create a game through the authenticated browser flow', async ({
