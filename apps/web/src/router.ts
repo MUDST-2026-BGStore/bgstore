@@ -22,6 +22,8 @@ declare module 'vue-router' {
     /** A guest without a session may open the screen; the rest ask them to sign in. */
     public?: boolean;
     requiresAuth?: boolean;
+    /** Full-page task flow that hides the shared application navigation. */
+    focused?: boolean;
   }
 }
 
@@ -180,7 +182,7 @@ export const router = createRouter({
         ),
         client: UserProfileView,
       },
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, focused: true },
     },
     fallbackRoute,
   ],
