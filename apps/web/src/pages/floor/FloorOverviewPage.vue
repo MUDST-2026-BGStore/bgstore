@@ -48,6 +48,15 @@ const overview = useQuery(
 const data = computed(() => overview.data.value);
 const rows = computed(() => data.value?.items ?? []);
 
+// The API moves a page past the end back to the last page (the floor can
+// shrink under a refetch), so the pager follows the page it was answered with.
+// Placeholder data is the previous page's answer, not this one's.
+watch(data, (answer) => {
+  if (answer && !overview.isPlaceholderData.value) {
+    page.value = answer.page;
+  }
+});
+
 const stats = computed(() => [
   {
     tone: 'success' as const,

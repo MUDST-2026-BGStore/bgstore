@@ -160,6 +160,36 @@ describe('FloorOverviewPage', () => {
     expect(lastQuery(calls, '/floor-overview')?.get('page')).toBe('1');
   });
 
+  it('follows the page the API answers with when the floor has shrunk', async () => {
+    let shrunk = false;
+    stubApi([
+      (request) => {
+        if (!new URL(request.url).pathname.endsWith('/floor-overview')) {
+          return undefined;
+        }
+        // The API moves a page past the end back to the last page.
+        return {
+          body: shrunk
+            ? { ...designPage, total: 5, page: 1, totalPages: 1 }
+            : designPage,
+        };
+      },
+    ]);
+    const { wrapper } = await renderScreen(FloorOverviewPage, '/');
+
+    shrunk = true;
+    await wrapper.get('[aria-label="Page 2"]').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.get('[aria-current="page"]').attributes('aria-label')).toBe(
+      'Page 1',
+    );
+    expect(
+      wrapper.get('[aria-label="Previous page"]').attributes('disabled'),
+    ).toBeDefined();
+    expect(wrapper.text()).toContain('Showing 1–5 of 5');
+  });
+
   it('cannot page before the first page', async () => {
     stubApi([floorApi()]);
 

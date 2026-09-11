@@ -69,6 +69,9 @@ class FloorOverviewApiIntegrationTest {
     table(3, "Table 3", "Silom", 6, "Round", "Reserved");
     table(13, "Table 13", "Silom", 4, "Round", "Available");
     table(4, "Window seat", "Sukhumvit", 2, "Round", "Available");
+    // Out of service but left Available: it is not on the floor at all.
+    table(20, "Broken table", "Silom", 4, "Round", "Available");
+    database.update("update store_table set active = false where id = 20");
   }
 
   @Test
@@ -89,6 +92,7 @@ class FloorOverviewApiIntegrationTest {
         .andExpect(jsonPath("$.counts.occupied").value(1))
         .andExpect(jsonPath("$.counts.reserved").value(1))
         .andExpect(jsonPath("$.total").value(2))
+        .andExpect(jsonPath("$.items.length()").value(2))
         .andExpect(jsonPath("$.items[0].id").value(1))
         .andExpect(jsonPath("$.items[1].id").value(13));
   }

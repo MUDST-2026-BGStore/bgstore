@@ -56,9 +56,10 @@ public class FloorOverviewService {
       int pageSize) {
     accessPolicy.requireStaffOrManager();
 
+    // Tables taken out of service are not on the floor, whatever status they were left in.
     PageResult<TableRecordData> rows =
-        tables.listTables(branch, null, status, search, page, pageSize);
-    Map<String, Long> counts = tables.countByStatus(branch);
+        tables.listActiveTables(branch, status, search, page, pageSize);
+    Map<String, Long> counts = tables.countActiveByStatus(branch);
     Map<Long, List<ReservedSlot>> slots =
         reservedSlots.upcomingFor(
             rows.items().stream().map(TableRecordData::id).filter(Objects::nonNull).toList(),
