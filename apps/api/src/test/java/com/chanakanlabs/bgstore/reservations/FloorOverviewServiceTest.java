@@ -45,9 +45,9 @@ class FloorOverviewServiceTest {
 
   @Test
   void countsTheWholeFloorWhateverTheRowFilters() {
-    when(tables.listTables("Silom", null, "Reserved", "Table", 2, 5))
+    when(tables.listActiveTables("Silom", "Reserved", "Table", 2, 5))
         .thenReturn(new PageResult<>(List.of(table(6, "Reserved")), 6, 2, 5, 2));
-    when(tables.countByStatus("Silom"))
+    when(tables.countActiveByStatus("Silom"))
         .thenReturn(Map.of("Available", 4L, "Occupied", 1L, "Reserved", 2L, "Unavailable", 1L));
 
     var overview = service.overview("Silom", "Reserved", "Table", 2, 5);
@@ -63,9 +63,9 @@ class FloorOverviewServiceTest {
 
   @Test
   void countsAStatusNoTableIsInAsZero() {
-    when(tables.listTables(null, null, null, null, 1, 5))
+    when(tables.listActiveTables(null, null, null, 1, 5))
         .thenReturn(new PageResult<>(List.of(), 0, 1, 5, 1));
-    when(tables.countByStatus(null)).thenReturn(Map.of("Available", 3L));
+    when(tables.countActiveByStatus(null)).thenReturn(Map.of("Available", 3L));
 
     var overview = service.overview(null, null, null, 1, 5);
 
@@ -80,10 +80,10 @@ class FloorOverviewServiceTest {
     var afternoon = slot("2026-09-08T14:00:00+07:00", "2026-09-08T16:00:00+07:00");
     slots.add(2L, lunch);
     slots.add(2L, afternoon);
-    when(tables.listTables(null, null, null, null, 1, 5))
+    when(tables.listActiveTables(null, null, null, 1, 5))
         .thenReturn(
             new PageResult<>(List.of(table(1, "Available"), table(2, "Occupied")), 2, 1, 5, 1));
-    when(tables.countByStatus(null)).thenReturn(Map.of());
+    when(tables.countActiveByStatus(null)).thenReturn(Map.of());
 
     var rows = service.overview(null, null, null, 1, 5).tables().items();
 
@@ -98,9 +98,9 @@ class FloorOverviewServiceTest {
     var underway = slot("2026-09-08T09:30:00+07:00", "2026-09-08T11:00:00+07:00");
     slots.add(3L, breakfast);
     slots.add(3L, underway);
-    when(tables.listTables(null, null, null, null, 1, 5))
+    when(tables.listActiveTables(null, null, null, 1, 5))
         .thenReturn(new PageResult<>(List.of(table(3, "Occupied")), 1, 1, 5, 1));
-    when(tables.countByStatus(null)).thenReturn(Map.of());
+    when(tables.countActiveByStatus(null)).thenReturn(Map.of());
 
     var rows = service.overview(null, null, null, 1, 5).tables().items();
 

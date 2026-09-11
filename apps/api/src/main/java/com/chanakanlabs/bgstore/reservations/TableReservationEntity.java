@@ -11,7 +11,7 @@ import java.time.OffsetDateTime;
 import org.springframework.lang.Nullable;
 
 /**
- * A reservation's hold on one table. Hibernate creates {@code table_reservation} from this mapping.
+ * A reservation's hold on one table. The table is created by a Flyway migration.
  *
  * <p>The table is referenced by id rather than by a JPA association, because {@code store_table}
  * belongs to the tables module.
