@@ -4,6 +4,7 @@ import com.chanakanlabs.bgstore.contract.model.CatalogueLocale;
 import com.chanakanlabs.bgstore.contract.model.GameAvailability;
 import com.chanakanlabs.bgstore.contract.model.GameCategory;
 import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
+import com.chanakanlabs.bgstore.contract.model.TableStatus;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.format.FormatterRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -24,5 +25,6 @@ class ContractEnumConverters implements WebMvcConfigurer {
     registry.addConverter(String.class, GameAvailability.class, GameAvailability::fromValue);
     registry.addConverter(String.class, GameCategory.class, GameCategory::fromValue);
     registry.addConverter(String.class, GameLifecycle.class, GameLifecycle::fromValue);
+    registry.addConverter(String.class, TableStatus.class, TableStatus::fromValue);
   }
 }

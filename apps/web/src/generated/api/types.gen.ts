@@ -292,6 +292,38 @@ export type CreateTableRequest = {
 
 export type UpdateTableRequest = CreateTableRequest;
 
+export type FloorStatusCounts = {
+  available: number;
+  occupied: number;
+  reserved: number;
+};
+
+export type ReservedSlot = {
+  startsAt: string;
+  endsAt: string;
+};
+
+export type FloorTableResponse = {
+  id: number;
+  name: string;
+  capacity: number;
+  shape: TableShape;
+  status: TableStatus;
+  /**
+   * Slots that have not ended yet, soonest first.
+   */
+  reservedSlots: Array<ReservedSlot>;
+};
+
+export type FloorOverviewResponse = {
+  counts: FloorStatusCounts;
+  items: Array<FloorTableResponse>;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export type ProblemDetail = {
   type: string;
   title: string;
@@ -824,3 +856,43 @@ export type UpdateTableResponses = {
 
 export type UpdateTableResponse =
   UpdateTableResponses[keyof UpdateTableResponses];
+
+export type GetFloorOverviewData = {
+  body?: never;
+  path?: never;
+  query?: {
+    branch?: string;
+    status?: TableStatus;
+    /**
+     * Matches part of a table name, or a table id exactly.
+     */
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  };
+  url: '/floor-overview';
+};
+
+export type GetFloorOverviewErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type GetFloorOverviewError =
+  GetFloorOverviewErrors[keyof GetFloorOverviewErrors];
+
+export type GetFloorOverviewResponses = {
+  /**
+   * The floor status counts and one page of tables.
+   */
+  200: FloorOverviewResponse;
+};
+
+export type GetFloorOverviewResponse =
+  GetFloorOverviewResponses[keyof GetFloorOverviewResponses];

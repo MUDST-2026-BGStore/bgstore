@@ -24,6 +24,9 @@ import type {
   GetCurrentUserData,
   GetCurrentUserErrors,
   GetCurrentUserResponses,
+  GetFloorOverviewData,
+  GetFloorOverviewErrors,
+  GetFloorOverviewResponses,
   GetGameData,
   GetGameErrors,
   GetGameResponses,
@@ -405,4 +408,32 @@ export const updateTable = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  });
+
+/**
+ * Staff view of every table's status and upcoming reserved slots.
+ *
+ * The status counts cover the whole floor (optionally one branch) and ignore the status and search filters, which only narrow the rows.
+ */
+export const getFloorOverview = <ThrowOnError extends boolean = false>(
+  options?: Options<GetFloorOverviewData, ThrowOnError>,
+): RequestResult<
+  GetFloorOverviewResponses,
+  GetFloorOverviewErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    GetFloorOverviewResponses,
+    GetFloorOverviewErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/floor-overview',
+    ...options,
   });

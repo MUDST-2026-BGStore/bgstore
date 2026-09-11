@@ -30,6 +30,10 @@
   --color-warning-bg: #fdf6e7;
   --color-warning-border: #f6d68c;
 
+  --color-info-fg: #1b5382;
+  --color-info-bg: #eef6fd;
+  --color-info-border: #aed4f2;
+
   /* Error tone from the design-system palette (color.feedback.error.500). */
   --color-danger-fg: #d92d20;
   --color-danger-bg: #fef3f2;

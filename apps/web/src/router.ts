@@ -19,15 +19,20 @@ declare module 'vue-router' {
   }
 }
 
-declare module 'vue-router' {
-  interface RouteMeta {
-    /** A guest without a session may open the screen; the rest ask them to sign in. */
-    public?: boolean;
-  }
-}
-
 export const routes = [
-  { path: '/', name: 'home', component: HomeView, meta: { public: true } },
+  // Home is the floor overview for staff and the store landing page for guests.
+  {
+    path: '/',
+    name: 'home',
+    component: RoleView,
+    meta: { public: true },
+    props: {
+      staff: defineAsyncComponent(
+        () => import('./pages/floor/FloorOverviewPage.vue'),
+      ),
+      client: HomeView,
+    },
+  },
   { path: '/onboarding', name: 'onboarding', component: OnboardingView },
   { path: '/branches', name: 'branches', component: BranchListView },
   {
