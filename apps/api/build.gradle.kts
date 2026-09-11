@@ -23,6 +23,23 @@ java {
   }
 }
 
+val applicationMainClass = "com.chanakanlabs.bgstore.BgstoreApiApplication"
+
+springBoot {
+  mainClass = applicationMainClass
+}
+
+// Nx schedules resolveMainClassName as its own task, so bootRun and bootJar
+// cannot read that task output. Setting the main class directly bypasses the
+// resolver.
+tasks.bootRun {
+  mainClass = applicationMainClass
+}
+
+tasks.bootJar {
+  mainClass = applicationMainClass
+}
+
 repositories {
   mavenCentral()
 }
@@ -31,9 +48,9 @@ extra["springModulithVersion"] = "2.1.0"
 
 dependencies {
   implementation("org.springframework.boot:spring-boot-starter-actuator")
+  implementation("org.springframework.boot:spring-boot-starter-data-jpa")
   implementation("org.springframework.boot:spring-boot-starter-flyway")
   implementation("org.springframework.boot:spring-boot-starter-jdbc")
-  implementation("org.springframework.boot:spring-boot-starter-jooq")
   implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
   implementation("org.springframework.boot:spring-boot-starter-security")
   implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
@@ -150,7 +167,12 @@ tasks.jacocoTestReport {
   dependsOn(tasks.test)
   classDirectories.setFrom(
       sourceSets.main.get().output.asFileTree.matching {
-        exclude("**/contract/**", "**/BgstoreApiApplication.class", "**/security/**")
+        exclude(
+            "**/contract/**",
+            "**/database/**",
+            "**/BgstoreApiApplication.class",
+            "**/security/**",
+        )
       }
   )
   reports {
@@ -163,7 +185,12 @@ tasks.jacocoTestCoverageVerification {
   dependsOn(tasks.test)
   classDirectories.setFrom(
       sourceSets.main.get().output.asFileTree.matching {
-        exclude("**/contract/**", "**/BgstoreApiApplication.class", "**/security/**")
+        exclude(
+            "**/contract/**",
+            "**/database/**",
+            "**/BgstoreApiApplication.class",
+            "**/security/**",
+        )
       }
   )
   violationRules {

@@ -10,15 +10,6 @@ export type HelloResponse = {
   database: 'connected';
 };
 
-export type ProblemDetail = {
-  type: string;
-  title: string;
-  status: number;
-  detail?: string;
-  instance?: string;
-  [key: string]: unknown;
-};
-
 export type ApplicationRole = 'CLIENT' | 'STAFF' | 'MANAGER';
 
 export type ClientProfile = {
@@ -45,9 +36,347 @@ export type CurrentUserResponse = {
 
 export type CompleteClientProfileRequest = {
   /**
-   * A Thai mobile number, with or without the +66 country code.
+   * International dialing prefix in E.164 form.
    */
-  phone: string;
+  countryCode: string;
+  /**
+   * National phone number, entered without the country code.
+   */
+  phoneNumber: string;
+};
+
+export type Branch = {
+  id: string;
+  name: string;
+  /**
+   * The postal address guests are shown. Null until the store records one.
+   */
+  address?: string | null;
+  /**
+   * Opening time, Bangkok local time. Null, together with `closesAt`, until the store records its hours.
+   */
+  opensAt?: string | null;
+  /**
+   * Closing time, Bangkok local time. Null exactly when `opensAt` is.
+   */
+  closesAt?: string | null;
+};
+
+export type BranchList = {
+  items: Array<Branch>;
+};
+
+/**
+ * A language the catalogue publishes metadata in. `en` is the canonical entry every game carries; `th` is the Thai translation.
+ */
+export type CatalogueLocale = 'en' | 'th';
+
+/**
+ * A game title in the languages the catalogue publishes.
+ *
+ * Fallback rule: to render in a locale, take that locale's value when it is present and not blank, and fall back to `en` otherwise. `en` is required, so a title always resolves to something.
+ */
+export type LocalizedTitle = {
+  en: string;
+  th?: string | null;
+};
+
+/**
+ * A short description in the languages the catalogue publishes. Both languages are optional; the `LocalizedTitle` fallback rule applies, and here it can resolve to nothing when neither language carries text.
+ */
+export type LocalizedDescription = {
+  en?: string | null;
+  th?: string | null;
+};
+
+/**
+ * A paragraph of how-to-play text. Both languages are optional; the `LocalizedTitle` fallback rule applies, and it can resolve to nothing.
+ */
+export type LocalizedGuideText = {
+  en?: string | null;
+  th?: string | null;
+};
+
+/**
+ * Absolute http(s) address of a game photo. The browser loads it as an image; the API stores the address and never fetches it.
+ */
+export type GameImageUrl = string;
+
+/**
+ * One numbered step of the "how to play" walkthrough.
+ */
+export type GameGuideStep = {
+  title: LocalizedTitle;
+  body?: LocalizedGuideText | null;
+};
+
+/**
+ * What a customer reads before arriving at the store: the goal, a note on player count, the components in the box, and a short walkthrough. Every part is optional; an empty guide has no text and no steps.
+ */
+export type GameGuide = {
+  goal?: LocalizedGuideText | null;
+  /**
+   * Replaces the plain player range when set, for counts that need a qualifier such as "2–5 (up to 10 with the Party Pack)".
+   */
+  players?: LocalizedGuideText | null;
+  equipment?: LocalizedGuideText | null;
+  steps: Array<GameGuideStep>;
+};
+
+/**
+ * Catalogue category. Values map to `games.category.*` messages.
+ */
+export type GameCategory = 'family' | 'card' | 'party' | 'strategy';
+
+/**
+ * Whether the game is still offered in store.
+ */
+export type GameLifecycle = 'active' | 'retired';
+
+/**
+ * Display status. `retired` reflects the lifecycle; the other three are derived from copies and the copies currently out on a session. Values map to `games.status.*` messages.
+ */
+export type GameAvailability =
+  | 'available'
+  | 'allCopiesOut'
+  | 'retired'
+  | 'notStocked';
+
+export type BranchStock = {
+  branchId: string;
+  branchName: string;
+  copies: number;
+  available: number;
+  inUse: number;
+  status: GameAvailability;
+};
+
+export type GameSummary = {
+  id: string;
+  title: LocalizedTitle;
+  category: GameCategory;
+  minPlayers: number;
+  maxPlayers: number;
+  playTimeMinutes?: number | null;
+  /**
+   * The game's first photo, for list thumbnails. Null when it has none.
+   */
+  coverImageUrl?: string | null;
+  /**
+   * The branch this row's figures come from, when they come from exactly one branch. Null when the game is stocked at several branches and no branch filter is applied.
+   */
+  branchName?: string | null;
+  branchCount: number;
+  copies: number;
+  available: number;
+  status: GameAvailability;
+};
+
+export type PageMeta = {
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+};
+
+/**
+ * Totals over the whole filtered set, before pagination.
+ */
+export type GameStats = {
+  titles: number;
+  availableNow: number;
+  inUse: number;
+};
+
+export type GameListResponse = {
+  items: Array<GameSummary>;
+  page: PageMeta;
+  stats: GameStats;
+};
+
+export type GameDetail = {
+  id: string;
+  title: LocalizedTitle;
+  description?: LocalizedDescription | null;
+  category: GameCategory;
+  minPlayers: number;
+  maxPlayers: number;
+  playTimeMinutes?: number | null;
+  difficulty?: string | null;
+  tags: Array<string>;
+  /**
+   * Game photos in display order; the first is the cover.
+   */
+  imageUrls: Array<string>;
+  guide: GameGuide;
+  lifecycle: GameLifecycle;
+  status: GameAvailability;
+  addedAt: string;
+  /**
+   * Set by the play-session module; null until a session used this game.
+   */
+  lastPlayedAt?: string | null;
+  totalCopies: number;
+  /**
+   * Branches holding at least one copy.
+   */
+  branchCount: number;
+  /**
+   * One entry per branch in the directory, including branches with no copies.
+   */
+  stock: Array<BranchStock>;
+};
+
+export type BranchCopiesRequest = {
+  branchId: string;
+  copies: number;
+};
+
+export type GameRequest = {
+  title: LocalizedTitle;
+  description?: LocalizedDescription | null;
+  category: GameCategory;
+  minPlayers: number;
+  maxPlayers: number;
+  playTimeMinutes?: number | null;
+  difficulty?: string | null;
+  tags?: Array<string>;
+  /**
+   * Game photos in display order. Left out, the game keeps no photos.
+   */
+  imageUrls?: Array<GameImageUrl>;
+  /**
+   * Left out or null, the game keeps no how-to-play content.
+   */
+  guide?: GameGuide | null;
+  lifecycle?: GameLifecycle;
+  /**
+   * Per-branch copy counts. Branches left out keep no copies; on update, branches left out are cleared.
+   */
+  copies?: Array<BranchCopiesRequest>;
+};
+
+export type TableStatus = 'Available' | 'Reserved' | 'Occupied' | 'Unavailable';
+
+export type TableShape = 'Round' | 'Square' | 'Oval' | 'Rectangle';
+
+export type TableResponse = {
+  id: number;
+  name: string;
+  branch: string;
+  capacity: number;
+  shape: TableShape;
+  status: TableStatus;
+  active: boolean;
+  zone: string;
+  lastUpdated: string;
+};
+
+export type TableListResponse = {
+  items: Array<TableResponse>;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type CreateTableRequest = {
+  name: string;
+  branch: string;
+  capacity: number;
+  shape: TableShape;
+  status: TableStatus;
+  active: boolean;
+  zone: string;
+};
+
+export type UpdateTableRequest = CreateTableRequest;
+
+export type FloorStatusCounts = {
+  available: number;
+  occupied: number;
+  reserved: number;
+};
+
+export type ReservedSlot = {
+  startsAt: string;
+  endsAt: string;
+};
+
+export type FloorTableResponse = {
+  id: number;
+  name: string;
+  capacity: number;
+  shape: TableShape;
+  status: TableStatus;
+  /**
+   * Slots that have not ended yet, soonest first.
+   */
+  reservedSlots: Array<ReservedSlot>;
+};
+
+export type FloorOverviewResponse = {
+  counts: FloorStatusCounts;
+  items: Array<FloorTableResponse>;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type ReservationStatus = 'Reserved' | 'Completed' | 'Cancelled';
+
+export type ReservationResponse = {
+  id: string;
+  title: string;
+  date: string;
+  timeSlot: string;
+  partySize: number;
+  tableId: number;
+  tableName: string;
+  seats: number;
+  ratePerHour: number;
+  status: ReservationStatus;
+  customerName: string;
+  phoneNumber: string;
+  checkInTime: string;
+  actualCheckOut: string;
+  overtimeMinutes: number;
+  totalPrice: number;
+  canCancel: boolean;
+  thumbnailUrl?: string;
+};
+
+export type ReservationListResponse = {
+  items: Array<ReservationResponse>;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+export type ProblemDetail = {
+  type: string;
+  title: string;
+  status: number;
+  detail?: string;
+  instance?: string;
+  [key: string]: unknown;
+};
+
+export type FieldError = {
+  /**
+   * Dotted path of the rejected property, for example `copies[0].copies`.
+   */
+  field: string;
+  /**
+   * Message key the browser resolves through `games.form.errors.*`, falling back to the text itself when no message exists.
+   */
+  message: string;
+};
+
+export type ValidationProblem = ProblemDetail & {
+  errors: Array<FieldError>;
 };
 
 export type GetHelloData = {
@@ -140,3 +469,562 @@ export type CompleteClientProfileResponses = {
 
 export type CompleteClientProfileResponse =
   CompleteClientProfileResponses[keyof CompleteClientProfileResponses];
+
+export type ListBranchesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/branches';
+};
+
+export type ListBranchesErrors = {
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
+};
+
+export type ListBranchesError = ListBranchesErrors[keyof ListBranchesErrors];
+
+export type ListBranchesResponses = {
+  /**
+   * The branch directory, ordered by name.
+   */
+  200: BranchList;
+};
+
+export type ListBranchesResponse =
+  ListBranchesResponses[keyof ListBranchesResponses];
+
+export type ListGamesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Restrict stock figures and results to one branch.
+     */
+    branchId?: string;
+    category?: GameCategory;
+    status?: GameAvailability;
+    /**
+     * Restrict results to active or retired games. The client catalogue asks for `active` so a customer never browses a game the store no longer offers; the inventory leaves it unset to see both.
+     */
+    lifecycle?: GameLifecycle;
+    /**
+     * Case-insensitive match on either published title, so a Thai title is found by typing Thai and an English one by typing English.
+     */
+    search?: string;
+    /**
+     * Language the page is ordered by. Rows are sorted on the title this locale resolves to under the `LocalizedTitle` fallback rule, so the order matches what a reader in that locale sees.
+     */
+    locale?: CatalogueLocale;
+    /**
+     * Zero-based page index.
+     */
+    page?: number;
+    size?: number;
+  };
+  url: '/games';
+};
+
+export type ListGamesErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The payload is well-formed but violates a rule.
+   */
+  422: ValidationProblem;
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
+};
+
+export type ListGamesError = ListGamesErrors[keyof ListGamesErrors];
+
+export type ListGamesResponses = {
+  /**
+   * The matching page of games.
+   */
+  200: GameListResponse;
+};
+
+export type ListGamesResponse = ListGamesResponses[keyof ListGamesResponses];
+
+export type CreateGameData = {
+  body: GameRequest;
+  path?: never;
+  query?: never;
+  url: '/games';
+};
+
+export type CreateGameErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The payload is well-formed but violates a rule.
+   */
+  422: ValidationProblem;
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
+};
+
+export type CreateGameError = CreateGameErrors[keyof CreateGameErrors];
+
+export type CreateGameResponses = {
+  /**
+   * The created game.
+   */
+  201: GameDetail;
+};
+
+export type CreateGameResponse = CreateGameResponses[keyof CreateGameResponses];
+
+export type RetireGameData = {
+  body?: never;
+  path: {
+    gameId: string;
+  };
+  query?: never;
+  url: '/games/{gameId}';
+};
+
+export type RetireGameErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
+};
+
+export type RetireGameError = RetireGameErrors[keyof RetireGameErrors];
+
+export type RetireGameResponses = {
+  /**
+   * The game is retired.
+   */
+  204: void;
+};
+
+export type RetireGameResponse = RetireGameResponses[keyof RetireGameResponses];
+
+export type GetGameData = {
+  body?: never;
+  path: {
+    gameId: string;
+  };
+  query?: never;
+  url: '/games/{gameId}';
+};
+
+export type GetGameErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
+};
+
+export type GetGameError = GetGameErrors[keyof GetGameErrors];
+
+export type GetGameResponses = {
+  /**
+   * The requested game.
+   */
+  200: GameDetail;
+};
+
+export type GetGameResponse = GetGameResponses[keyof GetGameResponses];
+
+export type UpdateGameData = {
+  body: GameRequest;
+  path: {
+    gameId: string;
+  };
+  query?: never;
+  url: '/games/{gameId}';
+};
+
+export type UpdateGameErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+  /**
+   * The payload is well-formed but violates a rule.
+   */
+  422: ValidationProblem;
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
+};
+
+export type UpdateGameError = UpdateGameErrors[keyof UpdateGameErrors];
+
+export type UpdateGameResponses = {
+  /**
+   * The updated game.
+   */
+  200: GameDetail;
+};
+
+export type UpdateGameResponse = UpdateGameResponses[keyof UpdateGameResponses];
+
+export type ListTablesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    branch?: string;
+    zone?: string;
+    status?: TableStatus;
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  };
+  url: '/tables';
+};
+
+export type ListTablesErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type ListTablesError = ListTablesErrors[keyof ListTablesErrors];
+
+export type ListTablesResponses = {
+  /**
+   * A paginated list of tables matching the query.
+   */
+  200: TableListResponse;
+};
+
+export type ListTablesResponse = ListTablesResponses[keyof ListTablesResponses];
+
+export type CreateTableData = {
+  body: CreateTableRequest;
+  path?: never;
+  query?: never;
+  url: '/tables';
+};
+
+export type CreateTableErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type CreateTableError = CreateTableErrors[keyof CreateTableErrors];
+
+export type CreateTableResponses = {
+  /**
+   * The created table record.
+   */
+  201: TableResponse;
+};
+
+export type CreateTableResponse =
+  CreateTableResponses[keyof CreateTableResponses];
+
+export type DeleteTableData = {
+  body?: never;
+  path: {
+    tableId: number;
+  };
+  query?: never;
+  url: '/tables/{tableId}';
+};
+
+export type DeleteTableErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+};
+
+export type DeleteTableError = DeleteTableErrors[keyof DeleteTableErrors];
+
+export type DeleteTableResponses = {
+  /**
+   * The table was successfully deleted.
+   */
+  204: void;
+};
+
+export type DeleteTableResponse =
+  DeleteTableResponses[keyof DeleteTableResponses];
+
+export type GetTableData = {
+  body?: never;
+  path: {
+    tableId: number;
+  };
+  query?: never;
+  url: '/tables/{tableId}';
+};
+
+export type GetTableErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+};
+
+export type GetTableError = GetTableErrors[keyof GetTableErrors];
+
+export type GetTableResponses = {
+  /**
+   * The table record.
+   */
+  200: TableResponse;
+};
+
+export type GetTableResponse = GetTableResponses[keyof GetTableResponses];
+
+export type UpdateTableData = {
+  body: UpdateTableRequest;
+  path: {
+    tableId: number;
+  };
+  query?: never;
+  url: '/tables/{tableId}';
+};
+
+export type UpdateTableErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+};
+
+export type UpdateTableError = UpdateTableErrors[keyof UpdateTableErrors];
+
+export type UpdateTableResponses = {
+  /**
+   * The updated table record.
+   */
+  200: TableResponse;
+};
+
+export type UpdateTableResponse =
+  UpdateTableResponses[keyof UpdateTableResponses];
+
+export type GetFloorOverviewData = {
+  body?: never;
+  path?: never;
+  query?: {
+    branch?: string;
+    status?: TableStatus;
+    /**
+     * Matches part of a table name, or a table id exactly.
+     */
+    search?: string;
+    page?: number;
+    pageSize?: number;
+  };
+  url: '/floor-overview';
+};
+
+export type GetFloorOverviewErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type GetFloorOverviewError =
+  GetFloorOverviewErrors[keyof GetFloorOverviewErrors];
+
+export type GetFloorOverviewResponses = {
+  /**
+   * The floor status counts and one page of tables.
+   */
+  200: FloorOverviewResponse;
+};
+
+export type GetFloorOverviewResponse =
+  GetFloorOverviewResponses[keyof GetFloorOverviewResponses];
+
+export type ListReservationsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    status?: ReservationStatus;
+    page?: number;
+    pageSize?: number;
+  };
+  url: '/reservations';
+};
+
+export type ListReservationsErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+};
+
+export type ListReservationsError =
+  ListReservationsErrors[keyof ListReservationsErrors];
+
+export type ListReservationsResponses = {
+  /**
+   * A paginated list of reservations.
+   */
+  200: ReservationListResponse;
+};
+
+export type ListReservationsResponse =
+  ListReservationsResponses[keyof ListReservationsResponses];
+
+export type GetReservationData = {
+  body?: never;
+  path: {
+    reservationId: string;
+  };
+  query?: never;
+  url: '/reservations/{reservationId}';
+};
+
+export type GetReservationErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+};
+
+export type GetReservationError =
+  GetReservationErrors[keyof GetReservationErrors];
+
+export type GetReservationResponses = {
+  /**
+   * The reservation record.
+   */
+  200: ReservationResponse;
+};
+
+export type GetReservationResponse =
+  GetReservationResponses[keyof GetReservationResponses];
+
+export type CancelReservationData = {
+  body?: never;
+  path: {
+    reservationId: string;
+  };
+  query?: never;
+  url: '/reservations/{reservationId}/cancel';
+};
+
+export type CancelReservationErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+};
+
+export type CancelReservationError =
+  CancelReservationErrors[keyof CancelReservationErrors];
+
+export type CancelReservationResponses = {
+  /**
+   * The cancelled reservation record.
+   */
+  200: ReservationResponse;
+};
+
+export type CancelReservationResponse =
+  CancelReservationResponses[keyof CancelReservationResponses];

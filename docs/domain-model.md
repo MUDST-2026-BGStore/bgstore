@@ -2,7 +2,7 @@
 
 ## Ubiquitous language
 
-- **Location:** a physical store with its own opening hours, tables, inventory copies, and pricing policy.
+- **Location:** a physical store with its own opening hours, tables, inventory copies, and pricing policy. The design, the UI, and the `branches` module call this a **branch**; the two words name the same thing.
 - **Client:** a person who may be a guest or a registered account. Registration enables self-service reservations and durable profile access.
 - **Staff member:** an authenticated employee allowed to check clients in/out and operate sessions. A manager can administer policies and staff permissions.
 - **Party:** one or more clients visiting or reserving together. A party may contain guests and registered clients.
@@ -10,7 +10,7 @@
 - **Reservation:** a registered client's hold on a time interval and required capacity. Assignment to a specific table may happen later.
 - **Visit:** the store presence begun by staff check-in and ended by check-out.
 - **Play session:** the billable interval for a party using a table. Only in-store sessions are in scope.
-- **Game title:** language-aware catalog metadata for a board game.
+- **Game title:** language-aware catalog metadata for a board game, including the photos and how-to-play guide clients read before a visit.
 - **Game copy:** a physical, location-owned copy with an availability and condition state.
 - **Pricing policy:** a versioned rule that calculates a session fee from time, party, location, and adjustments.
 - **Payment record:** an operational record of amount, method, and status; no card data is stored or processed.
@@ -35,11 +35,20 @@
 - Keycloak is the source of truth for username, first name, last name, email,
   and password. `identity_accounts` is only the BGStore-side projection keyed
   by the immutable OIDC subject.
-- The Clients module and BGStore PostgreSQL database own the phone number and
-  profile image. Profile-image bytes are limited to 5 MiB and JPEG, PNG, or
-  WebP until the account API contract is introduced.
-- Password changes use a separate Keycloak boundary and are never mixed into a
-  general profile-update command.
+- The Clients module and BGStore PostgreSQL database own the phone number.
+- Profile images and password changes remain outside this slice until their
+  explicit API contracts and provider adapters are introduced.
+
+## Reserved table slots
+
+- The Reservations module owns `table_reservation`: one row holds one table
+  (by id, since `store_table` belongs to the Tables module) from `starts_at`
+  to `ends_at`.
+- The staff floor overview (`GET /floor-overview`) reads it: each table lists
+  the slots that have not ended yet, and the status counts come from the
+  tables' own status. Slots do not change a table's status by themselves.
+- There is no API to create or cancel a reservation yet; that arrives with
+  the client Reserve flow, together with its lifecycle states.
 
 ## Initial invariants
 

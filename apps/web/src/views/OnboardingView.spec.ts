@@ -12,7 +12,7 @@ describe('client onboarding', () => {
     vi.unstubAllGlobals();
   });
 
-  it('saves a Thai mobile number then returns to the requested page', async () => {
+  it('saves a country-coded phone number then returns to the requested page', async () => {
     client.setConfig({ baseUrl: 'http://localhost/api/v1' });
     vi.stubGlobal(
       'fetch',
@@ -36,13 +36,16 @@ describe('client onboarding', () => {
     const wrapper = mount(OnboardingView, {
       global: { plugins: [[VueQueryPlugin, { queryClient }], router, i18n] },
     });
-    await wrapper.get('#phone').setValue('081 234 5678');
+    await wrapper.get('#countryCode').setValue('+66');
+    await wrapper.get('#phoneNumber').setValue('081 234 5678');
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
     const request = vi.mocked(fetch).mock.calls[0]?.[0] as Request;
     expect(request.url).toBe('http://localhost/api/v1/me/client-profile');
-    expect(await request.text()).toBe('{"phone":"081 234 5678"}');
+    expect(await request.text()).toBe(
+      '{"countryCode":"+66","phoneNumber":"081 234 5678"}',
+    );
     expect(router.currentRoute.value.fullPath).toBe('/');
   });
 
@@ -67,11 +70,54 @@ describe('client onboarding', () => {
     const wrapper = mount(OnboardingView, {
       global: { plugins: [[VueQueryPlugin, { queryClient }], router, i18n] },
     });
-    await wrapper.get('#phone').setValue('not a phone number');
+    await wrapper.get('#phoneNumber').setValue('not a phone number');
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
     expect(wrapper.text()).toContain('We could not save that number');
     expect(router.currentRoute.value.name).toBe('onboarding');
+  });
+
+  it('opens the country picker and formats its selected state for Thai users', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const i18n = createI18n({ legacy: false, locale: 'th', messages });
+    await router.push('/onboarding');
+    await router.isReady();
+
+    const wrapper = mount(OnboardingView, {
+      global: { plugins: [[VueQueryPlugin, { queryClient }], router, i18n] },
+    });
+    const trigger = wrapper.get('[data-testid="country-trigger"]');
+    await trigger.trigger('keydown', { key: 'ArrowDown' });
+    expect(wrapper.get('#country-options').text()).toContain('ไทย');
+    await wrapper.get('[data-testid="country-option-+81"]').trigger('click');
+    expect(trigger.text()).toContain('+81');
+    await trigger.trigger('keydown', { key: 'Escape' });
+    expect(wrapper.find('#country-options').exists()).toBe(false);
+    await trigger.trigger('click');
+    expect(wrapper.find('#country-options').exists()).toBe(true);
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    await flushPromises();
+    expect(wrapper.find('#country-options').exists()).toBe(false);
+  });
+
+  it('jumps to a country when its name is typed while the picker is focused', async () => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const i18n = createI18n({ legacy: false, locale: 'en', messages });
+    await router.push('/onboarding');
+    await router.isReady();
+
+    const wrapper = mount(OnboardingView, {
+      global: { plugins: [[VueQueryPlugin, { queryClient }], router, i18n] },
+    });
+    const trigger = wrapper.get('[data-testid="country-trigger"]');
+    await trigger.trigger('keydown', { key: 'j' });
+
+    expect(trigger.text()).toContain('+81');
+    expect(wrapper.find('#country-options').exists()).toBe(true);
   });
 });

@@ -9,15 +9,60 @@ import type {
 } from './client';
 import { client } from './client.gen';
 import type {
+  CancelReservationData,
+  CancelReservationErrors,
+  CancelReservationResponses,
   CompleteClientProfileData,
   CompleteClientProfileErrors,
   CompleteClientProfileResponses,
+  CreateGameData,
+  CreateGameErrors,
+  CreateGameResponses,
+  CreateTableData,
+  CreateTableErrors,
+  CreateTableResponses,
+  DeleteTableData,
+  DeleteTableErrors,
+  DeleteTableResponses,
   GetCurrentUserData,
   GetCurrentUserErrors,
   GetCurrentUserResponses,
+  GetFloorOverviewData,
+  GetFloorOverviewErrors,
+  GetFloorOverviewResponses,
+  GetGameData,
+  GetGameErrors,
+  GetGameResponses,
   GetHelloData,
   GetHelloErrors,
   GetHelloResponses,
+  GetReservationData,
+  GetReservationErrors,
+  GetReservationResponses,
+  GetTableData,
+  GetTableErrors,
+  GetTableResponses,
+  ListBranchesData,
+  ListBranchesErrors,
+  ListBranchesResponses,
+  ListGamesData,
+  ListGamesErrors,
+  ListGamesResponses,
+  ListReservationsData,
+  ListReservationsErrors,
+  ListReservationsResponses,
+  ListTablesData,
+  ListTablesErrors,
+  ListTablesResponses,
+  RetireGameData,
+  RetireGameErrors,
+  RetireGameResponses,
+  UpdateGameData,
+  UpdateGameErrors,
+  UpdateGameResponses,
+  UpdateTableData,
+  UpdateTableErrors,
+  UpdateTableResponses,
 } from './types.gen';
 
 export type Options<
@@ -110,4 +155,368 @@ export const completeClientProfile = <ThrowOnError extends boolean = false>(
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  });
+
+/**
+ * List the store branches games can be stocked at.
+ *
+ * Public, so a guest can choose where to visit before signing in. A signed-in client still has to finish onboarding first.
+ */
+export const listBranches = <ThrowOnError extends boolean = false>(
+  options?: Options<ListBranchesData, ThrowOnError>,
+): RequestResult<ListBranchesResponses, ListBranchesErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListBranchesResponses,
+    ListBranchesErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/branches',
+    ...options,
+  });
+
+/**
+ * List games with their stock roll-up.
+ *
+ * Copies and availability are summed over the branches the filter selects. `stats` and `page.totalElements` describe the whole filtered set, not the returned page.
+ */
+export const listGames = <ThrowOnError extends boolean = false>(
+  options?: Options<ListGamesData, ThrowOnError>,
+): RequestResult<ListGamesResponses, ListGamesErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListGamesResponses,
+    ListGamesErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/games',
+    ...options,
+  });
+
+/**
+ * Add a game to the catalogue.
+ */
+export const createGame = <ThrowOnError extends boolean = false>(
+  options: Options<CreateGameData, ThrowOnError>,
+): RequestResult<CreateGameResponses, CreateGameErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateGameResponses,
+    CreateGameErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/games',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Retire a game.
+ *
+ * Retiring is the inventory list's delete action. The record is kept so past play sessions keep referring to a real game; a retired game still appears in the inventory under the `retired` status and can be brought back by updating it with `lifecycle: active`.
+ */
+export const retireGame = <ThrowOnError extends boolean = false>(
+  options: Options<RetireGameData, ThrowOnError>,
+): RequestResult<RetireGameResponses, RetireGameErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    RetireGameResponses,
+    RetireGameErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/games/{gameId}',
+    ...options,
+  });
+
+/**
+ * Read one game with its per-branch stock.
+ */
+export const getGame = <ThrowOnError extends boolean = false>(
+  options: Options<GetGameData, ThrowOnError>,
+): RequestResult<GetGameResponses, GetGameErrors, ThrowOnError> =>
+  (options.client ?? client).get<GetGameResponses, GetGameErrors, ThrowOnError>(
+    {
+      security: [
+        {
+          in: 'cookie',
+          name: '__Host-bgstore-session',
+          type: 'apiKey',
+        },
+      ],
+      url: '/games/{gameId}',
+      ...options,
+    },
+  );
+
+/**
+ * Replace a game and its per-branch stock.
+ */
+export const updateGame = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateGameData, ThrowOnError>,
+): RequestResult<UpdateGameResponses, UpdateGameErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    UpdateGameResponses,
+    UpdateGameErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/games/{gameId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * List store tables with optional filtering and pagination.
+ */
+export const listTables = <ThrowOnError extends boolean = false>(
+  options?: Options<ListTablesData, ThrowOnError>,
+): RequestResult<ListTablesResponses, ListTablesErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListTablesResponses,
+    ListTablesErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/tables',
+    ...options,
+  });
+
+/**
+ * Create a new store table.
+ */
+export const createTable = <ThrowOnError extends boolean = false>(
+  options: Options<CreateTableData, ThrowOnError>,
+): RequestResult<CreateTableResponses, CreateTableErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateTableResponses,
+    CreateTableErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/tables',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete a store table.
+ */
+export const deleteTable = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteTableData, ThrowOnError>,
+): RequestResult<DeleteTableResponses, DeleteTableErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    DeleteTableResponses,
+    DeleteTableErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/tables/{tableId}',
+    ...options,
+  });
+
+/**
+ * Get details of a single store table by ID.
+ */
+export const getTable = <ThrowOnError extends boolean = false>(
+  options: Options<GetTableData, ThrowOnError>,
+): RequestResult<GetTableResponses, GetTableErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetTableResponses,
+    GetTableErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/tables/{tableId}',
+    ...options,
+  });
+
+/**
+ * Update an existing store table.
+ */
+export const updateTable = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateTableData, ThrowOnError>,
+): RequestResult<UpdateTableResponses, UpdateTableErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    UpdateTableResponses,
+    UpdateTableErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/tables/{tableId}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Staff view of every table's status and upcoming reserved slots.
+ *
+ * The status counts cover the whole floor (optionally one branch) and ignore the status and search filters, which only narrow the rows.
+ */
+export const getFloorOverview = <ThrowOnError extends boolean = false>(
+  options?: Options<GetFloorOverviewData, ThrowOnError>,
+): RequestResult<
+  GetFloorOverviewResponses,
+  GetFloorOverviewErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    GetFloorOverviewResponses,
+    GetFloorOverviewErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/floor-overview',
+    ...options,
+  });
+
+/**
+ * List reservations for the authenticated client with optional status filter and pagination.
+ */
+export const listReservations = <ThrowOnError extends boolean = false>(
+  options?: Options<ListReservationsData, ThrowOnError>,
+): RequestResult<
+  ListReservationsResponses,
+  ListReservationsErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    ListReservationsResponses,
+    ListReservationsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/reservations',
+    ...options,
+  });
+
+/**
+ * Get details of a single reservation by ID.
+ */
+export const getReservation = <ThrowOnError extends boolean = false>(
+  options: Options<GetReservationData, ThrowOnError>,
+): RequestResult<GetReservationResponses, GetReservationErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetReservationResponses,
+    GetReservationErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/reservations/{reservationId}',
+    ...options,
+  });
+
+/**
+ * Cancel an upcoming reservation.
+ */
+export const cancelReservation = <ThrowOnError extends boolean = false>(
+  options: Options<CancelReservationData, ThrowOnError>,
+): RequestResult<
+  CancelReservationResponses,
+  CancelReservationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CancelReservationResponses,
+    CancelReservationErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/reservations/{reservationId}/cancel',
+    ...options,
   });

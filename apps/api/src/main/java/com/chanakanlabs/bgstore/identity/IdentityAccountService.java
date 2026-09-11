@@ -1,31 +1,21 @@
 package com.chanakanlabs.bgstore.identity;
 
-import org.jooq.DSLContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class IdentityAccountService {
 
-  private final DSLContext database;
+  private final IdentityAccountJpaRepository accounts;
 
-  public IdentityAccountService(DSLContext database) {
-    this.database = database;
+  IdentityAccountService(IdentityAccountJpaRepository accounts) {
+    this.accounts = accounts;
   }
 
+  /** Upserts the account atomically so concurrent first sign-ins cannot race on the subject key. */
   @Transactional
   public void synchronize(AuthenticatedIdentity identity) {
-    database.execute(
-        """
-        INSERT INTO identity_accounts (subject, username, email, first_name, last_name)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT (subject) DO UPDATE
-        SET username = EXCLUDED.username,
-            email = EXCLUDED.email,
-            first_name = EXCLUDED.first_name,
-            last_name = EXCLUDED.last_name,
-            updated_at = CURRENT_TIMESTAMP
-        """,
+    accounts.upsert(
         identity.subject(),
         identity.username(),
         identity.email(),

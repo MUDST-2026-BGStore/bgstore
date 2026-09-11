@@ -20,7 +20,7 @@ The containerized path is useful when checking production boundaries: `docker co
 | API data fetching in the web app        | `apps/web/src/queries`                             | `apps/web/src/generated/api` (generated; do not hand-edit)   |
 | An HTTP endpoint or response shape      | `packages/contracts/openapi.yaml`                  | `apps/api` and the generated web client                      |
 | Domain behavior                         | `apps/api/src/main/java/com/chanakanlabs/bgstore`  | The owning module package and its tests                      |
-| Database tables or indexes              | `apps/api/src/main/resources/db/migration`         | jOOQ configuration in `apps/api/build.gradle.kts`            |
+| Database tables or indexes              | `apps/api/src/main/resources/db/migration`         | The owning module's `@Entity` classes                        |
 | Authentication, sessions, or CSRF       | `apps/api/.../security`                            | `docs/decisions/0002-bff-authentication.md`                  |
 | Application role authorization          | `apps/api/.../identity/AccessPolicy`               | `docs/decisions/0005-application-authorization-policy.md`    |
 | Unit/integration/architecture tests     | `apps/api/src/test` or `apps/web/src/**/*.spec.ts` | `apps/web-e2e/src` for browser behavior                      |
@@ -54,7 +54,7 @@ The backend test suite uses Testcontainers for real PostgreSQL and Redis-compati
 2. Change the owning boundary, keeping controllers thin and domain behavior inside a Spring Modulith module.
 3. Add the narrowest test first; add an integration or browser test when the behavior crosses a process boundary.
 4. If the HTTP shape changes, edit `packages/contracts/openapi.yaml`, regenerate clients/server code, and review the generated diff.
-5. Add an append-only Flyway migration for schema changes. Never edit a migration that has reached a shared environment.
+5. Add an append-only Flyway migration for schema changes, then update the owning `@Entity` mapping. Never edit a migration that has reached a shared environment; JPA validation will catch mapping drift at startup.
 6. Run `pnpm check`, `pnpm e2e`, and the relevant deployment rendering checks.
 7. Use a Conventional Commit and update an ADR or runbook when the operational or architectural behavior changes.
 

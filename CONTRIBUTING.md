@@ -29,4 +29,4 @@ Lefthook formats and lints staged changes, validates commit messages with Commit
 
 ## Database changes
 
-Flyway migrations are append-only after merge. Never edit a migration that may have run in another environment. Prefer expand-and-contract changes, and generate jOOQ types from the migrated schema when business tables are introduced.
+Flyway owns schema evolution. Add an append-only migration for every shared database change and keep JPA in validation mode so entity mappings cannot silently change the schema at startup. Never edit a migration that may have run in another environment.

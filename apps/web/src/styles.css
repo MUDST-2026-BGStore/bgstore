@@ -1,5 +1,55 @@
 @import 'tailwindcss';
 
+/* Design tokens from the BGStore Figma library (file IzVNLaxEDIodhsAAYvzaRo).
+   Names mirror the Figma variable names so the two stay traceable. */
+@theme {
+  --color-canvas: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #f9fafb;
+
+  --color-line: #e5e7eb;
+  --color-line-strong: #8a92a0;
+
+  --color-ink: #1b2027;
+  --color-ink-secondary: #454e5a;
+  --color-ink-muted: #5a6472;
+
+  --color-primary: #497883;
+  --color-primary-fg: #ffffff;
+  --color-primary-subtle: #eff5f6;
+  --color-primary-subtle-fg: #375a62;
+
+  --color-secondary: #f3f4f6;
+  --color-secondary-fg: #2e3540;
+
+  --color-success-fg: #276635;
+  --color-success-bg: #eef8f0;
+  --color-success-border: #b0dcb9;
+
+  --color-warning-fg: #855500;
+  --color-warning-bg: #fdf6e7;
+  --color-warning-border: #f6d68c;
+
+  --color-info-fg: #1b5382;
+  --color-info-bg: #eef6fd;
+  --color-info-border: #aed4f2;
+
+  /* Error tone from the design-system palette (color.feedback.error.500). */
+  --color-danger-fg: #d92d20;
+  --color-danger-bg: #fef3f2;
+  --color-danger-border: #fecdc9;
+
+  --color-neutral-fg: #454e5a;
+  --color-neutral-bg: #f3f4f6;
+  --color-neutral-border: #d1d5db;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-table: 10px;
+  --radius-card: 14px;
+}
+
 :root {
   color: #20252d;
   background: #f8fafb;
@@ -18,7 +68,6 @@
   --muted: #64717a;
   --line: #e2e6e9;
   --accent: #4c838f;
-  --green: #34796a;
 }
 
 * {
@@ -32,62 +81,13 @@ body {
   background: #f8fafb;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.shell {
-  width: min(1120px, calc(100% - 2rem));
-  margin: 0 auto;
-}
-
-.masthead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 5.5rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-}
-
-.brand-mark {
-  display: grid;
-  width: 2.4rem;
-  height: 2.4rem;
-  place-items: center;
-  border-radius: 0.65rem;
-  color: white;
-  background: var(--accent);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-}
-
-.site-nav {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  color: #53606b;
-  font-size: 0.88rem;
-}
-
-.site-nav a {
-  color: #2b5f6c;
-  font-weight: 700;
-}
-
-.home-hero {
-  display: grid;
-  align-content: center;
-  min-height: calc(100vh - 5.5rem);
-  padding: 5rem 0 8rem;
+/* In the base layer so a link's colour utility (a button styled as a link,
+   an active nav item) wins over it; unlayered, this rule would beat them. */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 .eyebrow {
@@ -97,72 +97,6 @@ a {
   font-weight: 750;
   text-transform: uppercase;
   letter-spacing: 0.14em;
-}
-
-h1 {
-  margin: 0;
-  font-family: inherit;
-  font-size: clamp(3rem, 9vw, 6rem);
-  font-weight: 750;
-  line-height: 0.95;
-  letter-spacing: -0.06em;
-}
-
-.lede {
-  max-width: 44rem;
-  margin: 2.5rem 0 3rem;
-  color: var(--muted);
-  font-size: clamp(1.05rem, 2vw, 1.35rem);
-  line-height: 1.55;
-}
-
-.status-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  width: min(100%, 40rem);
-  min-height: 5.5rem;
-  padding: 1.15rem 1.25rem;
-  border: 1px solid var(--line);
-  border-radius: 1rem;
-  background: rgb(255 255 255 / 88%);
-  box-shadow: 0 1.5rem 4rem rgb(30 43 52 / 7%);
-  backdrop-filter: blur(12px);
-}
-
-.status-card p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
-.status-card .status-title {
-  margin-bottom: 0.2rem;
-  color: var(--ink);
-  font-weight: 700;
-}
-
-.status-dot {
-  flex: 0 0 auto;
-  width: 0.75rem;
-  height: 0.75rem;
-  border-radius: 999px;
-  background: var(--muted);
-  box-shadow: 0 0 0 0.3rem rgb(101 112 105 / 12%);
-}
-
-.status-dot--ready {
-  background: var(--green);
-  box-shadow: 0 0 0 0.3rem rgb(39 117 87 / 12%);
-}
-
-.status-dot--error {
-  background: #b44d4d;
-  box-shadow: 0 0 0 0.3rem rgb(180 77 77 / 12%);
-}
-
-.status-dot--pending {
-  animation: pulse 1.4s ease-in-out infinite;
 }
 
 .button {
@@ -180,22 +114,7 @@ h1 {
   outline-offset: 3px;
 }
 
-@keyframes pulse {
-  50% {
-    opacity: 0.35;
-  }
-}
-
 @media (max-width: 640px) {
-  .site-nav {
-    gap: 0.75rem;
-  }
-
-  .status-card {
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-
   .button {
     width: 100%;
     margin: 0.5rem 0 0;
@@ -274,6 +193,11 @@ h1 {
   font-weight: 700;
 }
 
+.phone-label {
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
 .onboarding-form input {
   min-height: 2.75rem;
   padding: 0.65rem 0.75rem;
@@ -288,6 +212,36 @@ h1 {
   outline: 3px solid rgb(76 131 143 / 18%);
 }
 
+.phone-control {
+  position: relative;
+  display: flex;
+  min-height: 3.65rem;
+  overflow: visible;
+  border: 1px solid #dce2e6;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, #fbfdfd 0%, #f2f8f8 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 90%),
+    0 0.65rem 1.25rem rgb(43 78 86 / 6%);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+}
+
+.phone-control:focus-within {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 4px rgb(76 131 143 / 15%),
+    inset 0 1px 0 rgb(255 255 255 / 90%),
+    0 0.8rem 1.5rem rgb(43 78 86 / 10%);
+  transform: translateY(-1px);
+}
+.phone-divider {
+  width: 1px;
+  margin: 0.75rem 0;
+  background: #b9ced0;
+}
 .onboarding-form .button {
   width: 100%;
   margin: 0.5rem 0 0;
@@ -300,15 +254,32 @@ h1 {
   opacity: 0.65;
 }
 
+.onboarding-form .phone-number-input {
+  min-width: 0;
+  flex: 1;
+  min-height: 0;
+  padding: 0.65rem 1rem;
+  border: 0;
+  border-radius: 0 1rem 1rem 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.onboarding-form .phone-number-input::placeholder {
+  color: #9aa9ae;
+}
+
+.phone-hint {
+  margin: -0.15rem 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
 .form-error {
   margin: 0;
   color: #b44d4d;
   font-size: 0.85rem;
   line-height: 1.45;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .status-dot--pending {
-    animation: none;
-  }
 }

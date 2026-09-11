@@ -2,24 +2,46 @@
 import { useQuery } from '@tanstack/vue-query';
 import { computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { currentUserQueryOptions } from '../queries/current-user';
+import { RouterView, useRoute, useRouter } from 'vue-router';
+import AppNavbar from '../components/AppNavbar.vue';
+import { currentUserQueryOptions, signInHref } from '../queries/current-user';
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
-const isUserProfileRoute = computed(() => route.name === 'user-profile');
 const currentUser = useQuery(currentUserQueryOptions());
 
-const signInHref = computed(
+const signInRequired = computed(
   () =>
-    `/oauth2/authorization/keycloak?returnTo=${encodeURIComponent(route.fullPath)}`,
+    !route.meta.public &&
+    (currentUser.isError.value || currentUser.data.value === null),
 );
+const signIn = computed(() => signInHref(route.fullPath));
 
 watch(
-  () => currentUser.data.value,
-  (user) => {
+  () =>
+    [
+      currentUser.data.value,
+      currentUser.isError.value,
+      route.meta.requiresAuth,
+      route.fullPath,
+    ] as const,
+  ([user, queryFailed, requiresAuth]) => {
     if (!user) {
+      if (
+        (user === null || queryFailed) &&
+        requiresAuth &&
+        route.name !== 'login'
+      ) {
+        void router.replace({
+          name: 'login',
+          query: { redirect: route.fullPath },
+        });
+      }
+      return;
+    }
+    if (route.name === 'login') {
+      void router.replace('/');
       return;
     }
     if (user.onboardingRequired && route.name !== 'onboarding') {
@@ -45,18 +67,8 @@ watch(
 </script>
 
 <template>
-  <main :class="isUserProfileRoute ? 'user-profile-shell' : 'shell'">
-    <header v-if="!isUserProfileRoute" class="masthead">
-      <RouterLink class="brand" to="/" aria-label="BGStore home">
-        <span class="brand-mark" aria-hidden="true">BG</span>
-        <span>BGStore</span>
-      </RouterLink>
-      <nav class="site-nav" aria-label="Primary navigation">
-        <RouterLink to="/">{{ t('navigation.home') }}</RouterLink>
-        <span>{{ t('navigation.game') }}</span>
-        <span>{{ t('navigation.branch') }}</span>
-      </nav>
-    </header>
+  <div class="min-h-screen w-full bg-canvas">
+    <AppNavbar />
 
     <section
       v-if="currentUser.isPending.value"
@@ -67,7 +79,7 @@ watch(
     </section>
 
     <section
-      v-else-if="currentUser.isError.value"
+      v-else-if="signInRequired"
       class="auth-state"
       aria-labelledby="sign-in-title"
     >
@@ -75,10 +87,14 @@ watch(
         <span class="auth-state-icon" aria-hidden="true">BG</span>
         <h1 id="sign-in-title">{{ t('auth.signInTitle') }}</h1>
         <p>{{ t('status.authenticationHint') }}</p>
-        <a class="button" :href="signInHref">{{ t('actions.signIn') }}</a>
+        <a class="button" :href="signIn">{{ t('actions.signIn') }}</a>
       </div>
     </section>
 
-    <RouterView v-else />
-  </main>
+    <main v-else class="min-h-[calc(100vh-4rem)] w-full">
+      <RouterView v-slot="{ Component, route: renderedRoute }">
+        <component :is="Component" :key="renderedRoute.path" />
+      </RouterView>
+    </main>
+  </div>
 </template>

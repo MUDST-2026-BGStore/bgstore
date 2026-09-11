@@ -34,6 +34,16 @@ public class AccessPolicy {
     return requireOneOf(Set.of(ApplicationRole.MANAGER), "A manager role is required.");
   }
 
+  /** Requires a client-only identity for personal reservation data and actions. */
+  public AuthenticatedIdentity requireClientOnly() {
+    AuthenticatedIdentity identity = identities.currentIdentity();
+    if (!identity.isClientOnly()) {
+      throw new ResponseStatusException(
+          HttpStatus.FORBIDDEN, "A client role without staff access is required.");
+    }
+    return identity;
+  }
+
   private AuthenticatedIdentity requireOneOf(
       Set<ApplicationRole> permittedRoles, String forbiddenDetail) {
     AuthenticatedIdentity identity = identities.currentIdentity();
