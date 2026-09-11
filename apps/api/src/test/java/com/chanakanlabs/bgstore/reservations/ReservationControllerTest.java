@@ -25,6 +25,7 @@ class ReservationControllerTest {
 
   @Mock private ReservationService service;
   @Mock private CurrentIdentityProvider identityProvider;
+  @Mock private FloorOverviewService floor;
 
   private ReservationController controller;
 
@@ -62,7 +63,7 @@ class ReservationControllerTest {
 
   @BeforeEach
   void setUp() {
-    controller = new ReservationController(service, identityProvider);
+    controller = new ReservationController(service, identityProvider, floor);
   }
 
   @Test
