@@ -24,15 +24,3 @@ CREATE TABLE reservation (
 
 CREATE INDEX ix_reservation_client ON reservation (client_subject);
 CREATE INDEX ix_reservation_status ON reservation (status);
-
-INSERT INTO reservation (
-    id, client_subject, title, reservation_date, time_slot, party_size,
-    table_id, table_name, seats, rate_per_hour, status, customer_name,
-    phone_number, check_in_time, actual_check_out, overtime_minutes,
-    total_price, can_cancel, thumbnail_url
-) VALUES
-    ('res-1', 'seed-client', 'Catan Evening', '13/09/2024', '18:00 - 20:00', 4, 5, 'Table 5', 4, 20, 'Reserved', 'John Doe', '0123456789', '-', '-', 0, 40, true, '/images/table-sample.png'),
-    ('res-2', 'seed-client', 'D&D Campaign Session', '15/09/2024', '14:00 - 18:00', 6, 2, 'Table 2', 6, 25, 'Reserved', 'John Doe', '0123456789', '-', '-', 0, 100, true, '/images/table-sample.png'),
-    ('res-3', 'seed-client', 'Ticket to Ride Tournament', '10/09/2024', '19:00 - 21:00', 4, 8, 'Table 8', 4, 20, 'Completed', 'John Doe', '0123456789', '18:55', '21:05', 5, 40, false, '/images/table-sample.png'),
-    ('res-4', 'seed-client', 'Quick Carcassonne Match', '05/09/2024', '16:00 - 17:00', 2, 1, 'Table 1', 2, 15, 'Cancelled', 'John Doe', '0123456789', '-', '-', 0, 0, false, '/images/table-sample.png'),
-    ('res-5', 'seed-client', 'Terraforming Mars Marathon', '01/09/2024', '13:00 - 17:00', 5, 3, 'Table 3', 6, 30, 'Completed', 'John Doe', '0123456789', '13:00', '17:30', 30, 135, false, '/images/table-sample.png');

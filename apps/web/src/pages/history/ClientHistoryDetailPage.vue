@@ -1,46 +1,36 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, ref } from 'vue';
+import { useQuery, useQueryClient } from '@tanstack/vue-query';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { reservationService } from './reservation-service';
-import type { ReservationRecord } from './types';
+import type { ReservationStatus } from '../../generated/api/types.gen';
+import {
+  cancelReservationRequest,
+  reservationQueryOptions,
+} from '../../queries/reservations';
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
+const queryClient = useQueryClient();
 
 const reservationId = computed(() => String(route.params.id || ''));
 
-const isLoading = ref(true);
-const reservation = ref<ReservationRecord | null>(null);
-const errorMessage = ref<string | null>(null);
+const reservationQuery = useQuery(
+  computed(() => reservationQueryOptions(reservationId.value)),
+);
+const reservation = computed(() => reservationQuery.data.value ?? null);
+const isLoading = computed(() => reservationQuery.isPending.value);
+const cancelError = ref<string | null>(null);
+const errorMessage = computed(
+  () =>
+    cancelError.value ??
+    (reservationQuery.isError.value ? 'Reservation not found' : null),
+);
 
 // Modal state
 const isModalOpen = ref(false);
 const isCancelling = ref(false);
-
-async function loadReservation() {
-  if (!reservationId.value) return;
-  isLoading.value = true;
-  errorMessage.value = null;
-
-  try {
-    const data = await reservationService.getReservationById(
-      reservationId.value,
-      100,
-    );
-    if (!data) {
-      errorMessage.value = 'Reservation not found';
-    } else {
-      reservation.value = data;
-    }
-  } catch (err) {
-    errorMessage.value =
-      err instanceof Error ? err.message : 'Error loading reservation';
-  } finally {
-    isLoading.value = false;
-  }
-}
 
 function handleBack() {
   const query: Record<string, string> = {};
@@ -68,15 +58,16 @@ function closeCancelModal() {
 async function confirmCancel() {
   if (!reservation.value) return;
   isCancelling.value = true;
+  cancelError.value = null;
   try {
-    const updated = await reservationService.cancelReservation(
-      reservation.value.id,
-      100,
+    const updated = await cancelReservationRequest(reservation.value.id);
+    queryClient.setQueryData(
+      reservationQueryOptions(reservation.value.id).queryKey,
+      updated,
     );
-    reservation.value = updated;
     isModalOpen.value = false;
   } catch (err) {
-    errorMessage.value =
+    cancelError.value =
       err instanceof Error ? err.message : 'Failed to cancel reservation';
   } finally {
     isCancelling.value = false;
@@ -89,7 +80,7 @@ const canCancel = computed(() => {
   );
 });
 
-function statusToneClass(status?: ReservationRecord['status']) {
+function statusToneClass(status?: ReservationStatus) {
   switch (status) {
     case 'Reserved':
       return 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]';
@@ -100,10 +91,6 @@ function statusToneClass(status?: ReservationRecord['status']) {
       return 'bg-[#eef8f0] text-[#276635] border-[#b0dcb9]';
   }
 }
-
-onMounted(() => {
-  void loadReservation();
-});
 </script>
 
 <template>

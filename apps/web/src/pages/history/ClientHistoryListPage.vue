@@ -1,55 +1,67 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { reservationService } from './reservation-service';
-import type {
-  HistoryTab,
-  PaginatedReservations,
-  ReservationRecord,
-} from './types';
+import type { ReservationStatus } from '../../generated/api/types.gen';
+import {
+  reservationsPageSize,
+  reservationsQueryOptions,
+} from '../../queries/reservations';
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
-const tabs: HistoryTab[] = ['All', 'Reserved', 'Completed', 'Cancelled'];
+const tabs = ['All', 'Reserved', 'Completed', 'Cancelled'] as const;
+type HistoryTab = (typeof tabs)[number];
 
-const activeTab = ref<HistoryTab>('All');
-const currentPage = ref(1);
-const pageSize = 4;
-
-const isLoading = ref(true);
-const paginatedData = ref<PaginatedReservations>({
-  items: [],
-  totalElements: 0,
-  totalPages: 1,
-  page: 1,
-  pageSize,
-});
-
-async function loadReservations() {
-  isLoading.value = true;
-  try {
-    const data = await reservationService.getReservations({
-      tab: activeTab.value,
-      page: currentPage.value,
-      pageSize,
-      simulateDelay: 100,
-    });
-    paginatedData.value = data;
-    currentPage.value = data.page;
-  } finally {
-    isLoading.value = false;
-  }
+function tabFromQuery(value: unknown): HistoryTab {
+  const match = tabs.find(
+    (tab) => tab.toLowerCase() === String(value ?? '').toLowerCase(),
+  );
+  return match ?? 'All';
 }
+
+function pageFromQuery(value: unknown): number {
+  const page = Number.parseInt(String(value ?? ''), 10);
+  return Number.isInteger(page) && page > 0 ? page : 1;
+}
+
+const activeTab = ref<HistoryTab>(tabFromQuery(route.query.tab));
+const currentPage = ref(pageFromQuery(route.query.page));
+
+const reservations = useQuery(
+  computed(() =>
+    reservationsQueryOptions({
+      status:
+        activeTab.value === 'All'
+          ? undefined
+          : (activeTab.value as ReservationStatus),
+      page: currentPage.value,
+      pageSize: reservationsPageSize,
+    }),
+  ),
+);
+
+const data = computed(() => reservations.data.value);
+const paginatedData = computed(
+  () =>
+    data.value ?? {
+      items: [],
+      total: 0,
+      totalPages: 1,
+      page: currentPage.value,
+      pageSize: reservationsPageSize,
+    },
+);
+const isLoading = computed(() => reservations.isPending.value);
 
 function selectTab(tab: HistoryTab) {
   if (activeTab.value === tab) return;
   activeTab.value = tab;
   currentPage.value = 1;
   void updateQueryParams();
-  void loadReservations();
 }
 
 function goToPage(page: number) {
@@ -62,7 +74,6 @@ function goToPage(page: number) {
   }
   currentPage.value = page;
   void updateQueryParams();
-  void loadReservations();
 }
 
 async function updateQueryParams() {
@@ -75,7 +86,7 @@ async function updateQueryParams() {
   });
 }
 
-function statusToneClass(status: ReservationRecord['status']) {
+function statusToneClass(status: ReservationStatus) {
   switch (status) {
     case 'Reserved':
       return 'bg-[#eff6ff] text-[#1d4ed8] border-[#bfdbfe]';
@@ -105,51 +116,11 @@ const pageNumbers = computed(() => {
   ];
 });
 
-onMounted(() => {
-  const tabParam = route.query.tab;
-  if (typeof tabParam === 'string') {
-    const matchedTab = tabs.find(
-      (tab) => tab.toLowerCase() === tabParam.toLowerCase(),
-    );
-    if (matchedTab) {
-      activeTab.value = matchedTab;
-    }
-  }
-
-  const pageParam = route.query.page;
-  if (typeof pageParam === 'string') {
-    const parsed = parseInt(pageParam, 10);
-    if (!isNaN(parsed) && parsed > 0) {
-      currentPage.value = parsed;
-    }
-  }
-
-  void loadReservations();
-});
-
 watch(
   () => route.query,
   (query) => {
-    let changed = false;
-    if (query.tab) {
-      const matched = tabs.find(
-        (tab) => tab.toLowerCase() === String(query.tab).toLowerCase(),
-      );
-      if (matched && matched !== activeTab.value) {
-        activeTab.value = matched;
-        changed = true;
-      }
-    }
-    if (query.page) {
-      const parsed = parseInt(String(query.page), 10);
-      if (!isNaN(parsed) && parsed !== currentPage.value) {
-        currentPage.value = parsed;
-        changed = true;
-      }
-    }
-    if (changed) {
-      void loadReservations();
-    }
+    activeTab.value = tabFromQuery(query.tab);
+    currentPage.value = pageFromQuery(query.page);
   },
 );
 </script>
@@ -276,7 +247,7 @@ watch(
 
       <!-- Pagination -->
       <div
-        v-if="!isLoading && paginatedData.totalElements > 0"
+        v-if="!isLoading && paginatedData.total > 0"
         class="mt-6 flex flex-wrap items-center justify-between gap-4 py-2"
         aria-label="Table pagination"
       >
@@ -284,12 +255,14 @@ watch(
           Showing
           {{
             Math.min(
-              (currentPage - 1) * pageSize + 1,
-              paginatedData.totalElements,
+              (currentPage - 1) * reservationsPageSize + 1,
+              paginatedData.total,
             )
-          }}-{{ Math.min(currentPage * pageSize, paginatedData.totalElements) }}
+          }}-{{
+            Math.min(currentPage * reservationsPageSize, paginatedData.total)
+          }}
           of
-          {{ paginatedData.totalElements }}
+          {{ paginatedData.total }}
         </div>
 
         <div class="flex items-center gap-6">

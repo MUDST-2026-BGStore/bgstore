@@ -6,9 +6,105 @@ import { createI18n } from 'vue-i18n';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import { messages } from '../../i18n';
 import { resetAuthResolver, routes, setAuthResolver } from '../../router';
+import type {
+  ReservationResponse,
+  ReservationStatus,
+} from '../../generated/api/types.gen';
+import { route, stubApi } from '../../test/api-stub';
 import ClientHistoryDetailPage from './ClientHistoryDetailPage.vue';
 import ClientHistoryListPage from './ClientHistoryListPage.vue';
-import { reservationService } from './reservation-service';
+
+function reservation(
+  id: string,
+  status: ReservationStatus,
+  overrides: Partial<ReservationResponse> = {},
+): ReservationResponse {
+  return {
+    id,
+    title: 'Reservation',
+    date: '13/09/2024',
+    timeSlot: '18:00 - 20:00',
+    partySize: 4,
+    tableId: 5,
+    tableName: 'Table 5',
+    seats: 4,
+    ratePerHour: 20,
+    status,
+    customerName: 'John Doe',
+    phoneNumber: '0123456789',
+    checkInTime: '-',
+    actualCheckOut: '-',
+    overtimeMinutes: 0,
+    totalPrice: 40,
+    canCancel: false,
+    thumbnailUrl: '/images/table-sample.png',
+    ...overrides,
+  };
+}
+
+function historyApi() {
+  const records = [
+    reservation('res-1', 'Reserved', {
+      date: '13/09/2024',
+      timeSlot: '09:00 - 12:00',
+      seats: 4,
+      ratePerHour: 20,
+      checkInTime: '09:00 AM',
+      actualCheckOut: '12:00 PM',
+      totalPrice: 250,
+      canCancel: true,
+    }),
+    reservation('res-2', 'Cancelled', { date: '12/09/2024' }),
+    reservation('res-3', 'Completed', { date: '11/09/2024' }),
+    reservation('res-4', 'Completed', { date: '10/09/2024' }),
+    reservation('res-5', 'Completed', { date: '09/09/2024' }),
+  ];
+
+  return async (request: Request) => {
+    const url = new URL(request.url);
+    if (url.pathname === '/api/v1/reservations' && request.method === 'GET') {
+      const status = url.searchParams.get('status') as ReservationStatus | null;
+      const page = Number(url.searchParams.get('page') ?? 1);
+      const pageSize = Number(url.searchParams.get('pageSize') ?? 4);
+      const filtered = status
+        ? records.filter((item) => item.status === status)
+        : records;
+      const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+      const safePage = Math.min(Math.max(1, page), totalPages);
+      const start = (safePage - 1) * pageSize;
+      return {
+        body: {
+          items: filtered.slice(start, start + pageSize),
+          total: filtered.length,
+          page: safePage,
+          pageSize,
+          totalPages,
+        },
+      };
+    }
+
+    const detail = url.pathname.match(/^\/api\/v1\/reservations\/([^/]+)$/);
+    if (detail && request.method === 'GET') {
+      const item = records.find((record) => record.id === detail[1]);
+      return item ? { body: item } : { status: 404, body: { status: 404 } };
+    }
+
+    const cancel = url.pathname.match(
+      /^\/api\/v1\/reservations\/([^/]+)\/cancel$/,
+    );
+    if (cancel && request.method === 'POST') {
+      const item = records.find((record) => record.id === cancel[1]);
+      if (!item || item.status !== 'Reserved' || !item.canCancel) {
+        return { status: 400, body: { status: 400 } };
+      }
+      item.status = 'Cancelled';
+      item.canCancel = false;
+      return { body: item };
+    }
+
+    return undefined;
+  };
+}
 
 function createTestRouter(initialPath = '/history') {
   const router = createRouter({
@@ -63,7 +159,7 @@ describe('Client Reservation History', () => {
   beforeEach(() => {
     isUserLoggedIn = true;
     setAuthResolver(() => isUserLoggedIn);
-    reservationService.reset();
+    stubApi([historyApi()]);
   });
 
   afterEach(() => {
@@ -85,7 +181,6 @@ describe('Client Reservation History', () => {
         wrapper.findAll('[data-testid="history-skeleton"]').length,
       ).toBeGreaterThan(0);
 
-      // Fast-forward simulated delay
       await vi.runAllTimersAsync();
       await flushPromises();
 
@@ -164,7 +259,6 @@ describe('Client Reservation History', () => {
       await flushPromises();
 
       const cards = wrapper.findAll('[data-testid="reservation-card"]');
-      // In seed data: first is Reserved, second is Cancelled, third is Completed
       const badge0 = cards[0].get('[data-testid="status-badge"]');
       expect(badge0.text()).toBe('Reserved');
       expect(badge0.classes()).toContain('text-[#1d4ed8]');
@@ -200,14 +294,11 @@ describe('Client Reservation History', () => {
 
     it('displays empty state message when a filter returns zero records', async () => {
       vi.useFakeTimers();
-      // Empty out reservations temporarily
-      vi.spyOn(reservationService, 'getReservations').mockResolvedValueOnce({
-        items: [],
-        totalElements: 0,
-        totalPages: 1,
-        page: 1,
-        pageSize: 4,
-      });
+      stubApi([
+        route('/reservations', {
+          body: { items: [], total: 0, totalPages: 1, page: 1, pageSize: 4 },
+        }),
+      ]);
 
       const { wrapper } = await renderTestScreen(
         ClientHistoryListPage,

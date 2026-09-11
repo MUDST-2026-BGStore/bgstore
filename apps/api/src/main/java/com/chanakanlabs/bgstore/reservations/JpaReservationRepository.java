@@ -13,7 +13,7 @@ interface JpaReservationRepository extends JpaRepository<ReservationEntity, Stri
   @Query(
       """
       SELECT r FROM ReservationEntity r
-      WHERE (r.clientSubject = :clientSubject OR r.clientSubject = 'seed-client')
+      WHERE r.clientSubject = :clientSubject
         AND (:status IS NULL OR r.status = :status)
       ORDER BY r.createdAt DESC, r.id DESC
       """)
@@ -26,7 +26,7 @@ interface JpaReservationRepository extends JpaRepository<ReservationEntity, Stri
       """
       SELECT r FROM ReservationEntity r
       WHERE r.id = :id
-        AND (r.clientSubject = :clientSubject OR r.clientSubject = 'seed-client')
+        AND r.clientSubject = :clientSubject
       """)
   Optional<ReservationEntity> findByIdAndClient(
       @Param("id") String id, @Param("clientSubject") String clientSubject);
