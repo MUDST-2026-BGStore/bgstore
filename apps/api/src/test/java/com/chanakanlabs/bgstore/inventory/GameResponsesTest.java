@@ -18,9 +18,12 @@ import org.junit.jupiter.api.Test;
 
 class GameResponsesTest {
 
-  private static final Branch CENTRAL = new Branch(UUID.randomUUID(), "Central Rama II");
-  private static final Branch BIG_C = new Branch(UUID.randomUUID(), "Big C Rama I");
-  private static final Branch SUKHUMVIT = new Branch(UUID.randomUUID(), "Sukhumvit");
+  private static final Branch CENTRAL =
+      new Branch(UUID.randomUUID(), "Central Rama II", null, null, null);
+  private static final Branch BIG_C =
+      new Branch(UUID.randomUUID(), "Big C Rama I", null, null, null);
+  private static final Branch SUKHUMVIT =
+      new Branch(UUID.randomUUID(), "Sukhumvit", null, null, null);
   private static final List<Branch> DIRECTORY = List.of(CENTRAL, BIG_C, SUKHUMVIT);
 
   private static final OffsetDateTime ADDED =

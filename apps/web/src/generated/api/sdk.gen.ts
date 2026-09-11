@@ -147,6 +147,8 @@ export const completeClientProfile = <ThrowOnError extends boolean = false>(
 
 /**
  * List the store branches games can be stocked at.
+ *
+ * Public, so a guest can choose where to visit before signing in. A signed-in client still has to finish onboarding first.
  */
 export const listBranches = <ThrowOnError extends boolean = false>(
   options?: Options<ListBranchesData, ThrowOnError>,
