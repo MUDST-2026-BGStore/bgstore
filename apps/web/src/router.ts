@@ -179,6 +179,13 @@ export const router = createRouter({
       meta: { requiresAuth: true, focused: true },
     },
     {
+      path: '/sessions/checkout',
+      alias: '/pay-session',
+      name: 'client-session-checkout',
+      component: () => import('./views/SessionCheckoutView.vue'),
+      meta: { requiresAuth: true, focused: true },
+    },
+    {
       path: '/profile',
       alias: ['/user-profile', '/account/manage'],
       name: 'user-profile',
