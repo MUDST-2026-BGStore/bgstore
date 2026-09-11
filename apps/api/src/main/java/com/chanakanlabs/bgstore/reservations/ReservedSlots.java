@@ -13,4 +13,7 @@ interface ReservedSlots {
    * left out of the map.
    */
   Map<Long, List<ReservedSlot>> upcomingFor(Collection<Long> tableIds, OffsetDateTime now);
+
+  /** Releases any table holds belonging to a cancelled reservation. */
+  void releaseFor(String reservationId);
 }

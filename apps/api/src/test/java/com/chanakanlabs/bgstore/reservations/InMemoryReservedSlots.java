@@ -31,4 +31,7 @@ final class InMemoryReservedSlots implements ReservedSlots {
                         .sorted(Comparator.comparing(ReservedSlot::startsAt))
                         .toList()));
   }
+
+  @Override
+  public void releaseFor(String reservationId) {}
 }

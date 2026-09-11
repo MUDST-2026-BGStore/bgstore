@@ -31,4 +31,10 @@ class JpaReservedSlots implements ReservedSlots {
                 TableReservationEntity::tableId,
                 Collectors.mapping(TableReservationEntity::toSlot, Collectors.toList())));
   }
+
+  @Override
+  @Transactional
+  public void releaseFor(String reservationId) {
+    database.deleteByReservationId(reservationId);
+  }
 }

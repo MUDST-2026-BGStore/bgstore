@@ -9,6 +9,9 @@ import type {
 } from './client';
 import { client } from './client.gen';
 import type {
+  CancelReservationData,
+  CancelReservationErrors,
+  CancelReservationResponses,
   CompleteClientProfileData,
   CompleteClientProfileErrors,
   CompleteClientProfileResponses,
@@ -33,6 +36,9 @@ import type {
   GetHelloData,
   GetHelloErrors,
   GetHelloResponses,
+  GetReservationData,
+  GetReservationErrors,
+  GetReservationResponses,
   GetTableData,
   GetTableErrors,
   GetTableResponses,
@@ -42,6 +48,9 @@ import type {
   ListGamesData,
   ListGamesErrors,
   ListGamesResponses,
+  ListReservationsData,
+  ListReservationsErrors,
+  ListReservationsResponses,
   ListTablesData,
   ListTablesErrors,
   ListTablesResponses,
@@ -435,5 +444,79 @@ export const getFloorOverview = <ThrowOnError extends boolean = false>(
       },
     ],
     url: '/floor-overview',
+    ...options,
+  });
+
+/**
+ * List reservations for the authenticated client with optional status filter and pagination.
+ */
+export const listReservations = <ThrowOnError extends boolean = false>(
+  options?: Options<ListReservationsData, ThrowOnError>,
+): RequestResult<
+  ListReservationsResponses,
+  ListReservationsErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    ListReservationsResponses,
+    ListReservationsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/reservations',
+    ...options,
+  });
+
+/**
+ * Get details of a single reservation by ID.
+ */
+export const getReservation = <ThrowOnError extends boolean = false>(
+  options: Options<GetReservationData, ThrowOnError>,
+): RequestResult<GetReservationResponses, GetReservationErrors, ThrowOnError> =>
+  (options.client ?? client).get<
+    GetReservationResponses,
+    GetReservationErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/reservations/{reservationId}',
+    ...options,
+  });
+
+/**
+ * Cancel an upcoming reservation.
+ */
+export const cancelReservation = <ThrowOnError extends boolean = false>(
+  options: Options<CancelReservationData, ThrowOnError>,
+): RequestResult<
+  CancelReservationResponses,
+  CancelReservationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CancelReservationResponses,
+    CancelReservationErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/reservations/{reservationId}/cancel',
     ...options,
   });

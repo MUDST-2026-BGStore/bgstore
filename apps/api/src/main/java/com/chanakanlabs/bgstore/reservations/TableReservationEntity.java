@@ -31,6 +31,9 @@ class TableReservationEntity {
   @Column(name = "table_id", nullable = false)
   private long tableId;
 
+  @Column(name = "reservation_id", length = 64)
+  private @Nullable String reservationId;
+
   @Column(name = "starts_at", nullable = false)
   private OffsetDateTime startsAt;
 
@@ -40,6 +43,14 @@ class TableReservationEntity {
   protected TableReservationEntity() {}
 
   TableReservationEntity(long tableId, OffsetDateTime startsAt, OffsetDateTime endsAt) {
+    this.tableId = tableId;
+    this.startsAt = startsAt;
+    this.endsAt = endsAt;
+  }
+
+  TableReservationEntity(
+      String reservationId, long tableId, OffsetDateTime startsAt, OffsetDateTime endsAt) {
+    this.reservationId = reservationId;
     this.tableId = tableId;
     this.startsAt = startsAt;
     this.endsAt = endsAt;

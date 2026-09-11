@@ -5,6 +5,7 @@ import static org.mockito.Mockito.when;
 
 import com.chanakanlabs.bgstore.contract.model.TableShape;
 import com.chanakanlabs.bgstore.contract.model.TableStatus;
+import com.chanakanlabs.bgstore.identity.CurrentIdentityProvider;
 import com.chanakanlabs.bgstore.reservations.FloorOverviewService.FloorOverview;
 import com.chanakanlabs.bgstore.reservations.FloorOverviewService.FloorTable;
 import com.chanakanlabs.bgstore.tables.TableManagementService.PageResult;
@@ -22,12 +23,14 @@ import org.springframework.http.HttpStatus;
 class FloorOverviewControllerTest {
 
   @Mock private FloorOverviewService service;
+  @Mock private ReservationService reservationService;
+  @Mock private CurrentIdentityProvider identityProvider;
 
-  private FloorOverviewController controller;
+  private ReservationController controller;
 
   @BeforeEach
   void setUp() {
-    controller = new FloorOverviewController(service);
+    controller = new ReservationController(reservationService, identityProvider, service);
   }
 
   @Test

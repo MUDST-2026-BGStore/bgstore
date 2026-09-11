@@ -1,5 +1,9 @@
 import { defineAsyncComponent } from 'vue';
-import { createRouter, createWebHistory } from 'vue-router';
+import {
+  createRouter,
+  createWebHistory,
+  type RouteRecordRaw,
+} from 'vue-router';
 import RoleView from './app/RoleView.vue';
 import HomeView from './views/HomeView.vue';
 import OnboardingView from './views/OnboardingView.vue';
@@ -16,10 +20,23 @@ declare module 'vue-router' {
   interface RouteMeta {
     /** A guest without a session may open the screen; the rest ask them to sign in. */
     public?: boolean;
+    requiresAuth?: boolean;
   }
 }
 
-export const routes = [
+export type AuthResolver = () => boolean;
+
+let authResolver: AuthResolver = () => true;
+
+export function setAuthResolver(resolver: AuthResolver) {
+  authResolver = resolver;
+}
+
+export function resetAuthResolver() {
+  authResolver = () => true;
+}
+
+export const routes: RouteRecordRaw[] = [
   // Home is the floor overview for staff and the store landing page for guests.
   {
     path: '/',
@@ -33,12 +50,34 @@ export const routes = [
       client: HomeView,
     },
   },
+  {
+    path: '/login',
+    name: 'login',
+    component: () => import('./views/LoginView.vue'),
+  },
   { path: '/onboarding', name: 'onboarding', component: OnboardingView },
   { path: '/branches', name: 'branches', component: BranchListView },
   {
     path: '/branches/:id',
     name: 'branch-detail',
     component: BranchDetailView,
+  },
+  {
+    path: '/tables',
+    name: 'tables',
+    component: () => import('./app/tables/TableManagementView.vue'),
+  },
+  {
+    path: '/history',
+    name: 'history',
+    component: () => import('./pages/history/ClientHistoryListPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/history/:id',
+    name: 'history-detail',
+    component: () => import('./pages/history/ClientHistoryDetailPage.vue'),
+    meta: { requiresAuth: true },
   },
   // Staff manage the inventory at these two URLs; guests browse the catalogue
   // at the same ones, so a shared link to a game works for either.
@@ -83,7 +122,7 @@ export const routes = [
   // The SPA is served for every path (see apps/web/nginx.conf), so unmatched
   // URLs must resolve to a real screen instead of an empty router view.
   fallbackRoute,
-] as const;
+];
 
 export const router = createRouter({
   history: createWebHistory(),
@@ -97,4 +136,13 @@ export const router = createRouter({
     },
     fallbackRoute,
   ],
+});
+
+router.beforeEach((to, _from, next) => {
+  if (to.matched.some((record) => record.meta?.requiresAuth)) {
+    if (!authResolver()) {
+      return next({ path: '/login', query: { redirect: to.fullPath } });
+    }
+  }
+  next();
 });

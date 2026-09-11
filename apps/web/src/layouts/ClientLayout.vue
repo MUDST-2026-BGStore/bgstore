@@ -4,7 +4,7 @@ import ClientHeader from '../components/ClientHeader.vue';
 withDefaults(
   defineProps<{
     /** The screens a client can navigate to so far. */
-    active?: 'home' | 'game';
+    active?: 'home' | 'reserve' | 'game' | 'branch' | 'history' | 'profile';
     guest?: boolean;
   }>(),
   { active: 'game', guest: false },
