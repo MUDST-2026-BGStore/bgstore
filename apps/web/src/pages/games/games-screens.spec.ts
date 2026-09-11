@@ -289,6 +289,24 @@ describe('game details screen', () => {
     expect(rows[2].text()).toContain('Not stocked');
   });
 
+  it('renders the first image when the API supplies one', async () => {
+    const imageUrl = 'https://cdn.example.test/ticket-to-ride.jpg';
+    stubApi([
+      route('/games/' + ticketToRideId, {
+        body: { ...ticketToRide, imageUrls: [imageUrl] },
+      }),
+    ]);
+    const { wrapper } = await renderScreen(
+      GameDetailsPage,
+      '/games/' + ticketToRideId,
+    );
+
+    expect(wrapper.get('img').attributes()).toMatchObject({
+      src: imageUrl,
+      alt: 'Ticket to Ride',
+    });
+  });
+
   it('shows a not-found state for an id the API does not know', async () => {
     stubApi([]);
     const { wrapper } = await renderScreen(

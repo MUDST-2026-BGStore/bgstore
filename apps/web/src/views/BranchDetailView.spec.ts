@@ -7,7 +7,15 @@ import BranchDetailView from './BranchDetailView.vue';
 
 vi.mock('../composables/useBranches', () => ({
   useBranches: () => ({
-    branches: ref([{ id: '1', name: 'Silom' }]),
+    branches: ref([
+      {
+        id: '1',
+        name: 'Silom',
+        address: 'Silom Road',
+        opensAt: '09:00',
+        closesAt: '19:00',
+      },
+    ]),
     isError: ref(false),
     isPending: ref(false),
     refetch: vi.fn(),
@@ -35,6 +43,8 @@ describe('BranchDetailView', () => {
       },
     });
     expect(wrapper.text()).toContain('Silom');
+    expect(wrapper.text()).toContain('Silom Road');
+    expect(wrapper.text()).toContain('09:00–19:00');
   });
 
   it('triggers action buttons', async () => {

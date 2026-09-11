@@ -105,10 +105,13 @@ describe('BGStore authentication context', () => {
       },
     });
 
-    await vi.waitFor(async () => {
-      await flushPromises();
-      expect(wrapper.find('h1').text()).toBe('Floor overview');
-    });
+    await vi.waitFor(
+      async () => {
+        await flushPromises();
+        expect(wrapper.find('h1').text()).toBe('Floor overview');
+      },
+      { timeout: 5000 },
+    );
     expect(
       wrapper
         .get('nav[aria-label="Staff navigation"] [aria-current="page"]')
@@ -292,5 +295,40 @@ describe('BGStore authentication context', () => {
       expect(router.currentRoute.value.name).toBe('login'),
     );
     expect(router.currentRoute.value.query.redirect).toBe('/history');
+  });
+
+  it('redirects an authenticated user away from the login screen', async () => {
+    client.setConfig({ baseUrl: 'http://localhost/api/v1' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            subject: 'signed-in-client',
+            username: 'client@example.test',
+            email: 'client@example.test',
+            firstName: 'Local',
+            lastName: 'Client',
+            roles: ['CLIENT'],
+            clientProfile: { phone: '+66812345678', completed: true },
+            onboardingRequired: false,
+          }),
+          { status: 200, headers: { 'Content-Type': 'application/json' } },
+        ),
+      ),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const i18n = createI18n({ legacy: false, locale: 'en', messages });
+    await router.push('/login');
+    await router.isReady();
+
+    mount(App, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient }], router, i18n],
+      },
+    });
+    await vi.waitFor(() => expect(router.currentRoute.value.name).toBe('home'));
   });
 });

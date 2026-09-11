@@ -9,6 +9,9 @@ import type { ApplicationRole } from '../generated/api/types.gen';
 export const currentUserQueryOptions = () =>
   queryOptions({
     queryKey: ['current-user'] as const,
+    // Authentication state drives the application shell; retrying it behind
+    // the shell can leave a public page waiting on a stale guest decision.
+    retry: false,
     queryFn: async () => {
       const { data, error, response } = await getCurrentUser();
       if (response?.status === 401) {

@@ -13,8 +13,8 @@ const currentUser = useQuery(currentUserQueryOptions());
 
 const signInRequired = computed(
   () =>
-    currentUser.isError.value ||
-    (currentUser.data.value === null && !route.meta.public),
+    !route.meta.public &&
+    (currentUser.isError.value || currentUser.data.value === null),
 );
 const signIn = computed(() => signInHref(route.fullPath));
 
@@ -38,6 +38,10 @@ watch(
           query: { redirect: route.fullPath },
         });
       }
+      return;
+    }
+    if (route.name === 'login') {
+      void router.replace('/');
       return;
     }
     if (user.onboardingRequired && route.name !== 'onboarding') {

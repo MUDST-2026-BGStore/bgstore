@@ -66,6 +66,17 @@ class CurrentUserApiIntegrationTest {
   }
 
   @Test
+  void provisionsTheSameClientProfileIdempotentlyOnRepeatedRequests() throws Exception {
+    var request = get("/api/v1/me").with(clientLogin("repeated-client"));
+
+    mockMvc.perform(request).andExpect(status().isOk());
+    mockMvc
+        .perform(request)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.clientProfile.completed").value(false));
+  }
+
+  @Test
   void completesTheProfileWithACountryCodedPhoneNumber() throws Exception {
     mockMvc
         .perform(

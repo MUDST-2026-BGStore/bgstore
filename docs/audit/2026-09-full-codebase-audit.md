@@ -73,3 +73,21 @@ Before this pass, the merged branch passed the repository check, build, E2E,
 Prettier, OpenAPI validation, Helm lint, and Compose configuration gates. The
 same gates must be rerun after these changes, with API tests including Flyway
 V12 and reservation authorization coverage.
+
+## Second-pass audit — implemented-scope corrections
+
+A follow-up review of the implemented paths found and corrected four additional
+correctness issues:
+
+- First-time client-profile provisioning now uses an atomic PostgreSQL
+  `ON CONFLICT DO NOTHING` insert, so simultaneous authenticated requests cannot
+  create a duplicate profile.
+- A null entry in the game `copies` list now becomes a structured validation
+  error rather than an internal server error.
+- Authenticated users are redirected away from `/login`, and a failure loading
+  `/me` no longer hides public pages behind a sign-in wall.
+- Existing branch address/hours and game image fields are now rendered by their
+  detail screens instead of being silently discarded.
+
+The remaining gaps in the coverage table are still unimplemented product scope,
+not regressions in these existing flows.

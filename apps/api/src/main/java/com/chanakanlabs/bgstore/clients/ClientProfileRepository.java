@@ -21,9 +21,7 @@ class ClientProfileRepository {
 
   @Transactional
   void createIfAbsent(String subject) {
-    if (!profiles.existsById(subject)) {
-      profiles.save(new ClientProfileRecord(subject));
-    }
+    profiles.insertIfAbsent(subject);
   }
 
   @Transactional(readOnly = true)
