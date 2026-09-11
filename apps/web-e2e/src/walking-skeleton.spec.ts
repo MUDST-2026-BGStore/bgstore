@@ -94,6 +94,7 @@ test('authenticates through the BFF and reaches the real API', async ({
   await page.getByLabel('Password', { exact: true }).fill('client-local-only');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await finishClientOnboarding(page);
+  await expect(page.getByRole('heading', { name: 'BGStore' })).toBeVisible();
 });
 
 test('staff can create a game through the authenticated browser flow', async ({
