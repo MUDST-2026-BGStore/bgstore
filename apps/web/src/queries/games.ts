@@ -1,4 +1,4 @@
-import { queryOptions } from '@tanstack/vue-query';
+import { infiniteQueryOptions, queryOptions } from '@tanstack/vue-query';
 import {
   createGame,
   getGame,
@@ -39,6 +39,31 @@ export const gamesQueryOptions = (query: GameListQuery) =>
       return data;
     },
     // Paging should not blank the table out from under the reader.
+    placeholderData: (previous) => previous,
+  });
+
+/** Cards per catalogue page: a whole number of rows at four, three and two columns. */
+export const cataloguePageSize = 24;
+
+/** The client catalogue's filter; pages are requested one after another. */
+export type CatalogueQuery = Omit<GameListQuery, 'page' | 'size'>;
+
+export const catalogueQueryOptions = (query: CatalogueQuery) =>
+  infiniteQueryOptions({
+    queryKey: ['games', 'catalogue', query] as const,
+    queryFn: async ({ pageParam }): Promise<GameListResponse> => {
+      const { data } = await listGames({
+        query: { ...query, page: pageParam, size: cataloguePageSize },
+        throwOnError: true,
+      });
+      return data;
+    },
+    initialPageParam: 0,
+    getNextPageParam: (last) =>
+      last.page.number + 1 < last.page.totalPages
+        ? last.page.number + 1
+        : undefined,
+    // Typing in the search box should not blank the grid out between results.
     placeholderData: (previous) => previous,
   });
 

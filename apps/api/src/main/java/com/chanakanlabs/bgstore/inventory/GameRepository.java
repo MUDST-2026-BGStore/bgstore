@@ -33,6 +33,7 @@ class GameRepository {
   GamePage findPage(GameFilter filter) {
     var category = filter.category() == null ? null : filter.category().getValue();
     var status = filter.status() == null ? null : filter.status().getValue();
+    var lifecycle = filter.lifecycle() == null ? null : filter.lifecycle().getValue();
     var search = filter.search();
     var pattern = search == null || search.isBlank() ? null : likePattern(search);
     var locale = filter.locale() == CatalogueLocale.TH ? "th" : "en";
@@ -41,12 +42,13 @@ class GameRepository {
         games.findPage(
             filter.branchId(),
             category,
+            lifecycle,
             pattern,
             status,
             locale,
             filter.size(),
             filter.page() * filter.size());
-    var totals = games.findTotals(filter.branchId(), category, pattern, status).get(0);
+    var totals = games.findTotals(filter.branchId(), category, lifecycle, pattern, status).get(0);
 
     return new GamePage(
         rows.stream().map(GameRepository::toSummaryRow).toList(),
@@ -135,6 +137,8 @@ class GameRepository {
         GameCategory.fromValue((String) row[3]),
         ((Number) row[4]).intValue(),
         ((Number) row[5]).intValue(),
+        row[11] == null ? null : ((Number) row[11]).intValue(),
+        (String) row[12],
         copies,
         available,
         ((Number) row[9]).intValue(),

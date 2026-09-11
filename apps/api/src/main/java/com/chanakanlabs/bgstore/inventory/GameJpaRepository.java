@@ -41,6 +41,8 @@ interface GameJpaRepository extends JpaRepository<GameEntity, UUID> {
                  g.min_players,
                  g.max_players,
                  g.lifecycle,
+                 g.play_time_minutes,
+                 g.image_urls[1] as cover_image_url,
                  coalesce(st.copies, 0) as copies,
                  coalesce(st.available, 0) as available,
                  coalesce(st.in_use, 0) as in_use,
@@ -55,6 +57,7 @@ interface GameJpaRepository extends JpaRepository<GameEntity, UUID> {
           from game g
           left join scoped_stock st on st.game_id = g.id
           where (cast(:category as text) is null or g.category = cast(:category as text))
+            and (cast(:lifecycle as text) is null or g.lifecycle = cast(:lifecycle as text))
             and (cast(:search as text) is null
                  or lower(g.title_en) like cast(:search as text)
                  or lower(g.title_th) like cast(:search as text))
@@ -70,7 +73,8 @@ interface GameJpaRepository extends JpaRepository<GameEntity, UUID> {
           ROLLED
               + """
               select id, title_en, title_th, category, min_players, max_players, lifecycle,
-                     copies, available, branch_count, single_branch_id
+                     copies, available, branch_count, single_branch_id,
+                     play_time_minutes, cover_image_url
               from rolled
               where (cast(:status as text) is null or status = cast(:status as text))
               order by case when cast(:locale as text) = 'th' then coalesce(title_th, title_en)
@@ -81,6 +85,7 @@ interface GameJpaRepository extends JpaRepository<GameEntity, UUID> {
   List<Object[]> findPage(
       @Param("branchId") @Nullable UUID branchId,
       @Param("category") @Nullable String category,
+      @Param("lifecycle") @Nullable String lifecycle,
       @Param("search") @Nullable String search,
       @Param("status") @Nullable String status,
       @Param("locale") String locale,
@@ -103,6 +108,7 @@ interface GameJpaRepository extends JpaRepository<GameEntity, UUID> {
   List<Object[]> findTotals(
       @Param("branchId") @Nullable UUID branchId,
       @Param("category") @Nullable String category,
+      @Param("lifecycle") @Nullable String lifecycle,
       @Param("search") @Nullable String search,
       @Param("status") @Nullable String status);
 }

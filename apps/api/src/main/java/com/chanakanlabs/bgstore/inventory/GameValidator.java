@@ -1,9 +1,12 @@
 package com.chanakanlabs.bgstore.inventory;
 
 import com.chanakanlabs.bgstore.contract.model.BranchCopiesRequest;
+import com.chanakanlabs.bgstore.contract.model.GameGuide;
+import com.chanakanlabs.bgstore.contract.model.GameGuideStep;
 import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
 import com.chanakanlabs.bgstore.contract.model.GameRequest;
 import com.chanakanlabs.bgstore.contract.model.LocalizedDescription;
+import com.chanakanlabs.bgstore.contract.model.LocalizedGuideText;
 import com.chanakanlabs.bgstore.contract.model.LocalizedTitle;
 import com.chanakanlabs.bgstore.web.FieldViolation;
 import com.chanakanlabs.bgstore.web.ValidationFailedException;
@@ -50,6 +53,8 @@ final class GameValidator {
     }
 
     var copies = copiesByBranch(request, knownBranchIds, violations);
+    var imageUrls = imageUrls(request, violations);
+    var guide = guideOf(request.getGuide(), violations);
 
     if (!violations.isEmpty()) {
       throw new ValidationFailedException(violations);
@@ -64,6 +69,8 @@ final class GameValidator {
         request.getPlayTimeMinutes(),
         trimmed(request.getDifficulty()),
         tags(request),
+        imageUrls,
+        guide,
         Objects.requireNonNullElse(request.getLifecycle(), GameLifecycle.ACTIVE),
         copies);
   }
@@ -94,6 +101,72 @@ final class GameValidator {
     }
 
     return new LocalizedText(trimmed(description.getEn()), trimmed(description.getTh()));
+  }
+
+  /**
+   * Every part of a guide is optional, but a step that is present needs a title to be numbered
+   * under, and like a game title its English is the canonical entry.
+   */
+  private static PlayGuide guideOf(@Nullable GameGuide guide, List<FieldViolation> violations) {
+    if (guide == null) {
+      return PlayGuide.EMPTY;
+    }
+
+    var requested = Objects.requireNonNullElse(guide.getSteps(), List.<GameGuideStep>of());
+    var steps = new ArrayList<PlayGuide.Step>();
+    for (int index = 0; index < requested.size(); index++) {
+      var step = requested.get(index);
+      // Bean validation passes a null element through, so it is caught here.
+      if (step == null) {
+        violations.add(new FieldViolation("guide.steps[" + index + "]", FieldViolation.REQUIRED));
+        continue;
+      }
+      var title = step.getTitle();
+      var english = title == null ? null : trimmed(title.getEn());
+      if (english == null) {
+        violations.add(
+            new FieldViolation("guide.steps[" + index + "].title.en", FieldViolation.REQUIRED));
+        continue;
+      }
+
+      steps.add(
+          new PlayGuide.Step(
+              new LocalizedText(english, trimmed(title.getTh())), guideTextOf(step.getBody())));
+    }
+
+    return new PlayGuide(
+        guideTextOf(guide.getGoal()),
+        guideTextOf(guide.getPlayers()),
+        guideTextOf(guide.getEquipment()),
+        List.copyOf(steps));
+  }
+
+  private static LocalizedText guideTextOf(@Nullable LocalizedGuideText text) {
+    if (text == null) {
+      return LocalizedText.NONE;
+    }
+
+    return new LocalizedText(trimmed(text.getEn()), trimmed(text.getTh()));
+  }
+
+  /**
+   * De-duplicated, order kept. The schema's pattern already rejects blanks and whitespace, so what
+   * reaches here is an address the browser can load as it is — except a null entry, which bean
+   * validation lets through.
+   */
+  private static List<String> imageUrls(GameRequest request, List<FieldViolation> violations) {
+    var requested = Objects.requireNonNullElse(request.getImageUrls(), List.<String>of());
+    var urls = new LinkedHashSet<String>();
+    for (int index = 0; index < requested.size(); index++) {
+      var url = requested.get(index);
+      if (url == null) {
+        violations.add(new FieldViolation("imageUrls[" + index + "]", FieldViolation.REQUIRED));
+      } else {
+        urls.add(url);
+      }
+    }
+
+    return List.copyOf(urls);
   }
 
   private static Map<UUID, Integer> copiesByBranch(

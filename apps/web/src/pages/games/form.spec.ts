@@ -7,7 +7,11 @@ import {
   numericErrorsOf,
   toGameRequest,
 } from './form';
-import { branches, ticketToRide } from '../../test/fixtures';
+import {
+  branches,
+  explodingKittensDetail,
+  ticketToRide,
+} from '../../test/fixtures';
 
 describe('emptyForm', () => {
   it('gives every branch a row so copies can be entered against it', () => {
@@ -72,6 +76,17 @@ describe('formValuesOf', () => {
 
     expect(retired.lifecycle).toBe('retired');
     expect(retired.tags).toEqual(ticketToRide.tags);
+  });
+
+  it('carries the photos and guide through an edit so saving keeps them', () => {
+    const request = toGameRequest(
+      formValuesOf(explodingKittensDetail, branches),
+    );
+
+    // An update replaces the game, so anything left out would be cleared.
+    expect(request.imageUrls).toEqual(explodingKittensDetail.imageUrls);
+    expect(request.guide).toEqual(explodingKittensDetail.guide);
+    expect(toGameRequest(emptyForm(branches)).guide).toEqual({ steps: [] });
   });
 });
 

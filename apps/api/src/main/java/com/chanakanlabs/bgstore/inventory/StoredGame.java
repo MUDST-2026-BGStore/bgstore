@@ -18,6 +18,8 @@ record StoredGame(
     @Nullable Integer playTimeMinutes,
     @Nullable String difficulty,
     List<String> tags,
+    List<String> imageUrls,
+    PlayGuide guide,
     GameLifecycle lifecycle,
     OffsetDateTime addedAt,
     @Nullable OffsetDateTime lastPlayedAt) {}

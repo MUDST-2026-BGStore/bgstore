@@ -2,11 +2,16 @@ package com.chanakanlabs.bgstore.inventory;
 
 import com.chanakanlabs.bgstore.contract.model.GameCategory;
 import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OrderColumn;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -57,6 +62,37 @@ class GameEntity {
   @Column(name = "tags", nullable = false)
   private String[] tags = new String[0];
 
+  // The columns below were added after the table first shipped. The append-only
+  // Flyway migration keeps them nullable so existing catalogue rows remain valid;
+  // an absent value reads as "none".
+
+  @JdbcTypeCode(SqlTypes.ARRAY)
+  @Column(name = "image_urls")
+  private @Nullable String[] imageUrls;
+
+  @Column(name = "goal_en", length = 600)
+  private @Nullable String goalEn;
+
+  @Column(name = "goal_th", length = 600)
+  private @Nullable String goalTh;
+
+  @Column(name = "players_note_en", length = 600)
+  private @Nullable String playersNoteEn;
+
+  @Column(name = "players_note_th", length = 600)
+  private @Nullable String playersNoteTh;
+
+  @Column(name = "equipment_en", length = 600)
+  private @Nullable String equipmentEn;
+
+  @Column(name = "equipment_th", length = 600)
+  private @Nullable String equipmentTh;
+
+  @ElementCollection
+  @CollectionTable(name = "game_guide_step", joinColumns = @JoinColumn(name = "game_id"))
+  @OrderColumn(name = "position")
+  private List<PlayGuideStepColumns> guideSteps = new ArrayList<>();
+
   @Column(name = "lifecycle", nullable = false, length = 16)
   private String lifecycle = GameLifecycle.ACTIVE.getValue();
 
@@ -90,7 +126,22 @@ class GameEntity {
     playTimeMinutes = command.playTimeMinutes();
     difficulty = command.difficulty();
     tags = command.tags().toArray(String[]::new);
+    imageUrls = command.imageUrls().toArray(String[]::new);
+    applyGuide(command.guide());
     lifecycle = command.lifecycle().getValue();
+  }
+
+  private void applyGuide(PlayGuide guide) {
+    goalEn = guide.goal().english();
+    goalTh = guide.goal().thai();
+    playersNoteEn = guide.players().english();
+    playersNoteTh = guide.players().thai();
+    equipmentEn = guide.equipment().english();
+    equipmentTh = guide.equipment().thai();
+    // Cleared and refilled in place: Hibernate tracks the collection instance,
+    // so replacing it would orphan the rows it already manages.
+    guideSteps.clear();
+    guide.steps().forEach(step -> guideSteps.add(new PlayGuideStepColumns(step)));
   }
 
   void retire() {
@@ -108,6 +159,12 @@ class GameEntity {
         playTimeMinutes,
         difficulty,
         List.of(tags),
+        imageUrls == null ? List.of() : List.of(imageUrls),
+        new PlayGuide(
+            new LocalizedText(goalEn, goalTh),
+            new LocalizedText(playersNoteEn, playersNoteTh),
+            new LocalizedText(equipmentEn, equipmentTh),
+            guideSteps.stream().map(PlayGuideStepColumns::toStep).toList()),
         GameLifecycle.fromValue(lifecycle),
         createdAt,
         lastPlayedAt);

@@ -1,14 +1,26 @@
+import { defineAsyncComponent } from 'vue';
 import { createRouter, createWebHistory } from 'vue-router';
+import RoleView from './app/RoleView.vue';
 import HomeView from './views/HomeView.vue';
 import OnboardingView from './views/OnboardingView.vue';
 
 export const routes = [
   { path: '/', name: 'home', component: HomeView },
   { path: '/onboarding', name: 'onboarding', component: OnboardingView },
+  // Staff manage the inventory at these two URLs; guests browse the catalogue
+  // at the same ones, so a shared link to a game works for either.
   {
     path: '/games',
     name: 'games',
-    component: () => import('./pages/games/GamesInventoryPage.vue'),
+    component: RoleView,
+    props: {
+      staff: defineAsyncComponent(
+        () => import('./pages/games/GamesInventoryPage.vue'),
+      ),
+      client: defineAsyncComponent(
+        () => import('./pages/games/GameCataloguePage.vue'),
+      ),
+    },
   },
   {
     path: '/games/new',
@@ -20,7 +32,15 @@ export const routes = [
   {
     path: '/games/:gameId',
     name: 'games-detail',
-    component: () => import('./pages/games/GameDetailsPage.vue'),
+    component: RoleView,
+    props: {
+      staff: defineAsyncComponent(
+        () => import('./pages/games/GameDetailsPage.vue'),
+      ),
+      client: defineAsyncComponent(
+        () => import('./pages/games/GameCatalogueDetailPage.vue'),
+      ),
+    },
   },
   {
     path: '/games/:gameId/edit',

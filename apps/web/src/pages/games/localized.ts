@@ -1,6 +1,7 @@
 import type {
   CatalogueLocale,
   LocalizedDescription,
+  LocalizedGuideText,
   LocalizedTitle,
 } from '../../generated/api/types.gen';
 
@@ -26,7 +27,12 @@ export function catalogueLocaleOf(locale: string): CatalogueLocale {
  * than as an empty line.
  */
 export function resolveLocalized(
-  text: LocalizedTitle | LocalizedDescription | null | undefined,
+  text:
+    | LocalizedTitle
+    | LocalizedDescription
+    | LocalizedGuideText
+    | null
+    | undefined,
   locale: string,
 ): string {
   if (!text) {
@@ -36,6 +42,27 @@ export function resolveLocalized(
   const preferred = catalogueLocaleOf(locale) === 'th' ? text.th : text.en;
 
   return withText(preferred) ?? withText(text.en) ?? '';
+}
+
+/**
+ * The title in the language the reader is not reading, shown under the main
+ * one so a Thai reader still recognises the English name on the box. Empty
+ * when there is no second title, including when the main one fell back.
+ */
+export function secondaryTitle(
+  title: LocalizedTitle | null | undefined,
+  locale: string,
+): string {
+  if (!title) {
+    return '';
+  }
+
+  const other =
+    catalogueLocaleOf(locale) === 'th'
+      ? withText(title.en)
+      : withText(title.th);
+
+  return other && other !== resolveLocalized(title, locale) ? other : '';
 }
 
 /** Blank text carries no more meaning than an absent value, so both fall back. */

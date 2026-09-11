@@ -3,10 +3,13 @@ package com.chanakanlabs.bgstore.inventory;
 import com.chanakanlabs.bgstore.branches.Branch;
 import com.chanakanlabs.bgstore.contract.model.BranchStock;
 import com.chanakanlabs.bgstore.contract.model.GameDetail;
+import com.chanakanlabs.bgstore.contract.model.GameGuide;
+import com.chanakanlabs.bgstore.contract.model.GameGuideStep;
 import com.chanakanlabs.bgstore.contract.model.GameListResponse;
 import com.chanakanlabs.bgstore.contract.model.GameStats;
 import com.chanakanlabs.bgstore.contract.model.GameSummary;
 import com.chanakanlabs.bgstore.contract.model.LocalizedDescription;
+import com.chanakanlabs.bgstore.contract.model.LocalizedGuideText;
 import com.chanakanlabs.bgstore.contract.model.LocalizedTitle;
 import com.chanakanlabs.bgstore.contract.model.PageMeta;
 import java.util.List;
@@ -45,6 +48,9 @@ final class GameResponses {
             row.copies(),
             row.available(),
             row.status());
+
+    summary.setPlayTimeMinutes(row.playTimeMinutes());
+    summary.setCoverImageUrl(row.coverImageUrl());
 
     // The list shows one row per game, so a branch name is only meaningful when
     // the figures come from exactly one branch.
@@ -94,6 +100,8 @@ final class GameResponses {
             game.minPlayers(),
             game.maxPlayers(),
             game.tags(),
+            game.imageUrls(),
+            guideOf(game.guide()),
             game.lifecycle(),
             GameAvailabilities.of(game.lifecycle(), totalCopies, totalAvailable),
             game.addedAt(),
@@ -130,6 +138,38 @@ final class GameResponses {
     var model = new LocalizedDescription();
     model.setEn(description.english());
     model.setTh(description.thai());
+
+    return model;
+  }
+
+  /** Always present, so a reader tells "no guide" from an empty one without a null check. */
+  private static GameGuide guideOf(PlayGuide guide) {
+    var model =
+        new GameGuide(
+            guide.steps().stream()
+                .map(
+                    step -> {
+                      var stepModel = new GameGuideStep(titleOf(step.title()));
+                      stepModel.setBody(guideTextOf(step.body()));
+                      return stepModel;
+                    })
+                .toList());
+    model.setGoal(guideTextOf(guide.goal()));
+    model.setPlayers(guideTextOf(guide.players()));
+    model.setEquipment(guideTextOf(guide.equipment()));
+
+    return model;
+  }
+
+  /** Null when neither language carries text, as with a description. */
+  private static @Nullable LocalizedGuideText guideTextOf(LocalizedText text) {
+    if (text.isEmpty()) {
+      return null;
+    }
+
+    var model = new LocalizedGuideText();
+    model.setEn(text.english());
+    model.setTh(text.thai());
 
     return model;
   }

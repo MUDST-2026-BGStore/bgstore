@@ -10,6 +10,7 @@ import org.springframework.lang.Nullable;
  *
  * @param singleBranchId the only stocked branch, or null when the roll-up spans several branches or
  *     none
+ * @param coverImageUrl the game's first photo, or null when it has none
  */
 record GameSummaryRow(
     UUID id,
@@ -17,6 +18,8 @@ record GameSummaryRow(
     GameCategory category,
     int minPlayers,
     int maxPlayers,
+    @Nullable Integer playTimeMinutes,
+    @Nullable String coverImageUrl,
     int copies,
     int available,
     int branchCount,

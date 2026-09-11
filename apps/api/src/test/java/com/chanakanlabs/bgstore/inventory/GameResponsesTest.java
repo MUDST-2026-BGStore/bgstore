@@ -104,6 +104,8 @@ class GameResponsesTest {
             null,
             null,
             List.of(),
+            List.of(),
+            PlayGuide.EMPTY,
             GameLifecycle.ACTIVE,
             ADDED,
             null);
@@ -112,6 +114,57 @@ class GameResponsesTest {
 
     assertThat(detail.getDescription()).isNull();
     assertThat(detail.getTitle().getTh()).isNull();
+  }
+
+  @Test
+  void publishesThePhotosAndTheGuideInTheOrderTheyWereWritten() {
+    var detail = GameResponses.toDetail(game(GameLifecycle.ACTIVE), List.of(), DIRECTORY);
+
+    assertThat(detail.getImageUrls())
+        .containsExactly(
+            "https://cdn.example.com/ttr-box.jpg", "https://cdn.example.com/ttr-board.jpg");
+    var guide = detail.getGuide();
+    assertThat(guide.getGoal().getTh()).isEqualTo("ครอบครองเส้นทางที่ยาวที่สุด");
+    // A part nobody wrote travels as null, as an absent description does.
+    assertThat(guide.getPlayers()).isNull();
+    assertThat(guide.getEquipment().getTh()).isNull();
+    assertThat(guide.getSteps())
+        .extracting(step -> step.getTitle().getEn(), step -> step.getBody() == null)
+        .containsExactly(tuple("Deal cards", false), tuple("Take a turn", true));
+  }
+
+  @Test
+  void publishesAnEmptyGuideRatherThanNoneForAGameWithoutOne() {
+    var bare =
+        new StoredGame(
+            UUID.randomUUID(),
+            new LocalizedText("Uno", null),
+            LocalizedText.NONE,
+            GameCategory.CARD,
+            2,
+            10,
+            null,
+            null,
+            List.of(),
+            List.of(),
+            PlayGuide.EMPTY,
+            GameLifecycle.ACTIVE,
+            ADDED,
+            null);
+
+    var detail = GameResponses.toDetail(bare, List.of(), DIRECTORY);
+
+    assertThat(detail.getImageUrls()).isEmpty();
+    assertThat(detail.getGuide().getSteps()).isEmpty();
+    assertThat(detail.getGuide().getGoal()).isNull();
+  }
+
+  @Test
+  void carriesThePlayTimeAndCoverOntoTheSummaryForTheCatalogueCards() {
+    var summary = GameResponses.toSummary(summary(1, CENTRAL.id()), Map.of());
+
+    assertThat(summary.getPlayTimeMinutes()).isEqualTo(15);
+    assertThat(summary.getCoverImageUrl()).isEqualTo("https://cdn.example.com/uno.jpg");
   }
 
   @Test
@@ -127,7 +180,7 @@ class GameResponsesTest {
   @Test
   void reportsTheFilteredTotalsRatherThanThePageOnTheStatTiles() {
     var page = new GamePage(List.of(summary(1, CENTRAL.id())), 24L, 46L, 12L);
-    var filter = new GameFilter(null, null, null, null, CatalogueLocale.EN, 0, 6);
+    var filter = new GameFilter(null, null, null, null, null, CatalogueLocale.EN, 0, 6);
 
     var response = GameResponses.toListResponse(page, filter, Map.of());
 
@@ -142,7 +195,7 @@ class GameResponsesTest {
 
   @Test
   void reportsNoPagesForAnEmptyResult() {
-    var filter = new GameFilter(null, null, null, null, CatalogueLocale.EN, 0, 20);
+    var filter = new GameFilter(null, null, null, null, null, CatalogueLocale.EN, 0, 20);
 
     var response = GameResponses.toListResponse(GamePage.EMPTY, filter, Map.of());
 
@@ -162,6 +215,16 @@ class GameResponsesTest {
         60,
         "Easy to teach",
         List.of("beginner friendly"),
+        List.of("https://cdn.example.com/ttr-box.jpg", "https://cdn.example.com/ttr-board.jpg"),
+        new PlayGuide(
+            new LocalizedText("Claim the longest routes.", "ครอบครองเส้นทางที่ยาวที่สุด"),
+            LocalizedText.NONE,
+            new LocalizedText("A map, train cars and cards.", null),
+            List.of(
+                new PlayGuide.Step(
+                    new LocalizedText("Deal cards", "แจกการ์ด"),
+                    new LocalizedText("Each player takes four cards.", null)),
+                new PlayGuide.Step(new LocalizedText("Take a turn", null), LocalizedText.NONE))),
         lifecycle,
         ADDED,
         null);
@@ -174,6 +237,8 @@ class GameResponsesTest {
         GameCategory.CARD,
         2,
         10,
+        15,
+        "https://cdn.example.com/uno.jpg",
         5,
         4,
         branchCount,

@@ -5,6 +5,7 @@ import com.chanakanlabs.bgstore.contract.model.CatalogueLocale;
 import com.chanakanlabs.bgstore.contract.model.GameAvailability;
 import com.chanakanlabs.bgstore.contract.model.GameCategory;
 import com.chanakanlabs.bgstore.contract.model.GameDetail;
+import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
 import com.chanakanlabs.bgstore.contract.model.GameListResponse;
 import com.chanakanlabs.bgstore.contract.model.GameRequest;
 import java.net.URI;
@@ -30,6 +31,7 @@ class GameController implements GamesApi {
       @Nullable UUID branchId,
       @Nullable GameCategory category,
       @Nullable GameAvailability status,
+      @Nullable GameLifecycle lifecycle,
       @Nullable String search,
       @Nullable CatalogueLocale locale,
       Integer page,
@@ -41,6 +43,7 @@ class GameController implements GamesApi {
             branchId,
             category,
             status,
+            lifecycle,
             search,
             Objects.requireNonNullElse(locale, CatalogueLocale.EN),
             page,
