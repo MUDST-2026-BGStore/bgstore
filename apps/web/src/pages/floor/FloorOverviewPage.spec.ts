@@ -58,8 +58,14 @@ const designPage: FloorOverviewResponse = {
   totalPages: 9,
 };
 
+/** Answers with the page it was asked for, as the API does for a page that exists. */
 function floorApi(answer: FloorOverviewResponse = designPage): ApiHandler {
-  return route('/floor-overview', { body: answer });
+  return (request) => {
+    const page = new URL(request.url).searchParams.get('page');
+    return route('/floor-overview', {
+      body: { ...answer, page: page ? Number(page) : answer.page },
+    })(request);
+  };
 }
 
 function rowTexts(
@@ -181,9 +187,12 @@ describe('FloorOverviewPage', () => {
     await wrapper.get('[aria-label="Page 2"]').trigger('click');
     await flushPromises();
 
-    expect(wrapper.get('[aria-current="page"]').attributes('aria-label')).toBe(
-      'Page 1',
-    );
+    // The header's active nav link is aria-current too.
+    expect(
+      wrapper
+        .get('[aria-label="Pagination"] [aria-current="page"]')
+        .attributes('aria-label'),
+    ).toBe('Page 1');
     expect(
       wrapper.get('[aria-label="Previous page"]').attributes('disabled'),
     ).toBeDefined();
