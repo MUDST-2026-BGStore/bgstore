@@ -3,10 +3,18 @@ import { createRouter, createWebHistory } from 'vue-router';
 import RoleView from './app/RoleView.vue';
 import HomeView from './views/HomeView.vue';
 import OnboardingView from './views/OnboardingView.vue';
+import BranchDetailView from './views/BranchDetailView.vue';
+import BranchListView from './views/BranchListView.vue';
 
 export const routes = [
   { path: '/', name: 'home', component: HomeView },
   { path: '/onboarding', name: 'onboarding', component: OnboardingView },
+  { path: '/branches', name: 'branches', component: BranchListView },
+  {
+    path: '/branches/:id',
+    name: 'branch-detail',
+    component: BranchDetailView,
+  },
   // Staff manage the inventory at these two URLs; guests browse the catalogue
   // at the same ones, so a shared link to a game works for either.
   {

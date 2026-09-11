@@ -1,429 +1,180 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { useBranches, type Branch } from '../composables/useBranches';
+import { useBranches } from '../composables/useBranches';
 
 const router = useRouter();
 const { t } = useI18n();
-const { branches, deleteBranch } = useBranches();
+const { branches, isError, isPending, refetch } = useBranches();
 
+const rawSearchQuery = ref('');
 const searchQuery = ref('');
-const statusFilter = ref('All statuses');
-
-// Pagination State (AC ข้อ 3)
 const currentPage = ref(1);
-const itemsPerPage = ref(5);
+const itemsPerPage = 10;
+let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
-// State สำหรับ Delete Confirmation Modal
-const showDeleteModal = ref(false);
-const branchToDelete = ref<Branch | null>(null);
+watch(rawSearchQuery, (value) => {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    searchQuery.value = value.trim().toLowerCase();
+    currentPage.value = 1;
+  }, 300);
+});
 
-// กรองข้อมูลตาม Search Query และ Status Filter
+onBeforeUnmount(() => {
+  if (debounceTimer) clearTimeout(debounceTimer);
+});
+
 const filteredBranches = computed(() => {
-  return branches.value.filter((branch) => {
-    const query = searchQuery.value.trim().toLowerCase();
-    const matchesSearch =
-      query === '' ||
-      branch.name.toLowerCase().includes(query) ||
-      branch.code.toLowerCase().includes(query);
-
-    const matchesStatus =
-      statusFilter.value === 'All statuses' ||
-      branch.status === statusFilter.value;
-
-    return matchesSearch && matchesStatus;
-  });
-});
-
-// คำนวณจำนวนหน้าทั้งหมด
-const totalPages = computed(() => {
-  return Math.max(
-    1,
-    Math.ceil(filteredBranches.value.length / itemsPerPage.value),
+  if (!searchQuery.value) return branches.value;
+  return branches.value.filter((branch) =>
+    branch.name.toLowerCase().includes(searchQuery.value),
   );
 });
 
-// ตัดแถวข้อมูลตามหน้าปัจจุบัน
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(filteredBranches.value.length / itemsPerPage)),
+);
+
 const paginatedBranches = computed(() => {
-  const startIndex = (currentPage.value - 1) * itemsPerPage.value;
-  return filteredBranches.value.slice(
-    startIndex,
-    startIndex + itemsPerPage.value,
-  );
+  const start = (currentPage.value - 1) * itemsPerPage;
+  return filteredBranches.value.slice(start, start + itemsPerPage);
 });
 
-// รีเซ็ตหน้ากลับไปที่ 1 เมื่อ Search หรือ Filter เปลี่ยน
-watch([searchQuery, statusFilter], () => {
-  currentPage.value = 1;
+watch(totalPages, (pages) => {
+  if (currentPage.value > pages) currentPage.value = pages;
 });
 
-const handleAddBranch = () => {
-  void router.push('/branches/new');
-};
-
-const handleView = (id: string) => {
+const goToBranch = (id: string) => {
   void router.push(`/branches/${id}`);
-};
-
-const handleEdit = (id: string) => {
-  void router.push(`/branches/${id}/edit`);
-};
-
-// เปิดป๊อปอัปยืนยันการลบ
-const openDeleteModal = (branch: Branch) => {
-  branchToDelete.value = branch;
-  showDeleteModal.value = true;
-};
-
-// กดยืนยันการลบ
-const confirmDelete = () => {
-  if (branchToDelete.value) {
-    deleteBranch(branchToDelete.value.id);
-    branchToDelete.value = null;
-    showDeleteModal.value = false;
-    if (currentPage.value > totalPages.value) {
-      currentPage.value = totalPages.value;
-    }
-  }
-};
-
-// กดยกเลิกการลบ
-const cancelDelete = () => {
-  branchToDelete.value = null;
-  showDeleteModal.value = false;
 };
 </script>
 
 <template>
-  <div class="w-full bg-white relative">
-    <!-- Sub-header Bar (Branches + Add branch) -->
-    <div
-      class="w-full border-b border-gray-200 px-12 py-3 flex justify-between items-center bg-white"
-    >
-      <span class="text-sm font-bold text-gray-900">{{
-        t('branch.list')
-      }}</span>
-
-      <button
-        type="button"
-        class="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-white bg-[#386671] hover:bg-[#2c535c] rounded-lg transition shadow-2xs cursor-pointer"
-        @click="handleAddBranch"
-      >
-        <svg
-          class="w-3.5 h-3.5"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-        <span>{{ t('branch.add') }}</span>
-      </button>
-    </div>
-
-    <!-- Main Content Area -->
-    <div class="w-full px-12 pt-6 pb-6">
-      <!-- Page Title -->
-      <h1
-        class="font-bold text-gray-900 tracking-tight"
-        style="
-          font-size: 26px !important;
-          line-height: 32px !important;
-          margin-top: 0 !important;
-          margin-bottom: 24px !important;
-        "
-      >
-        {{ t('branch.management') }}
-      </h1>
-
-      <!-- Search & Filters -->
-      <div class="flex items-center gap-3 mb-6">
-        <!-- Search Input -->
-        <div class="relative w-72">
-          <span
-            class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 pointer-events-none"
+  <section
+    class="w-full bg-white px-6 py-8 md:px-12"
+    aria-labelledby="branch-title"
+  >
+    <div class="mx-auto max-w-6xl">
+      <div class="mb-6 flex items-center justify-between gap-4">
+        <div>
+          <p
+            class="text-xs font-semibold uppercase tracking-wide text-[#386671]"
           >
-            <svg
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </span>
-          <input
-            v-model="searchQuery"
-            type="text"
-            :placeholder="t('branch.searchPlaceholder')"
-            class="w-full h-10 bg-white border border-gray-200 text-gray-900 placeholder:text-gray-400 text-xs rounded-lg pl-9 pr-3 focus:outline-hidden focus:ring-1 focus:ring-[#386671]"
-          />
+            {{ t('branch.list') }}
+          </p>
+          <h1 id="branch-title" class="mt-1 text-2xl font-bold text-gray-900">
+            {{ t('branch.management') }}
+          </h1>
         </div>
-
-        <!-- Status Filter Dropdown -->
-        <div class="relative w-36">
-          <select
-            v-model="statusFilter"
-            class="w-full h-10 appearance-none bg-white border border-gray-200 text-gray-800 text-xs rounded-lg px-3 pr-8 focus:outline-hidden focus:ring-1 focus:ring-[#386671] cursor-pointer"
-          >
-            <option value="All statuses">{{ t('branch.allStatuses') }}</option>
-            <option value="Active">{{ t('branch.statusActive') }}</option>
-            <option value="Inactive">{{ t('branch.statusInactive') }}</option>
-          </select>
-          <span
-            class="absolute inset-y-0 right-0 flex items-center pr-2.5 pointer-events-none text-gray-400"
-          >
-            <svg
-              class="w-3.5 h-3.5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </span>
-        </div>
+        <span class="text-sm text-gray-500">{{ filteredBranches.length }}</span>
       </div>
 
-      <!-- Branches Table Container -->
+      <label class="mb-5 block max-w-md">
+        <span class="sr-only">{{ t('branch.searchPlaceholder') }}</span>
+        <input
+          v-model="rawSearchQuery"
+          type="search"
+          :placeholder="t('branch.searchPlaceholder')"
+          class="h-10 w-full rounded-lg border border-gray-200 px-3 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-[#386671]"
+        />
+      </label>
+
       <div
-        class="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-2xs mb-5"
+        v-if="isPending"
+        class="rounded-xl border border-gray-200 p-8 text-center text-gray-500"
+        aria-live="polite"
       >
-        <table class="w-full text-left border-collapse">
-          <thead>
-            <tr
-              class="border-b border-gray-200 bg-gray-50/60 text-[11px] font-semibold text-gray-600"
-            >
-              <th class="px-6 py-3.5">{{ t('branch.table.branch') }}</th>
-              <th class="px-6 py-3.5">{{ t('branch.table.address') }}</th>
-              <th class="px-6 py-3.5">{{ t('branch.table.contact') }}</th>
-              <th class="px-6 py-3.5">{{ t('branch.table.openingHours') }}</th>
-              <th class="px-6 py-3.5">{{ t('branch.table.tables') }}</th>
-              <th class="px-6 py-3.5">{{ t('branch.table.status') }}</th>
-              <th class="px-6 py-3.5 text-right"></th>
+        {{ t('status.connecting') }}
+      </div>
+      <div
+        v-else-if="isError"
+        class="rounded-xl border border-red-200 bg-red-50 p-6 text-center"
+        role="alert"
+      >
+        <p class="text-sm text-red-700">
+          {{ t('status.serviceUnavailableHint') }}
+        </p>
+        <button
+          type="button"
+          class="mt-4 rounded-lg bg-[#386671] px-4 py-2 text-sm font-semibold text-white"
+          @click="() => refetch()"
+        >
+          {{ t('branch.retry') }}
+        </button>
+      </div>
+      <div
+        v-else-if="filteredBranches.length === 0"
+        class="rounded-xl border border-gray-200 p-8 text-center"
+      >
+        <p class="font-semibold text-gray-900">{{ t('branch.empty.title') }}</p>
+        <p class="mt-1 text-sm text-gray-500">
+          {{ t('branch.empty.description') }}
+        </p>
+      </div>
+      <div v-else class="overflow-hidden rounded-xl border border-gray-200">
+        <table class="w-full text-left text-sm">
+          <thead
+            class="border-b border-gray-200 bg-gray-50 text-xs font-semibold text-gray-600"
+          >
+            <tr>
+              <th class="px-5 py-3">{{ t('branch.table.branch') }}</th>
+              <th class="px-5 py-3">{{ t('branch.id') }}</th>
+              <th class="px-5 py-3 text-right">{{ t('branch.view') }}</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-gray-100 text-xs">
-            <!-- รายการแสดงผลตามหน้า Pagination -->
+          <tbody>
             <tr
               v-for="branch in paginatedBranches"
               :key="branch.id"
-              class="hover:bg-gray-50/70 transition"
+              class="border-b border-gray-100 last:border-0"
             >
-              <td class="px-6 py-3.5 font-semibold text-gray-900">
+              <td class="px-5 py-4 font-medium text-gray-900">
                 {{ branch.name }}
               </td>
-              <td class="px-6 py-3.5 text-gray-600">
-                {{ branch.addressLine }}, {{ branch.district }}
+              <td class="px-5 py-4 font-mono text-xs text-gray-500">
+                {{ branch.id }}
               </td>
-              <td class="px-6 py-3.5 text-gray-600">
-                {{ branch.phone }}
-              </td>
-              <td class="px-6 py-3.5 text-gray-600">
-                {{ branch.openingHours.monFri.open }} –
-                {{ branch.openingHours.monFri.close }}
-              </td>
-              <td class="px-6 py-3.5 font-semibold text-gray-900">
-                {{ branch.tables }}
-              </td>
-              <td class="px-6 py-3.5">
-                <span
-                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border"
-                  :class="
-                    branch.status === 'Active'
-                      ? 'bg-[#edf7ee] text-[#1e6f40] border-[#bce2c7]'
-                      : 'bg-gray-100 text-gray-600 border-gray-200'
-                  "
-                >
-                  {{ branch.status }}
-                </span>
-              </td>
-              <td class="px-6 py-3.5 text-right space-x-3">
+              <td class="px-5 py-4 text-right">
                 <button
                   type="button"
-                  class="text-[#386671] hover:underline font-medium cursor-pointer"
-                  @click="handleView(branch.id)"
+                  class="font-semibold text-[#386671] hover:underline"
+                  @click="goToBranch(branch.id)"
                 >
                   {{ t('branch.view') }}
                 </button>
-                <button
-                  type="button"
-                  class="text-[#386671] hover:underline font-medium cursor-pointer"
-                  @click="handleEdit(branch.id)"
-                >
-                  {{ t('branch.edit') }}
-                </button>
-                <button
-                  type="button"
-                  class="text-red-600 hover:underline font-medium cursor-pointer"
-                  @click="openDeleteModal(branch)"
-                >
-                  {{ t('branch.delete') }}
-                </button>
-              </td>
-            </tr>
-
-            <!-- Empty State -->
-            <tr v-if="filteredBranches.length === 0">
-              <td colspan="7" class="px-6 py-12 text-center text-gray-500">
-                <div class="flex flex-col items-center justify-center gap-2">
-                  <svg
-                    class="w-8 h-8 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="1.5"
-                      d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                  <p class="text-sm font-semibold text-gray-700">
-                    {{ t('branch.empty.title') }}
-                  </p>
-                  <p class="text-xs text-gray-400">
-                    {{ t('branch.empty.description') }}
-                  </p>
-                </div>
               </td>
             </tr>
           </tbody>
         </table>
-      </div>
 
-      <!-- Dynamic Pagination Controls -->
-      <div
-        v-if="filteredBranches.length > 0"
-        class="flex items-center justify-end gap-2 text-xs text-gray-600"
-      >
-        <button
-          type="button"
-          class="w-7 h-7 flex items-center justify-center rounded-lg transition"
-          :class="
-            currentPage === 1
-              ? 'text-gray-300 cursor-not-allowed'
-              : 'hover:bg-gray-100 text-gray-700 cursor-pointer'
-          "
-          :disabled="currentPage === 1"
-          aria-label="Previous page"
-          @click="currentPage = Math.max(1, currentPage - 1)"
+        <nav
+          v-if="totalPages > 1"
+          class="flex items-center justify-between border-t border-gray-200 px-5 py-3"
+          :aria-label="t('branch.list')"
         >
-          ‹
-        </button>
-
-        <button
-          v-for="page in totalPages"
-          :key="page"
-          type="button"
-          class="w-7 h-7 flex items-center justify-center rounded-lg transition cursor-pointer"
-          :class="
-            page === currentPage
-              ? 'font-bold text-gray-900 border-b-2 border-gray-900'
-              : 'hover:bg-gray-100 text-gray-700'
-          "
-          @click="currentPage = page"
-        >
-          {{ page }}
-        </button>
-
-        <button
-          type="button"
-          class="w-7 h-7 flex items-center justify-center rounded-lg transition"
-          :class="
-            currentPage === totalPages
-              ? 'text-gray-300 cursor-not-allowed'
-              : 'hover:bg-gray-100 text-gray-700 cursor-pointer'
-          "
-          :disabled="currentPage === totalPages"
-          aria-label="Next page"
-          @click="currentPage = Math.min(totalPages, currentPage + 1)"
-        >
-          ›
-        </button>
-      </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div
-      v-if="showDeleteModal"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs px-4"
-    >
-      <div
-        class="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl border border-gray-100 flex flex-col gap-4"
-      >
-        <div class="flex items-center gap-3">
-          <div
-            class="w-10 h-10 rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0"
-          >
-            <svg
-              class="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              />
-            </svg>
-          </div>
-          <div>
-            <h3 class="text-sm font-bold text-gray-900">
-              {{ t('branch.modal.deleteTitle') }}
-            </h3>
-            <p class="text-xs text-gray-500">
-              Are you sure you want to delete
-              <span class="font-bold text-gray-800">{{
-                branchToDelete?.name
-              }}</span
-              >?
-            </p>
-          </div>
-        </div>
-
-        <p
-          class="text-xs text-gray-500 bg-gray-50 p-2.5 rounded-lg border border-gray-100"
-        >
-          {{ t('branch.modal.deleteWarning') }}
-        </p>
-
-        <div class="flex items-center justify-end gap-2.5 pt-1">
           <button
             type="button"
-            class="px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition cursor-pointer"
-            @click="cancelDelete"
+            class="text-sm text-gray-600 disabled:opacity-40"
+            :disabled="currentPage === 1"
+            @click="currentPage--"
           >
-            {{ t('branch.cancel') }}
+            ‹
           </button>
+          <span class="text-xs text-gray-500">
+            {{ currentPage }} / {{ totalPages }}
+          </span>
           <button
             type="button"
-            class="px-4 py-2 text-xs font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition cursor-pointer"
-            @click="confirmDelete"
+            class="text-sm text-gray-600 disabled:opacity-40"
+            :disabled="currentPage === totalPages"
+            @click="currentPage++"
           >
-            {{ t('branch.delete') }}
+            ›
           </button>
-        </div>
+        </nav>
       </div>
     </div>
-  </div>
+  </section>
 </template>
