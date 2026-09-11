@@ -48,6 +48,18 @@ export type CompleteClientProfileRequest = {
 export type Branch = {
   id: string;
   name: string;
+  /**
+   * The postal address guests are shown. Null until the store records one.
+   */
+  address?: string | null;
+  /**
+   * Opening time, Bangkok local time. Null, together with `closesAt`, until the store records its hours.
+   */
+  opensAt?: string | null;
+  /**
+   * Closing time, Bangkok local time. Null exactly when `opensAt` is.
+   */
+  closesAt?: string | null;
 };
 
 export type BranchList = {
@@ -280,6 +292,37 @@ export type CreateTableRequest = {
 
 export type UpdateTableRequest = CreateTableRequest;
 
+export type ReservationStatus = 'Reserved' | 'Completed' | 'Cancelled';
+
+export type ReservationResponse = {
+  id: string;
+  title: string;
+  date: string;
+  timeSlot: string;
+  partySize: number;
+  tableId: number;
+  tableName: string;
+  seats: number;
+  ratePerHour: number;
+  status: ReservationStatus;
+  customerName: string;
+  phoneNumber: string;
+  checkInTime: string;
+  actualCheckOut: string;
+  overtimeMinutes: number;
+  totalPrice: number;
+  canCancel: boolean;
+  thumbnailUrl?: string;
+};
+
+export type ReservationListResponse = {
+  items: Array<ReservationResponse>;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export type ProblemDetail = {
   type: string;
   title: string;
@@ -403,10 +446,6 @@ export type ListBranchesData = {
 };
 
 export type ListBranchesErrors = {
-  /**
-   * Authentication is required.
-   */
-  401: ProblemDetail;
   /**
    * The client must complete onboarding before using this endpoint.
    */
@@ -816,3 +855,104 @@ export type UpdateTableResponses = {
 
 export type UpdateTableResponse =
   UpdateTableResponses[keyof UpdateTableResponses];
+
+export type ListReservationsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    status?: ReservationStatus;
+    page?: number;
+    pageSize?: number;
+  };
+  url: '/reservations';
+};
+
+export type ListReservationsErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+};
+
+export type ListReservationsError =
+  ListReservationsErrors[keyof ListReservationsErrors];
+
+export type ListReservationsResponses = {
+  /**
+   * A paginated list of reservations.
+   */
+  200: ReservationListResponse;
+};
+
+export type ListReservationsResponse =
+  ListReservationsResponses[keyof ListReservationsResponses];
+
+export type GetReservationData = {
+  body?: never;
+  path: {
+    reservationId: string;
+  };
+  query?: never;
+  url: '/reservations/{reservationId}';
+};
+
+export type GetReservationErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+};
+
+export type GetReservationError =
+  GetReservationErrors[keyof GetReservationErrors];
+
+export type GetReservationResponses = {
+  /**
+   * The reservation record.
+   */
+  200: ReservationResponse;
+};
+
+export type GetReservationResponse =
+  GetReservationResponses[keyof GetReservationResponses];
+
+export type CancelReservationData = {
+  body?: never;
+  path: {
+    reservationId: string;
+  };
+  query?: never;
+  url: '/reservations/{reservationId}/cancel';
+};
+
+export type CancelReservationErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+};
+
+export type CancelReservationError =
+  CancelReservationErrors[keyof CancelReservationErrors];
+
+export type CancelReservationResponses = {
+  /**
+   * The cancelled reservation record.
+   */
+  200: ReservationResponse;
+};
+
+export type CancelReservationResponse =
+  CancelReservationResponses[keyof CancelReservationResponses];

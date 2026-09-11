@@ -72,6 +72,26 @@
     }
   ],
   "targetDefaults": {
+    "bootBuildImage": {
+      "options": {
+        "includeDependsOnTasks": [":bootJar", ":resolveMainClassName"]
+      }
+    },
+    "bootJar": {
+      "options": {
+        "includeDependsOnTasks": [":resolveMainClassName"]
+      }
+    },
+    "bootRun": {
+      "options": {
+        "includeDependsOnTasks": [":resolveMainClassName"]
+      }
+    },
+    "bootTestRun": {
+      "options": {
+        "includeDependsOnTasks": [":resolveTestMainClassName"]
+      }
+    },
     "test": {
       "dependsOn": ["^build"]
     }

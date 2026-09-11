@@ -63,7 +63,7 @@ class GameEntityTest {
   @Test
   void readsARowSavedBeforePhotosExistedAsHavingNone() {
     // A row written before the column was added holds null there, which
-    // `ddl-auto` cannot backfill.
+    // Flyway keeps the column nullable so rows from before the feature remain readable.
     var game = new GameEntity(UUID.randomUUID());
     game.apply(command(List.of(), PlayGuide.EMPTY));
     ReflectionTestUtils.setField(game, "imageUrls", null);

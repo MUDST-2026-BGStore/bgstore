@@ -7,6 +7,22 @@ import {
 import RoleView from './app/RoleView.vue';
 import HomeView from './views/HomeView.vue';
 import OnboardingView from './views/OnboardingView.vue';
+import BranchDetailView from './views/BranchDetailView.vue';
+import BranchListView from './views/BranchListView.vue';
+import UserProfileView from './views/UserProfileView.vue';
+
+const fallbackRoute = {
+  path: '/:pathMatch(.*)*',
+  redirect: '/',
+} as const;
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    /** A guest without a session may open the screen; the rest ask them to sign in. */
+    public?: boolean;
+    requiresAuth?: boolean;
+  }
+}
 
 export type AuthResolver = () => boolean;
 
@@ -21,13 +37,19 @@ export function resetAuthResolver() {
 }
 
 export const routes: RouteRecordRaw[] = [
-  { path: '/', name: 'home', component: HomeView },
+  { path: '/', name: 'home', component: HomeView, meta: { public: true } },
   {
     path: '/login',
     name: 'login',
     component: () => import('./views/LoginView.vue'),
   },
   { path: '/onboarding', name: 'onboarding', component: OnboardingView },
+  { path: '/branches', name: 'branches', component: BranchListView },
+  {
+    path: '/branches/:id',
+    name: 'branch-detail',
+    component: BranchDetailView,
+  },
   {
     path: '/tables',
     name: 'tables',
@@ -87,12 +109,21 @@ export const routes: RouteRecordRaw[] = [
   },
   // The SPA is served for every path (see apps/web/nginx.conf), so unmatched
   // URLs must resolve to a real screen instead of an empty router view.
-  { path: '/:pathMatch(.*)*', redirect: '/' },
+  fallbackRoute,
 ];
 
 export const router = createRouter({
   history: createWebHistory(),
-  routes: [...routes],
+  routes: [
+    ...routes.slice(0, -1),
+    {
+      path: '/profile',
+      alias: ['/user-profile', '/account/manage'],
+      name: 'user-profile',
+      component: UserProfileView,
+    },
+    fallbackRoute,
+  ],
 });
 
 router.beforeEach((to, _from, next) => {

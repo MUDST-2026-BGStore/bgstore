@@ -26,4 +26,4 @@ kubectl -n keycloak get gateway,httproute,certificate
 
 ## Rollback
 
-Revert the digest promotion commit. Argo CD will restore the prior immutable image. Schema changes are applied by Hibernate `ddl-auto=update`, which is additive, so a rolled-back image meets a schema that still carries the newer columns; dropping them is a separate, reviewed recovery operation.
+Revert the digest promotion commit. Argo CD will restore the prior immutable image. Flyway migrations are append-only and expand-first, so application rollback remains possible when the prior image can read the expanded schema; destructive cleanup is a separate, reviewed recovery operation.

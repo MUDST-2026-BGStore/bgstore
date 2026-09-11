@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
+import UiButton from './ui/UiButton.vue';
 import logo from '../assets/icons/logo.svg';
 import navHome from '../assets/icons/nav-home.svg';
 import navReserve from '../assets/icons/nav-reserve.svg';
@@ -9,8 +12,10 @@ import navBranches from '../assets/icons/nav-branches.svg';
 import navHistory from '../assets/icons/nav-history.svg';
 import navProfile from '../assets/icons/nav-profile.svg';
 import bookTable from '../assets/icons/book-table.svg';
+import { signInHref } from '../queries/current-user';
 
 const { t } = useI18n();
+const route = useRoute();
 
 /**
  * The guest-facing header from the Figma library. Only Home and Game have
@@ -26,7 +31,22 @@ const items = [
   { key: 'profile', icon: navProfile, activeIcon: navProfile, to: undefined },
 ] as const;
 
-defineProps<{ active: (typeof items)[number]['key'] }>();
+/** A visitor without an account has nothing of their own to open yet. */
+const guestItems: readonly (typeof items)[number]['key'][] = [
+  'home',
+  'game',
+  'branch',
+];
+
+const props = defineProps<{
+  active: (typeof items)[number]['key'];
+  /** Signed out: the design's "Client Header — Guest" variant. */
+  guest?: boolean;
+}>();
+
+const visibleItems = computed(() =>
+  props.guest ? items.filter((item) => guestItems.includes(item.key)) : items,
+);
 </script>
 
 <template>
@@ -46,7 +66,7 @@ defineProps<{ active: (typeof items)[number]['key'] }>();
     <nav class="flex min-w-0 shrink items-center gap-1 overflow-x-auto">
       <component
         :is="item.to ? 'router-link' : 'span'"
-        v-for="item in items"
+        v-for="item in visibleItems"
         :key="item.key"
         :to="item.to"
         :aria-current="item.key === active ? 'page' : undefined"
@@ -67,8 +87,24 @@ defineProps<{ active: (typeof items)[number]['key'] }>();
         <span class="whitespace-nowrap">{{ t(`navigation.${item.key}`) }}</span>
       </component>
     </nav>
+    <div v-if="guest" class="flex shrink-0 items-center gap-2">
+      <UiButton
+        variant="ghost"
+        :href="signInHref(route.fullPath)"
+        class="w-[120px]"
+      >
+        {{ t('navigation.login') }}
+      </UiButton>
+      <UiButton
+        :href="signInHref(route.fullPath, { signUp: true })"
+        class="w-[120px]"
+      >
+        {{ t('navigation.signUp') }}
+      </UiButton>
+    </div>
     <!-- Reservations have no screen yet, so the call to action is not a link. -->
     <span
+      v-else
       aria-disabled="true"
       class="inline-flex h-10 w-[120px] shrink-0 items-center justify-center gap-2 rounded-md border border-primary bg-primary px-4 text-center text-[13px] leading-[20px] font-medium whitespace-nowrap text-primary-fg"
     >
