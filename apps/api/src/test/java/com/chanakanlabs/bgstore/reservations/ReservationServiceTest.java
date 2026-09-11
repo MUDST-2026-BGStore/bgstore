@@ -25,12 +25,13 @@ import org.springframework.web.server.ResponseStatusException;
 class ReservationServiceTest {
 
   @Mock private JpaReservationRepository repository;
+  @Mock private ReservedSlots reservedSlots;
 
   private ReservationService service;
 
   @BeforeEach
   void setUp() {
-    service = new ReservationService(repository);
+    service = new ReservationService(repository, reservedSlots);
   }
 
   @Test
@@ -82,6 +83,7 @@ class ReservationServiceTest {
     assertThat(updated.status()).isEqualTo("Cancelled");
     assertThat(updated.canCancel()).isFalse();
     verify(repository).save(entity);
+    verify(reservedSlots).releaseFor("res-1");
   }
 
   @Test

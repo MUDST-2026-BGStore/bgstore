@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.springframework.lang.Nullable;
 
 /** Small deterministic test fixture; production persistence is covered by JpaTableRepository. */
@@ -30,9 +31,11 @@ final class TestTableRepository implements TableRepository {
       @Nullable String branch,
       @Nullable String zone,
       @Nullable String status,
-      @Nullable String search) {
+      @Nullable String search,
+      boolean activeOnly) {
     var normalizedSearch = search == null ? "" : search.trim().toLowerCase(Locale.ROOT);
     return tables.values().stream()
+        .filter(t -> !activeOnly || t.active())
         .filter(
             t -> branch == null || branch.isBlank() || t.branch().equalsIgnoreCase(branch.trim()))
         .filter(t -> zone == null || zone.isBlank() || t.zone().equalsIgnoreCase(zone.trim()))
@@ -41,9 +44,19 @@ final class TestTableRepository implements TableRepository {
         .filter(
             t ->
                 normalizedSearch.isEmpty()
-                    || t.name().toLowerCase(Locale.ROOT).contains(normalizedSearch))
+                    || t.name().toLowerCase(Locale.ROOT).contains(normalizedSearch)
+                    || String.valueOf(t.id()).equals(normalizedSearch))
         .sorted(Comparator.comparingLong(t -> t.id() == null ? 0 : t.id()))
         .toList();
+  }
+
+  @Override
+  public Map<String, Long> countActiveByStatus(@Nullable String branch) {
+    return tables.values().stream()
+        .filter(TableRecordData::active)
+        .filter(
+            t -> branch == null || branch.isBlank() || t.branch().equalsIgnoreCase(branch.trim()))
+        .collect(Collectors.groupingBy(TableRecordData::status, Collectors.counting()));
   }
 
   @Override

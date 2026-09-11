@@ -39,6 +39,17 @@
 - Profile images and password changes remain outside this slice until their
   explicit API contracts and provider adapters are introduced.
 
+## Reserved table slots
+
+- The Reservations module owns `table_reservation`: one row holds one table
+  (by id, since `store_table` belongs to the Tables module) from `starts_at`
+  to `ends_at`.
+- The staff floor overview (`GET /floor-overview`) reads it: each table lists
+  the slots that have not ended yet, and the status counts come from the
+  tables' own status. Slots do not change a table's status by themselves.
+- There is no API to create or cancel a reservation yet; that arrives with
+  the client Reserve flow, together with its lifecycle states.
+
 ## Initial invariants
 
 1. A table cannot host overlapping active play sessions.

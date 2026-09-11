@@ -1,7 +1,9 @@
 package com.chanakanlabs.bgstore.tables;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,10 +24,21 @@ class JpaTableRepositoryAdapter implements TableRepository {
       @Nullable String branch,
       @Nullable String zone,
       @Nullable String status,
-      @Nullable String search) {
-    return database.findFiltered(branch, zone, status, search).stream()
+      @Nullable String search,
+      boolean activeOnly) {
+    return database.findFiltered(branch, zone, status, search, activeOnly).stream()
         .map(TableEntity::toRecord)
         .toList();
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Map<String, Long> countActiveByStatus(@Nullable String branch) {
+    return database.countActiveByStatus(branch).stream()
+        .collect(
+            Collectors.toMap(
+                JpaTableRepository.StatusCount::getStatus,
+                JpaTableRepository.StatusCount::getTables));
   }
 
   @Override

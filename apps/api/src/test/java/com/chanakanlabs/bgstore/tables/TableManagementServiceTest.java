@@ -2,10 +2,13 @@ package com.chanakanlabs.bgstore.tables;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 import com.chanakanlabs.bgstore.identity.AccessPolicy;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -46,6 +49,52 @@ class TableManagementServiceTest {
 
     assertThat(result.items()).hasSize(1);
     assertThat(result.items().getFirst().name()).isEqualTo("Table 12");
+  }
+
+  @Test
+  void searchMatchesATableIdExactly() {
+    repository.save(
+        new TableRecordData(
+            30L,
+            "Window seat",
+            "Sukhumvit",
+            2,
+            "Square",
+            "Available",
+            true,
+            "Main Hall",
+            OffsetDateTime.now(ZoneOffset.UTC)));
+
+    var result = service.listTables(null, null, null, " 30 ", 1, 10);
+
+    assertThat(result.items()).extracting(TableRecordData::id).containsExactly(30L);
+  }
+
+  @Test
+  void countsInServiceTablesByStatusAcrossTheFloor() {
+    saveOutOfService(40L, "Available");
+
+    var counts = service.countActiveByStatus(null);
+
+    verify(accessPolicy).requireStaffOrManager();
+    assertThat(counts).containsOnly(entry("Available", 1L), entry("Reserved", 1L));
+  }
+
+  @Test
+  void countsInServiceTablesByStatusWithinOneBranch() {
+    assertThat(service.countActiveByStatus("silom")).containsOnly(entry("Reserved", 1L));
+  }
+
+  @Test
+  void listsOnlyInServiceTablesForTheFloor() {
+    saveOutOfService(40L, "Available");
+
+    var floor = service.listActiveTables(null, null, null, 1, 10);
+    var managed = service.listTables(null, null, null, null, 1, 10);
+
+    assertThat(floor.items()).extracting(TableRecordData::id).containsExactly(1L, 12L);
+    assertThat(floor.total()).isEqualTo(2);
+    assertThat(managed.items()).extracting(TableRecordData::id).contains(40L);
   }
 
   @Test
@@ -156,6 +205,20 @@ class TableManagementServiceTest {
             e ->
                 assertThat(((ResponseStatusException) e).getStatusCode())
                     .isEqualTo(HttpStatus.NOT_FOUND));
+  }
+
+  private void saveOutOfService(long id, String status) {
+    repository.save(
+        new TableRecordData(
+            id,
+            "Broken table",
+            "Sukhumvit",
+            4,
+            "Round",
+            status,
+            false,
+            "Main Hall",
+            OffsetDateTime.now(ZoneOffset.UTC)));
   }
 
   @Test

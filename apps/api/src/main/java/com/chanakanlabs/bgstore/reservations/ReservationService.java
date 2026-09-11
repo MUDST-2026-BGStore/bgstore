@@ -15,9 +15,11 @@ public class ReservationService {
   public record PageResult<T>(List<T> items, int total, int page, int pageSize, int totalPages) {}
 
   private final JpaReservationRepository repository;
+  private final ReservedSlots reservedSlots;
 
-  public ReservationService(JpaReservationRepository repository) {
+  public ReservationService(JpaReservationRepository repository, ReservedSlots reservedSlots) {
     this.repository = repository;
+    this.reservedSlots = reservedSlots;
   }
 
   @Transactional(readOnly = true)
@@ -65,6 +67,7 @@ public class ReservationService {
 
     entity.cancel();
     ReservationEntity saved = repository.save(entity);
+    reservedSlots.releaseFor(reservationId);
     return saved.toRecord();
   }
 }
