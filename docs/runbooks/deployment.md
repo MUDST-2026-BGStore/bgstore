@@ -26,4 +26,4 @@ kubectl -n keycloak get gateway,httproute,certificate
 
 ## Rollback
 
-Revert the digest promotion commit. Argo CD will restore the prior immutable image. A database migration rollback is a separate, reviewed recovery operation; migrations are designed expand-first so application rollback remains possible.
+Revert the digest promotion commit. Argo CD will restore the prior immutable image. Schema changes are applied by Hibernate `ddl-auto=update`, which is additive, so a rolled-back image meets a schema that still carries the newer columns; dropping them is a separate, reviewed recovery operation.

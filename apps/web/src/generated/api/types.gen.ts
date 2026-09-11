@@ -10,15 +10,6 @@ export type HelloResponse = {
   database: 'connected';
 };
 
-export type ProblemDetail = {
-  type: string;
-  title: string;
-  status: number;
-  detail?: string;
-  instance?: string;
-  [key: string]: unknown;
-};
-
 export type ApplicationRole = 'CLIENT' | 'STAFF' | 'MANAGER';
 
 export type ClientProfile = {
@@ -45,9 +36,184 @@ export type CurrentUserResponse = {
 
 export type CompleteClientProfileRequest = {
   /**
-   * A Thai mobile number, with or without the +66 country code.
+   * International dialing prefix in E.164 form.
    */
-  phone: string;
+  countryCode: string;
+  /**
+   * National phone number, entered without the country code.
+   */
+  phoneNumber: string;
+};
+
+export type Branch = {
+  id: string;
+  name: string;
+};
+
+export type BranchList = {
+  items: Array<Branch>;
+};
+
+/**
+ * A language the catalogue publishes metadata in. `en` is the canonical entry every game carries; `th` is the Thai translation.
+ */
+export type CatalogueLocale = 'en' | 'th';
+
+/**
+ * A game title in the languages the catalogue publishes.
+ *
+ * Fallback rule: to render in a locale, take that locale's value when it is present and not blank, and fall back to `en` otherwise. `en` is required, so a title always resolves to something.
+ */
+export type LocalizedTitle = {
+  en: string;
+  th?: string | null;
+};
+
+/**
+ * A short description in the languages the catalogue publishes. Both languages are optional; the `LocalizedTitle` fallback rule applies, and here it can resolve to nothing when neither language carries text.
+ */
+export type LocalizedDescription = {
+  en?: string | null;
+  th?: string | null;
+};
+
+/**
+ * Catalogue category. Values map to `games.category.*` messages.
+ */
+export type GameCategory = 'family' | 'card' | 'party' | 'strategy';
+
+/**
+ * Whether the game is still offered in store.
+ */
+export type GameLifecycle = 'active' | 'retired';
+
+/**
+ * Display status. `retired` reflects the lifecycle; the other three are derived from copies and the copies currently out on a session. Values map to `games.status.*` messages.
+ */
+export type GameAvailability =
+  | 'available'
+  | 'allCopiesOut'
+  | 'retired'
+  | 'notStocked';
+
+export type BranchStock = {
+  branchId: string;
+  branchName: string;
+  copies: number;
+  available: number;
+  inUse: number;
+  status: GameAvailability;
+};
+
+export type GameSummary = {
+  id: string;
+  title: LocalizedTitle;
+  category: GameCategory;
+  minPlayers: number;
+  maxPlayers: number;
+  /**
+   * The branch this row's figures come from, when they come from exactly one branch. Null when the game is stocked at several branches and no branch filter is applied.
+   */
+  branchName?: string | null;
+  branchCount: number;
+  copies: number;
+  available: number;
+  status: GameAvailability;
+};
+
+export type PageMeta = {
+  number: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+};
+
+/**
+ * Totals over the whole filtered set, before pagination.
+ */
+export type GameStats = {
+  titles: number;
+  availableNow: number;
+  inUse: number;
+};
+
+export type GameListResponse = {
+  items: Array<GameSummary>;
+  page: PageMeta;
+  stats: GameStats;
+};
+
+export type GameDetail = {
+  id: string;
+  title: LocalizedTitle;
+  description?: LocalizedDescription | null;
+  category: GameCategory;
+  minPlayers: number;
+  maxPlayers: number;
+  playTimeMinutes?: number | null;
+  difficulty?: string | null;
+  tags: Array<string>;
+  lifecycle: GameLifecycle;
+  status: GameAvailability;
+  addedAt: string;
+  /**
+   * Set by the play-session module; null until a session used this game.
+   */
+  lastPlayedAt?: string | null;
+  totalCopies: number;
+  /**
+   * Branches holding at least one copy.
+   */
+  branchCount: number;
+  /**
+   * One entry per branch in the directory, including branches with no copies.
+   */
+  stock: Array<BranchStock>;
+};
+
+export type BranchCopiesRequest = {
+  branchId: string;
+  copies: number;
+};
+
+export type GameRequest = {
+  title: LocalizedTitle;
+  description?: LocalizedDescription | null;
+  category: GameCategory;
+  minPlayers: number;
+  maxPlayers: number;
+  playTimeMinutes?: number | null;
+  difficulty?: string | null;
+  tags?: Array<string>;
+  lifecycle?: GameLifecycle;
+  /**
+   * Per-branch copy counts. Branches left out keep no copies; on update, branches left out are cleared.
+   */
+  copies?: Array<BranchCopiesRequest>;
+};
+
+export type ProblemDetail = {
+  type: string;
+  title: string;
+  status: number;
+  detail?: string;
+  instance?: string;
+  [key: string]: unknown;
+};
+
+export type FieldError = {
+  /**
+   * Dotted path of the rejected property, for example `copies[0].copies`.
+   */
+  field: string;
+  /**
+   * Message key the browser resolves through `games.form.errors.*`, falling back to the text itself when no message exists.
+   */
+  message: string;
+};
+
+export type ValidationProblem = ProblemDetail & {
+  errors: Array<FieldError>;
 };
 
 export type GetHelloData = {
@@ -140,3 +306,240 @@ export type CompleteClientProfileResponses = {
 
 export type CompleteClientProfileResponse =
   CompleteClientProfileResponses[keyof CompleteClientProfileResponses];
+
+export type ListBranchesData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/branches';
+};
+
+export type ListBranchesErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
+};
+
+export type ListBranchesError = ListBranchesErrors[keyof ListBranchesErrors];
+
+export type ListBranchesResponses = {
+  /**
+   * The branch directory, ordered by name.
+   */
+  200: BranchList;
+};
+
+export type ListBranchesResponse =
+  ListBranchesResponses[keyof ListBranchesResponses];
+
+export type ListGamesData = {
+  body?: never;
+  path?: never;
+  query?: {
+    /**
+     * Restrict stock figures and results to one branch.
+     */
+    branchId?: string;
+    category?: GameCategory;
+    status?: GameAvailability;
+    /**
+     * Case-insensitive match on either published title, so a Thai title is found by typing Thai and an English one by typing English.
+     */
+    search?: string;
+    /**
+     * Language the page is ordered by. Rows are sorted on the title this locale resolves to under the `LocalizedTitle` fallback rule, so the order matches what a reader in that locale sees.
+     */
+    locale?: CatalogueLocale;
+    /**
+     * Zero-based page index.
+     */
+    page?: number;
+    size?: number;
+  };
+  url: '/games';
+};
+
+export type ListGamesErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The payload is well-formed but violates a rule.
+   */
+  422: ValidationProblem;
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
+};
+
+export type ListGamesError = ListGamesErrors[keyof ListGamesErrors];
+
+export type ListGamesResponses = {
+  /**
+   * The matching page of games.
+   */
+  200: GameListResponse;
+};
+
+export type ListGamesResponse = ListGamesResponses[keyof ListGamesResponses];
+
+export type CreateGameData = {
+  body: GameRequest;
+  path?: never;
+  query?: never;
+  url: '/games';
+};
+
+export type CreateGameErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The payload is well-formed but violates a rule.
+   */
+  422: ValidationProblem;
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
+};
+
+export type CreateGameError = CreateGameErrors[keyof CreateGameErrors];
+
+export type CreateGameResponses = {
+  /**
+   * The created game.
+   */
+  201: GameDetail;
+};
+
+export type CreateGameResponse = CreateGameResponses[keyof CreateGameResponses];
+
+export type RetireGameData = {
+  body?: never;
+  path: {
+    gameId: string;
+  };
+  query?: never;
+  url: '/games/{gameId}';
+};
+
+export type RetireGameErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
+};
+
+export type RetireGameError = RetireGameErrors[keyof RetireGameErrors];
+
+export type RetireGameResponses = {
+  /**
+   * The game is retired.
+   */
+  204: void;
+};
+
+export type RetireGameResponse = RetireGameResponses[keyof RetireGameResponses];
+
+export type GetGameData = {
+  body?: never;
+  path: {
+    gameId: string;
+  };
+  query?: never;
+  url: '/games/{gameId}';
+};
+
+export type GetGameErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
+};
+
+export type GetGameError = GetGameErrors[keyof GetGameErrors];
+
+export type GetGameResponses = {
+  /**
+   * The requested game.
+   */
+  200: GameDetail;
+};
+
+export type GetGameResponse = GetGameResponses[keyof GetGameResponses];
+
+export type UpdateGameData = {
+  body: GameRequest;
+  path: {
+    gameId: string;
+  };
+  query?: never;
+  url: '/games/{gameId}';
+};
+
+export type UpdateGameErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+  /**
+   * The payload is well-formed but violates a rule.
+   */
+  422: ValidationProblem;
+  /**
+   * The client must complete onboarding before using this endpoint.
+   */
+  428: ProblemDetail;
+};
+
+export type UpdateGameError = UpdateGameErrors[keyof UpdateGameErrors];
+
+export type UpdateGameResponses = {
+  /**
+   * The updated game.
+   */
+  200: GameDetail;
+};
+
+export type UpdateGameResponse = UpdateGameResponses[keyof UpdateGameResponses];

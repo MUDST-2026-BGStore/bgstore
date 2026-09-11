@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: BGStore API
-  version: 0.1.0
+  version: 0.2.0
   description: Contract for the BGStore management platform.
   license:
     name: Apache-2.0
@@ -14,6 +14,10 @@ tags:
     description: Walking-skeleton operations.
   - name: Identity
     description: The authenticated BGStore user context and client onboarding.
+  - name: Branches
+    description: Store branch directory.
+  - name: Games
+    description: Game catalogue and per-branch stock.
 paths:
   /hello:
     get:
@@ -69,6 +73,201 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+  /branches:
+    get:
+      tags: [Branches]
+      operationId: listBranches
+      summary: List the store branches games can be stocked at.
+      responses:
+        '200':
+          description: The branch directory, ordered by name.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '428':
+          $ref: '#/components/responses/OnboardingRequired'
+  /games:
+    get:
+      tags: [Games]
+      operationId: listGames
+      summary: List games with their stock roll-up.
+      description: >-
+        Copies and availability are summed over the branches the filter selects.
+        `stats` and `page.totalElements` describe the whole filtered set, not the
+        returned page.
+      parameters:
+        - name: branchId
+          in: query
+          required: false
+          description: Restrict stock figures and results to one branch.
+          schema:
+            type: string
+            format: uuid
+        - name: category
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/GameCategory'
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/GameAvailability'
+        - name: search
+          in: query
+          required: false
+          description: >-
+            Case-insensitive match on either published title, so a Thai title is
+            found by typing Thai and an English one by typing English.
+          schema:
+            type: string
+            maxLength: 120
+        - name: locale
+          in: query
+          required: false
+          description: >-
+            Language the page is ordered by. Rows are sorted on the title this
+            locale resolves to under the `LocalizedTitle` fallback rule, so the
+            order matches what a reader in that locale sees.
+          schema:
+            $ref: '#/components/schemas/CatalogueLocale'
+        - name: page
+          in: query
+          required: false
+          description: Zero-based page index.
+          schema:
+            type: integer
+            format: int32
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int32
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: The matching page of games.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '428':
+          $ref: '#/components/responses/OnboardingRequired'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+    post:
+      tags: [Games]
+      operationId: createGame
+      summary: Add a game to the catalogue.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GameRequest'
+      responses:
+        '201':
+          description: The created game.
+          headers:
+            Location:
+              description: URL of the created game.
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '428':
+          $ref: '#/components/responses/OnboardingRequired'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+  /games/{gameId}:
+    parameters:
+      - name: gameId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      tags: [Games]
+      operationId: getGame
+      summary: Read one game with its per-branch stock.
+      responses:
+        '200':
+          description: The requested game.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '428':
+          $ref: '#/components/responses/OnboardingRequired'
+    put:
+      tags: [Games]
+      operationId: updateGame
+      summary: Replace a game and its per-branch stock.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GameRequest'
+      responses:
+        '200':
+          description: The updated game.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GameDetail'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+        '428':
+          $ref: '#/components/responses/OnboardingRequired'
+    delete:
+      tags: [Games]
+      operationId: retireGame
+      summary: Retire a game.
+      description: >-
+        Retiring is the inventory list's delete action. The record is kept so
+        past play sessions keep referring to a real game; a retired game still
+        appears in the inventory under the `retired` status and can be brought
+        back by updating it with `lifecycle: active`.
+      responses:
+        '204':
+          description: The game is retired.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '428':
+          $ref: '#/components/responses/OnboardingRequired'
 components:
   securitySchemes:
     cookieAuth:
@@ -100,6 +299,18 @@ components:
         application/problem+json:
           schema:
             $ref: '#/components/schemas/ProblemDetail'
+    NotFound:
+      description: The resource does not exist.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    UnprocessableContent:
+      description: The payload is well-formed but violates a rule.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblem'
   schemas:
     HelloResponse:
       type: object
@@ -115,25 +326,6 @@ components:
         database:
           type: string
           enum: [connected]
-    ProblemDetail:
-      type: object
-      additionalProperties: true
-      required: [type, title, status]
-      properties:
-        type:
-          type: string
-          format: uri-reference
-        title:
-          type: string
-        status:
-          type: integer
-          minimum: 400
-          maximum: 599
-        detail:
-          type: string
-        instance:
-          type: string
-          format: uri-reference
     ApplicationRole:
       type: string
       enum: [CLIENT, STAFF, MANAGER]
@@ -187,10 +379,401 @@ components:
     CompleteClientProfileRequest:
       type: object
       additionalProperties: false
-      required: [phone]
+      required: [countryCode, phoneNumber]
       properties:
-        phone:
+        countryCode:
           type: string
-          description: A Thai mobile number, with or without the +66 country code.
-          minLength: 10
-          maxLength: 13
+          description: International dialing prefix in E.164 form.
+          pattern: '^\+[1-9][0-9]{0,3}$'
+          example: '+66'
+        phoneNumber:
+          type: string
+          description: National phone number, entered without the country code.
+          minLength: 4
+          maxLength: 15
+          pattern: '^[0-9][0-9() .-]*$'
+          example: '081 234 5678'
+    Branch:
+      type: object
+      additionalProperties: false
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Central Rama II
+    BranchList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Branch'
+    CatalogueLocale:
+      type: string
+      description: >-
+        A language the catalogue publishes metadata in. `en` is the canonical
+        entry every game carries; `th` is the Thai translation.
+      enum: [en, th]
+      default: en
+    LocalizedTitle:
+      type: object
+      additionalProperties: false
+      description: >-
+        A game title in the languages the catalogue publishes.
+
+
+        Fallback rule: to render in a locale, take that locale's value when it
+        is present and not blank, and fall back to `en` otherwise. `en` is
+        required, so a title always resolves to something.
+      required: [en]
+      properties:
+        en:
+          type: string
+          minLength: 1
+          maxLength: 120
+        th:
+          type: string
+          nullable: true
+          maxLength: 120
+    LocalizedDescription:
+      type: object
+      additionalProperties: false
+      description: >-
+        A short description in the languages the catalogue publishes. Both
+        languages are optional; the `LocalizedTitle` fallback rule applies, and
+        here it can resolve to nothing when neither language carries text.
+      properties:
+        en:
+          type: string
+          nullable: true
+          maxLength: 160
+        th:
+          type: string
+          nullable: true
+          maxLength: 160
+    GameCategory:
+      type: string
+      description: Catalogue category. Values map to `games.category.*` messages.
+      enum: [family, card, party, strategy]
+    GameLifecycle:
+      type: string
+      description: Whether the game is still offered in store.
+      enum: [active, retired]
+    GameAvailability:
+      type: string
+      description: >-
+        Display status. `retired` reflects the lifecycle; the other three are
+        derived from copies and the copies currently out on a session. Values
+        map to `games.status.*` messages.
+      enum: [available, allCopiesOut, retired, notStocked]
+    BranchStock:
+      type: object
+      additionalProperties: false
+      required: [branchId, branchName, copies, available, inUse, status]
+      properties:
+        branchId:
+          type: string
+          format: uuid
+        branchName:
+          type: string
+        copies:
+          type: integer
+          format: int32
+          minimum: 0
+        available:
+          type: integer
+          format: int32
+          minimum: 0
+        inUse:
+          type: integer
+          format: int32
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/GameAvailability'
+    GameSummary:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          title,
+          category,
+          minPlayers,
+          maxPlayers,
+          branchCount,
+          copies,
+          available,
+          status,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          $ref: '#/components/schemas/LocalizedTitle'
+        category:
+          $ref: '#/components/schemas/GameCategory'
+        minPlayers:
+          type: integer
+          format: int32
+        maxPlayers:
+          type: integer
+          format: int32
+        branchName:
+          type: string
+          nullable: true
+          description: >-
+            The branch this row's figures come from, when they come from exactly
+            one branch. Null when the game is stocked at several branches and no
+            branch filter is applied.
+        branchCount:
+          type: integer
+          format: int32
+          minimum: 0
+        copies:
+          type: integer
+          format: int32
+          minimum: 0
+        available:
+          type: integer
+          format: int32
+          minimum: 0
+        status:
+          $ref: '#/components/schemas/GameAvailability'
+    PageMeta:
+      type: object
+      additionalProperties: false
+      required: [number, size, totalElements, totalPages]
+      properties:
+        number:
+          type: integer
+          format: int32
+          minimum: 0
+        size:
+          type: integer
+          format: int32
+          minimum: 1
+        totalElements:
+          type: integer
+          format: int64
+          minimum: 0
+        totalPages:
+          type: integer
+          format: int32
+          minimum: 0
+    GameStats:
+      type: object
+      additionalProperties: false
+      description: Totals over the whole filtered set, before pagination.
+      required: [titles, availableNow, inUse]
+      properties:
+        titles:
+          type: integer
+          format: int64
+          minimum: 0
+        availableNow:
+          type: integer
+          format: int64
+          minimum: 0
+        inUse:
+          type: integer
+          format: int64
+          minimum: 0
+    GameListResponse:
+      type: object
+      additionalProperties: false
+      required: [items, page, stats]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GameSummary'
+        page:
+          $ref: '#/components/schemas/PageMeta'
+        stats:
+          $ref: '#/components/schemas/GameStats'
+    GameDetail:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          title,
+          category,
+          minPlayers,
+          maxPlayers,
+          tags,
+          lifecycle,
+          status,
+          addedAt,
+          totalCopies,
+          branchCount,
+          stock,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          $ref: '#/components/schemas/LocalizedTitle'
+        description:
+          allOf:
+            - $ref: '#/components/schemas/LocalizedDescription'
+          nullable: true
+        category:
+          $ref: '#/components/schemas/GameCategory'
+        minPlayers:
+          type: integer
+          format: int32
+        maxPlayers:
+          type: integer
+          format: int32
+        playTimeMinutes:
+          type: integer
+          format: int32
+          nullable: true
+        difficulty:
+          type: string
+          nullable: true
+        tags:
+          type: array
+          items:
+            type: string
+        lifecycle:
+          $ref: '#/components/schemas/GameLifecycle'
+        status:
+          $ref: '#/components/schemas/GameAvailability'
+        addedAt:
+          type: string
+          format: date-time
+        lastPlayedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Set by the play-session module; null until a session used this game.
+        totalCopies:
+          type: integer
+          format: int32
+          minimum: 0
+        branchCount:
+          type: integer
+          format: int32
+          minimum: 0
+          description: Branches holding at least one copy.
+        stock:
+          type: array
+          description: One entry per branch in the directory, including branches with no copies.
+          items:
+            $ref: '#/components/schemas/BranchStock'
+    BranchCopiesRequest:
+      type: object
+      additionalProperties: false
+      required: [branchId, copies]
+      properties:
+        branchId:
+          type: string
+          format: uuid
+        copies:
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 999
+    GameRequest:
+      type: object
+      additionalProperties: false
+      required: [title, category, minPlayers, maxPlayers]
+      properties:
+        title:
+          $ref: '#/components/schemas/LocalizedTitle'
+        description:
+          allOf:
+            - $ref: '#/components/schemas/LocalizedDescription'
+          nullable: true
+        category:
+          $ref: '#/components/schemas/GameCategory'
+        minPlayers:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 99
+        maxPlayers:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 99
+        playTimeMinutes:
+          type: integer
+          format: int32
+          minimum: 1
+          maximum: 600
+          nullable: true
+        difficulty:
+          type: string
+          maxLength: 60
+          nullable: true
+        tags:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        lifecycle:
+          $ref: '#/components/schemas/GameLifecycle'
+        copies:
+          type: array
+          description: >-
+            Per-branch copy counts. Branches left out keep no copies; on update,
+            branches left out are cleared.
+          items:
+            $ref: '#/components/schemas/BranchCopiesRequest'
+    ProblemDetail:
+      type: object
+      additionalProperties: true
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+    FieldError:
+      type: object
+      additionalProperties: false
+      required: [field, message]
+      properties:
+        field:
+          type: string
+          description: Dotted path of the rejected property, for example `copies[0].copies`.
+        message:
+          type: string
+          description: >-
+            Message key the browser resolves through `games.form.errors.*`,
+            falling back to the text itself when no message exists.
+      example:
+        field: title.en
+        message: required
+    ValidationProblem:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetail'
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: array
+              items:
+                $ref: '#/components/schemas/FieldError'

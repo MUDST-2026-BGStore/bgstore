@@ -1,45 +1,40 @@
 package com.chanakanlabs.bgstore.clients;
 
-import java.time.OffsetDateTime;
 import java.util.Optional;
-import org.jooq.DSLContext;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * The profile store the client module reads and writes, over Spring Data JPA.
+ *
+ * <p>Kept as a class rather than exposing {@link ClientProfileJpaRepository} directly so callers
+ * keep speaking in {@link ClientProfileData} instead of the entity.
+ */
 @Repository
 class ClientProfileRepository {
 
-  private final DSLContext database;
+  private final ClientProfileJpaRepository profiles;
 
-  ClientProfileRepository(DSLContext database) {
-    this.database = database;
+  ClientProfileRepository(ClientProfileJpaRepository profiles) {
+    this.profiles = profiles;
   }
 
+  @Transactional
   void createIfAbsent(String subject) {
-    database.execute(
-        "INSERT INTO client_profiles (subject) VALUES (?) ON CONFLICT (subject) DO NOTHING",
-        subject);
+    if (!profiles.existsById(subject)) {
+      profiles.save(new ClientProfileRecord(subject));
+    }
   }
 
+  @Transactional(readOnly = true)
   Optional<ClientProfileData> findBySubject(String subject) {
-    return Optional.ofNullable(
-            database.fetchOne(
-                "SELECT phone_e164, completed_at FROM client_profiles WHERE subject = ?", subject))
-        .map(
-            record ->
-                new ClientProfileData(
-                    record.get("phone_e164", String.class),
-                    record.get("completed_at", OffsetDateTime.class) != null));
+    return profiles.findById(subject).map(ClientProfileRecord::toData);
   }
 
+  @Transactional
   ClientProfileData complete(String subject, String phoneE164) {
-    database.execute(
-        """
-        UPDATE client_profiles
-        SET phone_e164 = ?, completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-        WHERE subject = ?
-        """,
-        phoneE164,
-        subject);
-    return findBySubject(subject).orElseThrow();
+    var profile = profiles.findById(subject).orElseThrow();
+    profile.complete(phoneE164);
+    return profiles.save(profile).toData();
   }
 }

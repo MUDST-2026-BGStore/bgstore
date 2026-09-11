@@ -66,14 +66,14 @@ class CurrentUserApiIntegrationTest {
   }
 
   @Test
-  void completesTheProfileWithAThaiMobileNumber() throws Exception {
+  void completesTheProfileWithACountryCodedPhoneNumber() throws Exception {
     mockMvc
         .perform(
             put("/api/v1/me/client-profile")
                 .with(clientLogin("9891d60a-7417-4cdd-b817-f40c1aa01234"))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"phone\":\"081 234 5678\"}"))
+                .content("{\"countryCode\":\"+66\",\"phoneNumber\":\"081 234 5678\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.phone").value("+66812345678"))
         .andExpect(jsonPath("$.completed").value(true));

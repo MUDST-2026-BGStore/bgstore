@@ -12,12 +12,30 @@ import type {
   CompleteClientProfileData,
   CompleteClientProfileErrors,
   CompleteClientProfileResponses,
+  CreateGameData,
+  CreateGameErrors,
+  CreateGameResponses,
   GetCurrentUserData,
   GetCurrentUserErrors,
   GetCurrentUserResponses,
+  GetGameData,
+  GetGameErrors,
+  GetGameResponses,
   GetHelloData,
   GetHelloErrors,
   GetHelloResponses,
+  ListBranchesData,
+  ListBranchesErrors,
+  ListBranchesResponses,
+  ListGamesData,
+  ListGamesErrors,
+  ListGamesResponses,
+  RetireGameData,
+  RetireGameErrors,
+  RetireGameResponses,
+  UpdateGameData,
+  UpdateGameErrors,
+  UpdateGameResponses,
 } from './types.gen';
 
 export type Options<
@@ -105,6 +123,148 @@ export const completeClientProfile = <ThrowOnError extends boolean = false>(
       },
     ],
     url: '/me/client-profile',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * List the store branches games can be stocked at.
+ */
+export const listBranches = <ThrowOnError extends boolean = false>(
+  options?: Options<ListBranchesData, ThrowOnError>,
+): RequestResult<ListBranchesResponses, ListBranchesErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListBranchesResponses,
+    ListBranchesErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/branches',
+    ...options,
+  });
+
+/**
+ * List games with their stock roll-up.
+ *
+ * Copies and availability are summed over the branches the filter selects. `stats` and `page.totalElements` describe the whole filtered set, not the returned page.
+ */
+export const listGames = <ThrowOnError extends boolean = false>(
+  options?: Options<ListGamesData, ThrowOnError>,
+): RequestResult<ListGamesResponses, ListGamesErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListGamesResponses,
+    ListGamesErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/games',
+    ...options,
+  });
+
+/**
+ * Add a game to the catalogue.
+ */
+export const createGame = <ThrowOnError extends boolean = false>(
+  options: Options<CreateGameData, ThrowOnError>,
+): RequestResult<CreateGameResponses, CreateGameErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateGameResponses,
+    CreateGameErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/games',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Retire a game.
+ *
+ * Retiring is the inventory list's delete action. The record is kept so past play sessions keep referring to a real game; a retired game still appears in the inventory under the `retired` status and can be brought back by updating it with `lifecycle: active`.
+ */
+export const retireGame = <ThrowOnError extends boolean = false>(
+  options: Options<RetireGameData, ThrowOnError>,
+): RequestResult<RetireGameResponses, RetireGameErrors, ThrowOnError> =>
+  (options.client ?? client).delete<
+    RetireGameResponses,
+    RetireGameErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/games/{gameId}',
+    ...options,
+  });
+
+/**
+ * Read one game with its per-branch stock.
+ */
+export const getGame = <ThrowOnError extends boolean = false>(
+  options: Options<GetGameData, ThrowOnError>,
+): RequestResult<GetGameResponses, GetGameErrors, ThrowOnError> =>
+  (options.client ?? client).get<GetGameResponses, GetGameErrors, ThrowOnError>(
+    {
+      security: [
+        {
+          in: 'cookie',
+          name: '__Host-bgstore-session',
+          type: 'apiKey',
+        },
+      ],
+      url: '/games/{gameId}',
+      ...options,
+    },
+  );
+
+/**
+ * Replace a game and its per-branch stock.
+ */
+export const updateGame = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateGameData, ThrowOnError>,
+): RequestResult<UpdateGameResponses, UpdateGameErrors, ThrowOnError> =>
+  (options.client ?? client).put<
+    UpdateGameResponses,
+    UpdateGameErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/games/{gameId}',
     ...options,
     headers: {
       'Content-Type': 'application/json',
