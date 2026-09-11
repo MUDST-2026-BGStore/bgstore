@@ -15,6 +15,7 @@ const toneClass = computed(
       neutral: 'bg-surface border-line',
       success: 'bg-success-bg border-success-border',
       warning: 'bg-warning-bg border-warning-border',
+      info: 'bg-info-bg border-info-border',
     })[props.tone],
 );
 
@@ -24,6 +25,7 @@ const labelClass = computed(
       neutral: 'text-ink-secondary',
       success: 'text-success-fg',
       warning: 'text-warning-fg',
+      info: 'text-info-fg',
     })[props.tone],
 );
 </script>

@@ -4,6 +4,7 @@ import com.chanakanlabs.bgstore.identity.AccessPolicy;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,32 @@ public class TableManagementService {
       int pageSize) {
     accessPolicy.requireStaffOrManager();
 
-    List<TableRecordData> all = repository.findAll(branch, zone, status, search);
+    return pageOf(repository.findAll(branch, zone, status, trimmed(search), false), page, pageSize);
+  }
+
+  /** The tables in service, which are the ones the floor overview shows. */
+  public PageResult<TableRecordData> listActiveTables(
+      @Nullable String branch,
+      @Nullable String status,
+      @Nullable String search,
+      int page,
+      int pageSize) {
+    accessPolicy.requireStaffOrManager();
+
+    return pageOf(repository.findAll(branch, null, status, trimmed(search), true), page, pageSize);
+  }
+
+  /**
+   * How many tables in service are in each status, across every branch when {@code branch} is null.
+   */
+  public Map<String, Long> countActiveByStatus(@Nullable String branch) {
+    accessPolicy.requireStaffOrManager();
+
+    return repository.countActiveByStatus(branch);
+  }
+
+  private static PageResult<TableRecordData> pageOf(
+      List<TableRecordData> all, int page, int pageSize) {
     int total = all.size();
     int totalPages = Math.max(1, (int) Math.ceil((double) total / pageSize));
     int safePage = Math.max(1, Math.min(page, totalPages));
@@ -40,6 +66,10 @@ public class TableManagementService {
 
     List<TableRecordData> items = all.subList(fromIndex, toIndex);
     return new PageResult<>(items, total, safePage, pageSize, totalPages);
+  }
+
+  private static @Nullable String trimmed(@Nullable String search) {
+    return search == null ? null : search.trim();
   }
 
   public TableRecordData getTable(Long tableId) {

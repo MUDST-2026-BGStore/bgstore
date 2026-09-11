@@ -13,7 +13,18 @@ const fallbackRoute = {
 } as const;
 
 export const routes = [
-  { path: '/', name: 'home', component: HomeView },
+  // Home is the floor overview for staff and the store landing page for guests.
+  {
+    path: '/',
+    name: 'home',
+    component: RoleView,
+    props: {
+      staff: defineAsyncComponent(
+        () => import('./pages/floor/FloorOverviewPage.vue'),
+      ),
+      client: HomeView,
+    },
+  },
   { path: '/onboarding', name: 'onboarding', component: OnboardingView },
   { path: '/branches', name: 'branches', component: BranchListView },
   {

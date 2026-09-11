@@ -1,0 +1,184 @@
+package com.chanakanlabs.bgstore.reservations;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
+import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.OidcLoginRequestPostProcessor;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
+import org.testcontainers.containers.GenericContainer;
+import org.testcontainers.containers.PostgreSQLContainer;
+import org.testcontainers.junit.jupiter.Container;
+import org.testcontainers.junit.jupiter.Testcontainers;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+
+/** Exercises the floor overview against a real PostgreSQL, reservations schema from Hibernate. */
+@SpringBootTest(
+    properties = {
+      "management.logging.export.otlp.enabled=false",
+      "management.otlp.metrics.export.enabled=false",
+      "management.tracing.export.enabled=false"
+    })
+@AutoConfigureMockMvc
+@Testcontainers
+class FloorOverviewApiIntegrationTest {
+
+  @Container
+  static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.1-alpine");
+
+  @Container
+  static final GenericContainer<?> REDIS =
+      new GenericContainer<>("redis:8.4-alpine")
+          .withExposedPorts(6379)
+          .withCommand("redis-server", "--requirepass", "test-password");
+
+  @DynamicPropertySource
+  static void databaseProperties(DynamicPropertyRegistry registry) {
+    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+    registry.add("spring.datasource.username", POSTGRES::getUsername);
+    registry.add("spring.datasource.password", POSTGRES::getPassword);
+    registry.add("spring.data.redis.host", REDIS::getHost);
+    registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
+    registry.add("spring.data.redis.password", () -> "test-password");
+  }
+
+  @Autowired private MockMvc mockMvc;
+  @Autowired private ObjectMapper json;
+  @Autowired private JdbcTemplate database;
+
+  @BeforeEach
+  void seedFloor() {
+    database.execute("delete from table_reservation");
+    database.execute("delete from store_table");
+    table(1, "Table 1", "Silom", 4, "Round", "Available");
+    table(2, "Table 2", "Silom", 6, "Square", "Occupied");
+    table(3, "Table 3", "Silom", 6, "Round", "Reserved");
+    table(13, "Table 13", "Silom", 4, "Round", "Available");
+    table(4, "Window seat", "Sukhumvit", 2, "Round", "Available");
+  }
+
+  @Test
+  void anonymousUserCannotReachTheFloorOverview() throws Exception {
+    mockMvc.perform(get("/api/v1/floor-overview")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void countsTheBranchFloorWhileTheStatusFilterNarrowsTheRows() throws Exception {
+    mockMvc
+        .perform(
+            get("/api/v1/floor-overview")
+                .param("branch", "Silom")
+                .param("status", "Available")
+                .with(staffLogin()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.counts.available").value(2))
+        .andExpect(jsonPath("$.counts.occupied").value(1))
+        .andExpect(jsonPath("$.counts.reserved").value(1))
+        .andExpect(jsonPath("$.total").value(2))
+        .andExpect(jsonPath("$.items[0].id").value(1))
+        .andExpect(jsonPath("$.items[1].id").value(13));
+  }
+
+  @Test
+  void pagesTheTablesAndAttachesTheirUpcomingSlotsSoonestFirst() throws Exception {
+    reservation(2, "now() + interval '3 hours'", "now() + interval '4 hours'");
+    reservation(2, "now() - interval '3 hours'", "now() - interval '1 hour'");
+    reservation(2, "now() + interval '1 hour'", "now() + interval '2 hours'");
+    reservation(4, "now() + interval '1 hour'", "now() + interval '2 hours'");
+
+    var body =
+        read(
+            mockMvc
+                .perform(
+                    get("/api/v1/floor-overview")
+                        .param("branch", "Silom")
+                        .param("pageSize", "2")
+                        .with(staffLogin()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(4))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].reservedSlots.length()").value(0))
+                .andExpect(jsonPath("$.items[1].name").value("Table 2"))
+                .andExpect(jsonPath("$.items[1].capacity").value(6))
+                .andExpect(jsonPath("$.items[1].shape").value("Square"))
+                .andExpect(jsonPath("$.items[1].status").value("Occupied"))
+                .andExpect(jsonPath("$.items[1].reservedSlots.length()").value(2))
+                .andReturn()
+                .getResponse()
+                .getContentAsString());
+
+    var slots = body.get("items").get(1).get("reservedSlots");
+    var first = OffsetDateTime.parse(slots.get(0).get("startsAt").asString());
+    var second = OffsetDateTime.parse(slots.get(1).get("startsAt").asString());
+    assertThat(first).isBefore(second);
+  }
+
+  @Test
+  void findsATableByItsId() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/floor-overview").param("search", "4").with(staffLogin()))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].name").value("Window seat"));
+  }
+
+  private void table(
+      long id, String name, String branch, int capacity, String shape, String status) {
+    database.update(
+        """
+        insert into store_table (id, name, branch, capacity, shape, status, active, zone, last_updated)
+        values (?, ?, ?, ?, ?, ?, true, 'Main Hall', current_timestamp)
+        """,
+        id,
+        name,
+        branch,
+        capacity,
+        shape,
+        status);
+  }
+
+  private void reservation(long tableId, String startsAt, String endsAt) {
+    database.update(
+        "insert into table_reservation (table_id, starts_at, ends_at) values (?, "
+            + startsAt
+            + ", "
+            + endsAt
+            + ")",
+        tableId);
+  }
+
+  private JsonNode read(String body) {
+    return json.readTree(body);
+  }
+
+  private static OidcLoginRequestPostProcessor staffLogin() {
+    return SecurityMockMvcRequestPostProcessors.oidcLogin()
+        .idToken(
+            token ->
+                token.claims(
+                    claims ->
+                        claims.putAll(
+                            Map.of(
+                                "sub", "floor-staff",
+                                "preferred_username", "staff@example.test",
+                                "email", "staff@example.test",
+                                "given_name", "Local",
+                                "family_name", "Staff",
+                                "realm_access", Map.of("roles", List.of("STAFF"))))));
+  }
+}

@@ -6,6 +6,7 @@ import App from './App.vue';
 import { client } from '../generated/api/client.gen';
 import { messages } from '../i18n';
 import { router } from '../router';
+import { route, stubApi } from '../test/api-stub';
 
 describe('BGStore authentication context', () => {
   afterEach(() => {
@@ -61,6 +62,54 @@ describe('BGStore authentication context', () => {
     expect(wrapper.get('[data-testid="api-message"]').text()).toBe(
       'Hello, BGStore!',
     );
+  });
+
+  it('opens on the floor overview for staff', async () => {
+    stubApi([
+      route('/me', {
+        body: {
+          subject: 'floor-staff',
+          username: 'staff@example.test',
+          email: 'staff@example.test',
+          firstName: 'Local',
+          lastName: 'Staff',
+          roles: ['STAFF'],
+          onboardingRequired: false,
+        },
+      }),
+      route('/floor-overview', {
+        body: {
+          counts: { available: 1, occupied: 0, reserved: 0 },
+          items: [],
+          total: 0,
+          page: 1,
+          pageSize: 5,
+          totalPages: 1,
+        },
+      }),
+    ]);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const i18n = createI18n({ legacy: false, locale: 'en', messages });
+    await router.push('/');
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient }], router, i18n],
+      },
+    });
+
+    await vi.waitFor(async () => {
+      await flushPromises();
+      expect(wrapper.find('h1').text()).toBe('Floor overview');
+    });
+    expect(
+      wrapper
+        .get('nav[aria-label="Staff navigation"] [aria-current="page"]')
+        .text(),
+    ).toBe('Home');
   });
 
   it('offers BFF sign-in when no application session exists', async () => {
