@@ -62,9 +62,9 @@ class GameEntity {
   @Column(name = "tags", nullable = false)
   private String[] tags = new String[0];
 
-  // The columns below were added after the table first shipped. `ddl-auto`
-  // cannot add a NOT NULL column to a table that already holds rows, so they
-  // are nullable in the schema and an absent value reads as "none".
+  // The columns below were added after the table first shipped. The append-only
+  // Flyway migration keeps them nullable so existing catalogue rows remain valid;
+  // an absent value reads as "none".
 
   @JdbcTypeCode(SqlTypes.ARRAY)
   @Column(name = "image_urls")

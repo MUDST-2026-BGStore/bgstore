@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { h, type Component } from 'vue';
+import { h, markRaw, type Component } from 'vue';
 import RoleView from './RoleView.vue';
 import { hasStaffAccess } from '../queries/current-user';
 import { renderScreen, route, stubApi } from '../test/api-stub';
 import type { ApplicationRole } from '../generated/api/types.gen';
 
 /** Stand-ins, so the assertion is about which screen was picked, not its contents. */
-const screen = (text: string): Component => ({ render: () => h('p', text) });
+const screen = (text: string): Component =>
+  markRaw({ render: () => h('p', text) });
 const Staff = screen('staff screen');
 const Client = screen('client screen');
 

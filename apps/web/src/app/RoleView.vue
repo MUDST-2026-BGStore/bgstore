@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query';
-import { computed, type Component } from 'vue';
+import { computed, markRaw, type Component } from 'vue';
 import {
   currentUserQueryOptions,
   hasStaffAccess,
@@ -23,7 +23,9 @@ const screen = computed(() => {
     return undefined;
   }
 
-  return hasStaffAccess(user.roles) ? props.staff : props.client;
+  // Components are definitions, not reactive state. Marking the selected
+  // definition raw avoids Vue wrapping it when it crosses the prop boundary.
+  return markRaw(hasStaffAccess(user.roles) ? props.staff : props.client);
 });
 </script>
 
