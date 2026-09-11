@@ -176,6 +176,10 @@ final class GameValidator {
 
     for (int index = 0; index < requested.size(); index++) {
       var entry = requested.get(index);
+      if (entry == null) {
+        violations.add(new FieldViolation("copies[" + index + "]", FieldViolation.REQUIRED));
+        continue;
+      }
       var branchId = entry.getBranchId();
       var field = "copies[" + index + "].branchId";
 

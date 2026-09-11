@@ -162,8 +162,15 @@ const lastStockIndex = computed(() => (game.value?.stock.length ?? 0) - 1);
         <UiCard :title="t('games.details.overview')">
           <div class="flex w-full items-start gap-5">
             <div
-              class="h-[174px] w-[260px] shrink-0 rounded-lg border border-line bg-surface-sunken"
-            />
+              class="h-[174px] w-[260px] shrink-0 overflow-hidden rounded-lg border border-line bg-surface-sunken"
+            >
+              <img
+                v-if="game.imageUrls[0]"
+                :src="game.imageUrls[0]"
+                :alt="title"
+                class="block size-full object-cover"
+              />
+            </div>
             <div class="flex min-w-0 flex-1 flex-col items-start gap-3.5">
               <p
                 v-if="description"

@@ -180,6 +180,15 @@ class GameValidatorTest {
   }
 
   @Test
+  void rejectsANullCopyEntryRatherThanFailingOnIt() {
+    var request = request();
+    request.setCopies(Arrays.asList(null, new BranchCopiesRequest(SILOM, 1)));
+
+    assertThat(violationsOf(request))
+        .containsExactly(new FieldViolation("copies[0]", FieldViolation.REQUIRED));
+  }
+
+  @Test
   void rejectsATitleThatIsOnlyWhitespace() {
     var request = request();
     request.setTitle(title("   ", null));

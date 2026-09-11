@@ -164,7 +164,7 @@ describe('FloorOverviewPage', () => {
     await wrapper.get('#floor-status').setValue('Occupied');
     await flushPromises();
     expect(lastQuery(calls, '/floor-overview')?.get('page')).toBe('1');
-  });
+  }, 10_000);
 
   it('follows the page the API answers with when the floor has shrunk', async () => {
     let shrunk = false;

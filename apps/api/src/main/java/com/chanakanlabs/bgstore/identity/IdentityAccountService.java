@@ -12,17 +12,14 @@ public class IdentityAccountService {
     this.accounts = accounts;
   }
 
-  /**
-   * Upserts the account. Without a database-side {@code ON CONFLICT}, the read and the write are
-   * one transaction so two concurrent sign-ins cannot both insert.
-   */
+  /** Upserts the account atomically so concurrent first sign-ins cannot race on the subject key. */
   @Transactional
   public void synchronize(AuthenticatedIdentity identity) {
-    var account =
-        accounts
-            .findById(identity.subject())
-            .orElseGet(() -> new IdentityAccount(identity.subject()));
-    account.apply(identity.username(), identity.email(), identity.firstName(), identity.lastName());
-    accounts.save(account);
+    accounts.upsert(
+        identity.subject(),
+        identity.username(),
+        identity.email(),
+        identity.firstName(),
+        identity.lastName());
   }
 }

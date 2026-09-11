@@ -90,52 +90,6 @@ body {
   }
 }
 
-.shell {
-  width: min(1120px, calc(100% - 2rem));
-  margin: 0 auto;
-}
-
-.masthead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 5.5rem;
-  border-bottom: 1px solid var(--line);
-}
-
-.brand {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-weight: 750;
-  letter-spacing: -0.02em;
-}
-
-.brand-mark {
-  display: grid;
-  width: 2.4rem;
-  height: 2.4rem;
-  place-items: center;
-  border-radius: 0.65rem;
-  color: white;
-  background: var(--accent);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
-}
-
-.site-nav {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  color: #53606b;
-  font-size: 0.88rem;
-}
-
-.site-nav a {
-  color: #2b5f6c;
-  font-weight: 700;
-}
-
 .eyebrow {
   margin: 0 0 1rem;
   color: var(--accent);
@@ -161,10 +115,6 @@ body {
 }
 
 @media (max-width: 640px) {
-  .site-nav {
-    gap: 0.75rem;
-  }
-
   .button {
     width: 100%;
     margin: 0.5rem 0 0;

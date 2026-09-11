@@ -56,9 +56,7 @@ class GameApiIntegrationTest {
           .withExposedPorts(6379)
           .withCommand("redis-server", "--requirepass", "test-password");
 
-  /**
-   * Reference branches are ensured by {@code BranchDirectorySeed}; the screens address them by id.
-   */
+  /** Reference branches are owned by Flyway migration V3; the screens address them by id. */
   private static final UUID CENTRAL_RAMA_II =
       UUID.fromString("3f0d7d5a-9a2b-4a71-8f0e-000000000001");
 

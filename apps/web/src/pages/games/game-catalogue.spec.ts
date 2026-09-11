@@ -181,13 +181,12 @@ describe('game catalogue screen', () => {
     );
   });
 
-  it('frames the page with the guest header, with Game marked as current', async () => {
+  it('leaves application navigation to the shared app shell', async () => {
     const { wrapper } = await catalogue(route('/games', { body: gameList() }));
 
-    const current = wrapper.get('header [aria-current="page"]');
-    expect(current.text()).toBe('Game');
-    expect(current.attributes('href')).toBe('/games');
-    expect(wrapper.get('header').text()).toContain('Book a table');
+    expect(wrapper.find('nav[aria-label="Primary navigation"]').exists()).toBe(
+      false,
+    );
   });
 });
 
@@ -309,7 +308,7 @@ describe('game catalogue detail screen', () => {
     expect(photo()).toBe('https://cdn.example.com/ek-cards.jpg');
   });
 
-  it('renders its own not-found state inside the guest header', async () => {
+  it('renders its own not-found state without duplicating the app shell', async () => {
     const wrapper = await detail(
       'not-in-any-fixture',
       route('/games/not-in-any-fixture', {
@@ -321,6 +320,8 @@ describe('game catalogue detail screen', () => {
     expect(wrapper.get('[data-testid="catalogue-game-not-found"]').text()).toBe(
       'That game is no longer in the inventory.',
     );
-    expect(wrapper.get('header').text()).toContain('Book a table');
+    expect(wrapper.find('nav[aria-label="Primary navigation"]').exists()).toBe(
+      false,
+    );
   });
 });

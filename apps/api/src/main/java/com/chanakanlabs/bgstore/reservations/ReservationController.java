@@ -9,7 +9,6 @@ import com.chanakanlabs.bgstore.contract.model.ReservationResponse;
 import com.chanakanlabs.bgstore.contract.model.ReservationStatus;
 import com.chanakanlabs.bgstore.contract.model.TableShape;
 import com.chanakanlabs.bgstore.contract.model.TableStatus;
-import com.chanakanlabs.bgstore.identity.CurrentIdentityProvider;
 import java.util.List;
 import java.util.Objects;
 import org.springframework.http.ResponseEntity;
@@ -22,27 +21,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReservationController implements ReservationsApi {
 
   private final ReservationService reservations;
-  private final CurrentIdentityProvider identityProvider;
   private final FloorOverviewService floor;
 
-  public ReservationController(
-      ReservationService reservations,
-      CurrentIdentityProvider identityProvider,
-      FloorOverviewService floor) {
+  public ReservationController(ReservationService reservations, FloorOverviewService floor) {
     this.reservations = reservations;
-    this.identityProvider = identityProvider;
     this.floor = floor;
   }
 
   @Override
   public ResponseEntity<ReservationListResponse> listReservations(
       @Nullable ReservationStatus status, Integer page, Integer pageSize) {
-    String clientSubject = identityProvider.currentIdentity().subject();
     String statusString = status != null ? status.getValue() : null;
     int pageNum = page != null ? page : 1;
     int size = pageSize != null ? pageSize : 4;
 
-    var result = reservations.listReservations(clientSubject, statusString, pageNum, size);
+    var result = reservations.listReservations(statusString, pageNum, size);
     List<ReservationResponse> items =
         result.items().stream().map(ReservationController::toResponse).toList();
     ReservationListResponse response =
@@ -53,15 +46,12 @@ public class ReservationController implements ReservationsApi {
 
   @Override
   public ResponseEntity<ReservationResponse> getReservation(String reservationId) {
-    String clientSubject = identityProvider.currentIdentity().subject();
-    return ResponseEntity.ok(toResponse(reservations.getReservation(reservationId, clientSubject)));
+    return ResponseEntity.ok(toResponse(reservations.getReservation(reservationId)));
   }
 
   @Override
   public ResponseEntity<ReservationResponse> cancelReservation(String reservationId) {
-    String clientSubject = identityProvider.currentIdentity().subject();
-    return ResponseEntity.ok(
-        toResponse(reservations.cancelReservation(reservationId, clientSubject)));
+    return ResponseEntity.ok(toResponse(reservations.cancelReservation(reservationId)));
   }
 
   @Override

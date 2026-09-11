@@ -87,6 +87,27 @@ const goBack = () => {
             </dt>
             <dd class="mt-1 text-sm text-gray-900">{{ branch.name }}</dd>
           </div>
+          <div v-if="branch.address" class="rounded-lg bg-gray-50 p-4">
+            <dt
+              class="text-xs font-semibold uppercase tracking-wide text-gray-500"
+            >
+              {{ t('branch.address') }}
+            </dt>
+            <dd class="mt-1 text-sm text-gray-900">{{ branch.address }}</dd>
+          </div>
+          <div
+            v-if="branch.opensAt && branch.closesAt"
+            class="rounded-lg bg-gray-50 p-4"
+          >
+            <dt
+              class="text-xs font-semibold uppercase tracking-wide text-gray-500"
+            >
+              {{ t('branch.openingHours') }}
+            </dt>
+            <dd class="mt-1 text-sm text-gray-900">
+              {{ branch.opensAt }}–{{ branch.closesAt }}
+            </dd>
+          </div>
         </dl>
       </article>
     </div>

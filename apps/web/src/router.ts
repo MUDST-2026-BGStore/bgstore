@@ -10,6 +10,7 @@ import OnboardingView from './views/OnboardingView.vue';
 import BranchDetailView from './views/BranchDetailView.vue';
 import BranchListView from './views/BranchListView.vue';
 import UserProfileView from './views/UserProfileView.vue';
+import AccessDeniedView from './views/AccessDeniedView.vue';
 
 const fallbackRoute = {
   path: '/:pathMatch(.*)*',
@@ -54,29 +55,55 @@ export const routes: RouteRecordRaw[] = [
     path: '/login',
     name: 'login',
     component: () => import('./views/LoginView.vue'),
+    meta: { public: true },
   },
   { path: '/onboarding', name: 'onboarding', component: OnboardingView },
-  { path: '/branches', name: 'branches', component: BranchListView },
+  {
+    path: '/branches',
+    name: 'branches',
+    component: BranchListView,
+    meta: { public: true },
+  },
   {
     path: '/branches/:id',
     name: 'branch-detail',
     component: BranchDetailView,
+    meta: { public: true },
   },
   {
     path: '/tables',
     name: 'tables',
-    component: () => import('./app/tables/TableManagementView.vue'),
+    component: RoleView,
+    props: {
+      staff: defineAsyncComponent(
+        () => import('./app/tables/TableManagementView.vue'),
+      ),
+      client: AccessDeniedView,
+    },
+    meta: { requiresAuth: true },
   },
   {
     path: '/history',
     name: 'history',
-    component: () => import('./pages/history/ClientHistoryListPage.vue'),
+    component: RoleView,
+    props: {
+      staff: AccessDeniedView,
+      client: defineAsyncComponent(
+        () => import('./pages/history/ClientHistoryListPage.vue'),
+      ),
+    },
     meta: { requiresAuth: true },
   },
   {
     path: '/history/:id',
     name: 'history-detail',
-    component: () => import('./pages/history/ClientHistoryDetailPage.vue'),
+    component: RoleView,
+    props: {
+      staff: AccessDeniedView,
+      client: defineAsyncComponent(
+        () => import('./pages/history/ClientHistoryDetailPage.vue'),
+      ),
+    },
     meta: { requiresAuth: true },
   },
   // Staff manage the inventory at these two URLs; guests browse the catalogue
@@ -97,7 +124,14 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/games/new',
     name: 'games-new',
-    component: () => import('./pages/games/AddGamePage.vue'),
+    component: RoleView,
+    props: {
+      staff: defineAsyncComponent(
+        () => import('./pages/games/AddGamePage.vue'),
+      ),
+      client: AccessDeniedView,
+    },
+    meta: { requiresAuth: true },
   },
   // An id with no record is answered by the API, and the screen renders its
   // own "not found" state, so there is no route guard to keep in step with it.
@@ -117,7 +151,14 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/games/:gameId/edit',
     name: 'games-edit',
-    component: () => import('./pages/games/EditGamePage.vue'),
+    component: RoleView,
+    props: {
+      staff: defineAsyncComponent(
+        () => import('./pages/games/EditGamePage.vue'),
+      ),
+      client: AccessDeniedView,
+    },
+    meta: { requiresAuth: true },
   },
   // The SPA is served for every path (see apps/web/nginx.conf), so unmatched
   // URLs must resolve to a real screen instead of an empty router view.
@@ -132,7 +173,14 @@ export const router = createRouter({
       path: '/profile',
       alias: ['/user-profile', '/account/manage'],
       name: 'user-profile',
-      component: UserProfileView,
+      component: RoleView,
+      props: {
+        staff: defineAsyncComponent(
+          () => import('./views/StaffProfileView.vue'),
+        ),
+        client: UserProfileView,
+      },
+      meta: { requiresAuth: true },
     },
     fallbackRoute,
   ],

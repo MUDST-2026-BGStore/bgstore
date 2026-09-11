@@ -1,5 +1,6 @@
 package com.chanakanlabs.bgstore.reservations;
 
+import com.chanakanlabs.bgstore.identity.AccessPolicy;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -16,15 +17,19 @@ public class ReservationService {
 
   private final JpaReservationRepository repository;
   private final ReservedSlots reservedSlots;
+  private final AccessPolicy accessPolicy;
 
-  public ReservationService(JpaReservationRepository repository, ReservedSlots reservedSlots) {
+  public ReservationService(
+      JpaReservationRepository repository, ReservedSlots reservedSlots, AccessPolicy accessPolicy) {
     this.repository = repository;
     this.reservedSlots = reservedSlots;
+    this.accessPolicy = accessPolicy;
   }
 
   @Transactional(readOnly = true)
   public PageResult<ReservationRecordData> listReservations(
-      String clientSubject, @Nullable String status, int page, int pageSize) {
+      @Nullable String status, int page, int pageSize) {
+    String clientSubject = accessPolicy.requireClientOnly().subject();
     int pageIndex = Math.max(0, page - 1);
     Page<ReservationEntity> resultPage =
         repository.findByClientAndStatus(
@@ -39,7 +44,8 @@ public class ReservationService {
   }
 
   @Transactional(readOnly = true)
-  public ReservationRecordData getReservation(String reservationId, String clientSubject) {
+  public ReservationRecordData getReservation(String reservationId) {
+    String clientSubject = accessPolicy.requireClientOnly().subject();
     return repository
         .findByIdAndClient(reservationId, clientSubject)
         .map(ReservationEntity::toRecord)
@@ -50,7 +56,8 @@ public class ReservationService {
   }
 
   @Transactional
-  public ReservationRecordData cancelReservation(String reservationId, String clientSubject) {
+  public ReservationRecordData cancelReservation(String reservationId) {
+    String clientSubject = accessPolicy.requireClientOnly().subject();
     ReservationEntity entity =
         repository
             .findByIdAndClient(reservationId, clientSubject)

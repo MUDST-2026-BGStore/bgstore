@@ -234,6 +234,8 @@ paths:
                 $ref: '#/components/schemas/GameDetail'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
         '428':
@@ -509,6 +511,8 @@ paths:
                 $ref: '#/components/schemas/ReservationListResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /reservations/{reservationId}:
     parameters:
       - name: reservationId
@@ -529,6 +533,8 @@ paths:
                 $ref: '#/components/schemas/ReservationResponse'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
   /reservations/{reservationId}/cancel:
@@ -553,6 +559,8 @@ paths:
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
 components:

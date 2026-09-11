@@ -7,10 +7,14 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.chanakanlabs.bgstore.identity.AccessPolicy;
+import com.chanakanlabs.bgstore.identity.ApplicationRole;
+import com.chanakanlabs.bgstore.identity.AuthenticatedIdentity;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,12 +30,22 @@ class ReservationServiceTest {
 
   @Mock private JpaReservationRepository repository;
   @Mock private ReservedSlots reservedSlots;
+  @Mock private AccessPolicy accessPolicy;
 
   private ReservationService service;
 
   @BeforeEach
   void setUp() {
-    service = new ReservationService(repository, reservedSlots);
+    service = new ReservationService(repository, reservedSlots, accessPolicy);
+    when(accessPolicy.requireClientOnly())
+        .thenReturn(
+            new AuthenticatedIdentity(
+                "client-123",
+                "client@example.test",
+                "client@example.test",
+                "Client",
+                "Test",
+                Set.of(ApplicationRole.CLIENT)));
   }
 
   @Test
@@ -42,7 +56,7 @@ class ReservationServiceTest {
     when(repository.findByClientAndStatus(eq("client-123"), eq("Reserved"), any(Pageable.class)))
         .thenReturn(page);
 
-    var result = service.listReservations("client-123", "Reserved", 1, 4);
+    var result = service.listReservations("Reserved", 1, 4);
 
     assertThat(result.items()).hasSize(1);
     assertThat(result.total()).isEqualTo(1);
@@ -56,7 +70,7 @@ class ReservationServiceTest {
     ReservationEntity entity = createEntity("res-1", "Reserved", true);
     when(repository.findByIdAndClient("res-1", "client-123")).thenReturn(Optional.of(entity));
 
-    var record = service.getReservation("res-1", "client-123");
+    var record = service.getReservation("res-1");
 
     assertThat(record.id()).isEqualTo("res-1");
     assertThat(record.status()).isEqualTo("Reserved");
@@ -66,7 +80,7 @@ class ReservationServiceTest {
   void throwsNotFoundWhenReservationDoesNotExist() {
     when(repository.findByIdAndClient("res-unknown", "client-123")).thenReturn(Optional.empty());
 
-    assertThatThrownBy(() -> service.getReservation("res-unknown", "client-123"))
+    assertThatThrownBy(() -> service.getReservation("res-unknown"))
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("Reservation not found");
   }
@@ -78,7 +92,7 @@ class ReservationServiceTest {
     when(repository.save(any(ReservationEntity.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var updated = service.cancelReservation("res-1", "client-123");
+    var updated = service.cancelReservation("res-1");
 
     assertThat(updated.status()).isEqualTo("Cancelled");
     assertThat(updated.canCancel()).isFalse();
@@ -91,7 +105,7 @@ class ReservationServiceTest {
     ReservationEntity completed = createEntity("res-2", "Completed", false);
     when(repository.findByIdAndClient("res-2", "client-123")).thenReturn(Optional.of(completed));
 
-    assertThatThrownBy(() -> service.cancelReservation("res-2", "client-123"))
+    assertThatThrownBy(() -> service.cancelReservation("res-2"))
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("Reservation cannot be cancelled in status Completed");
   }
