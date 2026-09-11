@@ -20,7 +20,9 @@ const currentUser = useQuery(currentUserQueryOptions());
 const screen = computed(() => {
   const user = currentUser.data.value;
   if (!user) {
-    return undefined;
+    // Public role-aware routes still need a guest screen. Protected routes are
+    // withheld by App.vue before this component is rendered.
+    return markRaw(props.client);
   }
 
   // Components are definitions, not reactive state. Marking the selected

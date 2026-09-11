@@ -44,6 +44,8 @@ export const messages = {
       checkInOut: 'Check-in / Check-out',
       profile: 'Profile',
       bookTable: 'Book a table',
+      login: 'Login',
+      signUp: 'Sign up',
       staff: 'Staff navigation',
     },
     pagination: {
@@ -436,6 +438,8 @@ export const messages = {
       checkInOut: 'เช็กอิน / เช็กเอาต์',
       profile: 'โปรไฟล์',
       bookTable: 'จองโต๊ะ',
+      login: 'เข้าสู่ระบบ',
+      signUp: 'สมัครสมาชิก',
       staff: 'เมนูพนักงาน',
     },
     pagination: {
