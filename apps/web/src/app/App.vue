@@ -3,17 +3,19 @@ import { useQuery } from '@tanstack/vue-query';
 import { computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { currentUserQueryOptions } from '../queries/current-user';
+import { currentUserQueryOptions, signInHref } from '../queries/current-user';
 
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
 const currentUser = useQuery(currentUserQueryOptions());
 
-const signInHref = computed(
+const signInRequired = computed(
   () =>
-    `/oauth2/authorization/keycloak?returnTo=${encodeURIComponent(route.fullPath)}`,
+    currentUser.isError.value ||
+    (currentUser.data.value === null && !route.meta.public),
 );
+const signIn = computed(() => signInHref(route.fullPath));
 
 watch(
   () => currentUser.data.value,
@@ -66,7 +68,7 @@ watch(
     </section>
 
     <section
-      v-else-if="currentUser.isError.value"
+      v-else-if="signInRequired"
       class="auth-state"
       aria-labelledby="sign-in-title"
     >
@@ -74,7 +76,7 @@ watch(
         <span class="auth-state-icon" aria-hidden="true">BG</span>
         <h1 id="sign-in-title">{{ t('auth.signInTitle') }}</h1>
         <p>{{ t('status.authenticationHint') }}</p>
-        <a class="button" :href="signInHref">{{ t('actions.signIn') }}</a>
+        <a class="button" :href="signIn">{{ t('actions.signIn') }}</a>
       </div>
     </section>
 

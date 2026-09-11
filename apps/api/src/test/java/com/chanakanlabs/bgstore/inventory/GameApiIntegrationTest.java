@@ -159,6 +159,23 @@ class GameApiIntegrationTest {
   }
 
   @Test
+  void aGuestReadsWhereEachBranchIsAndWhenItIsOpen() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/branches"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].name").value("Big C Rama I"))
+        .andExpect(
+            jsonPath("$.items[0].address")
+                .value("999/9 ถ. พระรามที่ 1 แขวงปทุมวัน เขตปทุมวัน กรุงเทพฯ 10330"))
+        .andExpect(jsonPath("$.items[0].opensAt").value("10:00"))
+        .andExpect(jsonPath("$.items[0].closesAt").value("20:00"))
+        // A branch the store has not described yet answers nulls, not a guess.
+        .andExpect(jsonPath("$.items[5].name").value("Thonglor"))
+        .andExpect(jsonPath("$.items[5].address").doesNotExist())
+        .andExpect(jsonPath("$.items[5].opensAt").doesNotExist());
+  }
+
+  @Test
   void createsAGameAndReadsItBackWithItsPerBranchStock() throws Exception {
     var payload = translatedPayload("Ticket to Ride", "ตั๋วรถไฟ", "family", 2, 5);
     payload.putObject("description").put("en", "Build routes across the map.");

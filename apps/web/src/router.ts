@@ -4,8 +4,15 @@ import RoleView from './app/RoleView.vue';
 import HomeView from './views/HomeView.vue';
 import OnboardingView from './views/OnboardingView.vue';
 
+declare module 'vue-router' {
+  interface RouteMeta {
+    /** A guest without a session may open the screen; the rest ask them to sign in. */
+    public?: boolean;
+  }
+}
+
 export const routes = [
-  { path: '/', name: 'home', component: HomeView },
+  { path: '/', name: 'home', component: HomeView, meta: { public: true } },
   { path: '/onboarding', name: 'onboarding', component: OnboardingView },
   // Staff manage the inventory at these two URLs; guests browse the catalogue
   // at the same ones, so a shared link to a game works for either.

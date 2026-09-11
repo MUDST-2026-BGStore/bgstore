@@ -36,7 +36,9 @@ public class ClientOnboardingFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    if (!currentUsers.requiresOnboarding(currentIdentityProvider.currentIdentity())) {
+    // A guest only gets this far on a public endpoint, and has no profile to finish.
+    var identity = currentIdentityProvider.findCurrentIdentity();
+    if (identity.isEmpty() || !currentUsers.requiresOnboarding(identity.get())) {
       filterChain.doFilter(request, response);
       return;
     }

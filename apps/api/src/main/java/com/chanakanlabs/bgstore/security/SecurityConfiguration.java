@@ -7,8 +7,10 @@ import jakarta.servlet.http.HttpSession;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
@@ -25,7 +27,14 @@ class SecurityConfiguration {
       CurrentUserService currentUsers)
       throws Exception {
     return http.securityMatcher("/api/**")
-        .authorizeHttpRequests(requests -> requests.anyRequest().authenticated())
+        .authorizeHttpRequests(
+            requests ->
+                requests
+                    // A guest chooses a branch to visit before having an account.
+                    .requestMatchers(HttpMethod.GET, "/api/v1/branches")
+                    .permitAll()
+                    .anyRequest()
+                    .authenticated())
         .exceptionHandling(
             exceptions ->
                 exceptions.authenticationEntryPoint(
@@ -39,7 +48,8 @@ class SecurityConfiguration {
   }
 
   @Bean
-  SecurityFilterChain browserSecurity(HttpSecurity http) throws Exception {
+  SecurityFilterChain browserSecurity(
+      HttpSecurity http, ClientRegistrationRepository clientRegistrations) throws Exception {
     return http.authorizeHttpRequests(
             requests ->
                 requests
@@ -51,22 +61,27 @@ class SecurityConfiguration {
             new ReturnToRequestFilter(), OAuth2AuthorizationRequestRedirectFilter.class)
         .oauth2Login(
             oauth2 ->
-                oauth2.successHandler(
-                    (request, response, authentication) -> {
-                      HttpSession session = request.getSession(false);
-                      String returnTo =
-                          session == null
-                              ? null
-                              : (String)
-                                  session.getAttribute(ReturnToRequestFilter.SESSION_ATTRIBUTE);
-                      if (session != null) {
-                        session.removeAttribute(ReturnToRequestFilter.SESSION_ATTRIBUTE);
-                      }
-                      response.sendRedirect(
-                          returnTo != null && ReturnToRequestFilter.isSafeRelativePath(returnTo)
-                              ? returnTo
-                              : "/");
-                    }))
+                oauth2
+                    .authorizationEndpoint(
+                        authorization ->
+                            authorization.authorizationRequestResolver(
+                                new SignUpAuthorizationRequestResolver(clientRegistrations)))
+                    .successHandler(
+                        (request, response, authentication) -> {
+                          HttpSession session = request.getSession(false);
+                          String returnTo =
+                              session == null
+                                  ? null
+                                  : (String)
+                                      session.getAttribute(ReturnToRequestFilter.SESSION_ATTRIBUTE);
+                          if (session != null) {
+                            session.removeAttribute(ReturnToRequestFilter.SESSION_ATTRIBUTE);
+                          }
+                          response.sendRedirect(
+                              returnTo != null && ReturnToRequestFilter.isSafeRelativePath(returnTo)
+                                  ? returnTo
+                                  : "/");
+                        }))
         .logout(logout -> logout.logoutSuccessUrl("/"))
         .build();
   }

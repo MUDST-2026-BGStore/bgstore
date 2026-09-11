@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.chanakanlabs.bgstore.identity.ApplicationRole;
 import com.chanakanlabs.bgstore.identity.AuthenticatedIdentity;
 import com.chanakanlabs.bgstore.identity.CurrentIdentityProvider;
+import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -32,7 +33,7 @@ class ClientOnboardingFilterTest {
             "Client",
             "One",
             Set.of(ApplicationRole.CLIENT));
-    when(identityProvider.currentIdentity()).thenReturn(identity);
+    when(identityProvider.findCurrentIdentity()).thenReturn(Optional.of(identity));
     when(currentUsers.requiresOnboarding(identity)).thenReturn(true);
 
     filter.doFilter(request, response, filterChain);
@@ -40,6 +41,22 @@ class ClientOnboardingFilterTest {
     assertThat(response.getStatus()).isEqualTo(428);
     assertThat(response.getContentAsString()).contains("Profile onboarding required");
     verify(filterChain, never()).doFilter(request, response);
+  }
+
+  @Test
+  void letsAGuestThroughToAPublicEndpoint() throws Exception {
+    CurrentIdentityProvider identityProvider = mock(CurrentIdentityProvider.class);
+    CurrentUserService currentUsers = mock(CurrentUserService.class);
+    var filter = new ClientOnboardingFilter(identityProvider, currentUsers);
+    var request = new MockHttpServletRequest("GET", "/api/v1/branches");
+    var response = new MockHttpServletResponse();
+    var filterChain = mock(jakarta.servlet.FilterChain.class);
+    when(identityProvider.findCurrentIdentity()).thenReturn(Optional.empty());
+
+    filter.doFilter(request, response, filterChain);
+
+    verify(filterChain).doFilter(request, response);
+    verify(currentUsers, never()).requiresOnboarding(org.mockito.ArgumentMatchers.any());
   }
 
   @Test
