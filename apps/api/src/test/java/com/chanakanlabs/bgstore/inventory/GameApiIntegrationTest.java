@@ -36,7 +36,7 @@ import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
 
-/** Exercises the game endpoints against a real PostgreSQL, schema created by Hibernate. */
+/** Exercises the game endpoints against a real PostgreSQL schema managed by Flyway. */
 @SpringBootTest(
     properties = {
       "management.logging.export.otlp.enabled=false",
@@ -56,7 +56,9 @@ class GameApiIntegrationTest {
           .withExposedPorts(6379)
           .withCommand("redis-server", "--requirepass", "test-password");
 
-  /** Seeded by {@code BranchDirectorySeed}; the game screens address branches by id. */
+  /**
+   * Reference branches are ensured by {@code BranchDirectorySeed}; the screens address them by id.
+   */
   private static final UUID CENTRAL_RAMA_II =
       UUID.fromString("3f0d7d5a-9a2b-4a71-8f0e-000000000001");
 
