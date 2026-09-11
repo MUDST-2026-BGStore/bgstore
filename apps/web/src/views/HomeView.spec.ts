@@ -6,24 +6,12 @@ import {
   stubApi,
   type ApiHandler,
 } from '../test/api-stub';
-import type { Branch, CurrentUserResponse } from '../generated/api/types.gen';
+import type { Branch } from '../generated/api/types.gen';
 
 afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const client: CurrentUserResponse = {
-  subject: 'client-subject',
-  username: 'client@example.test',
-  email: 'client@example.test',
-  firstName: 'Local',
-  lastName: 'Client',
-  roles: ['CLIENT'],
-  clientProfile: { phone: '+66812345678', completed: true },
-  onboardingRequired: false,
-};
-
-const signedIn = route('/me', { body: client });
 const signedOut = route('/me', { status: 401 });
 
 /** Ordered by name, as the API answers; the fourth is past the featured three. */
@@ -68,39 +56,13 @@ async function home(...handlers: ApiHandler[]) {
   return wrapper;
 }
 
-describe('home header', () => {
-  it('offers a guest sign-in and sign-up that come back to the home page', async () => {
+describe('home shell boundary', () => {
+  it('leaves application navigation to the shared app shell', async () => {
     const wrapper = await home(signedOut, branches());
 
-    expect(wrapper.findAll('nav > *').map((item) => item.text())).toEqual([
-      'Home',
-      'Game',
-      'Branch',
-    ]);
-    expect(wrapper.get('a[href$="&signup"]').text()).toBe('Sign up');
-    expect(
-      wrapper
-        .findAll('a')
-        .find((link) => link.text() === 'Login')
-        ?.attributes('href'),
-    ).toBe('/oauth2/authorization/keycloak?returnTo=%2F');
-    expect(wrapper.text()).not.toContain('Book a table');
-  });
-
-  it('gives a signed-in client their own destinations instead', async () => {
-    const wrapper = await home(signedIn, branches());
-
-    expect(wrapper.findAll('nav > *').map((item) => item.text())).toEqual([
-      'Home',
-      'Reserve',
-      'Game',
-      'Branch',
-      'History',
-      'Profile',
-    ]);
-    expect(wrapper.get('[aria-current="page"]').text()).toBe('Home');
-    expect(wrapper.text()).toContain('Book a table');
-    expect(wrapper.text()).not.toContain('Sign up');
+    expect(wrapper.find('nav[aria-label="Primary navigation"]').exists()).toBe(
+      false,
+    );
   });
 });
 

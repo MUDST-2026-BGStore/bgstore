@@ -1,5 +1,5 @@
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
-import { flushPromises, mount } from '@vue/test-utils';
+import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 import App from './App.vue';
@@ -7,6 +7,8 @@ import { client } from '../generated/api/client.gen';
 import { messages } from '../i18n';
 import { router } from '../router';
 import { route, stubApi } from '../test/api-stub';
+
+enableAutoUnmount(afterEach);
 
 describe('BGStore authentication context', () => {
   afterEach(() => {
@@ -60,7 +62,10 @@ describe('BGStore authentication context', () => {
     expect(wrapper.get('[data-testid="home-branch"] h3').text()).toBe(
       'Central Rama II',
     );
-    expect(wrapper.text()).toContain('Book a table');
+    expect(wrapper.text()).toContain('Book at this branch');
+    expect(
+      wrapper.get('nav[aria-label="Primary navigation"] a[href="/history"]'),
+    ).toBeTruthy();
   });
 
   it('opens on the floor overview for staff', async () => {
@@ -108,7 +113,15 @@ describe('BGStore authentication context', () => {
       wrapper
         .get('nav[aria-label="Staff navigation"] [aria-current="page"]')
         .text(),
-    ).toBe('Home');
+    ).toBe('Dashboard');
+    expect(
+      wrapper.get('nav[aria-label="Staff navigation"] a[href="/tables"]'),
+    ).toBeTruthy();
+    expect(
+      wrapper
+        .find('nav[aria-label="Staff navigation"] a[href="/history"]')
+        .exists(),
+    ).toBe(false);
   });
 
   it('lets a guest without a session look around the home page', async () => {
@@ -222,7 +235,7 @@ describe('BGStore authentication context', () => {
     expect(router.currentRoute.value.query.returnTo).toBe('/');
   });
 
-  it('renders account management as the user profile without navigation', async () => {
+  it('renders account management inside the shared application shell', async () => {
     client.setConfig({ baseUrl: 'http://localhost/api/v1' });
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -251,7 +264,33 @@ describe('BGStore authentication context', () => {
     await flushPromises();
 
     expect(wrapper.get('h1').text()).toBe('User profile');
-    expect(wrapper.find('.masthead').exists()).toBe(false);
+    expect(
+      wrapper.get('header nav[aria-label="Primary navigation"]'),
+    ).toBeTruthy();
     expect(router.currentRoute.value.name).toBe('user-profile');
+  });
+
+  it('redirects an unauthenticated visitor away from protected routes', async () => {
+    client.setConfig({ baseUrl: 'http://localhost/api/v1' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(null, { status: 401 })),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const i18n = createI18n({ legacy: false, locale: 'en', messages });
+    await router.push('/history');
+    await router.isReady();
+
+    mount(App, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient }], router, i18n],
+      },
+    });
+    await vi.waitFor(() =>
+      expect(router.currentRoute.value.name).toBe('login'),
+    );
+    expect(router.currentRoute.value.query.redirect).toBe('/history');
   });
 });

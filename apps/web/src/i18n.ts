@@ -32,6 +32,12 @@ export const messages = {
       authenticationHint:
         'Your session is handled securely by the BGStore backend.',
     },
+    accessDenied: {
+      title: 'You do not have access to this page',
+      description:
+        'This screen is not available for your current account role.',
+      back: 'Back to home',
+    },
     actions: {
       signIn: 'Sign in',
     },
@@ -48,6 +54,7 @@ export const messages = {
       login: 'Login',
       signUp: 'Sign up',
       staff: 'Staff navigation',
+      primary: 'Primary navigation',
     },
     pagination: {
       label: 'Pagination',
@@ -158,6 +165,8 @@ export const messages = {
       saveSuccess: 'Your phone number has been updated.',
       saveError:
         'We could not update your profile. Check the phone number and try again.',
+      staffDescription:
+        'Staff account details are managed by the identity provider.',
     },
     tables: {
       title: 'Table management',
@@ -474,6 +483,11 @@ export const messages = {
       authenticationHint:
         'เซสชันของคุณได้รับการจัดการอย่างปลอดภัยโดยระบบ BGStore',
     },
+    accessDenied: {
+      title: 'คุณไม่มีสิทธิ์เข้าถึงหน้านี้',
+      description: 'หน้าจอนี้ไม่เปิดให้บทบาทของบัญชีปัจจุบันใช้งาน',
+      back: 'กลับหน้าแรก',
+    },
     actions: {
       signIn: 'เข้าสู่ระบบ',
     },
@@ -490,6 +504,7 @@ export const messages = {
       login: 'เข้าสู่ระบบ',
       signUp: 'สมัครสมาชิก',
       staff: 'เมนูพนักงาน',
+      primary: 'เมนูหลัก',
     },
     pagination: {
       label: 'การแบ่งหน้า',
@@ -599,6 +614,8 @@ export const messages = {
       saveSuccess: 'อัปเดตเบอร์โทรศัพท์เรียบร้อยแล้ว',
       saveError:
         'ไม่สามารถอัปเดตโปรไฟล์ได้ โปรดตรวจสอบเบอร์โทรศัพท์แล้วลองอีกครั้ง',
+      staffDescription:
+        'รายละเอียดบัญชีพนักงานจัดการโดยผู้ให้บริการยืนยันตัวตน',
     },
     tables: {
       title: 'จัดการโต๊ะ',

@@ -31,6 +31,20 @@ class AccessPolicyTest {
   }
 
   @Test
+  void deniesStaffAccessToClientOnlyReservationPolicy() {
+    when(identities.currentIdentity()).thenReturn(identityWith(ApplicationRole.STAFF));
+
+    assertForbidden(policy::requireClientOnly, "client");
+  }
+
+  @Test
+  void allowsOnlyAClientToUseClientOnlyReservationPolicy() {
+    when(identities.currentIdentity()).thenReturn(client);
+
+    assertThat(policy.requireClientOnly()).isSameAs(client);
+  }
+
+  @Test
   void allowsStaffToPerformOperationalActionsButNotManagerOnlyActions() {
     AuthenticatedIdentity staff = identityWith(ApplicationRole.STAFF);
     when(identities.currentIdentity()).thenReturn(staff);
