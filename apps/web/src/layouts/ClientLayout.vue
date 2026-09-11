@@ -1,10 +1,19 @@
 <script setup lang="ts">
 import ClientHeader from '../components/ClientHeader.vue';
+
+withDefaults(
+  defineProps<{
+    active?: 'home' | 'reserve' | 'game' | 'branch' | 'history' | 'profile';
+  }>(),
+  {
+    active: 'game',
+  },
+);
 </script>
 
 <template>
   <div class="flex min-h-screen w-full flex-col items-start bg-canvas">
-    <ClientHeader active="game" />
+    <ClientHeader :active="active" />
     <div class="flex w-full flex-1 flex-col items-start">
       <slot />
     </div>

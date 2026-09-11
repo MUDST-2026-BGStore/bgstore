@@ -581,7 +581,7 @@ function formatUpdated(value: string) {
     class="m-0 min-h-screen w-full bg-white p-0 font-[Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe_UI',Roboto,Helvetica,Arial,sans-serif] text-[#1e293b] antialiased [box-sizing:border-box]"
   >
     <!-- ─── LIST VIEW ──────────────────────────────────────── -->
-    <div v-if="currentView === 'list'" class="mx-auto max-w-6xl px-6 py-6">
+    <div v-if="currentView === 'list'" class="w-full px-8 py-6">
       <!-- Subheader toolbar -->
       <div
         class="flex items-center justify-between gap-4 border-b border-gray-200 pb-4"
@@ -1046,7 +1046,7 @@ function formatUpdated(value: string) {
     <!-- ─── ADD / EDIT VIEW ────────────────────────────────── -->
     <div
       v-else-if="currentView === 'create' || currentView === 'edit'"
-      class="mx-auto max-w-6xl px-6 py-6"
+      class="w-full px-8 py-6"
     >
       <!-- Subheader -->
       <div
@@ -1236,7 +1236,7 @@ function formatUpdated(value: string) {
     <!-- ─── VIEW DETAILS ───────────────────────────────────── -->
     <div
       v-else-if="currentView === 'view' && viewedTable"
-      class="mx-auto max-w-6xl px-6 py-6"
+      class="w-full px-8 py-6"
     >
       <!-- Subheader -->
       <div

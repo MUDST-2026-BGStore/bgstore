@@ -20,6 +20,8 @@ tags:
     description: Game catalogue and per-branch stock.
   - name: Tables
     description: Store table inventory and operational status management.
+  - name: Reservations
+    description: Client table reservation history and cancellation.
 paths:
   /hello:
     get:
@@ -415,6 +417,87 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /reservations:
+    get:
+      tags: [Reservations]
+      operationId: listReservations
+      summary: List reservations for the authenticated client with optional status filter and pagination.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReservationStatus'
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 4
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: A paginated list of reservations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /reservations/{reservationId}:
+    parameters:
+      - name: reservationId
+        in: path
+        required: true
+        schema:
+          type: string
+    get:
+      tags: [Reservations]
+      operationId: getReservation
+      summary: Get details of a single reservation by ID.
+      responses:
+        '200':
+          description: The reservation record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /reservations/{reservationId}/cancel:
+    parameters:
+      - name: reservationId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [Reservations]
+      operationId: cancelReservation
+      summary: Cancel an upcoming reservation.
+      responses:
+        '200':
+          description: The cancelled reservation record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
         '404':
           $ref: '#/components/responses/NotFound'
 components:
@@ -1060,6 +1143,85 @@ components:
     UpdateTableRequest:
       allOf:
         - $ref: '#/components/schemas/CreateTableRequest'
+    ReservationStatus:
+      type: string
+      enum: [Reserved, Completed, Cancelled]
+    ReservationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - title
+        - date
+        - timeSlot
+        - partySize
+        - tableId
+        - tableName
+        - seats
+        - ratePerHour
+        - status
+        - customerName
+        - phoneNumber
+        - checkInTime
+        - actualCheckOut
+        - overtimeMinutes
+        - totalPrice
+        - canCancel
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        date:
+          type: string
+        timeSlot:
+          type: string
+        partySize:
+          type: integer
+        tableId:
+          type: integer
+          format: int64
+        tableName:
+          type: string
+        seats:
+          type: integer
+        ratePerHour:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        customerName:
+          type: string
+        phoneNumber:
+          type: string
+        checkInTime:
+          type: string
+        actualCheckOut:
+          type: string
+        overtimeMinutes:
+          type: integer
+        totalPrice:
+          type: integer
+        canCancel:
+          type: boolean
+        thumbnailUrl:
+          type: string
+    ReservationListResponse:
+      type: object
+      additionalProperties: false
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReservationResponse'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
     ProblemDetail:
       type: object
       additionalProperties: true

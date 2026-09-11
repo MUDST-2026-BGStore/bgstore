@@ -22,7 +22,7 @@ const items = [
   { key: 'reserve', icon: navReserve, activeIcon: navReserve, to: undefined },
   { key: 'game', icon: navGames, activeIcon: navGamesActive, to: '/games' },
   { key: 'branch', icon: navBranches, activeIcon: navBranches, to: undefined },
-  { key: 'history', icon: navHistory, activeIcon: navHistory, to: undefined },
+  { key: 'history', icon: navHistory, activeIcon: navHistory, to: '/history' },
   { key: 'profile', icon: navProfile, activeIcon: navProfile, to: undefined },
 ] as const;
 
