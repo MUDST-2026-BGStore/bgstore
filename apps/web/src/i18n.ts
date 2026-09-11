@@ -246,6 +246,23 @@ export const messages = {
         },
       },
     },
+    branch: {
+      management: 'Branch directory',
+      list: 'Branches',
+      view: 'View',
+      id: 'ID',
+      retry: 'Retry',
+      searchPlaceholder: 'Search branch name',
+      notFoundTitle: 'Branch not found',
+      notFoundDesc:
+        'The branch you are looking for does not exist or may have been removed.',
+      backToBranches: 'Back to branches',
+      table: { branch: 'Branch' },
+      empty: {
+        title: 'No branches found',
+        description: 'Try adjusting your search query.',
+      },
+    },
   },
   th: {
     app: {
@@ -489,6 +506,22 @@ export const messages = {
           duplicateBranch: 'สาขานี้ถูกระบุซ้ำ',
           belowInUse: 'ไม่สามารถลดจำนวนชุดที่กำลังถูกใช้ในเซสชันได้',
         },
+      },
+    },
+    branch: {
+      management: 'ไดเรกทอรีสาขา',
+      list: 'สาขา',
+      view: 'ดูรายละเอียด',
+      id: 'รหัส',
+      retry: 'ลองอีกครั้ง',
+      searchPlaceholder: 'ค้นหาชื่อสาขา',
+      notFoundTitle: 'ไม่พบสาขา',
+      notFoundDesc: 'ไม่พบสาขาที่คุณค้นหา หรือสาขานี้อาจถูกลบไปแล้ว',
+      backToBranches: 'กลับไปหน้ารวมสาขา',
+      table: { branch: 'สาขา' },
+      empty: {
+        title: 'ไม่พบข้อมูลสาขา',
+        description: 'ลองปรับคำค้นหาใหม่อีกครั้ง',
       },
     },
   },
