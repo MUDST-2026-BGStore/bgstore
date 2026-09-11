@@ -54,7 +54,6 @@ test('lets a guest browse the home page before signing in', async ({
   await stubBranches(page);
 
   await page.goto('/');
-
   await expect(page.getByTestId('home-branch')).toContainText(
     'Central Rama II',
   );
