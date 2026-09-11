@@ -8,6 +8,7 @@ import { currentUserQueryOptions } from '../queries/current-user';
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
+const isUserProfileRoute = computed(() => route.name === 'user-profile');
 const currentUser = useQuery(currentUserQueryOptions());
 
 const signInHref = computed(
@@ -44,8 +45,8 @@ watch(
 </script>
 
 <template>
-  <main class="shell">
-    <header class="masthead">
+  <main :class="isUserProfileRoute ? 'user-profile-shell' : 'shell'">
+    <header v-if="!isUserProfileRoute" class="masthead">
       <RouterLink class="brand" to="/" aria-label="BGStore home">
         <span class="brand-mark" aria-hidden="true">BG</span>
         <span>BGStore</span>

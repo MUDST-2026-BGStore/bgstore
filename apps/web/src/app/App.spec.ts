@@ -131,4 +131,37 @@ describe('BGStore authentication context', () => {
     expect(router.currentRoute.value.name).toBe('onboarding');
     expect(router.currentRoute.value.query.returnTo).toBe('/');
   });
+
+  it('renders account management as the user profile without navigation', async () => {
+    client.setConfig({ baseUrl: 'http://localhost/api/v1' });
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: Infinity },
+      },
+    });
+    queryClient.setQueryData(['current-user'], {
+      subject: 'a9c7022e-a678-4d50-aa1b-69c917001234',
+      username: 'client@example.test',
+      email: 'client@example.test',
+      firstName: 'Local',
+      lastName: 'Client',
+      roles: ['CLIENT'],
+      clientProfile: { phone: '+66812345678', completed: true },
+      onboardingRequired: false,
+    });
+    const i18n = createI18n({ legacy: false, locale: 'en', messages });
+    await router.push('/account/manage');
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient }], router, i18n],
+      },
+    });
+    await flushPromises();
+
+    expect(wrapper.get('h1').text()).toBe('User profile');
+    expect(wrapper.find('.masthead').exists()).toBe(false);
+    expect(router.currentRoute.value.name).toBe('user-profile');
+  });
 });
