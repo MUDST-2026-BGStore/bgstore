@@ -61,8 +61,8 @@ const selectImage = (event: Event) => {
 <style scoped>
 .profile-avatar {
   position: relative;
-  width: 14rem;
-  height: 14rem;
+  width: 10rem;
+  height: 10rem;
 }
 
 .avatar-visual {
@@ -88,19 +88,19 @@ img {
 
 .avatar-action {
   position: absolute;
-  right: 0.35rem;
-  bottom: 0.35rem;
+  right: -0.15rem;
+  bottom: -0.15rem;
   display: grid;
-  min-width: 3.25rem;
-  min-height: 3.25rem;
+  min-width: 2.35rem;
+  min-height: 2.35rem;
   place-items: center;
-  padding: 0.5rem 0.7rem;
-  border: 3px solid #fff;
+  padding: 0.35rem 0.5rem;
+  border: 2px solid #fff;
   border-radius: 999px;
   color: #fff;
   background: #497883;
   box-shadow: 0 0.4rem 1rem rgb(32 37 45 / 18%);
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   font-weight: 700;
   cursor: pointer;
 }
@@ -118,8 +118,8 @@ img {
 
 @media (max-width: 720px) {
   .profile-avatar {
-    width: 9rem;
-    height: 9rem;
+    width: 7rem;
+    height: 7rem;
   }
 
   .avatar-visual {
@@ -127,10 +127,10 @@ img {
   }
 
   .avatar-action {
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-    padding: 0.35rem 0.55rem;
-    font-size: 0.62rem;
+    min-width: 2rem;
+    min-height: 2rem;
+    padding: 0.3rem 0.4rem;
+    font-size: 0.55rem;
   }
 }
 </style>

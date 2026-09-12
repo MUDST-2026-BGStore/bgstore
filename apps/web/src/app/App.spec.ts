@@ -238,7 +238,7 @@ describe('BGStore authentication context', () => {
     expect(router.currentRoute.value.query.returnTo).toBe('/');
   });
 
-  it('renders account management inside the shared application shell', async () => {
+  it('renders account management as a focused profile screen', async () => {
     client.setConfig({ baseUrl: 'http://localhost/api/v1' });
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -268,8 +268,8 @@ describe('BGStore authentication context', () => {
 
     expect(wrapper.get('h1').text()).toBe('User profile');
     expect(
-      wrapper.get('header nav[aria-label="Primary navigation"]'),
-    ).toBeTruthy();
+      wrapper.find('header nav[aria-label="Primary navigation"]').exists(),
+    ).toBe(false);
     expect(router.currentRoute.value.name).toBe('user-profile');
   });
 
