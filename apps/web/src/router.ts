@@ -22,6 +22,8 @@ declare module 'vue-router' {
     /** A guest without a session may open the screen; the rest ask them to sign in. */
     public?: boolean;
     requiresAuth?: boolean;
+    /** Full-page task flow that hides the shared application navigation. */
+    focused?: boolean;
   }
 }
 
@@ -169,6 +171,13 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     ...routes.slice(0, -1),
+    {
+      path: '/staff/reservations/new',
+      alias: '/reservations/new',
+      name: 'staff-create-reservation',
+      component: () => import('./views/CreateReservationView.vue'),
+      meta: { requiresAuth: true, focused: true },
+    },
     {
       path: '/profile',
       alias: ['/user-profile', '/account/manage'],

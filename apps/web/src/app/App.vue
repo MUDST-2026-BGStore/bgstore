@@ -9,6 +9,7 @@ import { currentUserQueryOptions, signInHref } from '../queries/current-user';
 const route = useRoute();
 const router = useRouter();
 const { t } = useI18n();
+const usesFocusedLayout = computed(() => route.meta.focused === true);
 const currentUser = useQuery(currentUserQueryOptions());
 
 const signInRequired = computed(
@@ -68,7 +69,7 @@ watch(
 
 <template>
   <div class="min-h-screen w-full bg-canvas">
-    <AppNavbar />
+    <AppNavbar v-if="!usesFocusedLayout" />
 
     <section
       v-if="currentUser.isPending.value"
@@ -91,7 +92,14 @@ watch(
       </div>
     </section>
 
-    <main v-else class="min-h-[calc(100vh-4rem)] w-full">
+    <main
+      v-else
+      :class="
+        usesFocusedLayout
+          ? 'min-h-screen w-full'
+          : 'min-h-[calc(100vh-4rem)] w-full'
+      "
+    >
       <RouterView v-slot="{ Component, route: renderedRoute }">
         <component :is="Component" :key="renderedRoute.path" />
       </RouterView>
