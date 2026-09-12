@@ -22,6 +22,8 @@ declare module 'vue-router' {
     /** A guest without a session may open the screen; the rest ask them to sign in. */
     public?: boolean;
     requiresAuth?: boolean;
+    /** Full-page task flow that hides the shared application navigation. */
+    focused?: boolean;
   }
 }
 
@@ -169,6 +171,20 @@ export const router = createRouter({
   history: createWebHistory(),
   routes: [
     ...routes.slice(0, -1),
+    {
+      path: '/sessions/active',
+      alias: '/active-session',
+      name: 'client-active-session',
+      component: () => import('./views/ActiveSessionView.vue'),
+      meta: { requiresAuth: true, focused: true },
+    },
+    {
+      path: '/sessions/checkout',
+      alias: '/pay-session',
+      name: 'client-session-checkout',
+      component: () => import('./views/SessionCheckoutView.vue'),
+      meta: { requiresAuth: true, focused: true },
+    },
     {
       path: '/profile',
       alias: ['/user-profile', '/account/manage'],
