@@ -6,11 +6,11 @@ This is the orientation guide for contributors who are new to BGStore. Start her
 
 1. Read the [architecture](architecture.md), [domain model](domain-model.md), and [ADRs](decisions/README.md).
 2. Install the pinned toolchain with `mise install`, enable Corepack, and run `pnpm install`.
-3. Copy `.env.example` to `.env` and start the local dependencies with `docker compose up -d postgres redis keycloak mailpit`.
+3. Copy `.env.example` to `.env` and start only the local infrastructure with `pnpm dev:infra`.
 4. Run `pnpm dev:api` and `pnpm dev:web` in separate terminals.
 5. Open `http://localhost:4200`, then run `pnpm check` and `pnpm e2e` before making changes.
 
-The containerized path is useful when checking production boundaries: `docker compose --profile app up --build --wait`. Local Keycloak accounts are test fixtures only; their credentials must never be reused elsewhere.
+The normal development path keeps the web app and API outside Docker for Vite HMR and Spring Boot DevTools restart support. The containerized path is useful when checking production boundaries: `docker compose --profile app up --build --wait`. Local Keycloak accounts are test fixtures only; their credentials must never be reused elsewhere.
 
 ## Where things live
 
@@ -37,6 +37,7 @@ The containerized path is useful when checking production boundaries: `docker co
 | ------------------------------- | ---------------------------------------------- |
 | All quality checks              | `pnpm check`                                   |
 | Production builds               | `pnpm build`                                   |
+| Local infrastructure            | `pnpm dev:infra`                               |
 | Frontend development            | `pnpm dev:web`                                 |
 | Backend development             | `pnpm dev:api`                                 |
 | Browser tests                   | `pnpm e2e`                                     |

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors;
@@ -20,9 +21,9 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -31,14 +32,15 @@ import tools.jackson.databind.ObjectMapper;
     properties = {
       "management.logging.export.otlp.enabled=false",
       "management.otlp.metrics.export.enabled=false",
-      "management.tracing.export.enabled=false"
+      "management.tracing.export.enabled=false",
+      "spring.data.redis.password=test-password"
     })
 @AutoConfigureMockMvc
 @Testcontainers
 class FloorOverviewApiIntegrationTest {
 
-  @Container
-  static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.1-alpine");
+  @Container @ServiceConnection
+  static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18.1-alpine");
 
   @Container
   static final GenericContainer<?> REDIS =
@@ -47,10 +49,7 @@ class FloorOverviewApiIntegrationTest {
           .withCommand("redis-server", "--requirepass", "test-password");
 
   @DynamicPropertySource
-  static void databaseProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
+  static void redisProperties(DynamicPropertyRegistry registry) {
     registry.add("spring.data.redis.host", REDIS::getHost);
     registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
     registry.add("spring.data.redis.password", () -> "test-password");
@@ -62,6 +61,7 @@ class FloorOverviewApiIntegrationTest {
 
   @BeforeEach
   void seedFloor() {
+    assignStaffToEveryBranch("floor-staff");
     database.execute("delete from table_reservation");
     database.execute("delete from store_table");
     table(1, "Table 1", "Silom", 4, "Round", "Available");
@@ -145,8 +145,8 @@ class FloorOverviewApiIntegrationTest {
       long id, String name, String branch, int capacity, String shape, String status) {
     database.update(
         """
-        insert into store_table (id, name, branch, capacity, shape, status, active, zone, last_updated)
-        values (?, ?, ?, ?, ?, ?, true, 'Main Hall', current_timestamp)
+        insert into store_table (id, name, branch_id, capacity, shape, status, active, zone, last_updated)
+        values (?, ?, (select id from branch where name = ?), ?, ?, ?, true, 'Main Hall', current_timestamp)
         """,
         id,
         name,
@@ -154,6 +154,16 @@ class FloorOverviewApiIntegrationTest {
         capacity,
         shape,
         status);
+  }
+
+  private void assignStaffToEveryBranch(String staffSubject) {
+    database.update(
+        """
+        insert into staff_branch_assignment (staff_subject, branch_id)
+        select ?, id from branch
+        on conflict (staff_subject, branch_id) do nothing
+        """,
+        staffSubject);
   }
 
   private void reservation(long tableId, String startsAt, String endsAt) {

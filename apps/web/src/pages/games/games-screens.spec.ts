@@ -301,7 +301,9 @@ describe('game details screen', () => {
       '/games/' + ticketToRideId,
     );
 
-    expect(wrapper.get('img').attributes()).toMatchObject({
+    expect(
+      wrapper.get('[data-testid="game-detail-image"]').attributes(),
+    ).toMatchObject({
       src: imageUrl,
       alt: 'Ticket to Ride',
     });

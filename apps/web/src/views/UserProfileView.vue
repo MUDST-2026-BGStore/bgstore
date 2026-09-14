@@ -5,7 +5,10 @@ import { useI18n } from 'vue-i18n';
 import BaseFormField from '../components/form/BaseFormField.vue';
 import ProfileAvatar from '../components/profile/ProfileAvatar.vue';
 import { completeClientProfile } from '../generated/api/sdk.gen';
-import { currentUserQueryOptions } from '../queries/current-user';
+import {
+  currentUserQueryOptions,
+  hasStaffAccess,
+} from '../queries/current-user';
 
 const { t } = useI18n();
 const queryClient = useQueryClient();
@@ -13,6 +16,10 @@ const currentUser = useQuery(currentUserQueryOptions());
 const isEditing = ref(false);
 const saveSucceeded = ref(false);
 const accountApiRequired = ref(false);
+const clientOnly = computed(() => {
+  const roles = currentUser.data.value?.roles ?? [];
+  return roles.includes('CLIENT') && !hasStaffAccess(roles);
+});
 
 const form = reactive({
   username: '',
@@ -40,6 +47,12 @@ const keycloakProfileChanged = computed(
     form.lastName.trim() !== saved.lastName ||
     form.email.trim() !== saved.email,
 );
+const clientDetailsChanged = computed(
+  () =>
+    phoneChanged.value ||
+    form.firstName.trim() !== saved.firstName ||
+    form.lastName.trim() !== saved.lastName,
+);
 const passwordChanged = computed(
   () => form.password.length > 0 || form.confirmPassword.length > 0,
 );
@@ -49,8 +62,10 @@ const passwordMismatch = computed(
 const pendingApiChanges = computed(
   () => keycloakProfileChanged.value || passwordChanged.value,
 );
-const hasChanges = computed(
-  () => phoneChanged.value || pendingApiChanges.value,
+const hasChanges = computed(() =>
+  clientOnly.value
+    ? clientDetailsChanged.value || passwordChanged.value
+    : phoneChanged.value || pendingApiChanges.value,
 );
 
 const restoreSavedValues = () => {
@@ -83,7 +98,12 @@ watch(
 const updatePhone = useMutation({
   mutationFn: async () => {
     const { data } = await completeClientProfile({
-      body: { countryCode: '+66', phoneNumber: form.phone },
+      body: {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        countryCode: '+66',
+        phoneNumber: form.phone,
+      },
       throwOnError: true,
     });
     return data;
@@ -93,7 +113,11 @@ const updatePhone = useMutation({
   },
   onSuccess: async (profile) => {
     saved.phone = profile.phone ?? form.phone;
+    saved.firstName = form.firstName.trim();
+    saved.lastName = form.lastName.trim();
     form.phone = saved.phone;
+    form.firstName = saved.firstName;
+    form.lastName = saved.lastName;
     saveSucceeded.value = true;
     isEditing.value = false;
     await queryClient.invalidateQueries({
@@ -125,12 +149,21 @@ const saveProfile = () => {
     return;
   }
 
-  if (pendingApiChanges.value) {
+  if (pendingApiChanges.value && !clientOnly.value) {
     accountApiRequired.value = true;
     return;
   }
 
-  if (phoneChanged.value && !updatePhone.isPending.value) {
+  if (
+    clientOnly.value &&
+    clientDetailsChanged.value &&
+    !updatePhone.isPending.value
+  ) {
+    updatePhone.mutate();
+    return;
+  }
+
+  if (!clientOnly.value && phoneChanged.value && !updatePhone.isPending.value) {
     updatePhone.mutate();
     return;
   }
@@ -144,14 +177,17 @@ const saveProfile = () => {
     <h1 id="user-profile-title" class="visually-hidden">
       {{ t('userProfile.title') }}
     </h1>
-    <div class="user-profile-hero" aria-hidden="true" />
 
-    <div class="user-profile-content">
-      <ProfileAvatar
-        class="user-profile-avatar"
-        :label="t('userProfile.profilePhoto')"
-        :change-label="t('userProfile.changePhoto')"
-      />
+    <article class="user-profile-card">
+      <header class="profile-summary">
+        <div class="profile-summary-inner">
+          <ProfileAvatar
+            class="user-profile-avatar"
+            :label="t('userProfile.profilePhoto')"
+            :change-label="t('userProfile.changePhoto')"
+          />
+        </div>
+      </header>
 
       <form
         class="user-profile-form"
@@ -167,7 +203,20 @@ const saveProfile = () => {
           :label="t('userProfile.username')"
           :readonly="!isEditing"
           :required="isEditing"
-          required-mark
+          :required-mark="isEditing"
+        />
+        <BaseFormField
+          id="profile-email"
+          v-model="form.email"
+          class="field-email"
+          name="email"
+          type="email"
+          inputmode="email"
+          autocomplete="email"
+          :label="t('userProfile.email')"
+          :readonly="!isEditing"
+          :required="isEditing"
+          :required-mark="isEditing"
         />
         <BaseFormField
           id="profile-first-name"
@@ -178,7 +227,31 @@ const saveProfile = () => {
           :label="t('userProfile.firstName')"
           :readonly="!isEditing"
           :required="isEditing"
-          required-mark
+          :required-mark="isEditing"
+        />
+        <BaseFormField
+          id="profile-last-name"
+          v-model="form.lastName"
+          class="field-last-name"
+          name="lastName"
+          autocomplete="family-name"
+          :label="t('userProfile.lastName')"
+          :readonly="!isEditing"
+          :required="isEditing"
+          :required-mark="isEditing"
+        />
+        <BaseFormField
+          id="profile-phone"
+          v-model="form.phone"
+          class="field-phone"
+          name="phone"
+          type="tel"
+          inputmode="tel"
+          autocomplete="tel"
+          :label="t('userProfile.phone')"
+          :readonly="!isEditing"
+          :required="isEditing"
+          :required-mark="isEditing"
         />
         <BaseFormField
           id="profile-password"
@@ -194,18 +267,6 @@ const saveProfile = () => {
               : t('userProfile.passwordHidden')
           "
           :readonly="!isEditing"
-          required-mark
-        />
-        <BaseFormField
-          id="profile-last-name"
-          v-model="form.lastName"
-          class="field-last-name"
-          name="lastName"
-          autocomplete="family-name"
-          :label="t('userProfile.lastName')"
-          :readonly="!isEditing"
-          :required="isEditing"
-          required-mark
         />
         <BaseFormField
           v-if="isEditing"
@@ -216,39 +277,8 @@ const saveProfile = () => {
           type="password"
           autocomplete="new-password"
           :label="t('userProfile.confirmPassword')"
-          :placeholder="
-            isEditing
-              ? t('userProfile.confirmPasswordPlaceholder')
-              : t('userProfile.passwordHidden')
-          "
+          :placeholder="t('userProfile.confirmPasswordPlaceholder')"
           :readonly="!isEditing"
-          required-mark
-        />
-        <BaseFormField
-          id="profile-email"
-          v-model="form.email"
-          class="field-email"
-          name="email"
-          type="email"
-          inputmode="email"
-          autocomplete="email"
-          :label="t('userProfile.email')"
-          :readonly="!isEditing"
-          :required="isEditing"
-          required-mark
-        />
-        <BaseFormField
-          id="profile-phone"
-          v-model="form.phone"
-          class="field-phone"
-          name="phone"
-          type="tel"
-          inputmode="tel"
-          autocomplete="tel"
-          :label="t('userProfile.phone')"
-          :readonly="!isEditing"
-          :required="isEditing"
-          required-mark
         />
 
         <div class="form-feedback" aria-live="polite">
@@ -304,48 +334,59 @@ const saveProfile = () => {
           </template>
         </div>
       </form>
-    </div>
+    </article>
   </section>
 </template>
 
 <style scoped>
 .user-profile-page {
   --profile-green: #497883;
+  --profile-green-strong: #315b65;
+  --profile-muted: #647080;
+  --profile-border: #dce2e6;
   min-height: 100vh;
   min-height: 100dvh;
   color: #20252d;
   background: #fff;
 }
 
-.user-profile-hero {
-  height: 13.4rem;
+.user-profile-card {
+  background: #fff;
+}
+
+.profile-summary {
+  height: 13rem;
   background: var(--profile-green);
 }
 
-.user-profile-content {
+.profile-summary-inner {
   position: relative;
-  width: min(calc(100% - 6rem), 80rem);
+  width: min(calc(100% - 4rem), 62rem);
+  height: 100%;
   margin: 0 auto;
-  padding: 8.25rem 0 3.5rem;
 }
 
 .user-profile-avatar {
   position: absolute;
-  top: -7rem;
+  bottom: -5rem;
   left: 0;
+  width: 10rem;
+  height: 10rem;
+  transform: translateX(-50%);
 }
 
 .user-profile-form {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 29rem));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   grid-template-areas:
     'username first-name'
     'password last-name'
     'phone email'
     'feedback actions';
-  justify-content: center;
-  gap: 1.75rem 2.5rem;
-  width: 100%;
+  gap: 1.15rem 1.5rem;
+  width: min(calc(100% - 4rem), 62rem);
+  margin: 0 auto;
+  padding: 7rem 0 3rem;
 }
 
 .user-profile-form--editing {
@@ -355,6 +396,20 @@ const saveProfile = () => {
     'confirm-password email'
     'phone empty'
     'feedback actions';
+}
+
+.user-profile-form :deep(.form-field) {
+  gap: 0.35rem;
+}
+
+.user-profile-form :deep(label) {
+  font-size: 0.82rem;
+}
+
+.user-profile-form :deep(input) {
+  min-height: 2.65rem;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.86rem;
 }
 
 .field-username {
@@ -406,7 +461,7 @@ const saveProfile = () => {
 }
 
 .status-success {
-  color: #2f7464;
+  color: var(--profile-green);
   font-weight: 700;
 }
 
@@ -420,7 +475,7 @@ const saveProfile = () => {
 
 button {
   min-width: 8rem;
-  min-height: 2.6rem;
+  min-height: 2.5rem;
   padding: 0.55rem 1rem;
   border-radius: 0.6rem;
   font: inherit;
@@ -451,7 +506,7 @@ button {
 }
 
 .primary-button:hover:not(:disabled) {
-  background: #3d6973;
+  background: var(--profile-green-strong);
 }
 
 .secondary-button:hover:not(:disabled) {
@@ -484,24 +539,28 @@ button:disabled {
   border: 0;
 }
 
-@media (max-width: 900px) {
-  .user-profile-content {
-    width: min(calc(100% - 3rem), 68rem);
+@media (max-width: 1150px) {
+  .user-profile-avatar {
+    left: 0;
+    transform: none;
   }
 }
 
 @media (max-width: 720px) {
-  .user-profile-hero {
+  .profile-summary {
     height: 9rem;
   }
 
-  .user-profile-content {
+  .profile-summary-inner {
     width: min(calc(100% - 2rem), 34rem);
-    padding-top: 6rem;
   }
 
   .user-profile-avatar {
-    top: -4.5rem;
+    bottom: -3.5rem;
+    left: 50%;
+    width: 7rem;
+    height: 7rem;
+    transform: translateX(-50%);
   }
 
   .user-profile-form {
@@ -511,11 +570,13 @@ button:disabled {
       'first-name'
       'last-name'
       'email'
-      'password'
       'phone'
+      'password'
       'feedback'
       'actions';
-    gap: 1.2rem;
+    gap: 1rem;
+    width: min(calc(100% - 2rem), 34rem);
+    padding: 5.5rem 0 2rem;
   }
 
   .user-profile-form--editing {
@@ -524,9 +585,9 @@ button:disabled {
       'first-name'
       'last-name'
       'email'
+      'phone'
       'password'
       'confirm-password'
-      'phone'
       'feedback'
       'actions';
   }

@@ -3,7 +3,7 @@ package com.chanakanlabs.bgstore.inventory;
 import com.chanakanlabs.bgstore.contract.model.GameAvailability;
 import com.chanakanlabs.bgstore.contract.model.GameCategory;
 import java.util.UUID;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * One inventory list row, already rolled up over the branches the filter selected.

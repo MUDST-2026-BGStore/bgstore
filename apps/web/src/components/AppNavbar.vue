@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { useQuery } from '@tanstack/vue-query';
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { RouterLink, useRoute } from 'vue-router';
-import logo from '../assets/icons/logo.svg';
 import navBranches from '../assets/icons/nav-branches.svg';
 import navDashboard from '../assets/icons/nav-dashboard.svg';
 import navGames from '../assets/icons/nav-games.svg';
@@ -13,14 +12,17 @@ import navHome from '../assets/icons/nav-home.svg';
 import navProfile from '../assets/icons/nav-profile.svg';
 import navTables from '../assets/icons/nav-tables.svg';
 import UiButton from './ui/UiButton.vue';
+import BrandLockup from './BrandLockup.vue';
 import {
   currentUserQueryOptions,
   hasStaffAccess,
-  signInHref,
+  logout,
+  authStartHref,
 } from '../queries/current-user';
 
 type NavigationKey =
   | 'home'
+  | 'reserve'
   | 'branches'
   | 'games'
   | 'tables'
@@ -38,6 +40,9 @@ type NavigationItem = {
 const { t } = useI18n();
 const route = useRoute();
 const currentUser = useQuery(currentUserQueryOptions());
+const profileMenuOpen = ref(false);
+const logoutError = ref(false);
+const hasScrolled = ref(false);
 
 const guestItems: NavigationItem[] = [
   {
@@ -66,18 +71,18 @@ const guestItems: NavigationItem[] = [
 const clientItems: NavigationItem[] = [
   ...guestItems,
   {
+    key: 'reserve',
+    label: 'navigation.reserve',
+    to: '/reservations/new',
+    icon: navTables,
+    activeIcon: navTables,
+  },
+  {
     key: 'history',
     label: 'navigation.history',
     to: '/history',
     icon: navHistory,
     activeIcon: navHistory,
-  },
-  {
-    key: 'profile',
-    label: 'navigation.profile',
-    to: '/profile',
-    icon: navProfile,
-    activeIcon: navProfile,
   },
 ];
 
@@ -130,7 +135,20 @@ const items = computed(() => {
 
 const activeKey = computed<NavigationKey | null>(() => {
   const name = String(route.name ?? '');
+  if (name === 'login') {
+    const redirect = route.query.redirect;
+    if (typeof redirect === 'string' && redirect.startsWith('/games')) {
+      return 'games';
+    }
+    if (
+      typeof redirect === 'string' &&
+      (redirect.startsWith('/branches') || redirect.startsWith('/branch'))
+    ) {
+      return 'branches';
+    }
+  }
   if (name === 'home') return 'home';
+  if (name === 'staff-create-reservation') return 'reserve';
   if (name === 'branches' || name === 'branch-detail') return 'branches';
   if (name.startsWith('games')) return 'games';
   if (name.startsWith('history')) return 'history';
@@ -138,31 +156,60 @@ const activeKey = computed<NavigationKey | null>(() => {
   if (name === 'user-profile') return 'profile';
   return null;
 });
+
+function updateScrollState() {
+  hasScrolled.value = window.scrollY > 12;
+}
+
+onMounted(() => {
+  updateScrollState();
+  window.addEventListener('scroll', updateScrollState, { passive: true });
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', updateScrollState);
+});
+
+const profileInitials = computed(() => {
+  const user = currentUser.data.value;
+  if (!user) return 'BG';
+
+  const initials = [user.firstName, user.lastName]
+    .filter(Boolean)
+    .map((name) => name[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  return initials || user.username[0]?.toUpperCase() || 'BG';
+});
+
+function toggleProfileMenu() {
+  logoutError.value = false;
+  profileMenuOpen.value = !profileMenuOpen.value;
+}
+
+async function signOut() {
+  logoutError.value = false;
+  try {
+    await logout();
+  } catch {
+    logoutError.value = true;
+  }
+}
 </script>
 
 <template>
   <header
-    class="flex min-h-16 w-full shrink-0 items-center gap-4 border-b border-line bg-surface px-4 sm:px-6"
+    class="app-navbar client-header"
+    :class="{ 'client-header--scrolled': hasScrolled }"
   >
-    <RouterLink
-      class="flex shrink-0 items-center gap-2.5"
-      to="/"
-      :aria-label="t('app.title')"
-    >
-      <img
-        :src="logo"
-        :alt="t('app.title')"
-        class="block size-8 shrink-0"
-        width="32"
-        height="32"
-      />
-      <span class="hidden text-sm font-semibold text-ink sm:inline">{{
-        t('app.title')
-      }}</span>
+    <RouterLink class="client-header-brand" to="/" :aria-label="t('app.title')">
+      <BrandLockup />
     </RouterLink>
 
     <nav
-      class="flex min-w-0 flex-1 items-center justify-end gap-1 overflow-x-auto"
+      class="client-nav-pill"
       :aria-label="t(isStaff ? 'navigation.staff' : 'navigation.primary')"
     >
       <RouterLink
@@ -170,11 +217,11 @@ const activeKey = computed<NavigationKey | null>(() => {
         :key="item.key"
         :to="item.to"
         :aria-current="item.key === activeKey ? 'page' : undefined"
-        class="flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-[14px] leading-[22px]"
+        class="client-nav-link"
         :class="
           item.key === activeKey
-            ? 'bg-primary-subtle font-medium text-primary-subtle-fg'
-            : 'text-ink-secondary hover:bg-canvas'
+            ? 'client-nav-link--active'
+            : 'client-nav-link--quiet'
         "
       >
         <img
@@ -184,24 +231,58 @@ const activeKey = computed<NavigationKey | null>(() => {
           width="18"
           height="18"
         />
-        <span class="whitespace-nowrap">{{ t(item.label) }}</span>
+        <span>{{ t(item.label) }}</span>
       </RouterLink>
     </nav>
 
-    <div
-      v-if="!currentUser.data.value"
-      class="flex shrink-0 items-center gap-2"
-    >
+    <div v-if="!currentUser.data.value" class="client-header-actions">
       <UiButton
         variant="ghost"
-        :href="signInHref(route.fullPath)"
+        :href="authStartHref(route.fullPath)"
         class="hidden sm:inline-flex"
       >
         {{ t('navigation.login') }}
       </UiButton>
-      <UiButton :href="signInHref(route.fullPath, { signUp: true })">
+      <UiButton :href="authStartHref(route.fullPath, { signUp: true })">
         {{ t('navigation.signUp') }}
       </UiButton>
+    </div>
+
+    <div v-else-if="!isStaff" class="client-header-actions">
+      <div class="client-profile-menu">
+        <button
+          type="button"
+          class="client-profile-trigger"
+          :aria-expanded="profileMenuOpen"
+          :aria-label="t('navigation.profile')"
+          @click="toggleProfileMenu"
+        >
+          <span class="client-profile-avatar" aria-hidden="true">
+            {{ profileInitials }}
+          </span>
+        </button>
+
+        <div
+          v-if="profileMenuOpen"
+          class="client-profile-dropdown"
+          role="menu"
+          :aria-label="t('navigation.profile')"
+        >
+          <RouterLink
+            to="/profile"
+            role="menuitem"
+            @click="profileMenuOpen = false"
+          >
+            {{ t('navigation.profile') }}
+          </RouterLink>
+          <button type="button" role="menuitem" @click="signOut">
+            {{ t('navigation.logout') }}
+          </button>
+          <p v-if="logoutError" class="client-profile-error" role="alert">
+            {{ t('navigation.logoutFailed') }}
+          </p>
+        </div>
+      </div>
     </div>
   </header>
 </template>

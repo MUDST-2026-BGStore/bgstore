@@ -204,10 +204,14 @@ function statusToneClass(status?: ReservationStatus) {
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <!-- Name -->
               <div class="flex flex-col gap-1.5">
-                <label class="text-[13px] font-medium text-ink-secondary">
+                <label
+                  for="field-name"
+                  class="text-[13px] font-medium text-ink-secondary"
+                >
                   {{ t('history.fields.name') }}
                 </label>
                 <input
+                  id="field-name"
                   type="text"
                   readonly
                   :value="reservation.customerName"
@@ -218,10 +222,14 @@ function statusToneClass(status?: ReservationStatus) {
 
               <!-- Phone Number -->
               <div class="flex flex-col gap-1.5">
-                <label class="text-[13px] font-medium text-ink-secondary">
+                <label
+                  for="field-phone"
+                  class="text-[13px] font-medium text-ink-secondary"
+                >
                   {{ t('history.fields.phoneNumber') }}
                 </label>
                 <input
+                  id="field-phone"
                   type="text"
                   readonly
                   :value="reservation.phoneNumber"
@@ -232,10 +240,14 @@ function statusToneClass(status?: ReservationStatus) {
 
               <!-- Date -->
               <div class="flex flex-col gap-1.5">
-                <label class="text-[13px] font-medium text-ink-secondary">
+                <label
+                  for="field-date"
+                  class="text-[13px] font-medium text-ink-secondary"
+                >
                   {{ t('history.fields.date') }}
                 </label>
                 <input
+                  id="field-date"
                   type="text"
                   readonly
                   :value="reservation.date"
@@ -246,10 +258,14 @@ function statusToneClass(status?: ReservationStatus) {
 
               <!-- Time -->
               <div class="flex flex-col gap-1.5">
-                <label class="text-[13px] font-medium text-ink-secondary">
+                <label
+                  for="field-time"
+                  class="text-[13px] font-medium text-ink-secondary"
+                >
                   {{ t('history.fields.time') }}
                 </label>
                 <input
+                  id="field-time"
                   type="text"
                   readonly
                   :value="reservation.timeSlot"
@@ -260,10 +276,14 @@ function statusToneClass(status?: ReservationStatus) {
 
               <!-- Check-in Time -->
               <div class="flex flex-col gap-1.5">
-                <label class="text-[13px] font-medium text-ink-secondary">
+                <label
+                  for="field-checkin"
+                  class="text-[13px] font-medium text-ink-secondary"
+                >
                   {{ t('history.fields.checkInTime') }}
                 </label>
                 <input
+                  id="field-checkin"
                   type="text"
                   readonly
                   :value="reservation.checkInTime"
@@ -274,10 +294,14 @@ function statusToneClass(status?: ReservationStatus) {
 
               <!-- Actual Check-out -->
               <div class="flex flex-col gap-1.5">
-                <label class="text-[13px] font-medium text-ink-secondary">
+                <label
+                  for="field-checkout"
+                  class="text-[13px] font-medium text-ink-secondary"
+                >
                   {{ t('history.fields.actualCheckOut') }}
                 </label>
                 <input
+                  id="field-checkout"
                   type="text"
                   readonly
                   :value="reservation.actualCheckOut"
@@ -288,11 +312,15 @@ function statusToneClass(status?: ReservationStatus) {
 
               <!-- Overtime (with green badge/indicator) -->
               <div class="flex flex-col gap-1.5">
-                <label class="text-[13px] font-medium text-ink-secondary">
+                <span
+                  id="field-overtime-label"
+                  class="text-[13px] font-medium text-ink-secondary"
+                >
                   {{ t('history.fields.overtime') }}
-                </label>
+                </span>
                 <div
                   data-testid="field-overtime"
+                  aria-labelledby="field-overtime-label"
                   class="flex h-10 items-center rounded-md border border-success-border bg-success-bg px-3.5 text-[14px] font-medium text-success-fg"
                 >
                   {{
@@ -305,10 +333,14 @@ function statusToneClass(status?: ReservationStatus) {
 
               <!-- Total Price -->
               <div class="flex flex-col gap-1.5">
-                <label class="text-[13px] font-medium text-ink-secondary">
+                <label
+                  for="field-price"
+                  class="text-[13px] font-medium text-ink-secondary"
+                >
                   {{ t('history.fields.price') }}
                 </label>
                 <input
+                  id="field-price"
                   type="text"
                   readonly
                   :value="

@@ -9,6 +9,7 @@ plugins {
   id("org.springframework.boot") version "4.1.1"
   id("io.spring.dependency-management") version "1.1.7"
   id("net.ltgt.errorprone") version "5.1.0"
+  id("org.jooq.jooq-codegen-gradle") version "3.21.7"
 }
 
 group = "com.chanakanlabs.bgstore"
@@ -51,6 +52,7 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-data-jpa")
   implementation("org.springframework.boot:spring-boot-starter-flyway")
   implementation("org.springframework.boot:spring-boot-starter-jdbc")
+  implementation("org.springframework.boot:spring-boot-starter-jackson")
   implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
   implementation("org.springframework.boot:spring-boot-starter-security")
   implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
@@ -58,17 +60,30 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-validation")
   implementation("org.springframework.boot:spring-boot-starter-webmvc")
   implementation("org.flywaydb:flyway-database-postgresql")
+  compileOnly("org.jspecify:jspecify")
   implementation("org.springframework.modulith:spring-modulith-starter-core")
   implementation("org.springframework.modulith:spring-modulith-starter-insight")
+  implementation("org.jooq:jooq:3.21.7")
+  developmentOnly("org.springframework.boot:spring-boot-devtools")
+  jooqCodegen("org.jooq:jooq-meta-extensions:3.21.7")
   errorprone("com.google.errorprone:error_prone_core:2.50.0")
   errorprone("com.uber.nullaway:nullaway:0.13.8")
   runtimeOnly("io.micrometer:micrometer-registry-prometheus")
   runtimeOnly("org.postgresql:postgresql")
   runtimeOnly("org.springframework.modulith:spring-modulith-runtime")
 
-  testImplementation("org.springframework.boot:spring-boot-starter-test")
+  // Spring Boot 4 splits test support by technology. Each of these starters also
+  // brings the common Spring Boot test infrastructure transitively.
+  testImplementation("org.springframework.boot:spring-boot-starter-actuator-test")
+  testImplementation("org.springframework.boot:spring-boot-starter-data-jpa-test")
+  testImplementation("org.springframework.boot:spring-boot-starter-flyway-test")
+  testImplementation("org.springframework.boot:spring-boot-starter-jdbc-test")
+  testImplementation("org.springframework.boot:spring-boot-starter-jackson-test")
+  testImplementation("org.springframework.boot:spring-boot-starter-security-oauth2-client-test")
   testImplementation("org.springframework.boot:spring-boot-starter-security-test")
+  testImplementation("org.springframework.boot:spring-boot-starter-session-data-redis-test")
   testImplementation("org.springframework.boot:spring-boot-testcontainers")
+  testImplementation("org.springframework.boot:spring-boot-starter-validation-test")
   testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
   testImplementation("org.springframework.modulith:spring-modulith-starter-test")
   testImplementation("org.testcontainers:testcontainers-junit-jupiter")
@@ -91,6 +106,46 @@ tasks.withType<Test> {
 
 val generatedOpenApiDirectory = layout.buildDirectory.dir("generated/openapi")
 
+// CONTRIBUTING.md requires jOOQ types generated from the migrated schema. The
+// generator reads the Flyway scripts directly, so neither the build nor CI
+// needs a database to produce them.
+val generatedJooqDirectory = layout.buildDirectory.dir("generated/jooq")
+
+// jOOQ's DDLDatabase replays the scripts through H2. PostgreSQL's functional
+// indexes are valid application migrations but are not understood by that
+// simulator. Keep the Flyway files authoritative and create a disposable,
+// build-only copy with index statements ignored; indexes do not affect the
+// generated Java table and column types.
+val jooqInputDirectory = layout.buildDirectory.dir("jooq-input")
+val prepareJooqInput =
+    tasks.register("prepareJooqInput") {
+      val migrationFiles =
+          fileTree("src/main/resources/db/migration") {
+            include("V*__games*.sql")
+          }
+
+      inputs.files(migrationFiles)
+      outputs.dir(jooqInputDirectory)
+
+      doLast {
+        val outputDirectory = jooqInputDirectory.get().asFile
+        outputDirectory.deleteRecursively()
+        outputDirectory.mkdirs()
+
+        migrationFiles.files
+            .sortedBy { it.name }
+            .forEach { migration ->
+              val content =
+                  migration.readText().replace(
+                      Regex("(?m)^(\\s*(?:CREATE|DROP) INDEX\\b[^;]*;)\\s*$")
+                  ) {
+                    "-- [jooq ignore start]\n${it.groupValues[1]}\n-- [jooq ignore stop]"
+                  }
+              outputDirectory.resolve(migration.name).writeText(content)
+            }
+      }
+    }
+
 openApiGenerate {
   generatorName.set("spring")
   inputSpec.set(file("../../packages/contracts/openapi.yaml").absolutePath)
@@ -112,7 +167,10 @@ openApiGenerate {
           "openApiNullable" to "false",
           "skipDefaultInterface" to "true",
           "useJakartaEe" to "true",
-          "useSpringBoot3" to "true",
+          "useJackson3" to "true",
+          "useJspecify" to "true",
+          "useSpringBuiltInValidation" to "true",
+          "useSpringBoot4" to "true",
           "useTags" to "true",
       )
   )
@@ -126,11 +184,13 @@ openApiValidate {
 sourceSets {
   main {
     java.srcDir(generatedOpenApiDirectory.map { it.dir("src/main/java") })
+    java.srcDir(generatedJooqDirectory)
   }
 }
 
 tasks.compileJava {
-  dependsOn(tasks.openApiGenerate)
+  dependsOn(tasks.openApiGenerate, tasks.jooqCodegen)
+  options.compilerArgs.add("-Xlint:deprecation")
   options.errorprone {
     disableWarningsInGeneratedCode.set(true)
     excludedPaths.set(".*/build/generated/.*")
@@ -140,6 +200,7 @@ tasks.compileJava {
 }
 
 tasks.compileTestJava {
+  options.compilerArgs.add("-Xlint:deprecation")
   options.errorprone.disable("NullAway")
 }
 
@@ -215,4 +276,53 @@ allprojects {
   apply {
     plugin("dev.nx.gradle.project-graph")
   }
+}
+
+jooq {
+  configuration {
+    generator {
+      database {
+        name = "org.jooq.meta.extensions.ddl.DDLDatabase"
+        properties {
+          property {
+            key = "scripts"
+            // Identity tables are accessed through the application-owned JDBC
+            // repositories; only catalogue tables need generated jOOQ types.
+            // Keeping this scoped also avoids asking jOOQ's DDL parser to
+            // interpret provider-specific identity constraints, which it cannot
+            // simulate.
+            //
+            // jOOQ takes one Ant-style pattern rather than a list, so every
+            // migration that shapes a catalogue table is named `V*__games*.sql`
+            // to be matched here; `sort` below replays them in Flyway order.
+            value = "${jooqInputDirectory.get().asFile.absolutePath}/V*__games*.sql"
+          }
+          property {
+            key = "sort"
+            value = "flyway"
+          }
+          property {
+            key = "defaultNameCase"
+            value = "lower"
+          }
+          property {
+            key = "parseDialect"
+            value = "POSTGRES"
+          }
+          property {
+            key = "parseIgnoreComments"
+            value = "true"
+          }
+        }
+      }
+      target {
+        packageName = "com.chanakanlabs.bgstore.database"
+        directory = generatedJooqDirectory.get().asFile.absolutePath
+      }
+    }
+  }
+}
+
+tasks.named("jooqCodegen") {
+  dependsOn(prepareJooqInput)
 }

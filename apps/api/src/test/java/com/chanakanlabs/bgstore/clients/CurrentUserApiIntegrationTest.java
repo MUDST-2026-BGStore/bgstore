@@ -12,6 +12,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.OidcLoginRequestPostProcessor;
@@ -19,22 +20,23 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 
 @SpringBootTest(
     properties = {
       "management.logging.export.otlp.enabled=false",
       "management.otlp.metrics.export.enabled=false",
-      "management.tracing.export.enabled=false"
+      "management.tracing.export.enabled=false",
+      "spring.data.redis.password=test-password"
     })
 @AutoConfigureMockMvc
 @Testcontainers
 class CurrentUserApiIntegrationTest {
 
-  @Container
-  static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.1-alpine");
+  @Container @ServiceConnection
+  static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18.1-alpine");
 
   @Container
   static final GenericContainer<?> REDIS =
@@ -43,10 +45,7 @@ class CurrentUserApiIntegrationTest {
           .withCommand("redis-server", "--requirepass", "test-password");
 
   @DynamicPropertySource
-  static void databaseProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
+  static void redisProperties(DynamicPropertyRegistry registry) {
     registry.add("spring.data.redis.host", REDIS::getHost);
     registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
     registry.add("spring.data.redis.password", () -> "test-password");
@@ -84,7 +83,8 @@ class CurrentUserApiIntegrationTest {
                 .with(clientLogin("9891d60a-7417-4cdd-b817-f40c1aa01234"))
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"countryCode\":\"+66\",\"phoneNumber\":\"081 234 5678\"}"))
+                .content(
+                    "{\"firstName\":\"Ada\",\"lastName\":\"Lovelace\",\"countryCode\":\"+66\",\"phoneNumber\":\"081 234 5678\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.phone").value("+66812345678"))
         .andExpect(jsonPath("$.completed").value(true));
@@ -92,6 +92,8 @@ class CurrentUserApiIntegrationTest {
     mockMvc
         .perform(get("/api/v1/me").with(clientLogin("9891d60a-7417-4cdd-b817-f40c1aa01234")))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.firstName").value("Ada"))
+        .andExpect(jsonPath("$.lastName").value("Lovelace"))
         .andExpect(jsonPath("$.clientProfile.phone").value("+66812345678"))
         .andExpect(jsonPath("$.onboardingRequired").value(false));
   }

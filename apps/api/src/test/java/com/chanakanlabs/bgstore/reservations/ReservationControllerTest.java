@@ -20,6 +20,7 @@ class ReservationControllerTest {
 
   @Mock private ReservationService service;
   @Mock private FloorOverviewService floor;
+  @Mock private StaffReservationService staffReservations;
 
   private ReservationController controller;
 
@@ -48,7 +49,7 @@ class ReservationControllerTest {
 
   @BeforeEach
   void setUp() {
-    controller = new ReservationController(service, floor);
+    controller = new ReservationController(service, floor, staffReservations);
   }
 
   @Test

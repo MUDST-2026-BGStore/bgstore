@@ -20,6 +20,9 @@ public class IdentityAccountService {
         identity.username(),
         identity.email(),
         identity.firstName(),
-        identity.lastName());
+        identity.lastName(),
+        identity.roles().contains(ApplicationRole.MANAGER)
+            ? "MANAGER"
+            : identity.roles().contains(ApplicationRole.STAFF) ? "STAFF" : "CLIENT");
   }
 }

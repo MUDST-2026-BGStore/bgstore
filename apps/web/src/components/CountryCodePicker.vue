@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 type CountryOption = {
@@ -21,7 +21,7 @@ const props = withDefaults(
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const { locale, t } = useI18n();
 
-const pickerRoot = ref<HTMLElement | null>(null);
+const pickerRoot = useTemplateRef<HTMLElement>('pickerRoot');
 const countryMenuOpen = ref(false);
 const searchBuffer = ref('');
 let searchResetTimer: ReturnType<typeof setTimeout> | undefined;

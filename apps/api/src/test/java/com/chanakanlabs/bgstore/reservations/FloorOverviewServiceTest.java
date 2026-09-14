@@ -31,7 +31,6 @@ class FloorOverviewServiceTest {
 
   @Mock private TableManagementService tables;
   @Mock private AccessPolicy accessPolicy;
-
   private InMemoryReservedSlots slots;
   private FloorOverviewService service;
 

@@ -32,7 +32,9 @@ const selectedBranch = ref('');
 const search = ref('');
 const zoneFilter = ref('');
 const statusFilter = ref<TableStatus | ''>('');
-const currentPage = ref(0);
+// The API contract is one-based; keep the screen state one-based too so every
+// request is valid without translating at multiple call sites.
+const currentPage = ref(1);
 const currentView = ref<ViewMode>('list');
 const viewedTable = ref<TableResponse | null>(null);
 const editingId = ref<number | null>(null);
@@ -62,7 +64,7 @@ watch(
 const allTablesQuery = computed(() =>
   tablesQueryOptions({
     branch: selectedBranch.value || undefined,
-    page: 0,
+    page: 1,
     pageSize: 100,
   }),
 );
@@ -126,12 +128,12 @@ const statusClasses: Record<TableStatus, string> = {
 };
 
 const pageNumbers = computed(() =>
-  Array.from({ length: totalPages.value }, (_, index) => index),
+  Array.from({ length: totalPages.value }, (_, index) => index + 1),
 );
 const range = computed(() => {
   if (total.value === 0) return t('tables.showingNone');
-  const from = currentPage.value * pageSize + 1;
-  const to = Math.min(from + rows.value.length - 1, total.value);
+  const from = (currentPage.value - 1) * pageSize + 1;
+  const to = Math.min(currentPage.value * pageSize, total.value);
   return t('tables.showing', { from, to, total: total.value });
 });
 
@@ -157,7 +159,7 @@ const remove = useMutation({
   mutationFn: deleteTableRequest,
   onSuccess: async () => {
     await queryClient.invalidateQueries({ queryKey: ['tables'] });
-    if (currentPage.value >= totalPages.value && currentPage.value > 0) {
+    if (currentPage.value > totalPages.value && currentPage.value > 1) {
       currentPage.value -= 1;
     }
   },
@@ -167,7 +169,7 @@ const remove = useMutation({
 });
 
 watch([selectedBranch, search, zoneFilter, statusFilter], () => {
-  currentPage.value = 0;
+  currentPage.value = 1;
 });
 
 function errorMessage(error: unknown): string {
@@ -272,10 +274,13 @@ function formatUpdated(value: string) {
 </script>
 
 <template>
-  <OwnerLayout>
-    <div class="flex w-full flex-col items-start bg-canvas" data-page="tables">
+  <OwnerLayout active="tables">
+    <div
+      class="staff-page-content flex w-full flex-col items-start bg-canvas"
+      data-page="tables"
+    >
       <header
-        class="flex w-full items-center gap-3 border-b border-line bg-surface px-8 py-4"
+        class="staff-page-toolbar flex w-full items-center gap-3 border-b border-line bg-surface px-8 py-4"
       >
         <h1 class="text-[18px] font-semibold text-ink">
           {{ t('tables.title') }}
@@ -290,7 +295,7 @@ function formatUpdated(value: string) {
         v-if="currentView === 'list'"
         class="mx-auto w-full max-w-6xl px-8 py-7"
       >
-        <div class="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+        <div class="staff-stat-grid mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
           <article
             v-for="card in [
               { label: t('tables.total'), value: summary.total },
@@ -437,7 +442,7 @@ function formatUpdated(value: string) {
           <span>{{ range }}</span>
           <div class="flex items-center gap-1" aria-label="Table pagination">
             <button
-              :disabled="currentPage === 0"
+              :disabled="currentPage === 1"
               aria-label="Previous page"
               class="rounded border border-line px-2 py-1 disabled:opacity-40"
               @click="currentPage -= 1"
@@ -459,7 +464,7 @@ function formatUpdated(value: string) {
               {{ page + 1 }}
             </button>
             <button
-              :disabled="currentPage + 1 >= totalPages"
+              :disabled="currentPage >= totalPages"
               aria-label="Next page"
               class="rounded border border-line px-2 py-1 disabled:opacity-40"
               @click="currentPage += 1"

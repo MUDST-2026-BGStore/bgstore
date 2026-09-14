@@ -7,9 +7,14 @@
   "supportedLocales": ["en", "th"],
   "defaultLocale": "en",
   "registrationAllowed": true,
+  "registrationEmailAsUsername": true,
   "loginWithEmailAllowed": true,
+  "passwordPolicy": "length(12) and upperCase(1) and lowerCase(1) and digits(1) and specialChars(1) and notUsername()",
   "verifyEmail": true,
   "resetPasswordAllowed": true,
+  "attributes": {
+    "bgstoreAppUrl": "http://localhost:4200"
+  },
   "smtpServer": {
     "host": "mailpit",
     "port": "1025",
@@ -19,6 +24,74 @@
     "starttls": "false",
     "ssl": "false"
   },
+  "authenticationFlows": [
+    {
+      "id": "6c07004a-49f1-4833-95ef-98f8f17cdd8a",
+      "alias": "registration",
+      "description": "Registration flow",
+      "providerId": "basic-flow",
+      "topLevel": true,
+      "builtIn": true,
+      "authenticationExecutions": [
+        {
+          "authenticatorFlow": true,
+          "authenticator": "registration-page-form",
+          "requirement": "REQUIRED",
+          "priority": 10,
+          "flowAlias": "registration form",
+          "userSetupAllowed": false
+        }
+      ]
+    },
+    {
+      "id": "36653f28-e073-4fc3-8865-b0b8cdac9983",
+      "alias": "registration form",
+      "description": "Registration form",
+      "providerId": "form-flow",
+      "topLevel": false,
+      "builtIn": true,
+      "authenticationExecutions": [
+        {
+          "authenticator": "registration-user-creation",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 20,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticatorConfig": "BGStore registration password",
+          "authenticator": "registration-password-action",
+          "authenticatorFlow": false,
+          "requirement": "REQUIRED",
+          "priority": 50,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "registration-recaptcha-action",
+          "authenticatorFlow": false,
+          "requirement": "DISABLED",
+          "priority": 60,
+          "userSetupAllowed": false
+        },
+        {
+          "authenticator": "registration-terms-and-conditions",
+          "authenticatorFlow": false,
+          "requirement": "DISABLED",
+          "priority": 70,
+          "userSetupAllowed": false
+        }
+      ]
+    }
+  ],
+  "authenticatorConfig": [
+    {
+      "id": "69f38e78-9bc0-4c95-91b4-24768bf68e11",
+      "alias": "BGStore registration password",
+      "config": {
+        "always_set_password_on_register_form": "true"
+      }
+    }
+  ],
   "roles": {
     "realm": [{ "name": "CLIENT" }, { "name": "STAFF" }, { "name": "MANAGER" }]
   },
@@ -35,6 +108,7 @@
       "protocol": "openid-connect",
       "publicClient": false,
       "secret": "bgstore-local-client-secret",
+      "baseUrl": "http://localhost:4200",
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
@@ -55,9 +129,12 @@
         }
       ],
       "redirectUris": [
-        "http://localhost:4200/login/oauth2/code/keycloak",
-        "http://localhost:8080/login/oauth2/code/keycloak"
+        "http://localhost:4200/auth/callback/bgstore",
+        "http://localhost:8080/auth/callback/bgstore"
       ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://localhost:4200/"
+      },
       "webOrigins": []
     }
   ],
@@ -71,7 +148,7 @@
       "emailVerified": true,
       "realmRoles": ["CLIENT"],
       "credentials": [
-        { "type": "password", "value": "client-local-only", "temporary": false }
+        { "type": "password", "value": "ClientLocalOnly9!", "temporary": false }
       ]
     },
     {
@@ -83,7 +160,7 @@
       "emailVerified": true,
       "realmRoles": ["STAFF"],
       "credentials": [
-        { "type": "password", "value": "staff-local-only", "temporary": false }
+        { "type": "password", "value": "StaffLocalOnly9!", "temporary": false }
       ]
     },
     {
@@ -97,7 +174,7 @@
       "credentials": [
         {
           "type": "password",
-          "value": "manager-local-only",
+          "value": "ManagerLocalOnly9!",
           "temporary": false
         }
       ]

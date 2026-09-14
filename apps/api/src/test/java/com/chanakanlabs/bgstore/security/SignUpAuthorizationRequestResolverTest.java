@@ -14,14 +14,15 @@ class SignUpAuthorizationRequestResolverTest {
   private final SignUpAuthorizationRequestResolver resolver =
       new SignUpAuthorizationRequestResolver(
           new InMemoryClientRegistrationRepository(
-              ClientRegistration.withRegistrationId("keycloak")
+              ClientRegistration.withRegistrationId("bgstore")
                   .clientId("bgstore-web")
                   .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                  .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+                  .redirectUri("{baseUrl}/auth/callback/{registrationId}")
                   .scope("openid")
                   .authorizationUri("https://id.example.test/auth")
                   .tokenUri("https://id.example.test/token")
-                  .build()));
+                  .build()),
+          SecurityConfiguration.AUTHORIZATION_BASE_URI);
 
   @Test
   void asksTheProviderForItsRegistrationFormWhenTheVisitorChoseSignUp() {
@@ -49,8 +50,8 @@ class SignUpAuthorizationRequestResolverTest {
   }
 
   private static MockHttpServletRequest authorizationRequest() {
-    var request = new MockHttpServletRequest("GET", "/oauth2/authorization/keycloak");
-    request.setServletPath("/oauth2/authorization/keycloak");
+    var request = new MockHttpServletRequest("GET", "/auth/provider/bgstore");
+    request.setServletPath("/auth/provider/bgstore");
     return request;
   }
 }

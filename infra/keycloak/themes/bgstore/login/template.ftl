@@ -1,4 +1,4 @@
-<#macro registrationLayout displayInfo=false displayMessage=true displayRequiredFields=false>
+<#macro registrationLayout displayInfo=false displayMessage=true displayRequiredFields=false cardClass="">
 <!doctype html>
 <html lang="${locale.currentLanguageTag!}">
   <head>
@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>${msg("loginTitle", realm.displayName!"BGStore")}</title>
     <link rel="stylesheet" href="${url.resourcesPath}/css/bgstore.css">
+    <script src="${url.resourcesPath}/js/bgstore.js" defer></script>
   </head>
   <body>
     <main class="bgstore-auth-shell">
@@ -23,7 +24,7 @@
         </#if>
       </header>
 
-      <section class="bgstore-auth-card" aria-labelledby="bgstore-page-title">
+      <section class="bgstore-auth-card ${cardClass}" aria-labelledby="bgstore-page-title">
         <#nested "header">
 
         <#if displayMessage && message?has_content>

@@ -22,6 +22,7 @@ const directory: Branch[] = [
     address: '999/9 ถ. พระรามที่ 1 แขวงปทุมวัน เขตปทุมวัน กรุงเทพฯ 10330',
     opensAt: '10:00',
     closesAt: '20:00',
+    status: 'ACTIVE',
   },
   {
     id: '3f0d7d5a-9a2b-4a71-8f0e-000000000003',
@@ -29,6 +30,7 @@ const directory: Branch[] = [
     address: '999/9 ถ. พระรามที่ 9 แขวงห้วยขวาง เขตห้วยขวาง กรุงเทพฯ 10310',
     opensAt: '10:00',
     closesAt: '21:00',
+    status: 'ACTIVE',
   },
   {
     id: '3f0d7d5a-9a2b-4a71-8f0e-000000000001',
@@ -36,6 +38,7 @@ const directory: Branch[] = [
     address: '160 ถ. พระรามที่ 2 แขวงแสมดำ เขตบางขุนเทียน กรุงเทพฯ 10150',
     opensAt: '09:00',
     closesAt: '19:00',
+    status: 'ACTIVE',
   },
   {
     id: '3f0d7d5a-9a2b-4a71-8f0e-000000000005',
@@ -43,6 +46,7 @@ const directory: Branch[] = [
     address: null,
     opensAt: null,
     closesAt: null,
+    status: 'ACTIVE',
   },
 ];
 

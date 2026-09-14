@@ -128,13 +128,15 @@ const lastStockIndex = computed(() => (game.value?.stock.length ?? 0) - 1);
 
   <OwnerLayout v-else>
     <div
-      class="flex w-full shrink-0 items-center gap-3 border-b border-line bg-surface px-8 py-3.5"
+      class="staff-page-toolbar flex w-full shrink-0 items-center gap-3 border-b border-line bg-surface px-8 py-3.5"
     >
       <PageBreadcrumb :current="title" />
       <div class="h-px min-w-0 flex-1" />
     </div>
 
-    <div class="flex w-full shrink-0 flex-col items-end gap-6 px-8 pt-6 pb-8">
+    <div
+      class="staff-page-content flex w-full shrink-0 flex-col items-end gap-6 px-8 pt-6 pb-8"
+    >
       <p
         v-if="savedTitle"
         data-testid="details-saved"
@@ -166,6 +168,7 @@ const lastStockIndex = computed(() => (game.value?.stock.length ?? 0) - 1);
             >
               <img
                 v-if="game.imageUrls[0]"
+                data-testid="game-detail-image"
                 :src="game.imageUrls[0]"
                 :alt="title"
                 class="block size-full object-cover"

@@ -1,7 +1,8 @@
 package com.chanakanlabs.bgstore.tables;
 
 import java.time.OffsetDateTime;
-import org.springframework.lang.Nullable;
+import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 
 public record TableRecordData(
     @Nullable Long id,
@@ -12,4 +13,20 @@ public record TableRecordData(
     String status,
     boolean active,
     String zone,
-    OffsetDateTime lastUpdated) {}
+    OffsetDateTime lastUpdated,
+    @Nullable UUID branchId) {
+
+  /** Compatibility constructor for in-memory adapters and older module tests. */
+  public TableRecordData(
+      @Nullable Long id,
+      String name,
+      String branch,
+      int capacity,
+      String shape,
+      String status,
+      boolean active,
+      String zone,
+      OffsetDateTime lastUpdated) {
+    this(id, name, branch, capacity, shape, status, active, zone, lastUpdated, null);
+  }
+}

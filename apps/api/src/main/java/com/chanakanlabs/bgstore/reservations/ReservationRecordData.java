@@ -1,11 +1,11 @@
 package com.chanakanlabs.bgstore.reservations;
 
 import java.time.OffsetDateTime;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 public record ReservationRecordData(
     String id,
-    String clientSubject,
+    @Nullable String clientSubject,
     String title,
     String date,
     String timeSlot,

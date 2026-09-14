@@ -23,11 +23,12 @@ class FloorOverviewControllerTest {
 
   @Mock private FloorOverviewService service;
   @Mock private ReservationService reservationService;
+  @Mock private StaffReservationService staffReservations;
   private ReservationController controller;
 
   @BeforeEach
   void setUp() {
-    controller = new ReservationController(reservationService, service);
+    controller = new ReservationController(reservationService, service, staffReservations);
   }
 
   @Test

@@ -5,7 +5,12 @@ import com.chanakanlabs.bgstore.contract.model.ApplicationRole;
 import com.chanakanlabs.bgstore.contract.model.ClientProfile;
 import com.chanakanlabs.bgstore.contract.model.CompleteClientProfileRequest;
 import com.chanakanlabs.bgstore.contract.model.CurrentUserResponse;
+import com.chanakanlabs.bgstore.contract.model.ReplaceStaffBranchAssignmentsRequest;
+import com.chanakanlabs.bgstore.contract.model.StaffBranchAssignment;
+import com.chanakanlabs.bgstore.contract.model.StaffBranchAssignmentList;
+import com.chanakanlabs.bgstore.identity.StaffBranchAssignmentService;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -15,9 +20,33 @@ import org.springframework.web.bind.annotation.RestController;
 public class CurrentUserController implements IdentityApi {
 
   private final CurrentUserService currentUsers;
+  private final ClientDirectoryService clientDirectory;
+  private final StaffBranchAssignmentService assignments;
 
-  public CurrentUserController(CurrentUserService currentUsers) {
+  public CurrentUserController(
+      CurrentUserService currentUsers,
+      StaffBranchAssignmentService assignments,
+      ClientDirectoryService clientDirectory) {
     this.currentUsers = currentUsers;
+    this.assignments = assignments;
+    this.clientDirectory = clientDirectory;
+  }
+
+  @Override
+  public ResponseEntity<com.chanakanlabs.bgstore.contract.model.ClientListResponse> listClients(
+      @Nullable String search) {
+    return ResponseEntity.ok(clientDirectory.list(search));
+  }
+
+  @Override
+  public ResponseEntity<StaffBranchAssignmentList> listStaffBranchAssignments() {
+    return ResponseEntity.ok(assignments.list());
+  }
+
+  @Override
+  public ResponseEntity<StaffBranchAssignment> replaceStaffBranchAssignments(
+      String staffSubject, ReplaceStaffBranchAssignmentsRequest request) {
+    return ResponseEntity.ok(assignments.replace(staffSubject, request));
   }
 
   @Override
@@ -31,6 +60,8 @@ public class CurrentUserController implements IdentityApi {
     return ResponseEntity.ok(
         toResponse(
             currentUsers.completeClientProfile(
+                completeClientProfileRequest.getFirstName(),
+                completeClientProfileRequest.getLastName(),
                 completeClientProfileRequest.getCountryCode(),
                 completeClientProfileRequest.getPhoneNumber())));
   }
@@ -42,19 +73,33 @@ public class CurrentUserController implements IdentityApi {
             .sorted()
             .map(role -> ApplicationRole.valueOf(role.name()))
             .toList();
-    return new CurrentUserResponse(
+    var profile = currentUser.clientProfile();
+    String firstName =
+        profileNameOrIdentity(profile == null ? null : profile.firstName(), identity.firstName());
+    String lastName =
+        profileNameOrIdentity(profile == null ? null : profile.lastName(), identity.lastName());
+    var response =
+        new CurrentUserResponse(
             identity.subject(),
             identity.username(),
             identity.email(),
-            identity.firstName(),
-            identity.lastName(),
+            firstName,
+            lastName,
             roles,
-            currentUser.onboardingRequired())
-        .clientProfile(
-            currentUser.clientProfile() == null ? null : toResponse(currentUser.clientProfile()));
+            currentUser.onboardingRequired());
+    if (profile != null) {
+      response.setClientProfile(toResponse(profile));
+    }
+    return response;
   }
 
   private static ClientProfile toResponse(ClientProfileData profile) {
-    return new ClientProfile(profile.completed()).phone(profile.phone());
+    var response = new ClientProfile(profile.completed());
+    response.setPhone(profile.phone());
+    return response;
+  }
+
+  private static String profileNameOrIdentity(@Nullable String profileName, String identityName) {
+    return profileName == null || profileName.isBlank() ? identityName : profileName;
   }
 }

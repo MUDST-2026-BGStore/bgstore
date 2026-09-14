@@ -61,6 +61,8 @@ services:
       - '8081:8080'
     volumes:
       - ./infra/local/keycloak/bgstore-realm.json:/opt/keycloak/data/import/bgstore-realm.json:ro
+      # Keep local theme edits visible without rebuilding the Keycloak image.
+      - ./infra/keycloak/themes:/opt/keycloak/themes:ro
     depends_on:
       postgres:
         condition: service_healthy

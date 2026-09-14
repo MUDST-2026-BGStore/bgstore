@@ -7,9 +7,21 @@ import type {
 
 /** Ids match the branches `V3__games.sql` seeds. */
 export const branches: Branch[] = [
-  { id: '3f0d7d5a-9a2b-4a71-8f0e-000000000002', name: 'Big C Rama I' },
-  { id: '3f0d7d5a-9a2b-4a71-8f0e-000000000001', name: 'Central Rama II' },
-  { id: '3f0d7d5a-9a2b-4a71-8f0e-000000000004', name: 'Sukhumvit' },
+  {
+    id: '3f0d7d5a-9a2b-4a71-8f0e-000000000002',
+    name: 'Big C Rama I',
+    status: 'ACTIVE',
+  },
+  {
+    id: '3f0d7d5a-9a2b-4a71-8f0e-000000000001',
+    name: 'Central Rama II',
+    status: 'ACTIVE',
+  },
+  {
+    id: '3f0d7d5a-9a2b-4a71-8f0e-000000000004',
+    name: 'Sukhumvit',
+    status: 'ACTIVE',
+  },
 ];
 
 export const ticketToRideId = '9b1f0e4c-1d3a-4a0b-8f21-4c6f5a0d7e11';

@@ -17,11 +17,23 @@ const currentUser = {
   onboardingRequired: false,
 };
 
-const mountProfile = () => {
+const staffUser = {
+  subject: '18b1cd30-1b94-42ff-9c98-f3d709001234',
+  username: 'staff@example.test',
+  email: 'staff@example.test',
+  firstName: 'Local',
+  lastName: 'Staff',
+  roles: ['STAFF'] as const,
+  onboardingRequired: false,
+};
+
+const mountProfile = (
+  user: typeof currentUser | typeof staffUser = currentUser,
+) => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, staleTime: Infinity } },
   });
-  queryClient.setQueryData(['current-user'], currentUser);
+  queryClient.setQueryData(['current-user'], user);
   const i18n = createI18n({ legacy: false, locale: 'en', messages });
 
   return mount(UserProfileView, {
@@ -105,7 +117,7 @@ describe('user profile view', () => {
     const request = vi.mocked(fetch).mock.calls[0]?.[0] as Request;
     expect(request.url).toBe('http://localhost/api/v1/me/client-profile');
     expect(await request.text()).toBe(
-      '{"countryCode":"+66","phoneNumber":"098 765 4321"}',
+      '{"firstName":"Local","lastName":"Client","countryCode":"+66","phoneNumber":"098 765 4321"}',
     );
     expect(wrapper.text()).toContain('Your phone number has been updated.');
     expect(wrapper.find('button[type="submit"]').exists()).toBe(false);
@@ -129,7 +141,7 @@ describe('user profile view', () => {
   it('keeps Keycloak-owned changes in edit mode until an account API exists', async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal('fetch', fetchMock);
-    const wrapper = mountProfile();
+    const wrapper = mountProfile(staffUser);
     await flushPromises();
 
     await wrapper.get('.primary-button').trigger('click');

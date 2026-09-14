@@ -15,13 +15,17 @@ final class ReturnToRequestFilter extends OncePerRequestFilter {
   protected void doFilterInternal(
       HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
       throws ServletException, IOException {
-    if ("/oauth2/authorization/keycloak".equals(request.getRequestURI())) {
+    if (isAuthenticationStart(request.getRequestURI())) {
       String returnTo = request.getParameter("returnTo");
       if (isSafeRelativePath(returnTo)) {
         request.getSession(true).setAttribute(SESSION_ATTRIBUTE, returnTo);
       }
     }
     filterChain.doFilter(request, response);
+  }
+
+  private static boolean isAuthenticationStart(String requestUri) {
+    return "/auth/sign-in".equals(requestUri) || "/auth/sign-up".equals(requestUri);
   }
 
   static boolean isSafeRelativePath(String value) {

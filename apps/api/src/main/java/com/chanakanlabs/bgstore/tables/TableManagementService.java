@@ -1,12 +1,16 @@
 package com.chanakanlabs.bgstore.tables;
 
+import com.chanakanlabs.bgstore.branches.Branch;
+import com.chanakanlabs.bgstore.branches.BranchDirectory;
 import com.chanakanlabs.bgstore.identity.AccessPolicy;
+import com.chanakanlabs.bgstore.identity.ApplicationRole;
+import com.chanakanlabs.bgstore.identity.AuthenticatedIdentity;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -17,10 +21,13 @@ public class TableManagementService {
 
   private final TableRepository repository;
   private final AccessPolicy accessPolicy;
+  private final BranchDirectory branches;
 
-  public TableManagementService(TableRepository repository, AccessPolicy accessPolicy) {
+  TableManagementService(
+      TableRepository repository, AccessPolicy accessPolicy, BranchDirectory branches) {
     this.repository = repository;
     this.accessPolicy = accessPolicy;
+    this.branches = branches;
   }
 
   public PageResult<TableRecordData> listTables(
@@ -30,9 +37,11 @@ public class TableManagementService {
       @Nullable String search,
       int page,
       int pageSize) {
-    accessPolicy.requireStaffOrManager();
-
-    return pageOf(repository.findAll(branch, zone, status, trimmed(search), false), page, pageSize);
+    var identity = accessPolicy.requireStaffOrManager();
+    var rows =
+        repository.findAll(
+            canonicalBranchForRead(branch, identity), zone, status, trimmed(search), false);
+    return pageOf(scopeRows(rows, identity), page, pageSize);
   }
 
   /** The tables in service, which are the ones the floor overview shows. */
@@ -42,18 +51,23 @@ public class TableManagementService {
       @Nullable String search,
       int page,
       int pageSize) {
-    accessPolicy.requireStaffOrManager();
-
-    return pageOf(repository.findAll(branch, null, status, trimmed(search), true), page, pageSize);
+    var identity = accessPolicy.requireStaffOrManager();
+    var rows =
+        repository.findAll(
+            canonicalBranchForRead(branch, identity), null, status, trimmed(search), true);
+    return pageOf(scopeRows(rows, identity), page, pageSize);
   }
 
   /**
    * How many tables in service are in each status, across every branch when {@code branch} is null.
    */
   public Map<String, Long> countActiveByStatus(@Nullable String branch) {
-    accessPolicy.requireStaffOrManager();
-
-    return repository.countActiveByStatus(branch);
+    var identity = accessPolicy.requireStaffOrManager();
+    var rows = repository.findAll(canonicalBranchForRead(branch, identity), null, null, null, true);
+    return scopeRows(rows, identity).stream()
+        .collect(
+            java.util.stream.Collectors.groupingBy(
+                TableRecordData::status, java.util.stream.Collectors.counting()));
   }
 
   private static PageResult<TableRecordData> pageOf(
@@ -74,13 +88,15 @@ public class TableManagementService {
 
   public TableRecordData getTable(Long tableId) {
     accessPolicy.requireStaffOrManager();
-
-    return repository
-        .findById(tableId)
-        .orElseThrow(
-            () ->
-                new ResponseStatusException(
-                    HttpStatus.NOT_FOUND, "Table not found with id: " + tableId));
+    var table =
+        repository
+            .findById(tableId)
+            .orElseThrow(
+                () ->
+                    new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Table not found with id: " + tableId));
+    requireTableBranch(table);
+    return table;
   }
 
   public TableRecordData createTable(
@@ -94,6 +110,8 @@ public class TableManagementService {
     accessPolicy.requireStaffOrManager();
 
     validateTableFields(name, branch, capacity);
+    Branch selectedBranch = requireKnownBranch(branch);
+    accessPolicy.requireBranch(selectedBranch.id());
 
     if (repository.existsByNameAndBranch(name, branch, null)) {
       throw new ResponseStatusException(
@@ -111,7 +129,8 @@ public class TableManagementService {
             status.trim(),
             active,
             zone.trim(),
-            OffsetDateTime.now(ZoneOffset.UTC));
+            OffsetDateTime.now(ZoneOffset.UTC),
+            selectedBranch.id());
 
     return repository.save(newTable);
   }
@@ -127,12 +146,16 @@ public class TableManagementService {
       String zone) {
     accessPolicy.requireStaffOrManager();
 
-    if (repository.findById(tableId).isEmpty()) {
+    TableRecordData existing = repository.findById(tableId).orElse(null);
+    if (existing == null) {
       throw new ResponseStatusException(
           HttpStatus.NOT_FOUND, "Table not found with id: " + tableId);
     }
 
     validateTableFields(name, branch, capacity);
+    requireTableBranch(existing);
+    Branch selectedBranch = requireKnownBranch(branch);
+    accessPolicy.requireBranch(selectedBranch.id());
 
     if (repository.existsByNameAndBranch(name, branch, tableId)) {
       throw new ResponseStatusException(
@@ -150,18 +173,67 @@ public class TableManagementService {
             status.trim(),
             active,
             zone.trim(),
-            OffsetDateTime.now(ZoneOffset.UTC));
+            OffsetDateTime.now(ZoneOffset.UTC),
+            selectedBranch.id());
 
     return repository.save(updated);
   }
 
   public void deleteTable(Long tableId) {
     accessPolicy.requireStaffOrManager();
-
-    if (!repository.deleteById(tableId)) {
+    TableRecordData existing = repository.findById(tableId).orElse(null);
+    if (existing == null) {
       throw new ResponseStatusException(
           HttpStatus.NOT_FOUND, "Table not found with id: " + tableId);
     }
+    requireTableBranch(existing);
+    repository.deleteById(tableId);
+  }
+
+  private @Nullable String canonicalBranchForRead(
+      @Nullable String requested, AuthenticatedIdentity identity) {
+    if (requested != null && !requested.isBlank()) {
+      Branch found = requireKnownBranch(requested);
+      accessPolicy.requireBranch(found.id());
+      return found.name();
+    }
+    if (identity.roles().contains(ApplicationRole.MANAGER)) return null;
+    accessPolicy.requireAnyAssignedBranch();
+    return null;
+  }
+
+  private List<TableRecordData> scopeRows(
+      List<TableRecordData> rows, AuthenticatedIdentity identity) {
+    if (identity.roles().contains(ApplicationRole.MANAGER)) return rows;
+    return rows.stream()
+        .filter(
+            row -> {
+              Branch branch = branchFor(row);
+              return accessPolicy.canAccessBranch(branch.id());
+            })
+        .toList();
+  }
+
+  private Branch requireKnownBranch(String name) {
+    return branches.findAll().stream()
+        .filter(found -> found.name().equalsIgnoreCase(name.trim()))
+        .findFirst()
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown branch."));
+  }
+
+  private Branch branchFor(TableRecordData table) {
+    if (table.branchId() != null) {
+      return branches
+          .findById(table.branchId())
+          .orElseThrow(
+              () -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unknown table branch."));
+    }
+    return requireKnownBranch(table.branch());
+  }
+
+  private void requireTableBranch(TableRecordData table) {
+    Branch branch = branchFor(table);
+    accessPolicy.requireBranch(branch.id());
   }
 
   private void validateTableFields(String name, String branch, int capacity) {

@@ -19,6 +19,13 @@ interface TableReservationJpaRepository extends JpaRepository<TableReservationEn
   List<TableReservationEntity> findUpcoming(
       @Param("tableIds") Collection<Long> tableIds, @Param("now") OffsetDateTime now);
 
+  @Query(
+      "select count(r) > 0 from TableReservationEntity r where r.tableId = :tableId and r.startsAt < :endsAt and r.endsAt > :startsAt")
+  boolean existsOverlap(
+      @Param("tableId") long tableId,
+      @Param("startsAt") OffsetDateTime startsAt,
+      @Param("endsAt") OffsetDateTime endsAt);
+
   @Modifying
   @Query("delete from TableReservationEntity r where r.reservationId = :reservationId")
   void deleteByReservationId(@Param("reservationId") String reservationId);

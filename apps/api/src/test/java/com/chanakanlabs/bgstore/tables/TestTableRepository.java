@@ -9,7 +9,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Small deterministic test fixture; production persistence is covered by JpaTableRepository. */
 final class TestTableRepository implements TableRepository {

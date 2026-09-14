@@ -23,12 +23,14 @@ withDefaults(
      */
     options?: readonly SelectOption[];
     invalid?: boolean;
+    describedBy?: string;
   }>(),
   {
     placeholder: undefined,
     placeholderSelectable: false,
     options: undefined,
     invalid: false,
+    describedBy: undefined,
   },
 );
 
@@ -43,6 +45,8 @@ const model = defineModel<string>({ default: '' });
     <select
       :id="id"
       v-model="model"
+      :aria-invalid="invalid ? 'true' : undefined"
+      :aria-describedby="describedBy"
       class="min-w-0 flex-1 appearance-none bg-transparent text-[14px] leading-[22px] outline-none"
       :class="model ? 'text-ink' : 'text-ink-muted'"
     >

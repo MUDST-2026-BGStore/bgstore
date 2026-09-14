@@ -8,7 +8,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * JPA mapping for the migration-owned {@code client_profiles} table.
@@ -29,6 +29,12 @@ class ClientProfileRecord {
   @Column(name = "phone_e164", length = 16)
   private @Nullable String phoneE164;
 
+  @Column(name = "first_name", length = 100)
+  private @Nullable String firstName;
+
+  @Column(name = "last_name", length = 100)
+  private @Nullable String lastName;
+
   @Column(name = "completed_at")
   private @Nullable OffsetDateTime completedAt;
 
@@ -46,12 +52,16 @@ class ClientProfileRecord {
     this.subject = subject;
   }
 
-  void complete(String phoneE164) {
+  void complete(String firstName, String lastName, String phoneE164) {
+    this.firstName = firstName;
+    this.lastName = lastName;
     this.phoneE164 = phoneE164;
     this.completedAt = OffsetDateTime.now(ZoneOffset.UTC);
   }
 
   ClientProfileData toData() {
-    return new ClientProfileData(phoneE164, completedAt != null);
+    boolean completed =
+        completedAt != null && phoneE164 != null && firstName != null && lastName != null;
+    return new ClientProfileData(phoneE164, completed, firstName, lastName);
   }
 }

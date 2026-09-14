@@ -1,6 +1,6 @@
 package com.chanakanlabs.bgstore.inventory;
 
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Catalogue text in the languages the store publishes.

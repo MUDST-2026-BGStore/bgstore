@@ -82,7 +82,7 @@ const submitLabel = computed(() =>
 <template>
   <OwnerLayout>
     <div
-      class="flex w-full shrink-0 items-center gap-3 border-b border-line bg-surface px-8 py-3.5"
+      class="staff-page-toolbar flex w-full shrink-0 items-center gap-3 border-b border-line bg-surface px-8 py-3.5"
     >
       <PageBreadcrumb :current="breadcrumb" />
       <div class="h-px min-w-0 flex-1" />
@@ -101,10 +101,10 @@ const submitLabel = computed(() =>
 
     <form
       id="game-form"
-      class="flex w-full shrink-0 flex-col items-start gap-6 px-8 pt-6 pb-8"
+      class="staff-page-content flex w-full shrink-0 flex-col items-start gap-6 px-8 pt-6 pb-8"
       @submit.prevent="emit('submit', form)"
     >
-      <h1 class="w-full text-[28px] font-semibold text-ink">
+      <h1 class="staff-page-title w-full text-[28px] font-semibold text-ink">
         {{ pageTitle }}
       </h1>
 
@@ -135,6 +135,9 @@ const submitLabel = computed(() =>
                 id="game-title-en"
                 v-model="form.titleEn"
                 class="w-full"
+                :described-by="
+                  messageFor('title.en') ? 'game-title-en-error' : undefined
+                "
                 :invalid="Boolean(messageFor('title.en'))"
                 :placeholder="t('games.form.gameTitlePlaceholder')"
               />
@@ -148,6 +151,9 @@ const submitLabel = computed(() =>
                 id="game-title-th"
                 v-model="form.titleTh"
                 class="w-full"
+                :described-by="
+                  messageFor('title.th') ? 'game-title-th-error' : undefined
+                "
                 lang="th"
                 :invalid="Boolean(messageFor('title.th'))"
                 :placeholder="t('games.form.gameTitleThPlaceholder')"
@@ -168,6 +174,11 @@ const submitLabel = computed(() =>
               <textarea
                 id="game-description-en"
                 v-model="form.descriptionEn"
+                :aria-describedby="
+                  messageFor('description.en')
+                    ? 'game-description-en-error'
+                    : undefined
+                "
                 :placeholder="t('games.form.descriptionPlaceholder')"
                 :maxlength="descriptionMaxLength"
                 class="h-[92px] w-full resize-none rounded-md border border-line bg-surface px-3.5 py-3 text-[13px] leading-[20px] text-ink outline-none placeholder:text-ink-muted focus:border-primary"
@@ -191,6 +202,11 @@ const submitLabel = computed(() =>
               <textarea
                 id="game-description-th"
                 v-model="form.descriptionTh"
+                :aria-describedby="
+                  messageFor('description.th')
+                    ? 'game-description-th-error'
+                    : undefined
+                "
                 lang="th"
                 :placeholder="t('games.form.descriptionThPlaceholder')"
                 :maxlength="descriptionMaxLength"
@@ -255,6 +271,9 @@ const submitLabel = computed(() =>
                 id="game-category"
                 v-model="form.category"
                 class="w-full"
+                :described-by="
+                  messageFor('category') ? 'game-category-error' : undefined
+                "
                 :invalid="Boolean(messageFor('category'))"
                 :placeholder="t('games.form.categoryPlaceholder')"
                 :options="categories"
@@ -273,6 +292,11 @@ const submitLabel = computed(() =>
                 id="game-play-time"
                 v-model="form.playTimeMinutes"
                 class="w-full"
+                :described-by="
+                  messageFor('playTimeMinutes')
+                    ? 'game-play-time-error'
+                    : undefined
+                "
                 inputmode="numeric"
                 :invalid="Boolean(messageFor('playTimeMinutes'))"
                 :placeholder="t('games.form.playTimePlaceholder')"
@@ -290,6 +314,9 @@ const submitLabel = computed(() =>
                 id="game-min"
                 v-model="form.minPlayers"
                 class="w-full"
+                :described-by="
+                  messageFor('minPlayers') ? 'game-min-error' : undefined
+                "
                 inputmode="numeric"
                 :invalid="Boolean(messageFor('minPlayers'))"
                 :placeholder="t('games.form.minPlayersPlaceholder')"
@@ -304,6 +331,9 @@ const submitLabel = computed(() =>
                 id="game-max"
                 v-model="form.maxPlayers"
                 class="w-full"
+                :described-by="
+                  messageFor('maxPlayers') ? 'game-max-error' : undefined
+                "
                 inputmode="numeric"
                 :invalid="Boolean(messageFor('maxPlayers'))"
                 :placeholder="t('games.form.maxPlayersPlaceholder')"
@@ -318,6 +348,9 @@ const submitLabel = computed(() =>
                 id="game-difficulty"
                 v-model="form.difficulty"
                 class="w-full"
+                :described-by="
+                  messageFor('difficulty') ? 'game-difficulty-error' : undefined
+                "
                 :invalid="Boolean(messageFor('difficulty'))"
                 :placeholder="t('games.form.difficultyPlaceholder')"
               />
@@ -363,6 +396,11 @@ const submitLabel = computed(() =>
                       :id="'copies-' + index"
                       v-model="row.copies"
                       class="w-full"
+                      :described-by="
+                        messageFor('copies[' + index + '].copies')
+                          ? 'copies-' + index + '-error'
+                          : undefined
+                      "
                       inputmode="numeric"
                       :invalid="
                         Boolean(messageFor('copies[' + index + '].copies'))
@@ -370,6 +408,7 @@ const submitLabel = computed(() =>
                     />
                     <p
                       v-if="messageFor('copies[' + index + '].copies')"
+                      :id="'copies-' + index + '-error'"
                       class="pt-1 text-[12px] leading-[18px] text-danger-fg"
                     >
                       {{ messageFor('copies[' + index + '].copies') }}

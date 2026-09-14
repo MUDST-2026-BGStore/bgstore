@@ -69,7 +69,7 @@ function apiForTables() {
         const search = url.searchParams.get('search')?.toLowerCase() ?? '';
         const zone = url.searchParams.get('zone');
         const status = url.searchParams.get('status');
-        const page = Number(url.searchParams.get('page') ?? 0);
+        const page = Number(url.searchParams.get('page') ?? 1);
         const pageSize = Number(url.searchParams.get('pageSize') ?? 5);
         const filtered = records.filter(
           (record) =>
@@ -80,11 +80,11 @@ function apiForTables() {
         );
         return {
           body: {
-            items: filtered.slice(page * pageSize, (page + 1) * pageSize),
+            items: filtered.slice((page - 1) * pageSize, page * pageSize),
             total: filtered.length,
             page,
             pageSize,
-            totalPages: Math.ceil(filtered.length / pageSize),
+            totalPages: Math.max(1, Math.ceil(filtered.length / pageSize)),
           },
         };
       }

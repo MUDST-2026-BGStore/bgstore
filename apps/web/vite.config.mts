@@ -10,15 +10,17 @@ export default defineConfig(() => ({
     port: 4200,
     host: 'localhost',
     proxy: {
-      '/api': 'http://localhost:8080',
-      '/oauth2': 'http://localhost:8080',
-      '/login': 'http://localhost:8080',
-      '/logout': 'http://localhost:8080',
+      '/api': { target: 'http://localhost:8080', changeOrigin: false },
+      '/auth': { target: 'http://localhost:8080', changeOrigin: false },
+      '/oauth2': { target: 'http://localhost:8080', changeOrigin: false },
+      '/logout': { target: 'http://localhost:8080', changeOrigin: false },
     },
   },
   preview: {
     port: 4300,
-    host: 'localhost',
+    // Keep the preview listener on IPv4. Some CI/container runtimes resolve
+    // localhost to ::1 but do not permit IPv6 loopback listeners.
+    host: '127.0.0.1',
   },
   plugins: [vue(), tailwindcss()],
   // Uncomment this if you are using workers.

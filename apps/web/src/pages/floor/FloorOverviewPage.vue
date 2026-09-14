@@ -112,18 +112,18 @@ function laterSlots(table: FloorTableResponse): string {
 </script>
 
 <template>
-  <StaffLayout active="home">
+  <StaffLayout active="dashboard">
     <div
-      class="flex w-full flex-col items-start gap-6 px-10 pt-8 pb-10"
+      class="staff-page-content flex w-full flex-col items-start gap-6 px-10 pt-8 pb-10"
       data-page="floor-overview"
     >
       <h1
-        class="w-full text-[28px] leading-[34px] font-semibold tracking-[-0.084px] text-ink"
+        class="staff-page-title w-full text-[28px] leading-[34px] font-semibold tracking-[-0.084px] text-ink"
       >
         {{ t('floor.title') }}
       </h1>
 
-      <div class="flex w-full flex-col gap-6 md:flex-row">
+      <div class="staff-stat-grid flex w-full flex-col gap-6 md:flex-row">
         <StatCard
           v-for="stat in stats"
           :key="stat.tone"
@@ -194,7 +194,7 @@ function laterSlots(table: FloorTableResponse): string {
       </div>
       <template v-else>
         <div
-          class="w-full overflow-x-auto rounded-lg border border-line bg-surface"
+          class="staff-table-shell w-full overflow-x-auto rounded-lg border border-line bg-surface"
         >
           <table class="w-full min-w-[900px] table-fixed border-collapse">
             <colgroup>

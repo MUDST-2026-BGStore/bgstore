@@ -4,11 +4,19 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.verify;
 
+import com.chanakanlabs.bgstore.branches.Branch;
+import com.chanakanlabs.bgstore.branches.BranchDirectory;
 import com.chanakanlabs.bgstore.identity.AccessPolicy;
+import com.chanakanlabs.bgstore.identity.ApplicationRole;
+import com.chanakanlabs.bgstore.identity.AuthenticatedIdentity;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +29,8 @@ import org.springframework.web.server.ResponseStatusException;
 class TableManagementServiceTest {
 
   @Mock private AccessPolicy accessPolicy;
+  @Mock private BranchDirectory branches;
+  @Mock private AuthenticatedIdentity manager;
 
   private TableRepository repository;
   private TableManagementService service;
@@ -28,7 +38,15 @@ class TableManagementServiceTest {
   @BeforeEach
   void setUp() {
     repository = new TestTableRepository();
-    service = new TableManagementService(repository, accessPolicy);
+    lenient().when(accessPolicy.requireStaffOrManager()).thenReturn(manager);
+    lenient().when(manager.roles()).thenReturn(Set.of(ApplicationRole.MANAGER));
+    lenient()
+        .when(branches.findAll())
+        .thenReturn(
+            List.of(
+                new Branch(UUID.randomUUID(), "Silom", null, null, null),
+                new Branch(UUID.randomUUID(), "Sukhumvit", null, null, null)));
+    service = new TableManagementService(repository, accessPolicy, branches);
   }
 
   @Test

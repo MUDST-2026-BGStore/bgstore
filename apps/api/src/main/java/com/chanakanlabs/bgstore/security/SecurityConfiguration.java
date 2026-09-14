@@ -15,9 +15,13 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.logout.LogoutSuccessHandler;
 
 @Configuration(proxyBeanMethods = false)
 class SecurityConfiguration {
+
+  static final String AUTHORIZATION_BASE_URI = "/auth/provider";
+  static final String REDIRECTION_BASE_URI = "/auth/callback/*";
 
   @Bean
   @Order(1)
@@ -49,23 +53,39 @@ class SecurityConfiguration {
 
   @Bean
   SecurityFilterChain browserSecurity(
-      HttpSecurity http, ClientRegistrationRepository clientRegistrations) throws Exception {
+      HttpSecurity http,
+      ClientRegistrationRepository clientRegistrations,
+      LogoutSuccessHandler logoutSuccessHandler)
+      throws Exception {
     return http.authorizeHttpRequests(
             requests ->
                 requests
-                    .requestMatchers("/actuator/health/**", "/actuator/info", "/error")
+                    .requestMatchers(
+                        "/actuator/health/**",
+                        "/actuator/info",
+                        "/actuator/prometheus",
+                        "/auth/sign-in",
+                        "/auth/sign-up",
+                        "/auth/provider/**",
+                        "/auth/callback/**",
+                        "/error")
                     .permitAll()
                     .anyRequest()
                     .authenticated())
         .addFilterBefore(
             new ReturnToRequestFilter(), OAuth2AuthorizationRequestRedirectFilter.class)
+        .csrf(csrfConfiguration -> csrfConfiguration.spa())
         .oauth2Login(
             oauth2 ->
                 oauth2
                     .authorizationEndpoint(
                         authorization ->
-                            authorization.authorizationRequestResolver(
-                                new SignUpAuthorizationRequestResolver(clientRegistrations)))
+                            authorization
+                                .baseUri(AUTHORIZATION_BASE_URI)
+                                .authorizationRequestResolver(
+                                    new SignUpAuthorizationRequestResolver(
+                                        clientRegistrations, AUTHORIZATION_BASE_URI)))
+                    .redirectionEndpoint(redirection -> redirection.baseUri(REDIRECTION_BASE_URI))
                     .successHandler(
                         (request, response, authentication) -> {
                           HttpSession session = request.getSession(false);
@@ -77,12 +97,20 @@ class SecurityConfiguration {
                           if (session != null) {
                             session.removeAttribute(ReturnToRequestFilter.SESSION_ATTRIBUTE);
                           }
-                          response.sendRedirect(
+                          response.setStatus(HttpStatus.FOUND.value());
+                          response.setHeader(
+                              "Location",
                               returnTo != null && ReturnToRequestFilter.isSafeRelativePath(returnTo)
                                   ? returnTo
                                   : "/");
                         }))
-        .logout(logout -> logout.logoutSuccessUrl("/"))
+        .logout(logout -> logout.logoutSuccessHandler(logoutSuccessHandler))
         .build();
+  }
+
+  @Bean
+  LogoutSuccessHandler logoutSuccessHandler(
+      ClientRegistrationRepository clientRegistrations, KeycloakProperties keycloakProperties) {
+    return new KeycloakLogoutSuccessHandler(clientRegistrations, keycloakProperties.publicUrl());
   }
 }

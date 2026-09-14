@@ -1,10 +1,11 @@
 package com.chanakanlabs.bgstore.tables;
 
+import com.chanakanlabs.bgstore.branches.BranchDirectory;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,9 +14,11 @@ import org.springframework.transaction.annotation.Transactional;
 class JpaTableRepositoryAdapter implements TableRepository {
 
   private final JpaTableRepository database;
+  private final BranchDirectory branches;
 
-  JpaTableRepositoryAdapter(JpaTableRepository database) {
+  JpaTableRepositoryAdapter(JpaTableRepository database, BranchDirectory branches) {
     this.database = database;
+    this.branches = branches;
   }
 
   @Override
@@ -27,7 +30,7 @@ class JpaTableRepositoryAdapter implements TableRepository {
       @Nullable String search,
       boolean activeOnly) {
     return database.findFiltered(branch, zone, status, search, activeOnly).stream()
-        .map(TableEntity::toRecord)
+        .map(this::toRecord)
         .toList();
   }
 
@@ -44,7 +47,7 @@ class JpaTableRepositoryAdapter implements TableRepository {
   @Override
   @Transactional(readOnly = true)
   public Optional<TableRecordData> findById(Long id) {
-    return database.findById(id).map(TableEntity::toRecord);
+    return database.findById(id).map(this::toRecord);
   }
 
   @Override
@@ -57,7 +60,7 @@ class JpaTableRepositoryAdapter implements TableRepository {
                 .findById(data.id())
                 .orElseThrow(() -> new IllegalStateException("Table disappeared during update"));
     entity.apply(data);
-    return database.save(entity).toRecord();
+    return toRecord(database.save(entity));
   }
 
   @Override
@@ -74,5 +77,12 @@ class JpaTableRepositoryAdapter implements TableRepository {
   @Transactional(readOnly = true)
   public boolean existsByNameAndBranch(String name, String branch, @Nullable Long excludeId) {
     return database.existsByNameAndBranch(name, branch, excludeId);
+  }
+
+  private TableRecordData toRecord(TableEntity entity) {
+    return branches
+        .findById(entity.branchId())
+        .map(branch -> entity.toRecord(branch.name()))
+        .orElseThrow(() -> new IllegalStateException("Table references an unknown branch"));
   }
 }

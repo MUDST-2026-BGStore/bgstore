@@ -5,7 +5,7 @@ import type { Component } from 'vue';
 import { createI18n } from 'vue-i18n';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import { messages } from '../../i18n';
-import { resetAuthResolver, routes, setAuthResolver } from '../../router';
+import { routes } from '../../router';
 import type {
   ReservationResponse,
   ReservationStatus,
@@ -107,27 +107,10 @@ function historyApi() {
 }
 
 function createTestRouter(initialPath = '/history') {
-  const router = createRouter({
+  return createRouter({
     history: createMemoryHistory(initialPath),
     routes: [...routes],
   });
-
-  router.beforeEach((to, _from, next) => {
-    if (to.matched.some((record) => record.meta?.requiresAuth)) {
-      // In tests, router check follows setAuthResolver
-      if (!authCheck()) {
-        return next({ path: '/login', query: { redirect: to.fullPath } });
-      }
-    }
-    next();
-  });
-
-  return router;
-}
-
-let isUserLoggedIn = true;
-function authCheck() {
-  return isUserLoggedIn;
 }
 
 async function renderTestScreen(component: Component, path = '/history') {
@@ -157,15 +140,12 @@ async function renderTestScreen(component: Component, path = '/history') {
 
 describe('Client Reservation History', () => {
   beforeEach(() => {
-    isUserLoggedIn = true;
-    setAuthResolver(() => isUserLoggedIn);
     stubApi([historyApi()]);
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
-    resetAuthResolver();
   });
 
   describe('History List View', () => {
@@ -430,19 +410,6 @@ describe('Client Reservation History', () => {
         name: 'history',
         query: { tab: 'reserved', page: '2' },
       });
-    });
-  });
-
-  describe('Auth Guard', () => {
-    it('redirects unauthenticated visitors to /login', async () => {
-      isUserLoggedIn = false;
-      setAuthResolver(() => false);
-
-      const router = createTestRouter('/history');
-      await router.push('/history');
-
-      expect(router.currentRoute.value.path).toBe('/login');
-      expect(router.currentRoute.value.query.redirect).toBe('/history');
     });
   });
 });

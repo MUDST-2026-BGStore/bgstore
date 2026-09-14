@@ -8,17 +8,18 @@ import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
-import org.springframework.lang.Nullable;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import tools.jackson.core.JacksonException;
 
@@ -77,6 +78,43 @@ class ApiExceptionHandler {
   }
 
   /**
+   * Method-level validation raised directly by Spring MVC, rather than through the legacy AOP
+   * {@code @Validated} proxy. This is the validation path used by the Spring Boot 4 OpenAPI
+   * generator when {@code useSpringBuiltInValidation} is enabled.
+   */
+  @ExceptionHandler(HandlerMethodValidationException.class)
+  ResponseEntity<ValidationProblem> handleInvalidMethod(
+      HandlerMethodValidationException exception) {
+    var errors =
+        exception.getParameterValidationResults().stream()
+            .flatMap(
+                result ->
+                    result.getResolvableErrors().stream()
+                        .map(
+                            error -> {
+                              if (error
+                                  instanceof org.springframework.validation.FieldError fieldError) {
+                                return new FieldError(
+                                    fieldError.getField(),
+                                    messageFor(
+                                        fieldError.getCode(), fieldError.getRejectedValue()));
+                              }
+                              String parameter = result.getMethodParameter().getParameterName();
+                              String code =
+                                  error.getCodes() == null || error.getCodes().length == 0
+                                      ? null
+                                      : error.getCodes()[0];
+                              return new FieldError(
+                                  parameter == null ? UNNAMED : parameter,
+                                  messageFor(code, result.getArgument()));
+                            }))
+            .toList();
+
+    return unprocessable(
+        errors.isEmpty() ? List.of(new FieldError(UNNAMED, FieldViolation.INVALID)) : errors);
+  }
+
+  /**
    * A body property whose value does not fit its declared type, such as an unknown category.
    * Jackson fails before bean validation runs, so this is the only place that rejection can be
    * named.
@@ -103,8 +141,8 @@ class ApiExceptionHandler {
 
   /**
    * Rejections of {@code @RequestParam} constraints, such as a page size past the contract's
-   * maximum. The generated API interface is {@code @Validated}, so these arrive as bean-validation
-   * violations. Answered as 422, matching the rejections that come from a body.
+   * maximum. These service-level violations are kept separate from MVC's built-in method validation
+   * so they can still be returned in the contract's 422 shape.
    */
   @ExceptionHandler(ConstraintViolationException.class)
   ResponseEntity<ValidationProblem> handleInvalidParameters(
@@ -172,11 +210,11 @@ class ApiExceptionHandler {
         new ValidationProblem(
             "about:blank",
             "Unprocessable Content",
-            HttpStatus.UNPROCESSABLE_ENTITY.value(),
+            HttpStatus.UNPROCESSABLE_CONTENT.value(),
             errors);
     problem.setDetail("The request violates " + errors.size() + " rule(s).");
 
-    return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+    return ResponseEntity.status(HttpStatus.UNPROCESSABLE_CONTENT)
         .contentType(MediaType.APPLICATION_PROBLEM_JSON)
         .body(problem);
   }

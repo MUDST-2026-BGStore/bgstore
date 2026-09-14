@@ -6,6 +6,7 @@ import OnboardingView from './OnboardingView.vue';
 import { client } from '../generated/api/client.gen';
 import { messages } from '../i18n';
 import { router } from '../router';
+import type { CurrentUserResponse } from '../generated/api/types.gen';
 
 describe('client onboarding', () => {
   afterEach(() => {
@@ -36,6 +37,8 @@ describe('client onboarding', () => {
     const wrapper = mount(OnboardingView, {
       global: { plugins: [[VueQueryPlugin, { queryClient }], router, i18n] },
     });
+    await wrapper.get('#firstName').setValue('Ada');
+    await wrapper.get('#lastName').setValue('Lovelace');
     await wrapper.get('#countryCode').setValue('+66');
     await wrapper.get('#phoneNumber').setValue('081 234 5678');
     await wrapper.get('form').trigger('submit');
@@ -44,7 +47,7 @@ describe('client onboarding', () => {
     const request = vi.mocked(fetch).mock.calls[0]?.[0] as Request;
     expect(request.url).toBe('http://localhost/api/v1/me/client-profile');
     expect(await request.text()).toBe(
-      '{"countryCode":"+66","phoneNumber":"081 234 5678"}',
+      '{"firstName":"Ada","lastName":"Lovelace","countryCode":"+66","phoneNumber":"081 234 5678"}',
     );
     expect(router.currentRoute.value.fullPath).toBe('/');
   });
@@ -74,8 +77,55 @@ describe('client onboarding', () => {
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
-    expect(wrapper.text()).toContain('We could not save that number');
+    expect(wrapper.text()).toContain('We could not save your details');
     expect(router.currentRoute.value.name).toBe('onboarding');
+  });
+
+  it('reuses names collected during registration', async () => {
+    client.setConfig({ baseUrl: 'http://localhost/api/v1' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ phone: '+66812345678', completed: true }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      ),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    queryClient.setQueryData<CurrentUserResponse>(['current-user'], {
+      subject: 'a9c7022e-a678-4d50-aa1b-69c917001234',
+      username: 'ada@example.test',
+      email: 'ada@example.test',
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      roles: ['CLIENT'],
+      clientProfile: { completed: false },
+      onboardingRequired: true,
+    });
+    const i18n = createI18n({ legacy: false, locale: 'en', messages });
+    await router.push('/onboarding');
+    await router.isReady();
+
+    const wrapper = mount(OnboardingView, {
+      global: { plugins: [[VueQueryPlugin, { queryClient }], router, i18n] },
+    });
+
+    expect(wrapper.find('#firstName').exists()).toBe(false);
+    expect(wrapper.find('#lastName').exists()).toBe(false);
+    await wrapper.get('#phoneNumber').setValue('081 234 5678');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    const request = vi.mocked(fetch).mock.calls[0]?.[0] as Request;
+    expect(await request.text()).toBe(
+      '{"firstName":"Ada","lastName":"Lovelace","countryCode":"+66","phoneNumber":"081 234 5678"}',
+    );
   });
 
   it('opens the country picker and formats its selected state for Thai users', async () => {

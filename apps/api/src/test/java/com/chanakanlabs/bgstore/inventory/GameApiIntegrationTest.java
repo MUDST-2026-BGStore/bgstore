@@ -20,6 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -29,9 +30,9 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.node.ArrayNode;
 import tools.jackson.databind.node.ObjectNode;
@@ -41,14 +42,15 @@ import tools.jackson.databind.node.ObjectNode;
     properties = {
       "management.logging.export.otlp.enabled=false",
       "management.otlp.metrics.export.enabled=false",
-      "management.tracing.export.enabled=false"
+      "management.tracing.export.enabled=false",
+      "spring.data.redis.password=test-password"
     })
 @AutoConfigureMockMvc
 @Testcontainers
 class GameApiIntegrationTest {
 
-  @Container
-  static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.1-alpine");
+  @Container @ServiceConnection
+  static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:18.1-alpine");
 
   @Container
   static final GenericContainer<?> REDIS =
@@ -56,21 +58,18 @@ class GameApiIntegrationTest {
           .withExposedPorts(6379)
           .withCommand("redis-server", "--requirepass", "test-password");
 
+  @DynamicPropertySource
+  static void redisProperties(DynamicPropertyRegistry registry) {
+    registry.add("spring.data.redis.host", REDIS::getHost);
+    registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
+    registry.add("spring.data.redis.password", () -> "test-password");
+  }
+
   /** Reference branches are owned by Flyway migration V3; the screens address them by id. */
   private static final UUID CENTRAL_RAMA_II =
       UUID.fromString("3f0d7d5a-9a2b-4a71-8f0e-000000000001");
 
   private static final UUID BIG_C_RAMA_I = UUID.fromString("3f0d7d5a-9a2b-4a71-8f0e-000000000002");
-
-  @DynamicPropertySource
-  static void databaseProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-    registry.add("spring.datasource.username", POSTGRES::getUsername);
-    registry.add("spring.datasource.password", POSTGRES::getPassword);
-    registry.add("spring.data.redis.host", REDIS::getHost);
-    registry.add("spring.data.redis.port", () -> REDIS.getMappedPort(6379));
-    registry.add("spring.data.redis.password", () -> "test-password");
-  }
 
   @Autowired private MockMvc mockMvc;
   @Autowired private ObjectMapper json;
@@ -94,7 +93,7 @@ class GameApiIntegrationTest {
     var subject = "catalogue-client";
     mockMvc.perform(get("/api/v1/me").with(clientLogin(subject))).andExpect(status().isOk());
     database.update(
-        "update client_profiles set phone_e164 = ?, completed_at = current_timestamp where subject = ?",
+        "update client_profiles set first_name = 'Test', last_name = 'Client', phone_e164 = ?, completed_at = current_timestamp where subject = ?",
         "+66812345678",
         subject);
 
@@ -119,7 +118,7 @@ class GameApiIntegrationTest {
     var subject = "catalogue-reader";
     mockMvc.perform(get("/api/v1/me").with(clientLogin(subject))).andExpect(status().isOk());
     database.update(
-        "update client_profiles set phone_e164 = ?, completed_at = current_timestamp where subject = ?",
+        "update client_profiles set first_name = 'Test', last_name = 'Client', phone_e164 = ?, completed_at = current_timestamp where subject = ?",
         "+66812345678",
         subject);
 
@@ -169,6 +168,7 @@ class GameApiIntegrationTest {
                 .value("999/9 ถ. พระรามที่ 1 แขวงปทุมวัน เขตปทุมวัน กรุงเทพฯ 10330"))
         .andExpect(jsonPath("$.items[0].opensAt").value("10:00"))
         .andExpect(jsonPath("$.items[0].closesAt").value("20:00"))
+        .andExpect(jsonPath("$.items[0].status").value("ACTIVE"))
         // A branch the store has not described yet answers nulls, not a guess.
         .andExpect(jsonPath("$.items[5].name").value("Thonglor"))
         .andExpect(jsonPath("$.items[5].address").doesNotExist())
@@ -191,7 +191,7 @@ class GameApiIntegrationTest {
             .andExpect(jsonPath("$.title.en").value("Ticket to Ride"))
             .andReturn();
 
-    var created = json.readTree(id.getResponse().getContentAsString()).get("id").asText();
+    var created = json.readTree(id.getResponse().getContentAsString()).get("id").asString();
     assertThat(id.getResponse().getHeader("Location")).isEqualTo("/api/v1/games/" + created);
 
     mockMvc
@@ -335,7 +335,7 @@ class GameApiIntegrationTest {
   void rejectsALocaleTheCatalogueDoesNotPublish() throws Exception {
     mockMvc
         .perform(get("/api/v1/games").param("locale", "fr").with(oidcLogin()))
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.errors[0].field").value("locale"))
         .andExpect(jsonPath("$.errors[0].message").value("invalid"));
   }
@@ -537,7 +537,7 @@ class GameApiIntegrationTest {
     payload.putArray("imageUrls").add("javascript:alert(1)");
 
     create(payload)
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.errors[0].field", startsWith("imageUrls")));
   }
 
@@ -571,7 +571,7 @@ class GameApiIntegrationTest {
     var payload = payload("Uno", "card", 0, 10);
 
     create(payload)
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PROBLEM_JSON))
         .andExpect(jsonPath("$.status").value(422))
         .andExpect(jsonPath("$.errors[0].field").value("minPlayers"))
@@ -585,7 +585,7 @@ class GameApiIntegrationTest {
     var emptyTitle = payload("", "card", 2, 10);
 
     create(emptyTitle)
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.errors[0].field").value("title.en"))
         .andExpect(jsonPath("$.errors[0].message").value("required"));
 
@@ -594,7 +594,7 @@ class GameApiIntegrationTest {
     var blankTitle = payload("   ", "card", 2, 10);
 
     create(blankTitle)
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.errors[0].field").value("title.en"))
         .andExpect(jsonPath("$.errors[0].message").value("required"));
 
@@ -604,7 +604,7 @@ class GameApiIntegrationTest {
     noCategory.put("maxPlayers", 10);
 
     create(noCategory)
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.errors[0].field").value("category"))
         .andExpect(jsonPath("$.errors[0].message").value("required"));
   }
@@ -614,7 +614,7 @@ class GameApiIntegrationTest {
     var unknownCategory = payload("Uno", "boardgame", 2, 10);
 
     create(unknownCategory)
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.errors[0].field").value("category"))
         .andExpect(jsonPath("$.errors[0].message").value("invalid"));
 
@@ -622,7 +622,7 @@ class GameApiIntegrationTest {
     badCopies.putArray("copies").addObject().put("branchId", "not-a-uuid").put("copies", 1);
 
     create(badCopies)
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.errors[0].field").value("copies[0].branchId"));
   }
 
@@ -643,7 +643,7 @@ class GameApiIntegrationTest {
   void rejectsAPageSizePastTheContractMaximum() throws Exception {
     mockMvc
         .perform(get("/api/v1/games").param("size", "500").with(oidcLogin()))
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.errors[0].field").value("size"));
   }
 
@@ -669,7 +669,7 @@ class GameApiIntegrationTest {
     copies(payload, UUID.randomUUID(), 1);
 
     create(payload)
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.errors[0].field").value("maxPlayers"))
         .andExpect(jsonPath("$.errors[0].message").value("belowMinimum"))
         .andExpect(jsonPath("$.errors[1].field").value("copies[0].branchId"))
@@ -681,7 +681,7 @@ class GameApiIntegrationTest {
     mockMvc
         .perform(
             get("/api/v1/games").param("branchId", UUID.randomUUID().toString()).with(oidcLogin()))
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.errors[0].field").value("branchId"))
         .andExpect(jsonPath("$.errors[0].message").value("unknownBranch"));
   }
@@ -708,7 +708,7 @@ class GameApiIntegrationTest {
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(shrink.toString()))
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.errors[0].field").value("copies[0].copies"))
         .andExpect(jsonPath("$.errors[0].message").value("belowInUse"));
 
@@ -720,14 +720,14 @@ class GameApiIntegrationTest {
                 .with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(drop.toString()))
-        .andExpect(status().isUnprocessableEntity())
+        .andExpect(status().isUnprocessableContent())
         .andExpect(jsonPath("$.errors[0].field").value("copies"));
   }
 
   private String createGame(ObjectNode payload) throws Exception {
     var response = create(payload).andExpect(status().isCreated()).andReturn();
 
-    return json.readTree(response.getResponse().getContentAsString()).get("id").asText();
+    return json.readTree(response.getResponse().getContentAsString()).get("id").asString();
   }
 
   private ResultActions create(ObjectNode payload) throws Exception {
@@ -748,12 +748,12 @@ class GameApiIntegrationTest {
                     claims ->
                         claims.putAll(
                             Map.of(
-                                "sub", "catalogue-staff",
-                                "preferred_username", "staff@example.test",
-                                "email", "staff@example.test",
+                                "sub", "catalogue-manager",
+                                "preferred_username", "manager@example.test",
+                                "email", "manager@example.test",
                                 "given_name", "Local",
-                                "family_name", "Staff",
-                                "realm_access", Map.of("roles", List.of("STAFF"))))));
+                                "family_name", "Manager",
+                                "realm_access", Map.of("roles", List.of("MANAGER"))))));
   }
 
   private static OidcLoginRequestPostProcessor clientLogin(String subject) {

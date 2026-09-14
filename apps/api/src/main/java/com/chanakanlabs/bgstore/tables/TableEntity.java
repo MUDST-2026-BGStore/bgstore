@@ -7,8 +7,9 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 import org.hibernate.annotations.UpdateTimestamp;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** JPA mapping for the migration-owned {@code store_table} table. */
 @Entity
@@ -24,8 +25,9 @@ class TableEntity {
   @Column(name = "name", nullable = false, length = 100)
   private String name;
 
-  @Column(name = "branch", nullable = false, length = 100)
-  private String branch;
+  /** Stable ownership key for the table's physical branch. */
+  @Column(name = "branch_id", nullable = false)
+  private UUID branchId;
 
   @Column(name = "capacity", nullable = false)
   private int capacity;
@@ -54,7 +56,8 @@ class TableEntity {
 
   void apply(TableRecordData data) {
     name = data.name();
-    branch = data.branch();
+    branchId =
+        java.util.Objects.requireNonNull(data.branchId(), "Table branch id must not be null");
     capacity = data.capacity();
     shape = data.shape();
     status = data.status();
@@ -62,8 +65,12 @@ class TableEntity {
     zone = data.zone();
   }
 
-  TableRecordData toRecord() {
+  TableRecordData toRecord(String branchName) {
     return new TableRecordData(
-        id, name, branch, capacity, shape, status, active, zone, lastUpdated);
+        id, name, branchName, capacity, shape, status, active, zone, lastUpdated, branchId);
+  }
+
+  UUID branchId() {
+    return branchId;
   }
 }

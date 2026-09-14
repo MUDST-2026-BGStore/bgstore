@@ -1,18 +1,21 @@
 package com.chanakanlabs.bgstore.reservations;
 
 import com.chanakanlabs.bgstore.contract.api.ReservationsApi;
+import com.chanakanlabs.bgstore.contract.model.CreateReservationRequest;
 import com.chanakanlabs.bgstore.contract.model.FloorOverviewResponse;
 import com.chanakanlabs.bgstore.contract.model.FloorStatusCounts;
 import com.chanakanlabs.bgstore.contract.model.FloorTableResponse;
+import com.chanakanlabs.bgstore.contract.model.ReservationAvailabilityResponse;
 import com.chanakanlabs.bgstore.contract.model.ReservationListResponse;
 import com.chanakanlabs.bgstore.contract.model.ReservationResponse;
 import com.chanakanlabs.bgstore.contract.model.ReservationStatus;
 import com.chanakanlabs.bgstore.contract.model.TableShape;
 import com.chanakanlabs.bgstore.contract.model.TableStatus;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Objects;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -22,10 +25,28 @@ public class ReservationController implements ReservationsApi {
 
   private final ReservationService reservations;
   private final FloorOverviewService floor;
+  private final StaffReservationService staffReservations;
 
-  public ReservationController(ReservationService reservations, FloorOverviewService floor) {
+  public ReservationController(
+      ReservationService reservations,
+      FloorOverviewService floor,
+      StaffReservationService staffReservations) {
     this.reservations = reservations;
     this.floor = floor;
+    this.staffReservations = staffReservations;
+  }
+
+  @Override
+  public ResponseEntity<ReservationResponse> createReservation(CreateReservationRequest request) {
+    return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED)
+        .body(toResponse(staffReservations.create(request)));
+  }
+
+  @Override
+  public ResponseEntity<ReservationAvailabilityResponse> getReservationAvailability(
+      String branch, LocalDate date, String startTime, String endTime, Integer partySize) {
+    return ResponseEntity.ok(
+        staffReservations.availability(branch, date, startTime, endTime, partySize));
   }
 
   @Override

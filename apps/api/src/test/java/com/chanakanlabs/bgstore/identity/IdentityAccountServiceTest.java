@@ -27,6 +27,6 @@ class IdentityAccountServiceTest {
 
     service.synchronize(identity);
 
-    verify(accounts).upsert("subject", "username", "user@example.test", "Local", "User");
+    verify(accounts).upsert("subject", "username", "user@example.test", "Local", "User", "CLIENT");
   }
 }

@@ -13,6 +13,7 @@ defineProps<{ label: string; inputId: string; error?: string }>();
     <slot />
     <p
       v-if="error"
+      :id="inputId + '-error'"
       :data-testid="inputId + '-error'"
       class="text-[12px] leading-[18px] text-danger-fg"
     >

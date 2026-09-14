@@ -23,7 +23,7 @@ mise install
 corepack enable
 pnpm install
 cp .env.example .env
-docker compose up -d postgres redis keycloak mailpit
+pnpm dev:infra
 pnpm dev:api
 ```
 
@@ -33,23 +33,31 @@ In a second terminal:
 pnpm dev:web
 ```
 
+The development web server runs natively with Vite HMR, and the API runs
+natively with Spring Boot DevTools. Keep both application commands running in
+separate terminals while Docker provides only PostgreSQL, Redis, Keycloak, and
+Mailpit. Stop those infrastructure containers with `pnpm dev:infra:stop` when
+you are done.
+
 Open <http://localhost:4200>. The seeded development accounts are:
 
 | Role    | Username               | Password             |
 | ------- | ---------------------- | -------------------- |
-| Client  | `client@example.test`  | `client-local-only`  |
-| Staff   | `staff@example.test`   | `staff-local-only`   |
-| Manager | `manager@example.test` | `manager-local-only` |
+| Client  | `client@example.test`  | `ClientLocalOnly9!`  |
+| Staff   | `staff@example.test`   | `StaffLocalOnly9!`   |
+| Manager | `manager@example.test` | `ManagerLocalOnly9!` |
 
 These credentials are local-only and must never be reused outside development.
 
-To exercise the containerized walking skeleton and observability stack:
+To exercise the containerized walking skeleton and observability stack instead:
 
 ```bash
 docker compose --profile app up --build --wait
 ```
 
-Grafana is at <http://localhost:3000>, Prometheus at <http://localhost:9090>, Keycloak at <http://localhost:8081>, and Mailpit at <http://localhost:8025>.
+Grafana is at <http://localhost:3000>, Prometheus at <http://localhost:9090>, Keycloak at <http://localhost:8081>, and Mailpit at <http://localhost:8025>. Grafana loads the provisioned `BGStore / Observability Overview` dashboard automatically. It includes API health, traffic, latency, errors, JVM/database health, Collector throughput, Loki logs, and Tempo traces.
+
+The API emits telemetry only when it can reach the configured OTLP endpoint. To generate data locally, start the stack, open the web app, sign in with one of the test accounts, and exercise a few pages or API calls. You can also inspect the raw signals directly in Grafana Explore: Prometheus for metrics, Loki for logs, and Tempo for traces. The API's Prometheus scrape endpoint is <http://localhost:8080/actuator/prometheus>.
 
 ## Development commands
 

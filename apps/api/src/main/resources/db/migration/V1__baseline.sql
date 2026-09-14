@@ -1,2 +1,2 @@
 -- Baseline migration for the walking skeleton.
--- Domain tables are introduced only with their first implemented capability.
+-- Domain tables will be introduced only with their first implemented capability.

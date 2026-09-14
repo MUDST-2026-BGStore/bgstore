@@ -5,7 +5,7 @@ import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * A create or update payload that has already passed {@link GameValidator}: values are trimmed,

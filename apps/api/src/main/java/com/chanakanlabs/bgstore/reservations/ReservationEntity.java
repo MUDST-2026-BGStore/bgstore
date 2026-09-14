@@ -5,8 +5,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 @Entity
 @Table(name = "reservation")
@@ -17,8 +18,11 @@ public class ReservationEntity {
   @Column(name = "id", nullable = false, length = 64)
   private String id;
 
-  @Column(name = "client_subject", nullable = false)
-  private String clientSubject;
+  @Column(name = "client_subject")
+  private @Nullable String clientSubject;
+
+  @Column(name = "branch_id", nullable = false)
+  private UUID branchId;
 
   @Column(name = "title", nullable = false)
   private String title;
@@ -83,7 +87,53 @@ public class ReservationEntity {
 
   public ReservationEntity(
       String id,
-      String clientSubject,
+      UUID branchId,
+      @Nullable String clientSubject,
+      String title,
+      String reservationDate,
+      String timeSlot,
+      int partySize,
+      long tableId,
+      String tableName,
+      int seats,
+      int ratePerHour,
+      String status,
+      String customerName,
+      String phoneNumber,
+      String checkInTime,
+      String actualCheckOut,
+      int overtimeMinutes,
+      int totalPrice,
+      boolean canCancel,
+      @Nullable String thumbnailUrl,
+      OffsetDateTime createdAt) {
+    this(
+        id,
+        clientSubject,
+        title,
+        reservationDate,
+        timeSlot,
+        partySize,
+        tableId,
+        tableName,
+        seats,
+        ratePerHour,
+        status,
+        customerName,
+        phoneNumber,
+        checkInTime,
+        actualCheckOut,
+        overtimeMinutes,
+        totalPrice,
+        canCancel,
+        thumbnailUrl,
+        createdAt);
+    this.branchId = branchId;
+  }
+
+  public ReservationEntity(
+      String id,
+      @Nullable String clientSubject,
       String title,
       String reservationDate,
       String timeSlot,

@@ -3,7 +3,7 @@ package com.chanakanlabs.bgstore.inventory;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
 import java.util.Objects;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** One row of the {@code game_guide_step} table, owned by {@link GameEntity}. */
 @Embeddable

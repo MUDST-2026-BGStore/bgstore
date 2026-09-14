@@ -10,6 +10,7 @@ import com.chanakanlabs.bgstore.web.FieldViolation;
 import com.chanakanlabs.bgstore.web.ResourceNotFoundException;
 import com.chanakanlabs.bgstore.web.ValidationFailedException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -41,9 +42,19 @@ class GameService {
   @Transactional(readOnly = true)
   GameListResponse list(GameFilter filter) {
     var branchId = filter.branchId();
-    if (branchId != null && branches.findById(branchId).isEmpty()) {
+    var selectedBranch = branchId == null ? null : branches.findById(branchId).orElse(null);
+    if (branchId != null && selectedBranch == null) {
       throw new ValidationFailedException(
           List.of(new FieldViolation("branchId", GameValidator.UNKNOWN_BRANCH)));
+    }
+    if (selectedBranch != null) {
+      if (accessPolicy.hasStaffAccess()) {
+        accessPolicy.requireBranch(selectedBranch.id());
+      }
+    } else if (accessPolicy.hasStaffAccess() && !accessPolicy.hasManagerAccess()) {
+      accessPolicy.requireAnyAssignedBranch();
+      throw new ValidationFailedException(
+          List.of(new FieldViolation("branchId", "requiredForStaff")));
     }
 
     var branchNames =
@@ -54,12 +65,14 @@ class GameService {
 
   @Transactional(readOnly = true)
   GameDetail get(UUID id) {
+    if (accessPolicy.hasStaffAccess()) accessPolicy.requireAnyAssignedBranch();
     return detailOf(games.findById(id).orElseThrow(() -> new ResourceNotFoundException(GAME, id)));
   }
 
   GameDetail create(GameRequest request) {
     accessPolicy.requireStaffOrManager();
     var command = GameValidator.validate(request, branchIds());
+    requireWritableBranches(command.copiesByBranch());
 
     var id = games.insert(command);
     games.replaceStock(id, command.copiesByBranch());
@@ -70,6 +83,8 @@ class GameService {
   GameDetail update(UUID id, GameRequest request) {
     accessPolicy.requireStaffOrManager();
     var command = GameValidator.validate(request, branchIds());
+    requireWritableBranches(command.copiesByBranch());
+    command = preserveUnassignedStock(id, command);
     rejectRemovingCopiesInUse(id, command);
 
     if (!games.update(id, command)) {
@@ -124,10 +139,49 @@ class GameService {
   }
 
   private GameDetail detailOf(StoredGame game) {
-    return GameResponses.toDetail(game, games.findStock(game.id()), branches.findAll());
+    var visibleBranches =
+        branches.findAll().stream()
+            .filter(branch -> accessPolicy.canAccessBranch(branch.id()))
+            .toList();
+    var visibleIds = visibleBranches.stream().map(Branch::id).collect(Collectors.toSet());
+    var visibleStock =
+        games.findStock(game.id()).stream()
+            .filter(row -> visibleIds.contains(row.branchId()))
+            .toList();
+    return GameResponses.toDetail(game, visibleStock, visibleBranches);
   }
 
   private Set<UUID> branchIds() {
     return branches.findAll().stream().map(Branch::id).collect(Collectors.toSet());
+  }
+
+  private void requireWritableBranches(java.util.Map<UUID, Integer> copies) {
+    if (!accessPolicy.hasStaffAccess()) return;
+    copies
+        .keySet()
+        .forEach(
+            id -> {
+              var branch = branches.findById(id).orElseThrow();
+              accessPolicy.requireBranch(branch.id());
+            });
+  }
+
+  private GameCommand preserveUnassignedStock(UUID id, GameCommand command) {
+    if (!accessPolicy.hasStaffAccess() || accessPolicy.hasManagerAccess()) return command;
+    var merged = new LinkedHashMap<>(command.copiesByBranch());
+    games.findStock(id).forEach(row -> merged.putIfAbsent(row.branchId(), row.copies()));
+    return new GameCommand(
+        command.title(),
+        command.description(),
+        command.category(),
+        command.minPlayers(),
+        command.maxPlayers(),
+        command.playTimeMinutes(),
+        command.difficulty(),
+        command.tags(),
+        command.imageUrls(),
+        command.guide(),
+        command.lifecycle(),
+        merged);
   }
 }

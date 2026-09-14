@@ -30,9 +30,9 @@ class ClientProfileRepository {
   }
 
   @Transactional
-  ClientProfileData complete(String subject, String phoneE164) {
+  ClientProfileData complete(String subject, String firstName, String lastName, String phoneE164) {
     var profile = profiles.findById(subject).orElseThrow();
-    profile.complete(phoneE164);
+    profile.complete(firstName, lastName, phoneE164);
     return profiles.save(profile).toData();
   }
 }

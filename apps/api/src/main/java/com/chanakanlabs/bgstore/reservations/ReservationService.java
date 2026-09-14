@@ -2,10 +2,10 @@ package com.chanakanlabs.bgstore.reservations;
 
 import com.chanakanlabs.bgstore.identity.AccessPolicy;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -66,10 +66,10 @@ public class ReservationService {
                     new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Reservation not found: " + reservationId));
 
-    if (!"Reserved".equals(entity.toRecord().status()) || !entity.toRecord().canCancel()) {
+    ReservationRecordData record = entity.toRecord();
+    if (!"Reserved".equals(record.status()) || !record.canCancel()) {
       throw new ResponseStatusException(
-          HttpStatus.BAD_REQUEST,
-          "Reservation cannot be cancelled in status " + entity.toRecord().status());
+          HttpStatus.BAD_REQUEST, "Reservation cannot be cancelled in status " + record.status());
     }
 
     entity.cancel();

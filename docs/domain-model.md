@@ -7,7 +7,7 @@
 - **Staff member:** an authenticated employee allowed to check clients in/out and operate sessions. A manager can administer policies and staff permissions.
 - **Party:** one or more clients visiting or reserving together. A party may contain guests and registered clients.
 - **Table:** a playable space at a location with a seating capacity and operational state.
-- **Reservation:** a registered client's hold on a time interval and required capacity. Assignment to a specific table may happen later.
+- **Reservation:** a client's hold on one specific table for a time interval. Game selection is a separate check-in action.
 - **Visit:** the store presence begun by staff check-in and ended by check-out.
 - **Play session:** the billable interval for a party using a table. Only in-store sessions are in scope.
 - **Game title:** language-aware catalog metadata for a board game, including the photos and how-to-play guide clients read before a visit.
@@ -18,24 +18,25 @@
 
 ## Candidate modules
 
-| Module              | Owns                                                  | Depends on                   |
-| ------------------- | ----------------------------------------------------- | ---------------------------- |
-| Identity and access | app roles and external subject mapping                | Keycloak adapter             |
-| Clients             | profiles and client history projection                | identity                     |
-| Locations           | locations, tables, opening hours                      | none                         |
-| Reservations        | capacity holds and reservation lifecycle              | clients, locations           |
-| Visits              | check-in/out and party membership                     | clients, reservations        |
-| Play sessions       | table assignment, timing, selected game copies        | visits, locations, inventory |
-| Inventory           | game titles, localized metadata, physical copies      | locations                    |
-| Billing             | pricing policies, calculated charges, payment records | play sessions                |
-| Audit               | append-only security and operational events           | module events                |
+| Module              | Owns                                                                                 | Depends on                   |
+| ------------------- | ------------------------------------------------------------------------------------ | ---------------------------- |
+| Identity and access | app roles and external subject mapping                                               | Keycloak adapter             |
+| Clients             | profiles and client history projection                                               | identity                     |
+| Locations           | locations, contact details, coordinates, booking availability, tables, opening hours | none                         |
+| Reservations        | capacity holds and reservation lifecycle                                             | clients, locations           |
+| Visits              | check-in/out and party membership                                                    | clients, reservations        |
+| Play sessions       | table assignment, timing, selected game copies                                       | visits, locations, inventory |
+| Inventory           | game titles, localized metadata, physical copies                                     | locations                    |
+| Billing             | pricing policies, calculated charges, payment records                                | play sessions                |
+| Audit               | append-only security and operational events                                          | module events                |
 
 ## Account profile ownership
 
-- Keycloak is the source of truth for username, first name, last name, email,
-  and password. `identity_accounts` is only the BGStore-side projection keyed
-  by the immutable OIDC subject.
-- The Clients module and BGStore PostgreSQL database own the phone number.
+- Keycloak is the source of truth for the authenticated email, username, and
+  password. `identity_accounts` is only the BGStore-side projection keyed by
+  the immutable OIDC subject.
+- The Clients module and BGStore PostgreSQL database own a client’s first name,
+  last name, and phone number, collected during client onboarding.
 - Profile images and password changes remain outside this slice until their
   explicit API contracts and provider adapters are introduced.
 
@@ -47,8 +48,10 @@
 - The staff floor overview (`GET /floor-overview`) reads it: each table lists
   the slots that have not ended yet, and the status counts come from the
   tables' own status. Slots do not change a table's status by themselves.
-- There is no API to create or cancel a reservation yet; that arrives with
-  the client Reserve flow, together with its lifecycle states.
+- A reservation is created against one table after availability is checked. It
+  starts in `Reserved`; staff may move it to `CheckedIn` and later
+  `Completed`, or cancel it before the interval starts. Game copies are not
+  reserved; the party chooses games during check-in.
 
 ## Initial invariants
 

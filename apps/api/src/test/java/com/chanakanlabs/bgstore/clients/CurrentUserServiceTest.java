@@ -66,10 +66,10 @@ class CurrentUserServiceTest {
   void completesAClientProfileUsingANormalizedInternationalNumber() {
     AuthenticatedIdentity client = identity(Set.of(ApplicationRole.CLIENT));
     when(currentIdentityProvider.currentIdentity()).thenReturn(client);
-    when(clientProfiles.complete(SUBJECT, "+66812345678"))
+    when(clientProfiles.complete(SUBJECT, "Local", "Client", "+66812345678"))
         .thenReturn(new ClientProfileData("+66812345678", true));
 
-    var profile = service.completeClientProfile("+66", "081 234-5678");
+    var profile = service.completeClientProfile("Local", "Client", "+66", "081 234-5678");
 
     assertThat(profile.phone()).isEqualTo("+66812345678");
     verify(identityAccounts).synchronize(client);
@@ -80,10 +80,10 @@ class CurrentUserServiceTest {
   void acceptsForeignNumbersWhenTheCountryCodeIsExplicit() {
     AuthenticatedIdentity client = identity(Set.of(ApplicationRole.CLIENT));
     when(currentIdentityProvider.currentIdentity()).thenReturn(client);
-    when(clientProfiles.complete(SUBJECT, "+14155552671"))
+    when(clientProfiles.complete(SUBJECT, "Local", "Client", "+14155552671"))
         .thenReturn(new ClientProfileData("+14155552671", true));
 
-    var profile = service.completeClientProfile("+1", "415 555 2671");
+    var profile = service.completeClientProfile("Local", "Client", "+1", "415 555 2671");
 
     assertThat(profile.phone()).isEqualTo("+14155552671");
   }
@@ -92,10 +92,10 @@ class CurrentUserServiceTest {
   void preservesCountriesWhereTheNationalLeadingZeroIsSignificant() {
     AuthenticatedIdentity client = identity(Set.of(ApplicationRole.CLIENT));
     when(currentIdentityProvider.currentIdentity()).thenReturn(client);
-    when(clientProfiles.complete(SUBJECT, "+390212345678"))
+    when(clientProfiles.complete(SUBJECT, "Local", "Client", "+390212345678"))
         .thenReturn(new ClientProfileData("+390212345678", true));
 
-    var profile = service.completeClientProfile("+39", "02 1234 5678");
+    var profile = service.completeClientProfile("Local", "Client", "+39", "02 1234 5678");
 
     assertThat(profile.phone()).isEqualTo("+390212345678");
   }
@@ -105,13 +105,13 @@ class CurrentUserServiceTest {
     when(currentIdentityProvider.currentIdentity())
         .thenReturn(identity(Set.of(ApplicationRole.CLIENT)));
 
-    assertThatThrownBy(() -> service.completeClientProfile("+66", "abc123"))
+    assertThatThrownBy(() -> service.completeClientProfile("Local", "Client", "+66", "abc123"))
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("valid phone");
 
     when(currentIdentityProvider.currentIdentity())
         .thenReturn(identity(Set.of(ApplicationRole.STAFF)));
-    assertThatThrownBy(() -> service.completeClientProfile("+66", "0812345678"))
+    assertThatThrownBy(() -> service.completeClientProfile("Local", "Client", "+66", "0812345678"))
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("not required");
   }

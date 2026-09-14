@@ -5,7 +5,7 @@ import com.chanakanlabs.bgstore.contract.model.GameLifecycle;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** A catalogue row as stored, without the per-branch stock that hangs off it. */
 record StoredGame(

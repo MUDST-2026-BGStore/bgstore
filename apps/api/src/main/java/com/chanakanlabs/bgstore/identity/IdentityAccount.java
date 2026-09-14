@@ -30,6 +30,9 @@ class IdentityAccount {
   @Column(name = "last_name", nullable = false)
   private String lastName;
 
+  @Column(name = "application_role", nullable = false, length = 16)
+  private String applicationRole;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private OffsetDateTime createdAt;
@@ -49,5 +52,21 @@ class IdentityAccount {
     this.email = email;
     this.firstName = firstName;
     this.lastName = lastName;
+  }
+
+  String applicationRole() {
+    return applicationRole;
+  }
+
+  String subject() {
+    return subject;
+  }
+
+  String username() {
+    return username;
+  }
+
+  String email() {
+    return email;
   }
 }

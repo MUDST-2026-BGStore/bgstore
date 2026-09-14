@@ -8,9 +8,9 @@ import com.chanakanlabs.bgstore.contract.model.TableShape;
 import com.chanakanlabs.bgstore.contract.model.TableStatus;
 import com.chanakanlabs.bgstore.contract.model.UpdateTableRequest;
 import java.util.List;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.lang.Nullable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 

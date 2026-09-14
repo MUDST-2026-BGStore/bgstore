@@ -9,8 +9,11 @@
     "pnpm": ">=10 <11"
   },
   "scripts": {
-    "build": "nx run-many -t build",
+    "build": "nx run @mudst-2026-bgstore/web:build && pnpm build:api",
+    "build:api": "apps/api/gradlew -p apps/api build",
     "check": "nx run-many -t lint,typecheck,test,check",
+    "dev:infra": "docker compose up -d postgres redis keycloak mailpit",
+    "dev:infra:stop": "docker compose stop postgres redis keycloak mailpit",
     "dev:web": "nx dev @mudst-2026-bgstore/web",
     "dev:api": "nx bootRun bgstore-api",
     "e2e": "nx e2e @mudst-2026-bgstore/web-e2e",
@@ -29,7 +32,6 @@
   },
   "dependencies": {
     "@tanstack/vue-query": "^5.102.3",
-    "pinia": "^3.0.4",
     "vue": "^3.5.13",
     "vue-i18n": "^11.4.9",
     "vue-router": "^4.6.4",
@@ -65,7 +67,7 @@
     "eslint": "^9.8.0",
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-playwright": "^1.6.2",
-    "eslint-plugin-vue": "^9.16.1",
+    "eslint-plugin-vue": "^10.10.0",
     "jiti": "2.4.2",
     "jsdom": "^27.1.0",
     "lefthook": "^2.1.10",

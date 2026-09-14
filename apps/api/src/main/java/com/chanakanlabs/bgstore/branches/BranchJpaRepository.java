@@ -9,4 +9,6 @@ interface BranchJpaRepository extends JpaRepository<BranchRecord, UUID> {
 
   /** Derived query: Spring Data builds the ordering from the method name. */
   List<BranchRecord> findAllByOrderByNameAsc();
+
+  boolean existsByNameIgnoreCase(String name);
 }

@@ -19,6 +19,12 @@ import {
   retireGameRequest,
   type GameListQuery,
 } from '../../queries/games';
+import {
+  currentUserQueryOptions,
+  hasManagerAccess,
+  hasStaffAccess,
+} from '../../queries/current-user';
+import { useDebounced } from '../../composables/useDebounced';
 import { branchLabel, pageRange } from './display';
 import { categoryOptions } from './form';
 import { catalogueLocaleOf, resolveLocalized } from './localized';
@@ -41,20 +47,10 @@ const savedTitle = computed(() =>
 
 const branchFilter = ref('');
 const search = ref('');
-const debouncedSearch = ref('');
+const debouncedSearch = useDebounced(search);
 const categoryFilter = ref<GameCategory | ''>('');
 const statusFilter = ref<GameAvailability | ''>('');
 const page = ref(0);
-
-// Typing should not fire a request per keystroke, but the URL the query key is
-// built from still has to settle on what was typed.
-let searchTimer: ReturnType<typeof setTimeout> | undefined;
-watch(search, (value) => {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => {
-    debouncedSearch.value = value;
-  }, 300);
-});
 
 // Page 3 of the old filter is rarely page 3 of the new one.
 watch([branchFilter, categoryFilter, statusFilter, debouncedSearch], () => {
@@ -62,6 +58,22 @@ watch([branchFilter, categoryFilter, statusFilter, debouncedSearch], () => {
 });
 
 const branches = useQuery(branchesQueryOptions());
+const currentUser = useQuery(currentUserQueryOptions());
+
+watch(
+  () => branches.data.value,
+  (available) => {
+    if (
+      !branchFilter.value &&
+      available?.[0] &&
+      hasStaffAccess(currentUser.data.value?.roles ?? []) &&
+      !hasManagerAccess(currentUser.data.value?.roles ?? [])
+    ) {
+      branchFilter.value = available[0].id;
+    }
+  },
+  { immediate: true },
+);
 
 const query = computed<GameListQuery>(() => ({
   ...(branchFilter.value ? { branchId: branchFilter.value } : {}),
@@ -155,7 +167,7 @@ function branchOf(row: Parameters<typeof branchLabel>[0]) {
 <template>
   <OwnerLayout>
     <div
-      class="flex w-full shrink-0 items-center gap-3 border-b border-line bg-surface px-8 py-4"
+      class="staff-page-toolbar flex w-full shrink-0 items-center gap-3 border-b border-line bg-surface px-8 py-4"
     >
       <p class="shrink-0 text-[18px] leading-[1.4] font-semibold text-ink">
         {{ t('games.inventory.sectionTitle') }}
@@ -177,13 +189,13 @@ function branchOf(row: Parameters<typeof branchLabel>[0]) {
     </div>
 
     <div
-      class="flex w-full shrink-0 flex-col items-start gap-[22px] px-8 pt-7 pb-10"
+      class="staff-page-content flex w-full shrink-0 flex-col items-start gap-[22px] px-8 pt-7 pb-10"
     >
-      <h1 class="text-[26px] leading-[1.4] font-bold text-ink">
+      <h1 class="staff-page-title text-[26px] leading-[1.4] font-bold text-ink">
         {{ t('games.inventory.title') }}
       </h1>
 
-      <div class="flex w-full items-start gap-4">
+      <div class="staff-stat-grid flex w-full items-start gap-4">
         <StatCard
           tone="neutral"
           :icon="statTitles"

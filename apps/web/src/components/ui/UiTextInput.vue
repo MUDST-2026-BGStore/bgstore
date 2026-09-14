@@ -8,6 +8,7 @@ withDefaults(
     /** Shows the leading search glyph from the Figma Input component. */
     search?: boolean;
     inputmode?: 'text' | 'numeric';
+    describedBy?: string;
     /** Draws the error border and marks the input for assistive tech. */
     invalid?: boolean;
   }>(),
@@ -15,6 +16,7 @@ withDefaults(
     placeholder: undefined,
     search: false,
     inputmode: 'text',
+    describedBy: undefined,
     invalid: false,
   },
 );
@@ -42,6 +44,7 @@ const model = defineModel<string>({ default: '' });
       :inputmode="inputmode"
       :placeholder="placeholder"
       :aria-invalid="invalid ? 'true' : undefined"
+      :aria-describedby="describedBy"
       class="min-w-0 flex-1 bg-transparent text-[14px] leading-[22px] text-ink outline-none placeholder:text-ink-muted"
     />
   </div>

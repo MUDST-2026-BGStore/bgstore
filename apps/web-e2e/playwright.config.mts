@@ -2,7 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 import { nxE2EPreset } from '@nx/playwright/preset';
 import { workspaceRoot } from '@nx/devkit';
 
-const baseURL = process.env['BASE_URL'] || 'http://localhost:4300';
+const baseURL = process.env['BASE_URL'] || 'http://127.0.0.1:4300';
 const externalServer = Boolean(process.env['BASE_URL']);
 
 /**
@@ -34,7 +34,7 @@ export default defineConfig({
     ? undefined
     : {
         command: 'pnpm exec nx run @mudst-2026-bgstore/web:preview',
-        url: 'http://localhost:4300',
+        url: 'http://127.0.0.1:4300',
         reuseExistingServer: !process.env['CI'],
         cwd: workspaceRoot,
       },

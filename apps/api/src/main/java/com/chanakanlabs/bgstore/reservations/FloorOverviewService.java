@@ -9,8 +9,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 
 /** The staff floor overview: how many tables are free, in use or held, and when each is booked. */
@@ -30,12 +29,6 @@ public class FloorOverviewService {
   private final ReservedSlots reservedSlots;
   private final AccessPolicy accessPolicy;
   private final Clock clock;
-
-  @Autowired
-  FloorOverviewService(
-      TableManagementService tables, ReservedSlots reservedSlots, AccessPolicy accessPolicy) {
-    this(tables, reservedSlots, accessPolicy, Clock.systemUTC());
-  }
 
   FloorOverviewService(
       TableManagementService tables,

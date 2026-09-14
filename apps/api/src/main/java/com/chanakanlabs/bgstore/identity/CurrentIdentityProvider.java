@@ -2,9 +2,11 @@ package com.chanakanlabs.bgstore.identity;
 
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -40,7 +42,8 @@ public class CurrentIdentityProvider {
         requiredClaim(oidcUser, "email"),
         stringClaim(oidcUser, "given_name"),
         stringClaim(oidcUser, "family_name"),
-        applicationRoles(oidcUser));
+        applicationRoles(oidcUser),
+        branchScope(oidcUser));
   }
 
   private static String requiredClaim(OidcUser user, String name) {
@@ -72,5 +75,25 @@ public class CurrentIdentityProvider {
         .flatMap(Optional::stream)
         .forEach(applicationRoles::add);
     return Set.copyOf(applicationRoles);
+  }
+
+  private static Set<String> branchScope(OidcUser user) {
+    var values = new HashSet<String>();
+    addClaim(values, user.getClaim("branch"));
+    addClaim(values, user.getClaim("branch_id"));
+    addClaim(values, user.getClaim("branches"));
+    return Set.copyOf(values);
+  }
+
+  private static void addClaim(Set<String> values, @Nullable Object claim) {
+    if (claim instanceof String value && !value.isBlank()) values.add(value.trim());
+    if (claim instanceof Collection<?> collection) {
+      collection.stream()
+          .filter(String.class::isInstance)
+          .map(String.class::cast)
+          .map(String::trim)
+          .filter(value -> !value.isBlank())
+          .forEach(values::add);
+    }
   }
 }

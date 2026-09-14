@@ -62,4 +62,11 @@ export default [
     rules: {},
   },
   skipFormatting,
+  {
+    // These rules were removed/replaced by the current TypeScript and Vue
+    // plugins. Keep the replacement enabled through the shared presets.
+    rules: {
+      '@typescript-eslint/no-empty-interface': 'off',
+    },
+  },
 ];

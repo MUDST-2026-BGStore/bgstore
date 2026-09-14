@@ -1,17 +1,16 @@
 package com.chanakanlabs.bgstore.security;
 
 import jakarta.servlet.http.HttpServletRequest;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
-import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 
 /**
  * Opens the identity provider's registration form, rather than its sign-in form, for a visitor who
- * chose Sign up: {@code /oauth2/authorization/keycloak?signup} carries the standard OIDC {@code
- * prompt=create}, so no provider-specific URL leaks into the browser.
+ * chose Sign up: the app-owned authorization entrypoint carries the standard OIDC {@code
+ * prompt=create}, so no provider-specific registration name leaks into the browser.
  */
 final class SignUpAuthorizationRequestResolver implements OAuth2AuthorizationRequestResolver {
 
@@ -19,11 +18,10 @@ final class SignUpAuthorizationRequestResolver implements OAuth2AuthorizationReq
 
   private final OAuth2AuthorizationRequestResolver delegate;
 
-  SignUpAuthorizationRequestResolver(ClientRegistrationRepository registrations) {
+  SignUpAuthorizationRequestResolver(
+      ClientRegistrationRepository registrations, String authorizationBaseUri) {
     this.delegate =
-        new DefaultOAuth2AuthorizationRequestResolver(
-            registrations,
-            OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI);
+        new DefaultOAuth2AuthorizationRequestResolver(registrations, authorizationBaseUri);
   }
 
   @Override

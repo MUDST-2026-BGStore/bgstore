@@ -1,10 +1,17 @@
 <script setup lang="ts">
-defineProps<{ active?: string }>();
+import StaffSidebar, {
+  type StaffSection,
+} from '../components/StaffSidebar.vue';
+
+withDefaults(defineProps<{ active?: StaffSection }>(), {
+  active: 'dashboard',
+});
 </script>
 
 <template>
-  <div class="flex min-h-screen w-full flex-col items-start bg-canvas">
-    <div class="flex w-full flex-1 flex-col items-start">
+  <div class="staff-workspace refresh-owner-layout">
+    <StaffSidebar :active="active" />
+    <div class="owner-layout-content">
       <slot />
     </div>
   </div>

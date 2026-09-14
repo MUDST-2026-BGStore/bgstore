@@ -110,6 +110,9 @@ describe('game form view', () => {
     expect(wrapper.get('[data-testid="game-title-en-error"]').text()).toBe(
       'This is required.',
     );
+    expect(wrapper.get('#game-title-en').attributes('aria-describedby')).toBe(
+      'game-title-en-error',
+    );
     expect(wrapper.find('[data-testid="game-title-th-error"]').exists()).toBe(
       false,
     );

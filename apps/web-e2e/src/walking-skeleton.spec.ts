@@ -72,7 +72,7 @@ test('lets a guest browse the home page before signing in', async ({
   );
   await expect(page.getByRole('link', { name: 'Sign up' })).toHaveAttribute(
     'href',
-    '/oauth2/authorization/keycloak?returnTo=%2F&signup',
+    '/auth/sign-up?returnTo=%2F',
   );
 });
 
@@ -91,7 +91,7 @@ test('authenticates through the BFF and reaches the real API', async ({
   await page.goto('/');
   await page.getByRole('link', { name: 'Login' }).click();
   await page.getByLabel('Username').fill('client@example.test');
-  await page.getByLabel('Password', { exact: true }).fill('client-local-only');
+  await page.getByLabel('Password', { exact: true }).fill('ClientLocalOnly9!');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await finishClientOnboarding(page);
   await expect(page.getByRole('heading', { name: 'BGStore' })).toBeVisible();
@@ -110,7 +110,7 @@ test('staff can create a game through the authenticated browser flow', async ({
   await page.goto('/');
   await page.getByRole('link', { name: 'Login' }).click();
   await page.getByLabel('Username').fill('staff@example.test');
-  await page.getByLabel('Password', { exact: true }).fill('staff-local-only');
+  await page.getByLabel('Password', { exact: true }).fill('StaffLocalOnly9!');
   await page.getByRole('button', { name: 'Sign in' }).click();
 
   await page.goto('/games/new');

@@ -18,7 +18,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-import org.springframework.lang.Nullable;
+import org.jspecify.annotations.Nullable;
 
 /** Turns the stored shapes into the contract models. Pure: no database, no branch lookups. */
 final class GameResponses {

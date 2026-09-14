@@ -114,15 +114,19 @@ describe('BGStore authentication context', () => {
     );
     expect(
       wrapper
-        .get('nav[aria-label="Staff navigation"] [aria-current="page"]')
+        .get(
+          'nav[aria-label="Staff workspace navigation"] [aria-current="page"]',
+        )
         .text(),
     ).toBe('Dashboard');
     expect(
-      wrapper.get('nav[aria-label="Staff navigation"] a[href="/tables"]'),
+      wrapper.get(
+        'nav[aria-label="Staff workspace navigation"] a[href="/tables"]',
+      ),
     ).toBeTruthy();
     expect(
       wrapper
-        .find('nav[aria-label="Staff navigation"] a[href="/history"]')
+        .find('nav[aria-label="Staff workspace navigation"] a[href="/history"]')
         .exists(),
     ).toBe(false);
   });
@@ -164,12 +168,36 @@ describe('BGStore authentication context', () => {
     expect(wrapper.get('[data-testid="home-branch"] h3').text()).toBe(
       'Central Rama II',
     );
-    expect(wrapper.get('a[href$="&signup"]').attributes('href')).toBe(
-      '/oauth2/authorization/keycloak?returnTo=%2F&signup',
-    );
+    expect(
+      wrapper.get('a[href="/auth/sign-up?returnTo=%2F"]').attributes('href'),
+    ).toBe('/auth/sign-up?returnTo=%2F');
   });
 
-  it('offers BFF sign-in when a guest opens a screen that needs a session', async () => {
+  it('redirects a guest away from the gated game catalogue instead of going blank', async () => {
+    stubApi([route('/me', { status: 401 })]);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const i18n = createI18n({ legacy: false, locale: 'en', messages });
+    await router.push('/games');
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient }], router, i18n],
+      },
+    });
+
+    await vi.waitFor(() =>
+      expect(router.currentRoute.value.name).toBe('login'),
+    );
+    await flushPromises();
+
+    expect(wrapper.find('.auth-redirect-state').exists()).toBe(false);
+    expect(wrapper.get('.sr-only').text()).toContain('Redirecting to sign in');
+  });
+
+  it('starts app-owned auth when a guest opens a screen that needs a session', async () => {
     client.setConfig({ baseUrl: 'http://localhost/api/v1' });
     vi.stubGlobal(
       'fetch',
@@ -184,7 +212,34 @@ describe('BGStore authentication context', () => {
       defaultOptions: { queries: { retry: false } },
     });
     const i18n = createI18n({ legacy: false, locale: 'en', messages });
-    await router.push('/games');
+    await router.push('/games/new');
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient }], router, i18n],
+      },
+    });
+    await vi.waitFor(() =>
+      expect(router.currentRoute.value.name).toBe('login'),
+    );
+    await flushPromises();
+
+    expect(wrapper.find('.login-card').exists()).toBe(false);
+    expect(wrapper.get('.sr-only').text()).toContain('Redirecting to sign in');
+  });
+
+  it('uses the login route only as a direct auth redirect', async () => {
+    client.setConfig({ baseUrl: 'http://localhost/api/v1' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(null, { status: 401 })),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const i18n = createI18n({ legacy: false, locale: 'en', messages });
+    await router.push('/login?redirect=%2Fgames');
     await router.isReady();
 
     const wrapper = mount(App, {
@@ -194,9 +249,32 @@ describe('BGStore authentication context', () => {
     });
     await flushPromises();
 
-    expect(wrapper.text()).toContain('Sign in to BGStore');
-    expect(wrapper.get('a.button').attributes('href')).toBe(
-      '/oauth2/authorization/keycloak?returnTo=%2Fgames',
+    expect(wrapper.find('.client-header').exists()).toBe(false);
+    expect(wrapper.find('.login-card').exists()).toBe(false);
+    expect(wrapper.get('.sr-only').text()).toContain('Redirecting to sign in');
+  });
+
+  it('shows the editorial loading animation while the session is pending', async () => {
+    client.setConfig({ baseUrl: 'http://localhost/api/v1' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => new Promise<Response>(() => undefined)),
+    );
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const i18n = createI18n({ legacy: false, locale: 'en', messages });
+    await router.push('/login');
+    await router.isReady();
+
+    const wrapper = mount(App, {
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient }], router, i18n],
+      },
+    });
+
+    expect(wrapper.get('.refresh-loading-lines').findAll('span')).toHaveLength(
+      3,
     );
   });
 
@@ -234,11 +312,13 @@ describe('BGStore authentication context', () => {
     });
     await flushPromises();
 
-    expect(router.currentRoute.value.name).toBe('onboarding');
+    await vi.waitFor(() =>
+      expect(router.currentRoute.value.name).toBe('onboarding'),
+    );
     expect(router.currentRoute.value.query.returnTo).toBe('/');
   });
 
-  it('renders account management inside the shared application shell', async () => {
+  it('renders account management as a focused profile screen', async () => {
     client.setConfig({ baseUrl: 'http://localhost/api/v1' });
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -268,8 +348,8 @@ describe('BGStore authentication context', () => {
 
     expect(wrapper.get('h1').text()).toBe('User profile');
     expect(
-      wrapper.get('header nav[aria-label="Primary navigation"]'),
-    ).toBeTruthy();
+      wrapper.find('header nav[aria-label="Primary navigation"]').exists(),
+    ).toBe(false);
     expect(router.currentRoute.value.name).toBe('user-profile');
   });
 

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createMemoryHistory, createRouter } from 'vue-router';
+import RoleView from '../../app/RoleView.vue';
+import AccessDeniedView from '../../views/AccessDeniedView.vue';
 import { routes } from '../../router';
+import { router } from '../../router';
 
 /**
  * `router.ts` builds a history-mode router, which jsdom cannot drive, so the
@@ -32,5 +35,28 @@ describe('game routes', () => {
 
     await router.push('/games/new');
     expect(router.currentRoute.value.name).toBe('games-new');
+  });
+
+  it('keeps the focused session and reservation screens role-scoped', () => {
+    const routeByName = (name: string) =>
+      router.getRoutes().find((route) => route.name === name);
+
+    const activeSession = routeByName('client-active-session');
+    expect(activeSession?.components?.default).toBe(RoleView);
+    expect(activeSession?.props.default).toEqual(
+      expect.objectContaining({ staff: AccessDeniedView }),
+    );
+
+    const staffReservation = routeByName('staff-create-reservation');
+    expect(staffReservation?.components?.default).toBe(RoleView);
+    expect(staffReservation?.props.default).toEqual(
+      expect.objectContaining({ client: expect.anything() }),
+    );
+
+    const checkout = routeByName('client-session-checkout');
+    expect(checkout?.components?.default).toBe(RoleView);
+    expect(checkout?.props.default).toEqual(
+      expect.objectContaining({ staff: AccessDeniedView }),
+    );
   });
 });

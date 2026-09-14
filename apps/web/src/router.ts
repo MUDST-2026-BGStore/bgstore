@@ -6,8 +6,6 @@ import {
 } from 'vue-router';
 import RoleView from './app/RoleView.vue';
 import HomeView from './views/HomeView.vue';
-import OnboardingView from './views/OnboardingView.vue';
-import BranchDetailView from './views/BranchDetailView.vue';
 import BranchListView from './views/BranchListView.vue';
 import UserProfileView from './views/UserProfileView.vue';
 import AccessDeniedView from './views/AccessDeniedView.vue';
@@ -22,19 +20,9 @@ declare module 'vue-router' {
     /** A guest without a session may open the screen; the rest ask them to sign in. */
     public?: boolean;
     requiresAuth?: boolean;
+    /** Full-page task flow that hides the shared application navigation. */
+    focused?: boolean;
   }
-}
-
-export type AuthResolver = () => boolean;
-
-let authResolver: AuthResolver = () => true;
-
-export function setAuthResolver(resolver: AuthResolver) {
-  authResolver = resolver;
-}
-
-export function resetAuthResolver() {
-  authResolver = () => true;
 }
 
 export const routes: RouteRecordRaw[] = [
@@ -54,20 +42,31 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/login',
     name: 'login',
-    component: () => import('./views/LoginView.vue'),
+    component: () => import('./views/AuthRedirectView.vue'),
     meta: { public: true },
   },
-  { path: '/onboarding', name: 'onboarding', component: OnboardingView },
+  {
+    path: '/onboarding',
+    name: 'onboarding',
+    component: () => import('./views/OnboardingView.vue'),
+    meta: { requiresAuth: true },
+  },
   {
     path: '/branches',
     name: 'branches',
-    component: BranchListView,
+    component: RoleView,
+    props: {
+      staff: defineAsyncComponent(
+        () => import('./pages/branches/BranchManagementView.vue'),
+      ),
+      client: BranchListView,
+    },
     meta: { public: true },
   },
   {
     path: '/branches/:id',
     name: 'branch-detail',
-    component: BranchDetailView,
+    component: () => import('./views/BranchDetailView.vue'),
     meta: { public: true },
   },
   {
@@ -80,6 +79,12 @@ export const routes: RouteRecordRaw[] = [
       ),
       client: AccessDeniedView,
     },
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/staff/permissions',
+    name: 'staff-permissions',
+    component: () => import('./views/StaffPermissionsView.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -106,8 +111,8 @@ export const routes: RouteRecordRaw[] = [
     },
     meta: { requiresAuth: true },
   },
-  // Staff manage the inventory at these two URLs; guests browse the catalogue
-  // at the same ones, so a shared link to a game works for either.
+  // Staff manage the inventory at these two URLs; signed-in clients browse the
+  // catalogue at the same ones, so a shared link to a game works for either.
   {
     path: '/games',
     name: 'games',
@@ -120,6 +125,7 @@ export const routes: RouteRecordRaw[] = [
         () => import('./pages/games/GameCataloguePage.vue'),
       ),
     },
+    meta: { requiresAuth: true },
   },
   {
     path: '/games/new',
@@ -147,6 +153,7 @@ export const routes: RouteRecordRaw[] = [
         () => import('./pages/games/GameCatalogueDetailPage.vue'),
       ),
     },
+    meta: { requiresAuth: true },
   },
   {
     path: '/games/:gameId/edit',
@@ -170,6 +177,47 @@ export const router = createRouter({
   routes: [
     ...routes.slice(0, -1),
     {
+      path: '/sessions/active',
+      alias: '/active-session',
+      name: 'client-active-session',
+      component: RoleView,
+      props: {
+        staff: AccessDeniedView,
+        client: defineAsyncComponent(
+          () => import('./views/ActiveSessionView.vue'),
+        ),
+      },
+      meta: { requiresAuth: true, focused: true },
+    },
+    {
+      path: '/staff/reservations/new',
+      alias: '/reservations/new',
+      name: 'staff-create-reservation',
+      component: RoleView,
+      props: {
+        staff: defineAsyncComponent(
+          () => import('./views/CreateReservationView.vue'),
+        ),
+        client: defineAsyncComponent(
+          () => import('./views/CreateReservationView.vue'),
+        ),
+      },
+      meta: { requiresAuth: true, focused: true },
+    },
+    {
+      path: '/sessions/checkout',
+      alias: '/pay-session',
+      name: 'client-session-checkout',
+      component: RoleView,
+      props: {
+        staff: AccessDeniedView,
+        client: defineAsyncComponent(
+          () => import('./views/SessionCheckoutView.vue'),
+        ),
+      },
+      meta: { requiresAuth: true, focused: true },
+    },
+    {
       path: '/profile',
       alias: ['/user-profile', '/account/manage'],
       name: 'user-profile',
@@ -180,17 +228,8 @@ export const router = createRouter({
         ),
         client: UserProfileView,
       },
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, focused: true },
     },
     fallbackRoute,
   ],
-});
-
-router.beforeEach((to, _from, next) => {
-  if (to.matched.some((record) => record.meta?.requiresAuth)) {
-    if (!authResolver()) {
-      return next({ path: '/login', query: { redirect: to.fullPath } });
-    }
-  }
-  next();
 });

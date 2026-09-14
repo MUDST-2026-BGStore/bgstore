@@ -1,6 +1,5 @@
 import './styles.css';
 import { VueQueryPlugin } from '@tanstack/vue-query';
-import { createPinia } from 'pinia';
 import { createApp } from 'vue';
 import App from './app/App.vue';
 import { client } from './generated/api/client.gen';
@@ -31,7 +30,6 @@ client.interceptors.request.use((request) => {
 });
 
 const app = createApp(App);
-app.use(createPinia());
 app.use(router);
 app.use(i18n);
 app.use(VueQueryPlugin, {

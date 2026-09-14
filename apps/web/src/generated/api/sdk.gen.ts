@@ -15,9 +15,15 @@ import type {
   CompleteClientProfileData,
   CompleteClientProfileErrors,
   CompleteClientProfileResponses,
+  CreateBranchData,
+  CreateBranchErrors,
+  CreateBranchResponses,
   CreateGameData,
   CreateGameErrors,
   CreateGameResponses,
+  CreateReservationData,
+  CreateReservationErrors,
+  CreateReservationResponses,
   CreateTableData,
   CreateTableErrors,
   CreateTableResponses,
@@ -36,6 +42,9 @@ import type {
   GetHelloData,
   GetHelloErrors,
   GetHelloResponses,
+  GetReservationAvailabilityData,
+  GetReservationAvailabilityErrors,
+  GetReservationAvailabilityResponses,
   GetReservationData,
   GetReservationErrors,
   GetReservationResponses,
@@ -45,15 +54,24 @@ import type {
   ListBranchesData,
   ListBranchesErrors,
   ListBranchesResponses,
+  ListClientsData,
+  ListClientsErrors,
+  ListClientsResponses,
   ListGamesData,
   ListGamesErrors,
   ListGamesResponses,
   ListReservationsData,
   ListReservationsErrors,
   ListReservationsResponses,
+  ListStaffBranchAssignmentsData,
+  ListStaffBranchAssignmentsErrors,
+  ListStaffBranchAssignmentsResponses,
   ListTablesData,
   ListTablesErrors,
   ListTablesResponses,
+  ReplaceStaffBranchAssignmentsData,
+  ReplaceStaffBranchAssignmentsErrors,
+  ReplaceStaffBranchAssignmentsResponses,
   RetireGameData,
   RetireGameErrors,
   RetireGameResponses,
@@ -158,6 +176,28 @@ export const completeClientProfile = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * Search registered clients for a staff-created reservation.
+ */
+export const listClients = <ThrowOnError extends boolean = false>(
+  options?: Options<ListClientsData, ThrowOnError>,
+): RequestResult<ListClientsResponses, ListClientsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListClientsResponses,
+    ListClientsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/clients',
+    ...options,
+  });
+
+/**
  * List the store branches games can be stocked at.
  *
  * Public, so a guest can choose where to visit before signing in. A signed-in client still has to finish onboarding first.
@@ -179,6 +219,34 @@ export const listBranches = <ThrowOnError extends boolean = false>(
     ],
     url: '/branches',
     ...options,
+  });
+
+/**
+ * Create a store branch.
+ *
+ * Manager-only administrative action. Staff may read the branch directory for operational work, but only managers can add a location.
+ */
+export const createBranch = <ThrowOnError extends boolean = false>(
+  options: Options<CreateBranchData, ThrowOnError>,
+): RequestResult<CreateBranchResponses, CreateBranchErrors, ThrowOnError> =>
+  (options.client ?? client).post<
+    CreateBranchResponses,
+    CreateBranchErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/branches',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   });
 
 /**
@@ -448,6 +516,66 @@ export const getFloorOverview = <ThrowOnError extends boolean = false>(
   });
 
 /**
+ * List staff branch assignments for manager administration.
+ */
+export const listStaffBranchAssignments = <
+  ThrowOnError extends boolean = false,
+>(
+  options?: Options<ListStaffBranchAssignmentsData, ThrowOnError>,
+): RequestResult<
+  ListStaffBranchAssignmentsResponses,
+  ListStaffBranchAssignmentsErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    ListStaffBranchAssignmentsResponses,
+    ListStaffBranchAssignmentsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/staff/branch-assignments',
+    ...options,
+  });
+
+/**
+ * Replace the branches assigned to a staff member.
+ */
+export const replaceStaffBranchAssignments = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<ReplaceStaffBranchAssignmentsData, ThrowOnError>,
+): RequestResult<
+  ReplaceStaffBranchAssignmentsResponses,
+  ReplaceStaffBranchAssignmentsErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).put<
+    ReplaceStaffBranchAssignmentsResponses,
+    ReplaceStaffBranchAssignmentsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/staff/branch-assignments/{staffSubject}',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
  * List reservations for the authenticated client with optional status filter and pagination.
  */
 export const listReservations = <ThrowOnError extends boolean = false>(
@@ -470,6 +598,64 @@ export const listReservations = <ThrowOnError extends boolean = false>(
       },
     ],
     url: '/reservations',
+    ...options,
+  });
+
+/**
+ * Create a table reservation for the current client or a client selected by staff.
+ */
+export const createReservation = <ThrowOnError extends boolean = false>(
+  options: Options<CreateReservationData, ThrowOnError>,
+): RequestResult<
+  CreateReservationResponses,
+  CreateReservationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CreateReservationResponses,
+    CreateReservationErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/reservations',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * List tables suitable for a reservation interval.
+ */
+export const getReservationAvailability = <
+  ThrowOnError extends boolean = false,
+>(
+  options: Options<GetReservationAvailabilityData, ThrowOnError>,
+): RequestResult<
+  GetReservationAvailabilityResponses,
+  GetReservationAvailabilityErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).get<
+    GetReservationAvailabilityResponses,
+    GetReservationAvailabilityErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/reservations/availability',
     ...options,
   });
 

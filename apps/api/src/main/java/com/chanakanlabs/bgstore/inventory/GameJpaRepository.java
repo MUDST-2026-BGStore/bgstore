@@ -2,10 +2,10 @@ package com.chanakanlabs.bgstore.inventory;
 
 import java.util.List;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.NativeQuery;
 import org.springframework.data.repository.query.Param;
-import org.springframework.lang.Nullable;
 
 /**
  * CRUD over {@link GameEntity} plus the two rolled-up reads the inventory list needs.
@@ -68,7 +68,7 @@ interface GameJpaRepository extends JpaRepository<GameEntity, UUID> {
    * The requested locale decides the ordering, so a paged list reads in the order the reader sees.
    * The English title is never null, so this always orders on a value.
    */
-  @Query(
+  @NativeQuery(
       value =
           ROLLED
               + """
@@ -80,8 +80,7 @@ interface GameJpaRepository extends JpaRepository<GameEntity, UUID> {
               order by case when cast(:locale as text) = 'th' then coalesce(title_th, title_en)
                             else title_en end, id
               limit :size offset :offset
-              """,
-      nativeQuery = true)
+              """)
   List<Object[]> findPage(
       @Param("branchId") @Nullable UUID branchId,
       @Param("category") @Nullable String category,
@@ -96,15 +95,14 @@ interface GameJpaRepository extends JpaRepository<GameEntity, UUID> {
    * The stat tiles and the "showing x of y" line describe the whole filtered set, so they are
    * counted separately. Reading them off the page would report zero for any page past the last one.
    */
-  @Query(
+  @NativeQuery(
       value =
           ROLLED
               + """
               select count(*), coalesce(sum(available), 0), coalesce(sum(in_use), 0)
               from rolled
               where (cast(:status as text) is null or status = cast(:status as text))
-              """,
-      nativeQuery = true)
+              """)
   List<Object[]> findTotals(
       @Param("branchId") @Nullable UUID branchId,
       @Param("category") @Nullable String category,

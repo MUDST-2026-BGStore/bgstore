@@ -6,8 +6,8 @@ import com.chanakanlabs.bgstore.identity.IdentityAccountService;
 import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
-import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -17,6 +17,7 @@ public class CurrentUserService {
 
   private static final Pattern COUNTRY_CODE = Pattern.compile("^\\+[1-9][0-9]{0,3}$");
   private static final Pattern PHONE_NUMBER = Pattern.compile("^[0-9][0-9() .-]*$");
+  private static final int NAME_MAX_LENGTH = 100;
 
   /** Countries in the picker whose local format uses a removable trunk prefix. */
   private static final Set<String> TRUNK_PREFIX_COUNTRY_CODES =
@@ -44,7 +45,8 @@ public class CurrentUserService {
   }
 
   @Transactional
-  public ClientProfileData completeClientProfile(String countryCode, String phoneNumber) {
+  public ClientProfileData completeClientProfile(
+      String firstName, String lastName, String countryCode, String phoneNumber) {
     AuthenticatedIdentity identity = currentIdentityProvider.currentIdentity();
     if (!identity.isClientOnly()) {
       throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Client onboarding is not required.");
@@ -52,7 +54,11 @@ public class CurrentUserService {
 
     identityAccounts.synchronize(identity);
     clientProfiles.createIfAbsent(identity.subject());
-    return clientProfiles.complete(identity.subject(), normalizePhone(countryCode, phoneNumber));
+    return clientProfiles.complete(
+        identity.subject(),
+        normalizeName(firstName, "first name"),
+        normalizeName(lastName, "last name"),
+        normalizePhone(countryCode, phoneNumber));
   }
 
   @Transactional(readOnly = true)
@@ -89,6 +95,14 @@ public class CurrentUserService {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a valid phone number.");
     }
     return e164;
+  }
+
+  private static String normalizeName(String name, String field) {
+    String normalized = name == null ? "" : name.trim().replaceAll("\\s+", " ");
+    if (normalized.isBlank() || normalized.length() > NAME_MAX_LENGTH) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enter a valid " + field + ".");
+    }
+    return normalized;
   }
 
   public record CurrentUser(

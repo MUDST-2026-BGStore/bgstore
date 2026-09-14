@@ -12,6 +12,33 @@ export type HelloResponse = {
 
 export type ApplicationRole = 'CLIENT' | 'STAFF' | 'MANAGER';
 
+export type StaffBranchAssignment = {
+  staffSubject: string;
+  displayName: string;
+  email?: string;
+  branchIds: Array<string>;
+};
+
+export type StaffBranchAssignmentList = {
+  items: Array<StaffBranchAssignment>;
+};
+
+export type ReplaceStaffBranchAssignmentsRequest = {
+  branchIds: Array<string>;
+};
+
+export type ClientSummary = {
+  subject: string;
+  displayName: string;
+  firstName?: string;
+  lastName?: string;
+  phone?: string | null;
+};
+
+export type ClientListResponse = {
+  items: Array<ClientSummary>;
+};
+
 export type ClientProfile = {
   /**
    * Thai mobile number in E.164 format.
@@ -36,6 +63,14 @@ export type CurrentUserResponse = {
 
 export type CompleteClientProfileRequest = {
   /**
+   * Client's given name, collected during registration or onboarding.
+   */
+  firstName: string;
+  /**
+   * Client's family name, collected during registration or onboarding.
+   */
+  lastName: string;
+  /**
    * International dialing prefix in E.164 form.
    */
   countryCode: string;
@@ -58,6 +93,43 @@ export type Branch = {
   opensAt?: string | null;
   /**
    * Closing time, Bangkok local time. Null exactly when `opensAt` is.
+   */
+  closesAt?: string | null;
+  /**
+   * Public branch phone number. Null until the store records one.
+   */
+  phone?: string | null;
+  status: BranchStatus;
+  /**
+   * WGS84 latitude used for distance estimates. Null until recorded.
+   */
+  latitude?: number | null;
+  /**
+   * WGS84 longitude used for distance estimates. Null until recorded.
+   */
+  longitude?: number | null;
+};
+
+/**
+ * Whether the branch currently accepts bookings.
+ */
+export type BranchStatus = 'ACTIVE' | 'INACTIVE';
+
+export type CreateBranchRequest = {
+  /**
+   * The unique display name of the branch.
+   */
+  name: string;
+  /**
+   * The postal address guests are shown.
+   */
+  address?: string | null;
+  /**
+   * Opening time in Bangkok local time.
+   */
+  opensAt?: string | null;
+  /**
+   * Closing time in Bangkok local time.
    */
   closesAt?: string | null;
 };
@@ -324,7 +396,37 @@ export type FloorOverviewResponse = {
   totalPages: number;
 };
 
-export type ReservationStatus = 'Reserved' | 'Completed' | 'Cancelled';
+export type ReservationStatus =
+  | 'Reserved'
+  | 'CheckedIn'
+  | 'Completed'
+  | 'Cancelled';
+
+export type CreateReservationRequest = {
+  /**
+   * Existing registered client selected by staff; omit for a walk-in client.
+   */
+  clientSubject?: string;
+  branch: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  partySize: number;
+  tableId: number;
+  customerName?: string;
+  phoneNumber?: string;
+};
+
+export type ReservationAvailabilityTable = {
+  id: number;
+  name: string;
+  capacity: number;
+  available: boolean;
+};
+
+export type ReservationAvailabilityResponse = {
+  tables: Array<ReservationAvailabilityTable>;
+};
 
 export type ReservationResponse = {
   id: string;
@@ -470,6 +572,38 @@ export type CompleteClientProfileResponses = {
 export type CompleteClientProfileResponse =
   CompleteClientProfileResponses[keyof CompleteClientProfileResponses];
 
+export type ListClientsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    search?: string;
+  };
+  url: '/clients';
+};
+
+export type ListClientsErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type ListClientsError = ListClientsErrors[keyof ListClientsErrors];
+
+export type ListClientsResponses = {
+  /**
+   * Registered client summaries.
+   */
+  200: ClientListResponse;
+};
+
+export type ListClientsResponse =
+  ListClientsResponses[keyof ListClientsResponses];
+
 export type ListBranchesData = {
   body?: never;
   path?: never;
@@ -495,6 +629,40 @@ export type ListBranchesResponses = {
 
 export type ListBranchesResponse =
   ListBranchesResponses[keyof ListBranchesResponses];
+
+export type CreateBranchData = {
+  body: CreateBranchRequest;
+  path?: never;
+  query?: never;
+  url: '/branches';
+};
+
+export type CreateBranchErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type CreateBranchError = CreateBranchErrors[keyof CreateBranchErrors];
+
+export type CreateBranchResponses = {
+  /**
+   * The created branch.
+   */
+  201: Branch;
+};
+
+export type CreateBranchResponse =
+  CreateBranchResponses[keyof CreateBranchResponses];
 
 export type ListGamesData = {
   body?: never;
@@ -643,6 +811,10 @@ export type GetGameErrors = {
    * Authentication is required.
    */
   401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
   /**
    * The resource does not exist.
    */
@@ -928,6 +1100,74 @@ export type GetFloorOverviewResponses = {
 export type GetFloorOverviewResponse =
   GetFloorOverviewResponses[keyof GetFloorOverviewResponses];
 
+export type ListStaffBranchAssignmentsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/staff/branch-assignments';
+};
+
+export type ListStaffBranchAssignmentsErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type ListStaffBranchAssignmentsError =
+  ListStaffBranchAssignmentsErrors[keyof ListStaffBranchAssignmentsErrors];
+
+export type ListStaffBranchAssignmentsResponses = {
+  /**
+   * Staff identities and their assigned branches.
+   */
+  200: StaffBranchAssignmentList;
+};
+
+export type ListStaffBranchAssignmentsResponse =
+  ListStaffBranchAssignmentsResponses[keyof ListStaffBranchAssignmentsResponses];
+
+export type ReplaceStaffBranchAssignmentsData = {
+  body: ReplaceStaffBranchAssignmentsRequest;
+  path: {
+    staffSubject: string;
+  };
+  query?: never;
+  url: '/staff/branch-assignments/{staffSubject}';
+};
+
+export type ReplaceStaffBranchAssignmentsErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type ReplaceStaffBranchAssignmentsError =
+  ReplaceStaffBranchAssignmentsErrors[keyof ReplaceStaffBranchAssignmentsErrors];
+
+export type ReplaceStaffBranchAssignmentsResponses = {
+  /**
+   * Updated assignment.
+   */
+  200: StaffBranchAssignment;
+};
+
+export type ReplaceStaffBranchAssignmentsResponse =
+  ReplaceStaffBranchAssignmentsResponses[keyof ReplaceStaffBranchAssignmentsResponses];
+
 export type ListReservationsData = {
   body?: never;
   path?: never;
@@ -944,6 +1184,10 @@ export type ListReservationsErrors = {
    * Authentication is required.
    */
   401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
 };
 
 export type ListReservationsError =
@@ -959,6 +1203,86 @@ export type ListReservationsResponses = {
 export type ListReservationsResponse =
   ListReservationsResponses[keyof ListReservationsResponses];
 
+export type CreateReservationData = {
+  body: CreateReservationRequest;
+  path?: never;
+  query?: never;
+  url: '/reservations';
+};
+
+export type CreateReservationErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The selected table is no longer available.
+   */
+  409: ProblemDetail;
+};
+
+export type CreateReservationError =
+  CreateReservationErrors[keyof CreateReservationErrors];
+
+export type CreateReservationResponses = {
+  /**
+   * The created reservation.
+   */
+  201: ReservationResponse;
+};
+
+export type CreateReservationResponse =
+  CreateReservationResponses[keyof CreateReservationResponses];
+
+export type GetReservationAvailabilityData = {
+  body?: never;
+  path?: never;
+  query: {
+    branch: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    partySize: number;
+  };
+  url: '/reservations/availability';
+};
+
+export type GetReservationAvailabilityErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type GetReservationAvailabilityError =
+  GetReservationAvailabilityErrors[keyof GetReservationAvailabilityErrors];
+
+export type GetReservationAvailabilityResponses = {
+  /**
+   * Suitable tables and whether each is currently available.
+   */
+  200: ReservationAvailabilityResponse;
+};
+
+export type GetReservationAvailabilityResponse =
+  GetReservationAvailabilityResponses[keyof GetReservationAvailabilityResponses];
+
 export type GetReservationData = {
   body?: never;
   path: {
@@ -973,6 +1297,10 @@ export type GetReservationErrors = {
    * Authentication is required.
    */
   401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
   /**
    * The resource does not exist.
    */
@@ -1010,6 +1338,10 @@ export type CancelReservationErrors = {
    * Authentication is required.
    */
   401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
   /**
    * The resource does not exist.
    */

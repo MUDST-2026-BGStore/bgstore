@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useInfiniteQuery } from '@tanstack/vue-query';
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import ClientLayout from '../../layouts/ClientLayout.vue';
 import UiButton from '../../components/ui/UiButton.vue';
@@ -9,29 +9,20 @@ import {
   catalogueQueryOptions,
   type CatalogueQuery,
 } from '../../queries/games';
+import { useDebounced } from '../../composables/useDebounced';
 import { cardMeta, catalogueCategories } from './catalogue';
 import { catalogueLocaleOf, resolveLocalized } from './localized';
 import type { GameCategory, GameSummary } from '../../generated/api/types.gen';
 
-/** The guest's view of `/games`: what the store has, to pick from before a visit. */
+/** The client's view of `/games`: what the store has, to pick from before a visit. */
 const { t, locale } = useI18n();
 
 const search = ref('');
-const debouncedSearch = ref('');
+const debouncedSearch = useDebounced(search);
 const category = ref<GameCategory | ''>('');
 
-// Typing should not fire a request per keystroke, but the query key still has
-// to settle on what was typed.
-let searchTimer: ReturnType<typeof setTimeout> | undefined;
-watch(search, (value) => {
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => {
-    debouncedSearch.value = value;
-  }, 300);
-});
-
 const query = computed<CatalogueQuery>(() => ({
-  // A guest never browses a game the store no longer offers.
+  // A client never browses a game the store no longer offers.
   lifecycle: 'active',
   ...(category.value ? { category: category.value } : {}),
   ...(debouncedSearch.value.trim()
