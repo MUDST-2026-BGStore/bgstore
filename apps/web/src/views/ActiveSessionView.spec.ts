@@ -33,7 +33,10 @@ describe('ActiveSessionView', () => {
   it('renders the checked-in session the API returned', async () => {
     stubApi([sessionHandler]);
 
-    const { wrapper } = await renderScreen(ActiveSessionView, '/sessions/active');
+    const { wrapper } = await renderScreen(
+      ActiveSessionView,
+      '/sessions/active',
+    );
 
     expect(wrapper.get('h1').text()).toBe('Current Session Details');
     expect(wrapper.get('.elapsed-time').text()).toBe('01:45:00');
@@ -53,7 +56,10 @@ describe('ActiveSessionView', () => {
   it('updates the local elapsed-time display every second', async () => {
     stubApi([sessionHandler]);
 
-    const { wrapper } = await renderScreen(ActiveSessionView, '/sessions/active');
+    const { wrapper } = await renderScreen(
+      ActiveSessionView,
+      '/sessions/active',
+    );
     await vi.advanceTimersByTimeAsync(1000);
 
     expect(wrapper.get('.elapsed-time').text()).toBe('01:45:01');
@@ -61,9 +67,14 @@ describe('ActiveSessionView', () => {
   });
 
   it('shows an empty state when the client has no checked-in session', async () => {
-    stubApi([route('/me/active-session', { status: 404, body: { status: 404 } })]);
+    stubApi([
+      route('/me/active-session', { status: 404, body: { status: 404 } }),
+    ]);
 
-    const { wrapper } = await renderScreen(ActiveSessionView, '/sessions/active');
+    const { wrapper } = await renderScreen(
+      ActiveSessionView,
+      '/sessions/active',
+    );
 
     expect(wrapper.text()).toContain('No active session');
     expect(wrapper.find('.session-layout').exists()).toBe(false);
@@ -76,7 +87,10 @@ describe('ActiveSessionView', () => {
       route('/reservations/res-1/assistance', { body: {} }, 'POST'),
     ]);
 
-    const { wrapper } = await renderScreen(ActiveSessionView, '/sessions/active');
+    const { wrapper } = await renderScreen(
+      ActiveSessionView,
+      '/sessions/active',
+    );
     await wrapper.get('.primary-action').trigger('click');
     await flushPromises();
 
@@ -97,9 +111,14 @@ describe('ActiveSessionView', () => {
       route('/reservations/res-1/assistance', { body: {} }, 'POST'),
     ]);
 
-    const { wrapper } = await renderScreen(ActiveSessionView, '/sessions/active');
+    const { wrapper } = await renderScreen(
+      ActiveSessionView,
+      '/sessions/active',
+    );
     await wrapper.get('.secondary-action').trigger('click');
-    expect(wrapper.get('[role="dialog"]').text()).toContain('End this session?');
+    expect(wrapper.get('[role="dialog"]').text()).toContain(
+      'End this session?',
+    );
 
     await wrapper.get('.confirm-end').trigger('click');
     await flushPromises();

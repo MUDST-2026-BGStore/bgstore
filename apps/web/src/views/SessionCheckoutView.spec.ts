@@ -96,7 +96,9 @@ describe('SessionCheckoutView', () => {
   });
 
   it('tells the client when there is no session to settle', async () => {
-    stubApi([route('/me/active-session', { status: 404, body: { status: 404 } })]);
+    stubApi([
+      route('/me/active-session', { status: 404, body: { status: 404 } }),
+    ]);
 
     const wrapper = await renderCheckout();
 

@@ -76,7 +76,11 @@ const settlement = useMutation({
         >
       </header>
 
-      <p v-if="activeSession.isPending.value" class="checkout-state" role="status">
+      <p
+        v-if="activeSession.isPending.value"
+        class="checkout-state"
+        role="status"
+      >
         {{ t('checkout.loading') }}
       </p>
 

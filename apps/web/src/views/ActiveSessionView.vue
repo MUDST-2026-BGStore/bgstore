@@ -21,7 +21,9 @@ const notice = ref<'callStaff' | 'endPlaying' | null>(null);
 const assistance = useMutation({
   mutationFn: async (kind: SessionAssistanceKind) => {
     const current = session.value;
-    return current ? requestSessionAssistance(current.reservationId, kind) : null;
+    return current
+      ? requestSessionAssistance(current.reservationId, kind)
+      : null;
   },
   onSuccess: (_response, kind) => {
     notice.value = kind === 'CallStaff' ? 'callStaff' : 'endPlaying';
