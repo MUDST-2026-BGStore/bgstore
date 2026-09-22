@@ -504,6 +504,10 @@ export type CheckoutReceiptResponse = {
   paidAt: string;
 };
 
+export type SessionListResponse = {
+  items: Array<ReservationResponse>;
+};
+
 export type SessionAssistanceKind = 'CallStaff' | 'EndPlaying';
 
 export type SessionAssistanceRequest = {
@@ -1458,6 +1462,36 @@ export type GetActiveSessionResponses = {
 
 export type GetActiveSessionResponse =
   GetActiveSessionResponses[keyof GetActiveSessionResponses];
+
+export type ListSessionsData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/sessions';
+};
+
+export type ListSessionsErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type ListSessionsError = ListSessionsErrors[keyof ListSessionsErrors];
+
+export type ListSessionsResponses = {
+  /**
+   * The branch's operational sessions.
+   */
+  200: SessionListResponse;
+};
+
+export type ListSessionsResponse =
+  ListSessionsResponses[keyof ListSessionsResponses];
 
 export type CheckInReservationData = {
   body?: never;

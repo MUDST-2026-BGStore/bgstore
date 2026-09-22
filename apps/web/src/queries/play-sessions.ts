@@ -1,11 +1,16 @@
 import { queryOptions } from '@tanstack/vue-query';
 import {
+  checkInReservation,
+  checkOutReservation,
   getActiveSession,
+  listSessions,
   requestSessionAssistance as requestSessionAssistanceCall,
 } from '../generated/api/sdk.gen';
 import type {
   ActiveSessionResponse,
+  PaymentMethod,
   SessionAssistanceKind,
+  SessionListResponse,
 } from '../generated/api/types.gen';
 
 /**
@@ -43,6 +48,43 @@ export async function requestSessionAssistance(
   const { data } = await requestSessionAssistanceCall({
     path: { reservationId },
     body: { kind, requestId },
+    throwOnError: true,
+  });
+  return data;
+}
+
+/**
+ * The reservations staff can act on now: the ones waiting to start and the ones
+ * in play, limited to the branches the caller may access.
+ */
+export const sessionsQueryOptions = () =>
+  queryOptions({
+    queryKey: ['play-sessions', 'queue'] as const,
+    retry: false,
+    queryFn: async (): Promise<SessionListResponse> => {
+      const { data } = await listSessions({ throwOnError: true });
+      return data;
+    },
+    refetchInterval: 30_000,
+  });
+
+export async function checkInReservationRequest(reservationId: string) {
+  const { data } = await checkInReservation({
+    path: { reservationId },
+    throwOnError: true,
+  });
+  return data;
+}
+
+/** Closes the session with the fee an authorized role confirmed, or waived. */
+export async function checkOutReservationRequest(
+  reservationId: string,
+  finalAmount: number,
+  paymentMethod: PaymentMethod,
+) {
+  const { data } = await checkOutReservation({
+    path: { reservationId },
+    body: { finalAmount, paymentMethod },
     throwOnError: true,
   });
   return data;

@@ -16,6 +16,7 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
@@ -55,6 +56,18 @@ public class PlaySessionService {
     this.branches = branches;
     this.accessPolicy = accessPolicy;
     this.clock = clock;
+  }
+
+  @Transactional(readOnly = true)
+  public List<ReservationRecordData> sessions() {
+    accessPolicy.requireStaffOrManager();
+    return reservations
+        .findByStatusInOrderByReservationDateAscTimeSlotAsc(List.of(RESERVED, CHECKED_IN))
+        .stream()
+        // A manager sees every branch; staff see only the ones they are assigned to.
+        .filter(reservation -> accessPolicy.canAccessBranch(reservation.branchId()))
+        .map(ReservationEntity::toRecord)
+        .toList();
   }
 
   @Transactional(readOnly = true)

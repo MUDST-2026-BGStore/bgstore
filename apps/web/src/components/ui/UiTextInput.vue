@@ -11,6 +11,8 @@ withDefaults(
     describedBy?: string;
     /** Draws the error border and marks the input for assistive tech. */
     invalid?: boolean;
+    /** Locks the field, for a value another control owns. */
+    disabled?: boolean;
   }>(),
   {
     placeholder: undefined,
@@ -18,6 +20,7 @@ withDefaults(
     inputmode: 'text',
     describedBy: undefined,
     invalid: false,
+    disabled: false,
   },
 );
 
@@ -43,9 +46,10 @@ const model = defineModel<string>({ default: '' });
       :type="search ? 'search' : 'text'"
       :inputmode="inputmode"
       :placeholder="placeholder"
+      :disabled="disabled"
       :aria-invalid="invalid ? 'true' : undefined"
       :aria-describedby="describedBy"
-      class="min-w-0 flex-1 bg-transparent text-[14px] leading-[22px] text-ink outline-none placeholder:text-ink-muted"
+      class="min-w-0 flex-1 bg-transparent text-[14px] leading-[22px] text-ink outline-none placeholder:text-ink-muted disabled:cursor-not-allowed disabled:text-ink-muted"
     />
   </div>
 </template>

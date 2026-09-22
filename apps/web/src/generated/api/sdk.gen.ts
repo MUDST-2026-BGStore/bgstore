@@ -72,6 +72,9 @@ import type {
   ListReservationsData,
   ListReservationsErrors,
   ListReservationsResponses,
+  ListSessionsData,
+  ListSessionsErrors,
+  ListSessionsResponses,
   ListStaffBranchAssignmentsData,
   ListStaffBranchAssignmentsErrors,
   ListStaffBranchAssignmentsResponses,
@@ -744,6 +747,30 @@ export const getActiveSession = <ThrowOnError extends boolean = false>(
       },
     ],
     url: '/me/active-session',
+    ...options,
+  });
+
+/**
+ * List the branch's reservations awaiting check-in or currently playing. Staff or manager only.
+ *
+ * Returns the reservations staff can act on now: `Reserved` ones waiting to start and `CheckedIn` ones in play. Results are limited to the branches the caller may access.
+ */
+export const listSessions = <ThrowOnError extends boolean = false>(
+  options?: Options<ListSessionsData, ThrowOnError>,
+): RequestResult<ListSessionsResponses, ListSessionsErrors, ThrowOnError> =>
+  (options?.client ?? client).get<
+    ListSessionsResponses,
+    ListSessionsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/sessions',
     ...options,
   });
 

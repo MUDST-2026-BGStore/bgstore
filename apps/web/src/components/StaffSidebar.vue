@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
 import BrandLockup from './BrandLockup.vue';
 import navBranches from '../assets/icons/nav-branches.svg';
+import navCheckIn from '../assets/icons/nav-check-in.svg';
 import navDashboard from '../assets/icons/nav-dashboard.svg';
 import navGames from '../assets/icons/nav-games.svg';
 import navGamesActive from '../assets/icons/nav-games-active.svg';
@@ -15,6 +16,7 @@ import { logout } from '../queries/current-user';
 export type StaffSection =
   | 'dashboard'
   | 'reservations'
+  | 'sessions'
   | 'tables'
   | 'games'
   | 'branches'
@@ -46,6 +48,13 @@ const items: StaffNavigationItem[] = [
     icon: navHistory,
     activeIcon: navHistory,
     to: '/staff/reservations/new',
+  },
+  {
+    key: 'sessions',
+    label: 'staff.nav.sessions',
+    icon: navCheckIn,
+    activeIcon: navCheckIn,
+    to: '/staff/sessions',
   },
   {
     key: 'tables',
