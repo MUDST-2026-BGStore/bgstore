@@ -742,6 +742,26 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+  /sessions:
+    get:
+      tags: [PlaySessions]
+      operationId: listSessions
+      summary: List the branch's reservations awaiting check-in or currently playing. Staff or manager only.
+      description: >-
+        Returns the reservations staff can act on now: `Reserved` ones waiting to
+        start and `CheckedIn` ones in play. Results are limited to the branches
+        the caller may access.
+      responses:
+        '200':
+          description: The branch's operational sessions.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /reservations/{reservationId}/check-in:
     parameters:
       - name: reservationId
@@ -1882,6 +1902,15 @@ components:
         paidAt:
           type: string
           format: date-time
+    SessionListResponse:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ReservationResponse'
     SessionAssistanceKind:
       type: string
       enum: [CallStaff, EndPlaying]

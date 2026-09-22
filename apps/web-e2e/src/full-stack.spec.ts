@@ -348,4 +348,27 @@ test.describe('real full-stack browser flows', () => {
       page.getByRole('heading', { name: 'No active session' }),
     ).toBeVisible();
   });
+
+  test('staff check a reserved party in from the session console', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    requireFullStack();
+
+    await signIn(page, staffAccount);
+    await page.goto('/staff/sessions');
+
+    await expect(
+      page.getByRole('heading', { name: 'Session console' }),
+    ).toBeVisible();
+
+    // The reservation workflow above left a party waiting to start.
+    const checkIn = page.getByRole('button', { name: 'Check in' }).first();
+    await expect(checkIn).toBeVisible();
+    await checkIn.click();
+
+    await expect(
+      page.getByRole('button', { name: 'Check out' }).first(),
+    ).toBeVisible();
+  });
 });

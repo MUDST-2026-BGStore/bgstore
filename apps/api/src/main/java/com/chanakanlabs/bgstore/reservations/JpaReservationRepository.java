@@ -1,5 +1,7 @@
 package com.chanakanlabs.bgstore.reservations;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
@@ -37,4 +39,8 @@ interface JpaReservationRepository extends JpaRepository<ReservationEntity, Stri
    */
   Optional<ReservationEntity> findFirstByClientSubjectAndStatus(
       String clientSubject, String status);
+
+  /** The operational queue: reservations waiting to start and the ones in play. */
+  List<ReservationEntity> findByStatusInOrderByReservationDateAscTimeSlotAsc(
+      Collection<String> statuses);
 }

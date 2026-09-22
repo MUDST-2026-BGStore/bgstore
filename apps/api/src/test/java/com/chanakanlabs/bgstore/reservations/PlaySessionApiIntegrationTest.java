@@ -289,8 +289,13 @@ class PlaySessionApiIntegrationTest {
         branch);
   }
 
-  /** Inserts a reservation; a null check-in instant means play has not started. */
+  /** Inserts a reservation in Silom; a null check-in instant means play has not started. */
   private void reservation(String id, String clientSubject, String status, Instant checkInTime) {
+    reservation(id, clientSubject, status, checkInTime, "Silom");
+  }
+
+  private void reservation(
+      String id, String clientSubject, String status, Instant checkInTime, String branch) {
     database.update(
         """
         insert into reservation (
@@ -298,11 +303,12 @@ class PlaySessionApiIntegrationTest {
             table_id, table_name, seats, rate_per_hour, status, customer_name, phone_number,
             check_in_time, actual_check_out, overtime_minutes, total_price, can_cancel)
         values (
-            ?, ?, (select id from branch where name = 'Silom'), ?, ?, ?, 4,
+            ?, ?, (select id from branch where name = ?), ?, ?, ?, 4,
             9501, ?, 4, 120, ?, ?, ?, ?, '-', 0, 0, true)
         """,
         id,
         clientSubject,
+        branch,
         "Table " + TABLE_NAME,
         "2026-09-22",
         "09:00–12:00",
@@ -311,6 +317,50 @@ class PlaySessionApiIntegrationTest {
         "Session Client",
         "0123456789",
         checkInTime == null ? "-" : checkInTime.toString());
+  }
+
+  @Test
+  void staffSeeOnlySessionsInTheirAssignedBranches() throws Exception {
+    reservation("res-silom", CLIENT, "Reserved", null, "Silom");
+    reservation("res-sukhumvit", OTHER_CLIENT, "Reserved", null, "Sukhumvit");
+    // Narrow the seeded assignment down to one branch.
+    database.update(
+        """
+        delete from staff_branch_assignment
+        where staff_subject = ?
+          and branch_id <> (select id from branch where name = 'Silom')
+        """,
+        STAFF);
+
+    mockMvc
+        .perform(get("/api/v1/sessions").with(staffLogin(STAFF)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].id").value("res-silom"));
+  }
+
+  @Test
+  void theQueueOnlyCarriesReservationsWaitingToStartOrInPlay() throws Exception {
+    reservation("res-done", CLIENT, "Completed", Instant.now().minus(Duration.ofHours(4)));
+    reservation("res-waiting", OTHER_CLIENT, "Reserved", null);
+
+    mockMvc
+        .perform(get("/api/v1/sessions").with(staffLogin(STAFF)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].id").value("res-waiting"));
+  }
+
+  @Test
+  void aClientCannotListTheStaffSessionQueue() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/sessions").with(clientLogin(CLIENT)))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void anonymousUserCannotReachTheSessionQueue() throws Exception {
+    mockMvc.perform(get("/api/v1/sessions")).andExpect(status().isUnauthorized());
   }
 
   private String reservationStatus(String id) {

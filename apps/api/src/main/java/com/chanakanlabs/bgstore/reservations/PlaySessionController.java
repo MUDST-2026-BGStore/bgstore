@@ -9,6 +9,7 @@ import com.chanakanlabs.bgstore.contract.model.ReservationResponse;
 import com.chanakanlabs.bgstore.contract.model.SessionAssistanceKind;
 import com.chanakanlabs.bgstore.contract.model.SessionAssistanceRequest;
 import com.chanakanlabs.bgstore.contract.model.SessionAssistanceResponse;
+import com.chanakanlabs.bgstore.contract.model.SessionListResponse;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
@@ -31,6 +32,13 @@ public class PlaySessionController implements PlaySessionsApi {
   @Override
   public ResponseEntity<ActiveSessionResponse> getActiveSession() {
     return ResponseEntity.ok(sessions.activeSession());
+  }
+
+  @Override
+  public ResponseEntity<SessionListResponse> listSessions() {
+    return ResponseEntity.ok(
+        new SessionListResponse(
+            sessions.sessions().stream().map(ReservationController::toResponse).toList()));
   }
 
   @Override

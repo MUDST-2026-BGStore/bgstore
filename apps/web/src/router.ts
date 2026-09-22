@@ -88,6 +88,14 @@ export const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    // Check-in and check-out are operational, so the console lives in the staff
+    // workspace rather than in the focused client flows.
+    path: '/staff/sessions',
+    name: 'staff-sessions',
+    component: () => import('./pages/sessions/SessionConsolePage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/history',
     name: 'history',
     component: RoleView,
