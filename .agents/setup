@@ -111,6 +111,26 @@ EOF
   fi
 }
 
+link_toolchain() {
+  # Login shells get the toolchain from the profile above, but agents and other
+  # automation run commands in non-interactive shells that never read it. Point
+  # the pinned tools at their mise shims from ~/.local/bin, which is already on
+  # PATH everywhere, so `pnpm check` finds Java without a manual export.
+  local tool
+  for tool in node npm npx pnpm corepack java javac jar; do
+    local shim="$HOME/.local/share/mise/shims/$tool"
+    [[ -x "$shim" ]] || continue
+    ln -sfn "$shim" "$local_bin/$tool"
+  done
+}
+
+install_git_hooks() {
+  # The dependency install above skips lifecycle scripts, so the prepare script
+  # never runs. Install Lefthook explicitly: without it a commit skips the
+  # Prettier, ESLint and Spotless checks that CI enforces.
+  "$mise_bin" exec -- pnpm exec lefthook install
+}
+
 mkdir -p "$local_bin"
 work_dir="$(mktemp -d)"
 trap 'rm -rf "$work_dir"' EXIT
@@ -126,10 +146,12 @@ cd "$repo_root"
 
 log_step 'Install pinned Node, pnpm, and Java toolchains' "$mise_bin" install --yes
 log_step 'Refresh mise shims' "$mise_bin" reshim
+log_step 'Expose the toolchain to non-interactive shells' link_toolchain
 log_step 'Install locked workspace dependencies' \
   "$mise_bin" exec -- pnpm install --frozen-lockfile --ignore-scripts
 log_step 'Install the Playwright Chromium build' \
   "$mise_bin" exec -- pnpm exec playwright install chromium
-log_step 'Configure non-interactive login shells' configure_login_shell
+log_step 'Install the Lefthook git hooks' install_git_hooks
+log_step 'Configure login shells' configure_login_shell
 
 printf '\nBGStore orb setup complete.\n'
