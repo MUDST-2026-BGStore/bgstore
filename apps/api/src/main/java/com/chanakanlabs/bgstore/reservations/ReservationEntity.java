@@ -4,6 +4,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.hibernate.annotations.CreationTimestamp;
@@ -74,6 +75,10 @@ public class ReservationEntity {
 
   @Column(name = "thumbnail_url", length = 512)
   private @Nullable String thumbnailUrl;
+
+  /** How the confirmed fee was settled; null until staff check the session out. */
+  @Column(name = "payment_method", length = 32)
+  private @Nullable String paymentMethod;
 
   @CreationTimestamp
   @Column(name = "created_at", nullable = false)
@@ -177,6 +182,46 @@ public class ReservationEntity {
   public void cancel() {
     this.status = "Cancelled";
     this.canCancel = false;
+  }
+
+  /** Starts play. The instant is stored in ISO-8601 form so elapsed time stays absolute. */
+  public void checkIn(Instant startedAt) {
+    this.status = "CheckedIn";
+    this.checkInTime = startedAt.toString();
+  }
+
+  /**
+   * Closes play with the fee an authorized role confirmed. A waived fee is recorded as a zero
+   * amount with the {@code Waived} method.
+   */
+  public void checkOut(
+      Instant endedAt, int finalAmount, int overtimeMinutes, String paymentMethod) {
+    this.status = "Completed";
+    this.actualCheckOut = endedAt.toString();
+    this.totalPrice = finalAmount;
+    this.overtimeMinutes = overtimeMinutes;
+    this.paymentMethod = paymentMethod;
+    this.canCancel = false;
+  }
+
+  public UUID branchId() {
+    return branchId;
+  }
+
+  public String status() {
+    return status;
+  }
+
+  public String checkInTime() {
+    return checkInTime;
+  }
+
+  public String reservationDate() {
+    return reservationDate;
+  }
+
+  public String timeSlot() {
+    return timeSlot;
   }
 
   public ReservationRecordData toRecord() {

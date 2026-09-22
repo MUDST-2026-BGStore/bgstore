@@ -97,7 +97,7 @@ public class ReservationController implements ReservationsApi {
             overview.tables().totalPages()));
   }
 
-  private static ReservationResponse toResponse(ReservationRecordData data) {
+  static ReservationResponse toResponse(ReservationRecordData data) {
     var res =
         new ReservationResponse(
             data.id(),

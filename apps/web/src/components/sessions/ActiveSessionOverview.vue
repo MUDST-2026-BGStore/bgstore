@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { ActiveSessionSnapshot } from '../../features/sessions/active-session-types';
+import type { ActiveSessionResponse } from '../../generated/api/types.gen';
 
 const props = defineProps<{
-  session: ActiveSessionSnapshot;
+  session: ActiveSessionResponse;
   elapsedTime: string;
 }>();
 
@@ -14,7 +14,7 @@ const formattedFee = computed(() =>
     style: 'currency',
     currency: props.session.currency,
     minimumFractionDigits: 2,
-  }).format(props.session.accumulatedFee),
+  }).format(props.session.accruedAmount),
 );
 </script>
 

@@ -2,6 +2,8 @@
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+defineProps<{ busy?: boolean }>();
+
 const emit = defineEmits<{
   'call-staff': [];
   'end-playing': [];

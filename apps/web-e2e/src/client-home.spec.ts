@@ -84,6 +84,6 @@ test('keeps the client branch directory out of the staff table workflow', async 
   ).toHaveCount(0);
   await expect(page.locator('a[href="/tables"]')).toHaveCount(0);
   await expect(
-    page.getByRole('button', { name: 'Reservations coming soon' }),
-  ).toBeDisabled();
+    page.getByRole('link', { name: 'Book at this branch' }),
+  ).toHaveAttribute('href', /^\/reservations\/new\?branch=/);
 });

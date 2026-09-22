@@ -12,6 +12,12 @@ import type {
   CancelReservationData,
   CancelReservationErrors,
   CancelReservationResponses,
+  CheckInReservationData,
+  CheckInReservationErrors,
+  CheckInReservationResponses,
+  CheckOutReservationData,
+  CheckOutReservationErrors,
+  CheckOutReservationResponses,
   CompleteClientProfileData,
   CompleteClientProfileErrors,
   CompleteClientProfileResponses,
@@ -30,6 +36,9 @@ import type {
   DeleteTableData,
   DeleteTableErrors,
   DeleteTableResponses,
+  GetActiveSessionData,
+  GetActiveSessionErrors,
+  GetActiveSessionResponses,
   GetCurrentUserData,
   GetCurrentUserErrors,
   GetCurrentUserResponses,
@@ -72,6 +81,9 @@ import type {
   ReplaceStaffBranchAssignmentsData,
   ReplaceStaffBranchAssignmentsErrors,
   ReplaceStaffBranchAssignmentsResponses,
+  RequestSessionAssistanceData,
+  RequestSessionAssistanceErrors,
+  RequestSessionAssistanceResponses,
   RetireGameData,
   RetireGameErrors,
   RetireGameResponses,
@@ -705,4 +717,124 @@ export const cancelReservation = <ThrowOnError extends boolean = false>(
     ],
     url: '/reservations/{reservationId}/cancel',
     ...options,
+  });
+
+/**
+ * Get the authenticated client's current in-store play session.
+ *
+ * Returns the reservation the client is currently checked in for. A client without an active session receives 404 rather than an empty record.
+ */
+export const getActiveSession = <ThrowOnError extends boolean = false>(
+  options?: Options<GetActiveSessionData, ThrowOnError>,
+): RequestResult<
+  GetActiveSessionResponses,
+  GetActiveSessionErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    GetActiveSessionResponses,
+    GetActiveSessionErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/me/active-session',
+    ...options,
+  });
+
+/**
+ * Start play for a reserved table. Staff or manager only.
+ *
+ * Moves a `Reserved` reservation to `CheckedIn` and stamps the start of play. Only checked-in parties have an active session.
+ */
+export const checkInReservation = <ThrowOnError extends boolean = false>(
+  options: Options<CheckInReservationData, ThrowOnError>,
+): RequestResult<
+  CheckInReservationResponses,
+  CheckInReservationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CheckInReservationResponses,
+    CheckInReservationErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/reservations/{reservationId}/check-in',
+    ...options,
+  });
+
+/**
+ * Close a checked-in session once staff confirm the final fee. Staff or manager only.
+ *
+ * Closes play only after an authorized role confirms the final amount or explicitly waives it, per the play-session domain invariant. The final amount and payment method are recorded on the reservation.
+ */
+export const checkOutReservation = <ThrowOnError extends boolean = false>(
+  options: Options<CheckOutReservationData, ThrowOnError>,
+): RequestResult<
+  CheckOutReservationResponses,
+  CheckOutReservationErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    CheckOutReservationResponses,
+    CheckOutReservationErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/reservations/{reservationId}/check-out',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+
+/**
+ * Ask staff for help or request the end of play. Client only.
+ *
+ * Records a durable staff request for the client's own checked-in session. It never closes the session or stops billing; only staff check-out does that. Repeating a `requestId` returns the original receipt.
+ */
+export const requestSessionAssistance = <ThrowOnError extends boolean = false>(
+  options: Options<RequestSessionAssistanceData, ThrowOnError>,
+): RequestResult<
+  RequestSessionAssistanceResponses,
+  RequestSessionAssistanceErrors,
+  ThrowOnError
+> =>
+  (options.client ?? client).post<
+    RequestSessionAssistanceResponses,
+    RequestSessionAssistanceErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/reservations/{reservationId}/assistance',
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
   });

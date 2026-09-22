@@ -457,6 +457,69 @@ export type ReservationListResponse = {
   totalPages: number;
 };
 
+export type ActiveSessionResponse = {
+  reservationId: string;
+  locationName: string;
+  tableName: string;
+  startedAt: string;
+  partySize: number;
+  /**
+   * THB per hour recorded on the reservation. The final fee is confirmed by staff at check-out; this is the recorded rate, not a live charge.
+   */
+  ratePerHour: number;
+  /**
+   * Final THB amount recorded for the session; 0 until staff confirm check-out.
+   */
+  accruedAmount: number;
+  currency: 'THB';
+};
+
+/**
+ * How the confirmed fee was settled; `Waived` closes the session without charging.
+ */
+export type PaymentMethod = 'Cash' | 'PromptPay' | 'BankTransfer' | 'Waived';
+
+export type CheckOutRequest = {
+  /**
+   * Final THB fee confirmed by staff; 0 when the fee is waived.
+   */
+  finalAmount: number;
+  paymentMethod: PaymentMethod;
+};
+
+export type CheckoutReceiptResponse = {
+  reservationId: string;
+  tableName: string;
+  partySize: number;
+  startedAt: string;
+  endedAt: string;
+  /**
+   * Whole hours of play, rounded up, for display only.
+   */
+  hours: number;
+  ratePerHour: number;
+  totalDue: number;
+  currency: 'THB';
+  paymentMethod: PaymentMethod;
+  paidAt: string;
+};
+
+export type SessionAssistanceKind = 'CallStaff' | 'EndPlaying';
+
+export type SessionAssistanceRequest = {
+  kind: SessionAssistanceKind;
+  /**
+   * Client-generated idempotency key; repeating it returns the original receipt.
+   */
+  requestId: string;
+};
+
+export type SessionAssistanceResponse = {
+  requestId: string;
+  kind: SessionAssistanceKind;
+  status: 'Recorded';
+};
+
 export type ProblemDetail = {
   type: string;
   title: string;
@@ -1360,3 +1423,161 @@ export type CancelReservationResponses = {
 
 export type CancelReservationResponse =
   CancelReservationResponses[keyof CancelReservationResponses];
+
+export type GetActiveSessionData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: '/me/active-session';
+};
+
+export type GetActiveSessionErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+};
+
+export type GetActiveSessionError =
+  GetActiveSessionErrors[keyof GetActiveSessionErrors];
+
+export type GetActiveSessionResponses = {
+  /**
+   * The client's active session.
+   */
+  200: ActiveSessionResponse;
+};
+
+export type GetActiveSessionResponse =
+  GetActiveSessionResponses[keyof GetActiveSessionResponses];
+
+export type CheckInReservationData = {
+  body?: never;
+  path: {
+    reservationId: string;
+  };
+  query?: never;
+  url: '/reservations/{reservationId}/check-in';
+};
+
+export type CheckInReservationErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+};
+
+export type CheckInReservationError =
+  CheckInReservationErrors[keyof CheckInReservationErrors];
+
+export type CheckInReservationResponses = {
+  /**
+   * The checked-in reservation.
+   */
+  200: ReservationResponse;
+};
+
+export type CheckInReservationResponse =
+  CheckInReservationResponses[keyof CheckInReservationResponses];
+
+export type CheckOutReservationData = {
+  body: CheckOutRequest;
+  path: {
+    reservationId: string;
+  };
+  query?: never;
+  url: '/reservations/{reservationId}/check-out';
+};
+
+export type CheckOutReservationErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+};
+
+export type CheckOutReservationError =
+  CheckOutReservationErrors[keyof CheckOutReservationErrors];
+
+export type CheckOutReservationResponses = {
+  /**
+   * The final receipt for the closed session.
+   */
+  200: CheckoutReceiptResponse;
+};
+
+export type CheckOutReservationResponse =
+  CheckOutReservationResponses[keyof CheckOutReservationResponses];
+
+export type RequestSessionAssistanceData = {
+  body: SessionAssistanceRequest;
+  path: {
+    reservationId: string;
+  };
+  query?: never;
+  url: '/reservations/{reservationId}/assistance';
+};
+
+export type RequestSessionAssistanceErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+  /**
+   * The resource does not exist.
+   */
+  404: ProblemDetail;
+};
+
+export type RequestSessionAssistanceError =
+  RequestSessionAssistanceErrors[keyof RequestSessionAssistanceErrors];
+
+export type RequestSessionAssistanceResponses = {
+  /**
+   * The recorded assistance request.
+   */
+  200: SessionAssistanceResponse;
+};
+
+export type RequestSessionAssistanceResponse =
+  RequestSessionAssistanceResponses[keyof RequestSessionAssistanceResponses];

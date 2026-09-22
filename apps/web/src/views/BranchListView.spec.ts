@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils';
 import { describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
-import { defineComponent, h, ref } from 'vue';
+import { computed, defineComponent, h, ref } from 'vue';
 import { messages } from '../i18n';
 import BranchListView from './BranchListView.vue';
 
@@ -44,8 +44,20 @@ vi.mock('vue-router', () => ({
         default: '',
       },
     },
-    setup(_, { slots }) {
-      return () => h('a', slots.default ? slots.default() : []);
+    setup(props, { slots }) {
+      // Expose the destination so tests can assert where a link points.
+      const href = computed(() => {
+        const target = props.to;
+        if (typeof target === 'string') {
+          return target;
+        }
+        const query = new URLSearchParams(
+          (target.query ?? {}) as Record<string, string>,
+        ).toString();
+        return `${target.path ?? ''}${query ? `?${query}` : ''}`;
+      });
+      return () =>
+        h('a', { href: href.value }, slots.default ? slots.default() : []);
     },
   }),
 }));
@@ -116,8 +128,7 @@ describe('BranchListView (SCRUM-21 Master-Detail & Reservation)', () => {
     );
   });
 
-  it('keeps client booking away from the staff table route', async () => {
-    mockPush.mockClear();
+  it('sends an active branch booking to the real reservation flow', async () => {
     const wrapper = mount(BranchListView, {
       global: {
         plugins: [createTestI18n()],
@@ -127,14 +138,12 @@ describe('BranchListView (SCRUM-21 Master-Detail & Reservation)', () => {
     const branchButtons = wrapper.findAll('ul button');
     await branchButtons[0].trigger('click');
 
-    const bookButton = wrapper
-      .findAll('button')
-      .find((b) => b.text().includes('Reservations coming soon'));
-    expect(bookButton).toBeDefined();
-    expect(bookButton?.attributes('disabled')).toBeDefined();
-    await bookButton?.trigger('click');
-
-    expect(mockPush).not.toHaveBeenCalled();
+    const bookLink = wrapper
+      .findAll('a')
+      .find((link) => link.text().includes('Book at this branch'));
+    expect(bookLink).toBeDefined();
+    expect(bookLink?.attributes('href')).toContain('/reservations/new?branch=');
+    expect(bookLink?.attributes('href')).toContain('Silom');
   });
 
   it('does not render staff-only navigation on the client branch page', () => {
