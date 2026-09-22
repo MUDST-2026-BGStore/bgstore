@@ -18,7 +18,7 @@
     "dev:api": "nx bootRun bgstore-api",
     "e2e": "nx e2e @mudst-2026-bgstore/web-e2e",
     "format": "nx format:write",
-    "format:check": "nx format:check",
+    "format:check": "prettier --check .",
     "graph": "nx graph",
     "prepare": "lefthook install",
     "test": "nx run-many -t test",

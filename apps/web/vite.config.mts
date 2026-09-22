@@ -23,10 +23,6 @@ export default defineConfig(() => ({
     host: '127.0.0.1',
   },
   plugins: [vue(), tailwindcss()],
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [],
-  // },
   build: {
     outDir: './dist',
     emptyOutDir: true,
