@@ -42,6 +42,7 @@ Thumbs.db
 .nx/cache
 .nx/workspace-data
 .nx/migrate-runs
+.amp/portals/*
 .claude/worktrees
 .claude/settings.local.json
 

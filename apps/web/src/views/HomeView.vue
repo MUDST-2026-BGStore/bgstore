@@ -5,12 +5,9 @@ import { useI18n } from 'vue-i18n';
 import BranchCard from '../components/home/BranchCard.vue';
 import UiButton from '../components/ui/UiButton.vue';
 import ClientLayout from '../layouts/ClientLayout.vue';
-import { currentUserQueryOptions } from '../queries/current-user';
 import { branchesQueryOptions } from '../queries/games';
 
 const { t } = useI18n();
-const currentUser = useQuery(currentUserQueryOptions());
-const guest = computed(() => currentUser.data.value === null);
 const branches = useQuery(branchesQueryOptions());
 
 const heroSlides = 3;
@@ -47,7 +44,7 @@ function showSlide(step: number) {
 </script>
 
 <template>
-  <ClientLayout active="home" :guest="guest">
+  <ClientLayout>
     <div class="client-home-shell">
       <h1 class="sr-only">{{ t('app.title') }}</h1>
 

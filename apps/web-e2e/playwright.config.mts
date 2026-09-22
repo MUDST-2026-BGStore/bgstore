@@ -6,12 +6,6 @@ const baseURL = process.env['BASE_URL'] || 'http://127.0.0.1:4300';
 const externalServer = Boolean(process.env['BASE_URL']);
 
 /**
- * Read environment variables from file.
- * https://github.com/motdotla/dotenv
- */
-// import 'dotenv/config';
-
-/**
  * See https://playwright.dev/docs/test-configuration.
  *
  * Generated as a .mts file so Node forces ESM regardless of workspace
@@ -43,25 +37,5 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-
-    // Uncomment for mobile browsers support
-    /* {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
-    }, */
-
-    // Uncomment for branded browsers
-    /* {
-      name: 'Microsoft Edge',
-      use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    },
-    {
-      name: 'Google Chrome',
-      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    } */
   ],
 });
