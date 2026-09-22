@@ -3,6 +3,12 @@ name: Publish release
 on:
   release:
     types: [published]
+  workflow_call:
+    inputs:
+      tag_name:
+        description: Release tag to build and promote
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -13,6 +19,8 @@ permissions:
 jobs:
   images:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ inputs.tag_name || github.event.release.tag_name }}
     steps:
       - uses: actions/checkout@v5
       - uses: docker/setup-qemu-action@v3
@@ -30,7 +38,7 @@ jobs:
           file: apps/api/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/mudst-2026-bgstore/bgstore-api:${{ github.event.release.tag_name }}
+          tags: ghcr.io/mudst-2026-bgstore/bgstore-api:${{ env.RELEASE_TAG }}
           sbom: true
           provenance: mode=max
           cache-from: type=gha,scope=api
@@ -42,7 +50,7 @@ jobs:
           file: apps/web/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/mudst-2026-bgstore/bgstore-web:${{ github.event.release.tag_name }}
+          tags: ghcr.io/mudst-2026-bgstore/bgstore-web:${{ env.RELEASE_TAG }}
           sbom: true
           provenance: mode=max
           cache-from: type=gha,scope=web
@@ -54,7 +62,7 @@ jobs:
           file: infra/keycloak/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/mudst-2026-bgstore/bgstore-keycloak:${{ github.event.release.tag_name }}
+          tags: ghcr.io/mudst-2026-bgstore/bgstore-keycloak:${{ env.RELEASE_TAG }}
           sbom: true
           provenance: mode=max
           cache-from: type=gha,scope=keycloak
@@ -79,13 +87,13 @@ jobs:
             deploy/environments/production.yaml
       - name: Promote the Keycloak theme image
         env:
-          KEYCLOAK_TAG: ${{ github.event.release.tag_name }}
+          KEYCLOAK_TAG: ${{ env.RELEASE_TAG }}
         run: |
           perl -0pi -e 's/image:\n          tag: [^\n]+/image:\n          repository: ghcr.io\/mudst-2026-bgstore\/bgstore-keycloak\n          tag: $ENV{KEYCLOAK_TAG}/' deploy/argocd/platform.yaml
       - uses: peter-evans/create-pull-request@v8
         with:
-          branch: release/${{ github.event.release.tag_name }}-production
-          commit-message: 'chore(deploy): promote ${{ github.event.release.tag_name }}'
-          title: 'chore(deploy): promote ${{ github.event.release.tag_name }}'
+          branch: release/${{ env.RELEASE_TAG }}-production
+          commit-message: 'chore(deploy): promote ${{ env.RELEASE_TAG }}'
+          title: 'chore(deploy): promote ${{ env.RELEASE_TAG }}'
           body: Promotes signed image digests produced by the release workflow.
           labels: deployment

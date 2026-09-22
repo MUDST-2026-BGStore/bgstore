@@ -27,7 +27,7 @@ jobs:
         with: { distribution: temurin, java-version: '21', cache: gradle }
       - run: pnpm install --frozen-lockfile
       - run: pnpm format:check
-      - run: pnpm exec nx run-many -t lint,typecheck,test,check --parallel=3
+      - run: pnpm check
       - uses: actions/upload-artifact@v4
         if: always()
         with:
