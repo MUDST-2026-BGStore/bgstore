@@ -30,4 +30,11 @@ interface JpaReservationRepository extends JpaRepository<ReservationEntity, Stri
       """)
   Optional<ReservationEntity> findByIdAndClient(
       @Param("id") String id, @Param("clientSubject") String clientSubject);
+
+  /**
+   * The client's current play session. A client has at most one checked-in reservation, so the
+   * first match is the active session.
+   */
+  Optional<ReservationEntity> findFirstByClientSubjectAndStatus(
+      String clientSubject, String status);
 }

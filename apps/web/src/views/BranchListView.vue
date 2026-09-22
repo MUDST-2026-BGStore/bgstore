@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { RouterLink } from 'vue-router';
 import mapPin from '../assets/icons/map-pin.svg';
 import searchIcon from '../assets/icons/search.svg';
 import { useBranches } from '../composables/useBranches';
@@ -331,25 +332,25 @@ function calculateDistance(branch: Branch): string | null {
                 {{ t('branch.bookingUnavailable') }}
               </div>
 
-              <!-- Reservation creation is not available until its API is implemented. -->
+              <!-- AC 3 & 6: booking opens the real reservation flow for an active branch. -->
               <div class="mt-3 border-t border-gray-100 pt-3">
+                <RouterLink
+                  v-if="isBranchBookable(selectedBranch)"
+                  :to="{
+                    path: '/reservations/new',
+                    query: { branch: selectedBranch.name },
+                  }"
+                  class="flex h-10 w-full items-center justify-center rounded-xl bg-[#386671] px-4 text-sm font-bold text-white shadow transition hover:bg-[#2d545d]"
+                >
+                  {{ t('branch.bookAtBranch') }}
+                </RouterLink>
                 <button
+                  v-else
                   type="button"
                   disabled
-                  class="flex h-10 w-full items-center justify-center rounded-xl px-4 text-sm font-bold shadow transition"
-                  :class="
-                    isBranchBookable(selectedBranch)
-                      ? 'cursor-not-allowed bg-[#e6f1f3] text-[#386671] shadow-none'
-                      : 'cursor-not-allowed bg-gray-100 text-gray-400 shadow-none'
-                  "
+                  class="flex h-10 w-full cursor-not-allowed items-center justify-center rounded-xl bg-gray-100 px-4 text-sm font-bold text-gray-400 shadow-none"
                 >
-                  {{
-                    t(
-                      isBranchBookable(selectedBranch)
-                        ? 'branch.bookingComingSoon'
-                        : 'branch.bookingUnavailable',
-                    )
-                  }}
+                  {{ t('branch.bookingUnavailable') }}
                 </button>
               </div>
             </div>

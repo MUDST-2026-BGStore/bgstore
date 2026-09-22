@@ -1,5 +1,4 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import type { ActiveSessionSnapshot } from './active-session-types';
 
 const formatElapsedTime = (totalSeconds: number) => {
   const hours = Math.floor(totalSeconds / 3600);
@@ -10,19 +9,28 @@ const formatElapsedTime = (totalSeconds: number) => {
     .join(':');
 };
 
-/** Keeps the elapsed-time display moving between authoritative API refreshes. */
-export const useActiveSession = (session: ActiveSessionSnapshot) => {
+/**
+ * Keeps the elapsed-time display moving between authoritative API refreshes.
+ * The session is read through a getter so the clock survives the first load.
+ */
+export const useActiveSession = (
+  session: () => { startedAt: string } | null,
+) => {
   const currentTime = ref(Date.now());
   let timer: ReturnType<typeof setInterval> | undefined;
 
-  const elapsedSeconds = computed(() =>
-    Math.max(
+  const elapsedSeconds = computed(() => {
+    const current = session();
+    if (!current) {
+      return 0;
+    }
+    return Math.max(
       0,
       Math.floor(
-        (currentTime.value - new Date(session.startedAt).getTime()) / 1000,
+        (currentTime.value - new Date(current.startedAt).getTime()) / 1000,
       ),
-    ),
-  );
+    );
+  });
   const elapsedTime = computed(() => formatElapsedTime(elapsedSeconds.value));
 
   onMounted(() => {

@@ -327,22 +327,25 @@ test.describe('real full-stack browser flows', () => {
     ).toBeVisible();
   });
 
-  test('client can review checkout and choose a payment method in the real app shell', async ({
+  test('client sees no session to settle until staff check them in', async ({
     page,
   }) => {
     test.setTimeout(60_000);
     requireFullStack();
 
     await signIn(page, clientAccount);
-    await page.goto('/pay-session');
 
-    await expect(page.getByRole('heading', { name: 'Checkout' })).toBeVisible();
-    const bankTransfer = page.getByLabel('Bank Transfer');
-    await bankTransfer.check();
-    await expect(bankTransfer).toBeChecked();
-    await page.getByRole('button', { name: 'Confirm' }).click();
+    await page.goto('/sessions/active');
     await expect(
-      page.getByRole('heading', { name: 'Payment Complete' }),
+      page.getByRole('heading', { name: 'No active session' }),
+    ).toBeVisible();
+
+    await page.goto('/pay-session');
+    await expect(
+      page.getByRole('heading', { name: 'Settle your session' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'No active session' }),
     ).toBeVisible();
   });
 });

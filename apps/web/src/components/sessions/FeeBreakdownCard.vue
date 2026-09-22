@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { ActiveSessionSnapshot } from '../../features/sessions/active-session-types';
+import type { ActiveSessionResponse } from '../../generated/api/types.gen';
 
-const props = defineProps<{ session: ActiveSessionSnapshot }>();
+const props = defineProps<{ session: ActiveSessionResponse }>();
 const { locale, t } = useI18n();
 
 const startTime = computed(() =>
@@ -17,7 +17,7 @@ const hourlyRate = computed(() =>
     style: 'currency',
     currency: props.session.currency,
     maximumFractionDigits: 0,
-  }).format(props.session.hourlyRatePerPerson),
+  }).format(props.session.ratePerHour),
 );
 </script>
 
@@ -50,7 +50,7 @@ const hourlyRate = computed(() =>
       <div>
         <dt>{{ t('activeSession.hourlyRate') }}</dt>
         <dd>
-          {{ t('activeSession.ratePerPerson', { rate: hourlyRate }) }}
+          {{ t('activeSession.ratePerHour', { rate: hourlyRate }) }}
         </dd>
       </div>
     </dl>

@@ -22,6 +22,10 @@ tags:
     description: Store table inventory and operational status management.
   - name: Reservations
     description: Client table reservation history and cancellation.
+  - name: PlaySessions
+    description: >-
+      In-store play sessions: the client's active session, staff check-in and
+      check-out, and client assistance requests.
 paths:
   /hello:
     get:
@@ -709,6 +713,128 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /me/active-session:
+    get:
+      tags: [PlaySessions]
+      operationId: getActiveSession
+      summary: Get the authenticated client's current in-store play session.
+      description: >-
+        Returns the reservation the client is currently checked in for. A client
+        without an active session receives 404 rather than an empty record.
+      responses:
+        '200':
+          description: The client's active session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveSessionResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /reservations/{reservationId}/check-in:
+    parameters:
+      - name: reservationId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [PlaySessions]
+      operationId: checkInReservation
+      summary: Start play for a reserved table. Staff or manager only.
+      description: >-
+        Moves a `Reserved` reservation to `CheckedIn` and stamps the start of
+        play. Only checked-in parties have an active session.
+      responses:
+        '200':
+          description: The checked-in reservation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /reservations/{reservationId}/check-out:
+    parameters:
+      - name: reservationId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [PlaySessions]
+      operationId: checkOutReservation
+      summary: Close a checked-in session once staff confirm the final fee. Staff or manager only.
+      description: >-
+        Closes play only after an authorized role confirms the final amount or
+        explicitly waives it, per the play-session domain invariant. The final
+        amount and payment method are recorded on the reservation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CheckOutRequest'
+      responses:
+        '200':
+          description: The final receipt for the closed session.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheckoutReceiptResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  /reservations/{reservationId}/assistance:
+    parameters:
+      - name: reservationId
+        in: path
+        required: true
+        schema:
+          type: string
+    post:
+      tags: [PlaySessions]
+      operationId: requestSessionAssistance
+      summary: Ask staff for help or request the end of play. Client only.
+      description: >-
+        Records a durable staff request for the client's own checked-in session.
+        It never closes the session or stops billing; only staff check-out does
+        that. Repeating a `requestId` returns the original receipt.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SessionAssistanceRequest'
+      responses:
+        '200':
+          description: The recorded assistance request.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionAssistanceResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1663,6 +1789,126 @@ components:
           type: integer
         totalPages:
           type: integer
+    ActiveSessionResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - reservationId
+        - locationName
+        - tableName
+        - startedAt
+        - partySize
+        - ratePerHour
+        - accruedAmount
+        - currency
+      properties:
+        reservationId:
+          type: string
+        locationName:
+          type: string
+        tableName:
+          type: string
+        startedAt:
+          type: string
+          format: date-time
+        partySize:
+          type: integer
+        ratePerHour:
+          type: integer
+          description: >-
+            THB per hour recorded on the reservation. The final fee is confirmed
+            by staff at check-out; this is the recorded rate, not a live charge.
+        accruedAmount:
+          type: integer
+          description: Final THB amount recorded for the session; 0 until staff confirm check-out.
+        currency:
+          type: string
+          enum: [THB]
+    PaymentMethod:
+      type: string
+      description: How the confirmed fee was settled; `Waived` closes the session without charging.
+      enum: [Cash, PromptPay, BankTransfer, Waived]
+    CheckOutRequest:
+      type: object
+      additionalProperties: false
+      required: [finalAmount, paymentMethod]
+      properties:
+        finalAmount:
+          type: integer
+          minimum: 0
+          description: Final THB fee confirmed by staff; 0 when the fee is waived.
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+    CheckoutReceiptResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - reservationId
+        - tableName
+        - partySize
+        - startedAt
+        - endedAt
+        - hours
+        - ratePerHour
+        - totalDue
+        - currency
+        - paymentMethod
+        - paidAt
+      properties:
+        reservationId:
+          type: string
+        tableName:
+          type: string
+        partySize:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+        endedAt:
+          type: string
+          format: date-time
+        hours:
+          type: integer
+          description: Whole hours of play, rounded up, for display only.
+        ratePerHour:
+          type: integer
+        totalDue:
+          type: integer
+        currency:
+          type: string
+          enum: [THB]
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        paidAt:
+          type: string
+          format: date-time
+    SessionAssistanceKind:
+      type: string
+      enum: [CallStaff, EndPlaying]
+    SessionAssistanceRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, requestId]
+      properties:
+        kind:
+          $ref: '#/components/schemas/SessionAssistanceKind'
+        requestId:
+          type: string
+          format: uuid
+          description: Client-generated idempotency key; repeating it returns the original receipt.
+    SessionAssistanceResponse:
+      type: object
+      additionalProperties: false
+      required: [requestId, kind, status]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        kind:
+          $ref: '#/components/schemas/SessionAssistanceKind'
+        status:
+          type: string
+          enum: [Recorded]
     ProblemDetail:
       type: object
       additionalProperties: true

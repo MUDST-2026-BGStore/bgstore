@@ -1,24 +1,24 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { CheckoutReceipt } from '../../features/sessions/checkout-fixture';
+import type { ActiveSessionResponse } from '../../generated/api/types.gen';
 
-const props = defineProps<{ receipt: CheckoutReceipt }>();
+const props = defineProps<{ session: ActiveSessionResponse; hours: number }>();
 const { t, locale } = useI18n();
 const money = (amount: number) =>
   new Intl.NumberFormat(locale.value, {
     style: 'currency',
-    currency: props.receipt.currency,
+    currency: props.session.currency,
     minimumFractionDigits: 2,
   }).format(amount);
-const total = computed(() => money(props.receipt.totalDue));
+const total = computed(() => money(props.session.accruedAmount));
 </script>
 
 <template>
   <section class="receipt-card" aria-labelledby="receipt-title">
     <header>
       <h2 id="receipt-title">{{ t('checkout.receipt') }}</h2>
-      <span>{{ t('checkout.order', { number: receipt.orderNumber }) }}</span>
+      <span>{{ session.tableName }}</span>
     </header>
     <div class="receipt-summary">
       <div class="receipt-item">
@@ -27,9 +27,9 @@ const total = computed(() => money(props.receipt.totalDue));
           <p>
             {{
               t('checkout.chargeDetail', {
-                people: receipt.partySize,
-                hours: receipt.hours,
-                rate: money(receipt.hourlyRatePerPerson),
+                people: session.partySize,
+                hours,
+                rate: money(session.ratePerHour),
               })
             }}
           </p>

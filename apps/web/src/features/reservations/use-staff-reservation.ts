@@ -38,7 +38,7 @@ const createInitialDraft = (today = new Date()): ReservationDraft => ({
 });
 
 /** Owns the four-step staff reservation flow and its server-backed state. */
-export const useStaffReservation = () => {
+export const useStaffReservation = (requestedBranch = '') => {
   const currentStep = ref<ReservationStep>(1);
   const isConfirmed = ref(false);
   const isSubmitting = ref(false);
@@ -57,7 +57,16 @@ export const useStaffReservation = () => {
   watch(
     () => branchQuery.data.value,
     (loaded) => {
-      if (draft.client.branchId === '' && loaded?.[0]) {
+      if (draft.client.branchId !== '') {
+        return;
+      }
+      // A branch chosen on the directory screen wins over the default.
+      const preferred = loaded?.find(
+        (branch) => branch.name === requestedBranch,
+      );
+      if (preferred) {
+        draft.client.branchId = preferred.name;
+      } else if (loaded?.[0]) {
         draft.client.branchId = loaded[0].name;
       }
     },

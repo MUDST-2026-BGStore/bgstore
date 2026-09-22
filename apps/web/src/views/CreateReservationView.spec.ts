@@ -2,17 +2,23 @@ import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { createI18n } from 'vue-i18n';
+import { createMemoryHistory, createRouter } from 'vue-router';
 import { messages } from '../i18n';
+import { routes } from '../router';
 import CreateReservationView from './CreateReservationView.vue';
 import { route, stubApi } from '../test/api-stub';
 
-const mountReservation = async () => {
+const mountReservation = async (query = '') => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  const router = createRouter({ history: createMemoryHistory(), routes });
+  await router.push(`/reservations/new${query}`);
+  await router.isReady();
   const wrapper = mount(CreateReservationView, {
     global: {
       plugins: [
+        router,
         createI18n({ legacy: false, locale: 'en', messages }),
         [VueQueryPlugin, { queryClient }],
       ],
@@ -104,6 +110,38 @@ describe('CreateReservationView', () => {
       (wrapper.get('#reservation-branch').element as HTMLSelectElement).value,
     ).toBe('Central Rama II');
     expect(wrapper.get('.primary-button').attributes('disabled')).toBeDefined();
+  });
+
+  it('preselects the branch the directory screen linked with', async () => {
+    stubApi([
+      route('/branches', {
+        body: {
+          items: [
+            { id: 'central', name: 'Central Rama II' },
+            { id: 'silom', name: 'Silom' },
+          ],
+        },
+      }),
+      route('/me', {
+        body: {
+          subject: 'staff',
+          username: 'staff',
+          email: 'staff@example.test',
+          firstName: 'Staff',
+          lastName: 'User',
+          roles: ['STAFF'],
+          onboardingRequired: false,
+        },
+      }),
+      route('/clients', { body: { items: [] } }),
+      route('/reservations/availability', { body: { tables: [] } }),
+    ]);
+
+    const wrapper = await mountReservation('?branch=Silom');
+
+    expect(
+      (wrapper.get('#reservation-branch').element as HTMLSelectElement).value,
+    ).toBe('Silom');
   });
 
   it('completes all four staff reservation steps', async () => {

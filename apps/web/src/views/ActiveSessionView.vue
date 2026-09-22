@@ -1,16 +1,34 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useMutation, useQuery } from '@tanstack/vue-query';
 import ActiveSessionActions from '../components/sessions/ActiveSessionActions.vue';
 import ActiveSessionOverview from '../components/sessions/ActiveSessionOverview.vue';
 import FeeBreakdownCard from '../components/sessions/FeeBreakdownCard.vue';
-import { createActiveSessionFixture } from '../features/sessions/active-session-fixture';
 import { useActiveSession } from '../features/sessions/use-active-session';
+import {
+  activeSessionQueryOptions,
+  requestSessionAssistance,
+} from '../queries/play-sessions';
+import type { SessionAssistanceKind } from '../generated/api/types.gen';
 
 const { t } = useI18n();
-const session = createActiveSessionFixture();
-const { elapsedTime } = useActiveSession(session);
-const actionNotice = ref<'callStaff' | 'endPlaying' | null>(null);
+const activeSession = useQuery(activeSessionQueryOptions());
+const session = computed(() => activeSession.data.value ?? null);
+const { elapsedTime } = useActiveSession(() => session.value);
+const notice = ref<'callStaff' | 'endPlaying' | null>(null);
+
+const assistance = useMutation({
+  mutationFn: async (kind: SessionAssistanceKind) => {
+    const current = session.value;
+    return current
+      ? requestSessionAssistance(current.reservationId, kind)
+      : null;
+  },
+  onSuccess: (_response, kind) => {
+    notice.value = kind === 'CallStaff' ? 'callStaff' : 'endPlaying';
+  },
+});
 </script>
 
 <template>
@@ -20,23 +38,53 @@ const actionNotice = ref<'callStaff' | 'endPlaying' | null>(null);
       <p>{{ t('activeSession.description') }}</p>
     </header>
 
-    <p v-if="actionNotice" class="action-notice" role="status">
-      {{ t(`activeSession.${actionNotice}Notice`) }}
+    <p v-if="activeSession.isPending.value" class="session-state" role="status">
+      {{ t('activeSession.loading') }}
     </p>
 
-    <div class="session-layout">
-      <ActiveSessionOverview
-        class="session-overview-panel"
-        :session="session"
-        :elapsed-time="elapsedTime"
-      />
-      <FeeBreakdownCard class="fee-breakdown-panel" :session="session" />
-      <ActiveSessionActions
-        class="session-actions-panel"
-        @call-staff="actionNotice = 'callStaff'"
-        @end-playing="actionNotice = 'endPlaying'"
-      />
+    <div
+      v-else-if="activeSession.isError.value"
+      class="session-state"
+      role="alert"
+    >
+      <p>{{ t('activeSession.loadFailed') }}</p>
+      <button type="button" @click="activeSession.refetch()">
+        {{ t('activeSession.retry') }}
+      </button>
     </div>
+
+    <div v-else-if="!session" class="session-state">
+      <h2>{{ t('activeSession.noSessionTitle') }}</h2>
+      <p>{{ t('activeSession.noSessionDescription') }}</p>
+    </div>
+
+    <template v-else>
+      <p v-if="notice" class="action-notice" role="status">
+        {{ t(`activeSession.${notice}Notice`) }}
+      </p>
+      <p
+        v-else-if="assistance.isError.value"
+        class="action-notice action-notice--error"
+        role="alert"
+      >
+        {{ t('activeSession.assistanceFailed') }}
+      </p>
+
+      <div class="session-layout">
+        <ActiveSessionOverview
+          class="session-overview-panel"
+          :session="session"
+          :elapsed-time="elapsedTime"
+        />
+        <FeeBreakdownCard class="fee-breakdown-panel" :session="session" />
+        <ActiveSessionActions
+          class="session-actions-panel"
+          :busy="assistance.isPending.value"
+          @call-staff="assistance.mutate('CallStaff')"
+          @end-playing="assistance.mutate('EndPlaying')"
+        />
+      </div>
+    </template>
   </section>
 </template>
 
@@ -80,6 +128,37 @@ const actionNotice = ref<'callStaff' | 'endPlaying' | null>(null);
   line-height: 1.5;
 }
 
+.session-state {
+  padding: 2rem;
+  border: 1px solid var(--session-border);
+  border-radius: var(--session-radius-lg);
+  background: var(--session-surface);
+  text-align: center;
+  color: var(--session-muted);
+}
+
+.session-state h2 {
+  margin: 0 0 0.4rem;
+  color: var(--session-text);
+  font-size: 1.05rem;
+}
+
+.session-state p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.session-state button {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--session-border);
+  border-radius: var(--session-radius-md);
+  background: var(--session-surface-subtle);
+  color: var(--session-primary-strong);
+  font-weight: 600;
+  cursor: pointer;
+}
+
 .action-notice {
   margin: 0 0 1rem;
   padding: 0.8rem 1rem;
@@ -88,6 +167,12 @@ const actionNotice = ref<'callStaff' | 'endPlaying' | null>(null);
   color: #315b65;
   background: #eff6f7;
   font-size: 0.82rem;
+}
+
+.action-notice--error {
+  border-color: #e2b9b9;
+  color: #8a3b3b;
+  background: #fdf1f1;
 }
 
 .session-layout {

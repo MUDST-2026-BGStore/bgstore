@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import { useQuery } from '@tanstack/vue-query';
 import ReservationConfirmationStep from '../components/reservations/ReservationConfirmationStep.vue';
 import ReservationStepper from '../components/reservations/ReservationStepper.vue';
@@ -14,6 +15,10 @@ import {
 } from '../queries/current-user';
 
 const { t } = useI18n();
+const route = useRoute();
+// The branch directory links here with the branch the client picked.
+const requestedBranch =
+  typeof route.query.branch === 'string' ? route.query.branch : '';
 const currentUser = useQuery(currentUserQueryOptions());
 // Protected routes are only rendered after the session resolves. Defaulting to
 // the staff form keeps the component deterministic while that cache is cold.
@@ -48,7 +53,7 @@ const {
   availabilityPending,
   isSubmitting,
   submissionError,
-} = useStaffReservation();
+} = useStaffReservation(requestedBranch);
 
 watch(
   () => currentUser.data.value,

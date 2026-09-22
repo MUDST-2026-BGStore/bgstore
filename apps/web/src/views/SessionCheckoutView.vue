@@ -1,28 +1,52 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
+import { useMutation, useQuery } from '@tanstack/vue-query';
 import CheckoutReceiptCard from '../components/sessions/CheckoutReceiptCard.vue';
-import PaymentMethodSelector from '../components/sessions/PaymentMethodSelector.vue';
 import {
-  checkoutFixture,
-  type PaymentMethod,
-} from '../features/sessions/checkout-fixture';
+  activeSessionQueryOptions,
+  requestSessionAssistance,
+} from '../queries/play-sessions';
 
 const { t } = useI18n();
-const paymentMethod = ref<PaymentMethod>('promptpay');
-const isPaymentComplete = ref(false);
+const activeSession = useQuery(activeSessionQueryOptions());
+const session = computed(() => activeSession.data.value ?? null);
+
+// Whole hours of play, rounded up, so the summary matches how the store closes
+// a session. The amount itself stays server-owned.
+const hours = computed(() => {
+  const current = session.value;
+  if (!current) {
+    return 0;
+  }
+  const elapsed = Date.now() - new Date(current.startedAt).getTime();
+  return Math.max(1, Math.ceil(elapsed / 3_600_000));
+});
+
+const isSettlementRequested = ref(false);
+const settlement = useMutation({
+  mutationFn: async () => {
+    const current = session.value;
+    return current
+      ? requestSessionAssistance(current.reservationId, 'EndPlaying')
+      : null;
+  },
+  onSuccess: () => {
+    isSettlementRequested.value = true;
+  },
+});
 </script>
 
 <template>
   <section
     class="checkout-page"
-    :class="{ 'checkout-page--complete': isPaymentComplete }"
+    :class="{ 'checkout-page--complete': isSettlementRequested }"
   >
     <section
-      v-if="isPaymentComplete"
-      class="payment-complete"
-      aria-labelledby="payment-complete-title"
+      v-if="isSettlementRequested"
+      class="settlement-complete"
+      aria-labelledby="settlement-requested-title"
     >
       <span class="complete-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24">
@@ -30,8 +54,10 @@ const isPaymentComplete = ref(false);
         </svg>
       </span>
       <div role="status">
-        <h1 id="payment-complete-title">{{ t('checkout.paymentComplete') }}</h1>
-        <p>{{ t('checkout.paymentCompleteDescription') }}</p>
+        <h1 id="settlement-requested-title">
+          {{ t('checkout.settlementRequested') }}
+        </h1>
+        <p>{{ t('checkout.settlementRequestedDescription') }}</p>
       </div>
       <RouterLink class="success-back" :to="{ name: 'client-active-session' }">
         {{ t('checkout.back') }}
@@ -49,25 +75,61 @@ const isPaymentComplete = ref(false);
           {{ t('checkout.back') }}</RouterLink
         >
       </header>
-      <div class="preview-notice" role="note">
-        <span aria-hidden="true">i</span>
-        <p>{{ t('checkout.preview') }}</p>
+
+      <p
+        v-if="activeSession.isPending.value"
+        class="checkout-state"
+        role="status"
+      >
+        {{ t('checkout.loading') }}
+      </p>
+
+      <div
+        v-else-if="activeSession.isError.value"
+        class="checkout-state"
+        role="alert"
+      >
+        <p>{{ t('checkout.loadFailed') }}</p>
+        <button type="button" @click="activeSession.refetch()">
+          {{ t('activeSession.retry') }}
+        </button>
       </div>
-      <div class="checkout-panel">
-        <CheckoutReceiptCard :receipt="checkoutFixture" />
-        <section class="payment-pane">
-          <PaymentMethodSelector v-model="paymentMethod" />
-          <div class="payment-actions">
-            <button
-              class="confirm-payment"
-              type="button"
-              @click="isPaymentComplete = true"
-            >
-              {{ t('checkout.confirmPayment') }}
-            </button>
-          </div>
-        </section>
+
+      <div v-else-if="!session" class="checkout-state">
+        <h2>{{ t('activeSession.noSessionTitle') }}</h2>
+        <p>{{ t('activeSession.noSessionDescription') }}</p>
       </div>
+
+      <template v-else>
+        <div class="preview-notice" role="note">
+          <span aria-hidden="true">i</span>
+          <p>{{ t('checkout.staffConfirmNote') }}</p>
+        </div>
+        <div class="checkout-panel">
+          <CheckoutReceiptCard :session="session" :hours="hours" />
+          <section class="settlement-pane">
+            <h2>{{ t('checkout.settleTitle') }}</h2>
+            <p>{{ t('checkout.settleDescription') }}</p>
+            <div class="settlement-actions">
+              <p
+                v-if="settlement.isError.value"
+                class="settlement-error"
+                role="alert"
+              >
+                {{ t('checkout.settleFailed') }}
+              </p>
+              <button
+                class="request-settlement"
+                type="button"
+                :disabled="settlement.isPending.value"
+                @click="settlement.mutate()"
+              >
+                {{ t('checkout.requestSettlement') }}
+              </button>
+            </div>
+          </section>
+        </div>
+      </template>
     </template>
   </section>
 </template>
@@ -89,7 +151,7 @@ const isPaymentComplete = ref(false);
   place-items: center;
   padding: 2rem 0;
 }
-.payment-complete {
+.settlement-complete {
   display: grid;
   width: min(100%, 28rem);
   justify-items: center;
@@ -120,11 +182,11 @@ const isPaymentComplete = ref(false);
   stroke-linejoin: round;
   stroke-width: 2.2;
 }
-.payment-complete h1 {
+.settlement-complete h1 {
   margin: 0;
   font-size: clamp(1.65rem, 3vw, 2rem);
 }
-.payment-complete p {
+.settlement-complete p {
   margin: 0.65rem 0 1.5rem;
   color: var(--session-muted);
   font-size: 0.86rem;
@@ -185,6 +247,34 @@ h1 {
   outline-offset: 4px;
   border-radius: 0.2rem;
 }
+.checkout-state {
+  padding: 2rem;
+  border: 1px solid var(--session-border);
+  border-radius: 0.75rem;
+  background: #fff;
+  text-align: center;
+  color: var(--session-muted);
+}
+.checkout-state h2 {
+  margin: 0 0 0.4rem;
+  color: #20252d;
+  font-size: 1.05rem;
+}
+.checkout-state p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.checkout-state button {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--session-border);
+  border-radius: 0.55rem;
+  background: #f7f9fa;
+  color: var(--session-primary-strong);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
 .preview-notice {
   display: inline-flex;
   align-items: center;
@@ -215,7 +305,7 @@ h1 {
   gap: 1.5rem;
   align-items: start;
 }
-.payment-pane {
+.settlement-pane {
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -225,7 +315,18 @@ h1 {
   background: #fff;
   box-shadow: 0 0.35rem 1rem rgb(49 91 101 / 4%);
 }
-.payment-actions {
+.settlement-pane h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.settlement-pane > p {
+  margin: 0.5rem 0 0;
+  color: var(--session-muted);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+.settlement-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -233,7 +334,12 @@ h1 {
   padding-top: 0.85rem;
   border-top: 1px solid #edf0f2;
 }
-.confirm-payment {
+.settlement-error {
+  margin: 0 auto 0 0;
+  color: #8a3b3b;
+  font-size: 0.8rem;
+}
+.request-settlement {
   width: auto;
   min-width: 8.5rem;
   min-height: 2.5rem;
@@ -248,10 +354,14 @@ h1 {
   cursor: pointer;
   transition: background 150ms ease;
 }
-.confirm-payment:hover {
+.request-settlement:hover:not(:disabled) {
   background: var(--session-primary-strong);
 }
-.confirm-payment:focus-visible {
+.request-settlement:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+.request-settlement:focus-visible {
   outline: 2px solid var(--session-primary-strong);
   outline-offset: 3px;
 }
@@ -270,14 +380,14 @@ h1 {
     flex-direction: column;
     gap: 0.5rem;
   }
-  .payment-pane {
+  .settlement-pane {
     padding: 1.1rem;
   }
-  .payment-actions {
+  .settlement-actions {
     align-items: stretch;
     flex-direction: column-reverse;
   }
-  .confirm-payment {
+  .request-settlement {
     width: 100%;
   }
 }
