@@ -1,0 +1,10 @@
+services:
+  docker-daemon:
+    command: >-
+      sudo rm -f /var/run/docker.pid &&
+      exec sudo dockerd
+      --host=unix:///var/run/docker.sock
+      --host=tcp://127.0.0.1:$PORT
+      --group="$(id -gn)"
+    health: /_ping
+    platforms: [linux]
