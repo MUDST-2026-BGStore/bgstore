@@ -1,10 +1,13 @@
 package com.chanakanlabs.bgstore.reservations;
 
 import com.chanakanlabs.bgstore.billing.BillingService;
+import com.chanakanlabs.bgstore.billing.PaymentGateway;
 import com.chanakanlabs.bgstore.branches.Branch;
 import com.chanakanlabs.bgstore.branches.BranchDirectory;
 import com.chanakanlabs.bgstore.contract.model.ActiveSessionResponse;
+import com.chanakanlabs.bgstore.contract.model.CardBrand;
 import com.chanakanlabs.bgstore.contract.model.CheckoutReceiptResponse;
+import com.chanakanlabs.bgstore.contract.model.PaymentCardResponse;
 import com.chanakanlabs.bgstore.contract.model.PaymentMethod;
 import com.chanakanlabs.bgstore.contract.model.PaymentRecordResponse;
 import com.chanakanlabs.bgstore.contract.model.SessionAssistanceKind;
@@ -21,6 +24,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -112,7 +116,10 @@ public class PlaySessionService {
 
   @Transactional
   public CheckoutReceiptResponse checkOut(
-      String reservationId, int finalAmount, PaymentMethod paymentMethod) {
+      String reservationId,
+      int finalAmount,
+      PaymentMethod paymentMethod,
+      PaymentGateway.@Nullable CardDetails card) {
     ReservationEntity reservation = operationalReservation(reservationId);
     if (!CHECKED_IN.equals(reservation.status())) {
       throw badRequest("Only a checked-in session can be checked out.");
@@ -124,13 +131,16 @@ public class PlaySessionService {
     if (!waived && finalAmount <= 0) {
       throw badRequest("A settled fee must be greater than 0.");
     }
+    if (paymentMethod == PaymentMethod.CARD && card == null) {
+      throw badRequest("A card charge needs the card presented at the counter.");
+    }
     // Charge before closing play: a declined gateway charge aborts the check-out
     // and leaves the session open for a retry instead of closing it uncollected.
     BillingService.Settlement settlement;
     if (waived) {
       settlement = null;
     } else {
-      settlement = billing.settle(reservationId, finalAmount, paymentMethod);
+      settlement = billing.settle(reservationId, finalAmount, paymentMethod, card);
     }
 
     Instant startedAt = sessionStart(reservation);
@@ -154,11 +164,18 @@ public class PlaySessionService {
             paymentMethod,
             bangkok(endedAt));
     if (settlement != null) {
-      receipt.setPayment(
+      PaymentRecordResponse payment =
           new PaymentRecordResponse()
               .gateway(settlement.gateway())
               .reference(settlement.reference())
-              .paidAt(bangkok(settlement.paidAt())));
+              .paidAt(bangkok(settlement.paidAt()));
+      if (settlement.cardBrand() != null && settlement.cardLast4() != null) {
+        payment.setCard(
+            new PaymentCardResponse()
+                .brand(CardBrand.fromValue(settlement.cardBrand()))
+                .last4(settlement.cardLast4()));
+      }
+      receipt.setPayment(payment);
     }
     return receipt;
   }

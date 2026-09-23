@@ -830,7 +830,13 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
         '502':
-          description: The payment gateway declined the charge; the session stays open for a retry.
+          description: >-
+            The payment gateway declined the charge; the session stays open for
+            a retry. The problem carries a `code` property naming the decline
+            reason — for example `insufficient_funds`, `stolen_card`,
+            `cvv_mismatch`, `invalid_card_number`, `invalid_cvv`,
+            `card_expired` for a refused card, or `gateway_unavailable` when the
+            gateway could not process the charge and retrying may succeed.
           content:
             application/json:
               schema:
@@ -1855,7 +1861,7 @@ components:
     PaymentMethod:
       type: string
       description: How the confirmed fee was settled; `Waived` closes the session without charging.
-      enum: [Cash, PromptPay, BankTransfer, Waived]
+      enum: [Cash, PromptPay, BankTransfer, Card, Waived]
     CheckOutRequest:
       type: object
       additionalProperties: false
@@ -1867,6 +1873,33 @@ components:
           description: Final THB fee confirmed by staff; 0 when the fee is waived.
         paymentMethod:
           $ref: '#/components/schemas/PaymentMethod'
+        card:
+          description: >-
+            The card presented at the counter. Required when the payment method
+            is `Card`; the gateway validates it and only the detected network
+            brand and last four digits are ever stored.
+          $ref: '#/components/schemas/CardInput'
+    CardInput:
+      type: object
+      additionalProperties: false
+      required: [number, cvv, expiryMonth, expiryYear]
+      properties:
+        number:
+          type: string
+          description: >-
+            The card's primary account number as printed, so spaces are
+            allowed; the gateway strips non-digits before validating.
+        cvv:
+          type: string
+          description: The printed security code, 3 digits (4 for Amex).
+        expiryMonth:
+          type: integer
+          minimum: 1
+          maximum: 12
+          description: Month the card expires, 1–12.
+        expiryYear:
+          type: integer
+          description: Full year the card expires, e.g. `2028`.
     CheckoutReceiptResponse:
       type: object
       additionalProperties: false
@@ -1930,6 +1963,27 @@ components:
         paidAt:
           type: string
           format: date-time
+        card:
+          description: >-
+            How the charged card is identified on the receipt. Present only for
+            card charges; never the full card number.
+          $ref: '#/components/schemas/PaymentCardResponse'
+    PaymentCardResponse:
+      type: object
+      additionalProperties: false
+      required: [brand, last4]
+      properties:
+        brand:
+          $ref: '#/components/schemas/CardBrand'
+        last4:
+          type: string
+          minLength: 4
+          maxLength: 4
+          description: The card number's final four digits.
+    CardBrand:
+      type: string
+      description: Card network the gateway detected from the card number's leading digits.
+      enum: [Visa, Mastercard, Amex, JCB, DinersClub, Discover, UnionPay, Unknown]
     SessionListResponse:
       type: object
       additionalProperties: false
@@ -1985,6 +2039,12 @@ components:
         instance:
           type: string
           format: uri-reference
+        code:
+          type: string
+          description: >-
+            Machine-readable detail code when one applies, e.g. the payment
+            decline reason `insufficient_funds` or `gateway_unavailable` on a
+            502 checkout response.
     FieldError:
       type: object
       additionalProperties: false

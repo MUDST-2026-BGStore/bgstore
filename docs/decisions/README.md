@@ -6,3 +6,4 @@
 - [ADR-0004: GitOps delivery](0004-gitops-delivery.md)
 - [ADR-0005: Application authorization policy](0005-application-authorization-policy.md)
 - [ADR-0006: Payment gateway seam](0006-payment-gateway-seam.md)
+- [ADR-0007: Card simulation in the bogus gateway](0007-bogus-card-simulation.md)

@@ -1,7 +1,9 @@
 package com.chanakanlabs.bgstore.reservations;
 
+import com.chanakanlabs.bgstore.billing.PaymentGateway;
 import com.chanakanlabs.bgstore.contract.api.PlaySessionsApi;
 import com.chanakanlabs.bgstore.contract.model.ActiveSessionResponse;
+import com.chanakanlabs.bgstore.contract.model.CardInput;
 import com.chanakanlabs.bgstore.contract.model.CheckOutRequest;
 import com.chanakanlabs.bgstore.contract.model.CheckoutReceiptResponse;
 import com.chanakanlabs.bgstore.contract.model.PaymentMethod;
@@ -54,7 +56,16 @@ public class PlaySessionController implements PlaySessionsApi {
     if (finalAmount == null || paymentMethod == null) {
       throw badRequest("finalAmount and paymentMethod are required.");
     }
-    return ResponseEntity.ok(sessions.checkOut(reservationId, finalAmount, paymentMethod));
+    CardInput cardInput = checkOutRequest.getCard();
+    PaymentGateway.CardDetails card =
+        cardInput == null
+            ? null
+            : new PaymentGateway.CardDetails(
+                cardInput.getNumber(),
+                cardInput.getCvv(),
+                cardInput.getExpiryMonth(),
+                cardInput.getExpiryYear());
+    return ResponseEntity.ok(sessions.checkOut(reservationId, finalAmount, paymentMethod, card));
   }
 
   @Override

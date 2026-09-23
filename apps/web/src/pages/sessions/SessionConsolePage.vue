@@ -8,6 +8,13 @@ import UiButton from '../../components/ui/UiButton.vue';
 import UiSelect from '../../components/ui/UiSelect.vue';
 import UiTextInput from '../../components/ui/UiTextInput.vue';
 import {
+  cardBrandLogos,
+  cardInputReady,
+  detectCardBrand,
+  formatCardNumber,
+} from '../../features/sessions/card-payment';
+import promptPayQr from '../../assets/promptpay-demo-qr.png';
+import {
   checkInReservationRequest,
   checkOutReservationRequest,
   sessionsQueryOptions,
@@ -54,7 +61,11 @@ const checkoutReceipt = ref<CheckoutReceiptResponse | null>(null);
 const finalAmount = ref('');
 const paymentMethod = ref<PaymentMethod>('Cash');
 const amountError = ref<string | null>(null);
+const cardError = ref<string | null>(null);
 const doneButton = ref<{ $el: HTMLButtonElement } | null>(null);
+
+/** Bogus-gateway decline code captured from the last failed charge, if any. */
+const declineReason = ref<string | null>(null);
 
 const money = (amount: number) =>
   new Intl.NumberFormat(locale.value, {
@@ -64,9 +75,9 @@ const money = (amount: number) =>
   }).format(amount);
 
 const paymentOptions = computed(() =>
-  (['Cash', 'PromptPay', 'BankTransfer', 'Waived'] as PaymentMethod[]).map(
-    (value) => ({ value, label: t(`sessions.payment.${value}`) }),
-  ),
+  (
+    ['Cash', 'PromptPay', 'Card', 'BankTransfer', 'Waived'] as PaymentMethod[]
+  ).map((value) => ({ value, label: t(`sessions.payment.${value}`) })),
 );
 
 const openCheckout = (session: ReservationResponse) => {
@@ -76,15 +87,74 @@ const openCheckout = (session: ReservationResponse) => {
   paymentMethod.value = 'Cash';
   amountError.value = null;
   actionError.value = null;
+  cardError.value = null;
+  declineReason.value = null;
+  cardNumber.value = '';
+  cardExpiry.value = '';
+  cardCvv.value = '';
 };
 
 const closeCheckout = () => {
   checkoutTarget.value = null;
   checkoutReceipt.value = null;
   amountError.value = null;
+  cardError.value = null;
+  declineReason.value = null;
 };
 
 const isWaived = computed(() => paymentMethod.value === 'Waived');
+const isCard = computed(() => paymentMethod.value === 'Card');
+
+/*
+ * The card form mirrors the bogus gateway's demo rules. The number field is
+ * a writable computed so the printed grouping (4-4-4-4, Amex 4-6-5) appears
+ * as the guest's card is being read out.
+ */
+const cardNumber = ref('');
+const cardExpiry = ref('');
+const cardCvv = ref('');
+
+const cardNumberFormatted = computed({
+  get: () => formatCardNumber(cardNumber.value),
+  set: (value: string) => {
+    cardNumber.value = formatCardNumber(value);
+  },
+});
+
+const cardBrand = computed(() => detectCardBrand(cardNumber.value));
+
+/** The charge payload once number, expiry, and CVV all pass local checks. */
+const cardInput = computed(() =>
+  cardInputReady({
+    number: cardNumber.value,
+    cvv: cardCvv.value,
+    expiry: cardExpiry.value,
+  }),
+);
+const cardReady = computed(() => cardInput.value !== null);
+
+/**
+ * The thrown checkout error is the parsed problem body, so a gateway decline
+ * reads as `{ code: 'insufficient_funds', ... }`. Codes the UI has a localized
+ * message for surface their reason; anything else keeps the generic failure.
+ */
+const declineCodes = [
+  'insufficient_funds',
+  'stolen_card',
+  'cvv_mismatch',
+  'invalid_card_number',
+  'invalid_cvv',
+  'card_expired',
+  'gateway_unavailable',
+] as const;
+
+const declineCodeFromError = (error: unknown): string | null => {
+  const code = (error as { code?: unknown } | null | undefined)?.code;
+  return typeof code === 'string' &&
+    (declineCodes as readonly string[]).includes(code)
+    ? code
+    : null;
+};
 
 const checkOut = useMutation({
   mutationFn: () => {
@@ -96,14 +166,19 @@ const checkOut = useMutation({
       target.id,
       isWaived.value ? 0 : Number(finalAmount.value),
       paymentMethod.value,
+      isCard.value ? (cardInput.value ?? undefined) : undefined,
     );
   },
   onSuccess: (receipt) => {
     // Keep the dialog open so staff can read the settlement back to the guest.
     checkoutReceipt.value = receipt;
     amountError.value = null;
+    declineReason.value = null;
     void queryClient.invalidateQueries({ queryKey: ['play-sessions'] });
     void nextTick(() => doneButton.value?.$el.focus());
+  },
+  onError: (error) => {
+    declineReason.value = declineCodeFromError(error);
   },
 });
 
@@ -121,7 +196,13 @@ const confirmCheckout = () => {
     amountError.value = t('sessions.amountPositive');
     return;
   }
+  if (isCard.value && cardInput.value === null) {
+    // Reachable via Enter-in-input submit even though the button is disabled.
+    cardError.value = t('sessions.cardIncomplete');
+    return;
+  }
   amountError.value = null;
+  cardError.value = null;
   checkOut.mutate();
 };
 </script>
@@ -311,6 +392,22 @@ const confirmCheckout = () => {
                 {{ checkoutReceipt.payment.reference }}
               </dd>
             </div>
+            <div
+              v-if="checkoutReceipt.payment.card"
+              class="flex items-baseline justify-between gap-3"
+            >
+              <dt class="text-ink-secondary">
+                {{ t('sessions.settlementCard') }}
+              </dt>
+              <dd class="flex items-center gap-2 font-medium text-ink">
+                <img
+                  :src="cardBrandLogos[checkoutReceipt.payment.card.brand]"
+                  alt=""
+                  class="h-4 w-8 object-contain"
+                />
+                <span>•••• {{ checkoutReceipt.payment.card.last4 }}</span>
+              </dd>
+            </div>
           </template>
         </dl>
 
@@ -378,6 +475,72 @@ const confirmCheckout = () => {
           />
         </div>
 
+        <div v-if="isCard" class="mt-4 flex flex-col gap-1.5">
+          <label
+            for="checkout-card-number"
+            class="text-[13px] font-medium text-ink-secondary"
+          >
+            {{ t('sessions.cardNumber') }}
+          </label>
+          <div class="flex items-center gap-2">
+            <UiTextInput
+              id="checkout-card-number"
+              v-model="cardNumberFormatted"
+              inputmode="numeric"
+              class="flex-1"
+            />
+            <img
+              :src="cardBrandLogos[cardBrand]"
+              alt=""
+              class="h-6 w-12 shrink-0 object-contain"
+            />
+          </div>
+
+          <div class="mt-1 grid grid-cols-2 gap-3">
+            <div class="flex flex-col gap-1.5">
+              <label
+                for="checkout-card-expiry"
+                class="text-[13px] font-medium text-ink-secondary"
+              >
+                {{ t('sessions.cardExpiry') }}
+              </label>
+              <UiTextInput
+                id="checkout-card-expiry"
+                v-model="cardExpiry"
+                inputmode="numeric"
+                placeholder="MM/YY"
+              />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label
+                for="checkout-card-cvv"
+                class="text-[13px] font-medium text-ink-secondary"
+              >
+                {{ t('sessions.cardCvv') }}
+              </label>
+              <UiTextInput
+                id="checkout-card-cvv"
+                v-model="cardCvv"
+                inputmode="numeric"
+              />
+            </div>
+          </div>
+
+          <p class="mt-1 text-[12px] leading-4 text-ink-muted">
+            {{ t('sessions.cardKnobHint') }}
+          </p>
+        </div>
+
+        <div
+          v-else-if="paymentMethod === 'PromptPay'"
+          class="mt-4 flex flex-col items-center gap-2"
+        >
+          <img :src="promptPayQr" :alt="t('sessions.promptPayNote')" class="w-44" />
+          <p class="text-[13px] leading-5 text-ink-muted">
+            {{ t('sessions.promptPayNote') }}
+          </p>
+        </div>
+
         <p v-if="isWaived" class="mt-2 text-[13px] leading-5 text-ink-muted">
           {{ t('sessions.waivedNote') }}
         </p>
@@ -390,18 +553,32 @@ const confirmCheckout = () => {
           {{ amountError }}
         </p>
         <p
+          v-else-if="cardError"
+          class="mt-2 text-[13px] leading-5 text-danger-fg"
+          role="alert"
+        >
+          {{ cardError }}
+        </p>
+        <p
           v-else-if="checkOut.isError.value"
           class="mt-2 text-[13px] leading-5 text-danger-fg"
           role="alert"
         >
-          {{ t('sessions.checkOutFailed') }}
+          {{
+            declineReason
+              ? t(`sessions.decline.${declineReason}`)
+              : t('sessions.checkOutFailed')
+          }}
         </p>
 
         <div class="mt-6 flex justify-end gap-2">
           <UiButton variant="outline" @click="closeCheckout">
             {{ t('sessions.cancel') }}
           </UiButton>
-          <UiButton type="submit" :disabled="checkOut.isPending.value">
+          <UiButton
+            type="submit"
+            :disabled="checkOut.isPending.value || (isCard && !cardReady)"
+          >
             {{ t('sessions.confirm') }}
           </UiButton>
         </div>

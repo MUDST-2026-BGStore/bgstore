@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.chanakanlabs.bgstore.billing.BillingService;
+import com.chanakanlabs.bgstore.billing.PaymentGateway;
 import com.chanakanlabs.bgstore.branches.Branch;
 import com.chanakanlabs.bgstore.branches.BranchDirectory;
 import com.chanakanlabs.bgstore.contract.model.PaymentMethod;
@@ -124,10 +125,10 @@ class PlaySessionServiceTest {
     when(reservations.findById("res-1")).thenReturn(Optional.of(reservation));
     when(reservations.save(any(ReservationEntity.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
-    when(billing.settle("res-1", 240, PaymentMethod.CASH))
-        .thenReturn(new BillingService.Settlement("bogus", "bogus-1", ENDED_AT));
+    when(billing.settle("res-1", 240, PaymentMethod.CASH, null))
+        .thenReturn(new BillingService.Settlement("bogus", "bogus-1", ENDED_AT, null, null));
 
-    var receipt = service.checkOut("res-1", 240, PaymentMethod.CASH);
+    var receipt = service.checkOut("res-1", 240, PaymentMethod.CASH, null);
 
     assertThat(receipt.getTotalDue()).isEqualTo(240);
     assertThat(receipt.getPaymentMethod()).isEqualTo(PaymentMethod.CASH);
@@ -145,10 +146,10 @@ class PlaySessionServiceTest {
   void checkOutSettlesBeforeClosingPlaySoADeclinedChargeLeavesTheSessionOpen() {
     ReservationEntity reservation = checkedIn("res-1");
     when(reservations.findById("res-1")).thenReturn(Optional.of(reservation));
-    when(billing.settle("res-1", 240, PaymentMethod.PROMPT_PAY))
+    when(billing.settle("res-1", 240, PaymentMethod.PROMPT_PAY, null))
         .thenThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY, "declined"));
 
-    assertThatThrownBy(() -> service.checkOut("res-1", 240, PaymentMethod.PROMPT_PAY))
+    assertThatThrownBy(() -> service.checkOut("res-1", 240, PaymentMethod.PROMPT_PAY, null))
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("declined");
 
@@ -163,7 +164,7 @@ class PlaySessionServiceTest {
     when(reservations.save(any(ReservationEntity.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    var receipt = service.checkOut("res-1", 0, PaymentMethod.WAIVED);
+    var receipt = service.checkOut("res-1", 0, PaymentMethod.WAIVED, null);
 
     assertThat(receipt.getPayment()).isNull();
     verifyNoInteractions(billing);
@@ -174,11 +175,11 @@ class PlaySessionServiceTest {
   void checkOutWaivesTheFeeOnlyWhenTheAmountIsZero() {
     when(reservations.findById("res-1")).thenReturn(Optional.of(checkedIn("res-1")));
 
-    assertThatThrownBy(() -> service.checkOut("res-1", 100, PaymentMethod.WAIVED))
+    assertThatThrownBy(() -> service.checkOut("res-1", 100, PaymentMethod.WAIVED, null))
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("A waived fee must be recorded as 0.");
 
-    assertThatThrownBy(() -> service.checkOut("res-1", 0, PaymentMethod.CASH))
+    assertThatThrownBy(() -> service.checkOut("res-1", 0, PaymentMethod.CASH, null))
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("A settled fee must be greater than 0.");
   }
@@ -187,9 +188,47 @@ class PlaySessionServiceTest {
   void checkOutRejectsASessionThatIsNotCheckedIn() {
     when(reservations.findById("res-1")).thenReturn(Optional.of(reserved("res-1")));
 
-    assertThatThrownBy(() -> service.checkOut("res-1", 240, PaymentMethod.CASH))
+    assertThatThrownBy(() -> service.checkOut("res-1", 240, PaymentMethod.CASH, null))
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("Only a checked-in session can be checked out.");
+  }
+
+  @Test
+  void checkOutChargesThePresentedCardAndShowsItOnTheReceipt() {
+    ReservationEntity reservation = checkedIn("res-1");
+    when(reservations.findById("res-1")).thenReturn(Optional.of(reservation));
+    when(reservations.save(any(ReservationEntity.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+    when(billing.settle(
+            "res-1",
+            240,
+            PaymentMethod.CARD,
+            new PaymentGateway.CardDetails("4242 4242 4242 4242", "424", 12, 2029)))
+        .thenReturn(new BillingService.Settlement("bogus", "bogus-1", ENDED_AT, "Visa", "4242"));
+
+    var receipt =
+        service.checkOut(
+            "res-1",
+            240,
+            PaymentMethod.CARD,
+            new PaymentGateway.CardDetails("4242 4242 4242 4242", "424", 12, 2029));
+
+    assertThat(receipt.getPayment()).isNotNull();
+    assertThat(receipt.getPayment().getCard()).isNotNull();
+    assertThat(receipt.getPayment().getCard().getBrand().getValue()).isEqualTo("Visa");
+    assertThat(receipt.getPayment().getCard().getLast4()).isEqualTo("4242");
+    assertThat(reservation.status()).isEqualTo("Completed");
+  }
+
+  @Test
+  void checkOutNeedsTheCardPresentedForACardCharge() {
+    when(reservations.findById("res-1")).thenReturn(Optional.of(checkedIn("res-1")));
+
+    assertThatThrownBy(() -> service.checkOut("res-1", 240, PaymentMethod.CARD, null))
+        .isInstanceOf(ResponseStatusException.class)
+        .hasMessageContaining("A card charge needs the card presented at the counter.");
+
+    verifyNoInteractions(billing);
   }
 
   @Test

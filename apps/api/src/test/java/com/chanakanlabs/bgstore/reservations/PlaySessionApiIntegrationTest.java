@@ -186,6 +186,52 @@ class PlaySessionApiIntegrationTest {
   }
 
   @Test
+  void staffCheckOutChargesThePresentedCardAndStoresOnlyBrandAndLast4() throws Exception {
+    reservation("res-card", CLIENT, "CheckedIn", Instant.now().minus(Duration.ofHours(3)));
+
+    mockMvc
+        .perform(
+            post("/api/v1/reservations/res-card/check-out")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"finalAmount\":240,\"paymentMethod\":\"Card\","
+                        + "\"card\":{\"number\":\"4242 4242 4242 4242\",\"cvv\":\"424\","
+                        + "\"expiryMonth\":12,\"expiryYear\":2029}}")
+                .with(csrf())
+                .with(staffLogin(STAFF)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.paymentMethod").value("Card"))
+        .andExpect(jsonPath("$.payment.gateway").value("bogus"))
+        .andExpect(jsonPath("$.payment.card.brand").value("Visa"))
+        .andExpect(jsonPath("$.payment.card.last4").value("4242"));
+
+    assertThat(reservationStatus("res-card")).isEqualTo("Completed");
+    assertThat(paymentCardBrand("res-card")).isEqualTo("Visa");
+    assertThat(paymentCardLast4("res-card")).isEqualTo("4242");
+  }
+
+  @Test
+  void aCardDeclineSurfacesTheReasonAndKeepsTheSessionOpen() throws Exception {
+    reservation("res-decline", CLIENT, "CheckedIn", Instant.now().minus(Duration.ofHours(3)));
+
+    mockMvc
+        .perform(
+            post("/api/v1/reservations/res-decline/check-out")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"finalAmount\":240,\"paymentMethod\":\"Card\","
+                        + "\"card\":{\"number\":\"4242 4242 4242 4242\",\"cvv\":\"111\","
+                        + "\"expiryMonth\":12,\"expiryYear\":2029}}")
+                .with(csrf())
+                .with(staffLogin(STAFF)))
+        .andExpect(status().isBadGateway())
+        .andExpect(jsonPath("$.code").value("insufficient_funds"));
+
+    assertThat(reservationStatus("res-decline")).isEqualTo("CheckedIn");
+    assertThat(paymentCount("res-decline")).isZero();
+  }
+
+  @Test
   void staffCheckOutCanWaiveTheFee() throws Exception {
     reservation("res-waived", CLIENT, "CheckedIn", Instant.now().minus(Duration.ofHours(1)));
 
@@ -384,6 +430,16 @@ class PlaySessionApiIntegrationTest {
         database.queryForObject(
             "select count(*) from payment where reservation_id = ?", Integer.class, reservationId);
     return count == null ? 0 : count;
+  }
+
+  private String paymentCardBrand(String reservationId) {
+    return database.queryForObject(
+        "select card_brand from payment where reservation_id = ?", String.class, reservationId);
+  }
+
+  private String paymentCardLast4(String reservationId) {
+    return database.queryForObject(
+        "select card_last4 from payment where reservation_id = ?", String.class, reservationId);
   }
 
   private int assistanceCount(UUID requestId) {

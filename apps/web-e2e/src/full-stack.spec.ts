@@ -406,4 +406,80 @@ test.describe('real full-stack browser flows', () => {
       0,
     );
   });
+
+  test('staff settle by card through the bogus gateway, decline first', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    requireFullStack();
+
+    // This test owns its reservation: the serial flow above consumed the
+    // shared one, so card charges get a fresh party to settle.
+    await signIn(page, staffAccount);
+    await page.goto('/reservations/new');
+    await expect(
+      page.getByRole('heading', { name: 'Create reservation' }),
+    ).toBeAttached();
+    await page.locator('#reservation-first-name').fill('Card');
+    await page.locator('#reservation-last-name').fill('Tester');
+    await page.locator('#reservation-nickname').fill('Cardy');
+    await page.locator('#reservation-phone').fill('087-777-7777');
+    await page.getByRole('button', { name: 'Next' }).click();
+    await page.getByRole('button', { name: 'Next' }).click();
+    const cardTable = page
+      .locator('button.table-option:not([disabled])')
+      .first();
+    await expect(cardTable).toBeVisible();
+    await cardTable.click();
+    await page.getByRole('button', { name: 'Next' }).click();
+    await expect(page.getByText('Card Tester (Cardy)')).toBeVisible();
+    await page.getByRole('button', { name: 'Confirm' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Reservation details ready' }),
+    ).toBeVisible();
+
+    await page.goto('/staff/sessions');
+    const checkIn = page.getByRole('button', { name: 'Check in' }).first();
+    await expect(checkIn).toBeVisible();
+    await checkIn.click();
+
+    const checkOut = page.getByRole('button', { name: 'Check out' }).first();
+    await expect(checkOut).toBeVisible();
+    await checkOut.click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('#checkout-amount').fill('180');
+    await dialog.locator('#checkout-method').selectOption('Card');
+    await expect(dialog.locator('img[src*="unknown"]')).toBeVisible();
+    await dialog.locator('#checkout-card-number').fill('4242424242424242');
+    // The network logo follows the typed leading digits.
+    await expect(dialog.locator('img[src*="visa"]')).toBeVisible();
+    await dialog.locator('#checkout-card-expiry').fill('12/29');
+    // CVV 111 is the demo knob for an insufficient-funds decline.
+    await dialog.locator('#checkout-card-cvv').fill('111');
+    await dialog.getByRole('button', { name: 'Close session' }).click();
+
+    // The decline names the reason and the dialog stays open for a retry.
+    // Assert on the alert itself: the CVV knob hint also mentions the reasons.
+    const decline = dialog.getByText(/The card network declined the charge/);
+    await expect(decline).toBeVisible();
+    await expect(decline).toContainText(/insufficient funds/i);
+    await expect(
+      dialog.getByRole('button', { name: 'Close session' }),
+    ).toBeVisible();
+
+    // Any other CVV approves the charge.
+    await dialog.locator('#checkout-card-cvv').fill('424');
+    await dialog.getByRole('button', { name: 'Close session' }).click();
+
+    await expect(
+      dialog.getByRole('heading', { name: 'Session closed' }),
+    ).toBeVisible();
+    await expect(dialog.getByText('Total settled')).toBeVisible();
+    await expect(dialog.getByText(/180\.00/)).toBeVisible();
+    // The receipt prints the network and the masked number only.
+    await expect(dialog.getByText(/•••• 4242/)).toBeVisible();
+    await expect(dialog.locator('img[src*="visa"]')).toBeVisible();
+  });
 });

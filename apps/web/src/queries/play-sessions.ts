@@ -8,6 +8,7 @@ import {
 } from '../generated/api/sdk.gen';
 import type {
   ActiveSessionResponse,
+  CardInput,
   PaymentMethod,
   SessionAssistanceKind,
   SessionListResponse,
@@ -81,10 +82,13 @@ export async function checkOutReservationRequest(
   reservationId: string,
   finalAmount: number,
   paymentMethod: PaymentMethod,
+  card?: CardInput,
 ) {
   const { data } = await checkOutReservation({
     path: { reservationId },
-    body: { finalAmount, paymentMethod },
+    // JSON.stringify drops the card key when it is `undefined`, so cash and
+    // PromptPay checkouts keep the exact body shape they had before.
+    body: { finalAmount, paymentMethod, card },
     throwOnError: true,
   });
   return data;

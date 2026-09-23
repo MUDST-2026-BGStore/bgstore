@@ -477,7 +477,12 @@ export type ActiveSessionResponse = {
 /**
  * How the confirmed fee was settled; `Waived` closes the session without charging.
  */
-export type PaymentMethod = 'Cash' | 'PromptPay' | 'BankTransfer' | 'Waived';
+export type PaymentMethod =
+  | 'Cash'
+  | 'PromptPay'
+  | 'BankTransfer'
+  | 'Card'
+  | 'Waived';
 
 export type CheckOutRequest = {
   /**
@@ -485,6 +490,26 @@ export type CheckOutRequest = {
    */
   finalAmount: number;
   paymentMethod: PaymentMethod;
+  card?: CardInput;
+};
+
+export type CardInput = {
+  /**
+   * The card's primary account number as printed, so spaces are allowed; the gateway strips non-digits before validating.
+   */
+  number: string;
+  /**
+   * The printed security code, 3 digits (4 for Amex).
+   */
+  cvv: string;
+  /**
+   * Month the card expires, 1–12.
+   */
+  expiryMonth: number;
+  /**
+   * Full year the card expires, e.g. `2028`.
+   */
+  expiryYear: number;
 };
 
 export type CheckoutReceiptResponse = {
@@ -515,7 +540,29 @@ export type PaymentRecordResponse = {
    */
   reference: string;
   paidAt: string;
+  card?: PaymentCardResponse;
 };
+
+export type PaymentCardResponse = {
+  brand: CardBrand;
+  /**
+   * The card number's final four digits.
+   */
+  last4: string;
+};
+
+/**
+ * Card network the gateway detected from the card number's leading digits.
+ */
+export type CardBrand =
+  | 'Visa'
+  | 'Mastercard'
+  | 'Amex'
+  | 'JCB'
+  | 'DinersClub'
+  | 'Discover'
+  | 'UnionPay'
+  | 'Unknown';
 
 export type SessionListResponse = {
   items: Array<ReservationResponse>;
@@ -543,6 +590,10 @@ export type ProblemDetail = {
   status: number;
   detail?: string;
   instance?: string;
+  /**
+   * Machine-readable detail code when one applies, e.g. the payment decline reason `insufficient_funds` or `gateway_unavailable` on a 502 checkout response.
+   */
+  code?: string;
   [key: string]: unknown;
 };
 
@@ -1574,7 +1625,7 @@ export type CheckOutReservationErrors = {
    */
   404: ProblemDetail;
   /**
-   * The payment gateway declined the charge; the session stays open for a retry.
+   * The payment gateway declined the charge; the session stays open for a retry. The problem carries a `code` property naming the decline reason — for example `insufficient_funds`, `stolen_card`, `cvv_mismatch`, `invalid_card_number`, `invalid_cvv`, `card_expired` for a refused card, or `gateway_unavailable` when the gateway could not process the charge and retrying may succeed.
    */
   502: ProblemDetail;
 };

@@ -433,11 +433,21 @@ export const messages = {
       payment: {
         Cash: 'Cash',
         PromptPay: 'QR Code / PromptPay',
+        Card: 'Card',
         BankTransfer: 'Bank transfer',
         Waived: 'Waived',
       },
       amountRequired: 'Enter the confirmed amount.',
       amountPositive: 'A settled amount must be greater than 0.',
+      cardNumber: 'Card number',
+      cardExpiry: 'Expiry (MM/YY)',
+      cardCvv: 'Security code (CVV)',
+      cardKnobHint:
+        'Demo gateway: the security code picks the outcome — 111 insufficient funds · 222 stolen card · 333 wrong code · 999 gateway error; any other valid code approves.',
+      cardIncomplete:
+        'Enter a valid card number, expiry, and security code first.',
+      promptPayNote:
+        'Demo QR from the bogus gateway — display it for the guest, no real money moves.',
       waivedNote: 'A waived fee closes the session without a charge.',
       confirm: 'Close session',
       cancel: 'Cancel',
@@ -447,6 +457,19 @@ export const messages = {
       receiptTotal: 'Total settled',
       settlementGateway: 'Gateway',
       settlementReference: 'Reference',
+      settlementCard: 'Card',
+      decline: {
+        insufficient_funds:
+          'The card network declined the charge: insufficient funds.',
+        stolen_card:
+          'The card network declined the charge: the card is flagged and cannot be used.',
+        cvv_mismatch: 'The card was declined: the security code did not match.',
+        invalid_card_number: 'That card number is not valid.',
+        invalid_cvv: 'That security code is not valid for this card.',
+        card_expired: 'That card has expired.',
+        gateway_unavailable:
+          'The payment gateway is temporarily unavailable. Please try again.',
+      },
       done: 'Done',
     },
     auth: {
@@ -1140,11 +1163,20 @@ export const messages = {
       payment: {
         Cash: 'เงินสด',
         PromptPay: 'คิวอาร์โค้ด / พร้อมเพย์',
+        Card: 'บัตรเครดิต / เดบิต',
         BankTransfer: 'โอนผ่านธนาคาร',
         Waived: 'ยกเว้นค่าบริการ',
       },
       amountRequired: 'กรุณากรอกยอดที่ยืนยันแล้ว',
       amountPositive: 'ยอดที่ชำระต้องมากกว่า 0',
+      cardNumber: 'เลขบัตร',
+      cardExpiry: 'วันหมดอายุ (ดด/ปป)',
+      cardCvv: 'รหัสความปลอดภัย (CVV)',
+      cardKnobHint:
+        'เกตเวย์สาธิต: รหัสความปลอดภัยเป็นตัวเลือกผลลัพธ์ — 111 วงเงินไม่เพียงพอ · 222 บัตรถูกระงับ · 333 รหัสไม่ถูกต้อง · 999 เกตเวย์ขัดข้อง ส่วนรหัสอื่นที่ถูกต้องจะอนุมัติ',
+      cardIncomplete: 'กรุณากรอกเลขบัตร วันหมดอายุ และรหัสความปลอดภัยให้ครบถ้วน',
+      promptPayNote:
+        'คิวอาร์โค้ดสาธิตจากเกตเวย์จำลอง — แสดงให้ลูกค้าสแกน ไม่มีเงินจริงเคลื่อนไหว',
       waivedNote: 'การยกเว้นค่าบริการจะปิดเซสชันโดยไม่คิดเงิน',
       confirm: 'ปิดเซสชัน',
       cancel: 'ยกเลิก',
@@ -1153,6 +1185,17 @@ export const messages = {
       receiptTotal: 'ยอดที่ชำระ',
       settlementGateway: 'เกตเวย์',
       settlementReference: 'รหัสอ้างอิง',
+      settlementCard: 'บัตร',
+      decline: {
+        insufficient_funds: 'เครือข่ายบัตรปฏิเสธรายการ: วงเงินไม่เพียงพอ',
+        stolen_card: 'เครือข่ายบัตรปฏิเสธรายการ: บัตรนี้ถูกระงับการใช้งาน',
+        cvv_mismatch: 'บัตรถูกปฏิเสธ: รหัสความปลอดภัยไม่ถูกต้อง',
+        invalid_card_number: 'เลขบัตรไม่ถูกต้อง',
+        invalid_cvv: 'รหัสความปลอดภัยไม่ถูกต้องสำหรับบัตรนี้',
+        card_expired: 'บัตรนี้หมดอายุการใช้งานแล้ว',
+        gateway_unavailable:
+          'เกตเวย์ชำระเงินขัดข้องชั่วคราว กรุณาลองอีกครั้ง',
+      },
       done: 'เสร็จสิ้น',
     },
     auth: {

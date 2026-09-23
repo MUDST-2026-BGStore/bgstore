@@ -129,6 +129,10 @@ describe('SessionConsolePage', () => {
     );
     await wrapper.get('#checkout-amount').setValue('240');
     await wrapper.get('#checkout-method').setValue('PromptPay');
+    // The demo gateway shows a decorative PromptPay QR while selected.
+    expect(wrapper.get('form').find('img[src*="promptpay"]').exists()).toBe(
+      true,
+    );
     await wrapper.get('form').trigger('submit');
     await flushPromises();
 
@@ -150,6 +154,158 @@ describe('SessionConsolePage', () => {
 
     await dialog.get('button').trigger('click');
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('charges a card through the bogus gateway and prints it on the receipt', async () => {
+    const calls = stubApi([
+      sessionsHandler,
+      route(
+        '/reservations/res-playing/check-out',
+        {
+          body: receipt({
+            paymentMethod: 'Card',
+            payment: {
+              gateway: 'bogus',
+              reference: 'bogus-ref-123',
+              paidAt: '2026-09-23T06:00:00Z',
+              card: { brand: 'Visa', last4: '4242' },
+            },
+          }),
+        },
+        'POST',
+      ),
+    ]);
+
+    const { wrapper } = await mountConsole();
+    await wrapper.findAll('tbody tr')[1].get('button').trigger('click');
+    await wrapper.get('#checkout-amount').setValue('240');
+    await wrapper.get('#checkout-method').setValue('Card');
+
+    const form = wrapper.get('form');
+    // With no digits yet the network is unknown; the logo follows the typed
+    // leading digits.
+    expect(form.find('img[src*="unknown"]').exists()).toBe(true);
+
+    await wrapper.get('#checkout-card-number').setValue('4242424242424242');
+    expect(form.find('img[src*="visa"]').exists()).toBe(true);
+    await wrapper.get('#checkout-card-expiry').setValue('12/29');
+    await wrapper.get('#checkout-card-cvv').setValue('123');
+    await form.trigger('submit');
+    await flushPromises();
+
+    const request = calls.find((call) => call.url.includes('/check-out'));
+    expect(request?.method).toBe('POST');
+    expect(JSON.parse(request?.body ?? '{}')).toEqual({
+      finalAmount: 240,
+      paymentMethod: 'Card',
+      card: {
+        number: '4242424242424242',
+        cvv: '123',
+        expiryMonth: 12,
+        expiryYear: 2029,
+      },
+    });
+
+    const dialog = wrapper.get('[role="dialog"]');
+    expect(dialog.text()).toContain('Session closed');
+    expect(dialog.text()).toContain('•••• 4242');
+    wrapper.unmount();
+  });
+
+  it('holds the card charge until the entry passes the local checks', async () => {
+    const calls = stubApi([
+      sessionsHandler,
+      route(
+        '/reservations/res-playing/check-out',
+        {
+          body: receipt({
+            paymentMethod: 'Card',
+            payment: {
+              gateway: 'bogus',
+              reference: 'bogus-ref-123',
+              paidAt: '2026-09-23T06:00:00Z',
+              card: { brand: 'Amex', last4: '0005' },
+            },
+          }),
+        },
+        'POST',
+      ),
+    ]);
+
+    const { wrapper } = await mountConsole();
+    await wrapper.findAll('tbody tr')[1].get('button').trigger('click');
+    await wrapper.get('#checkout-amount').setValue('240');
+    await wrapper.get('#checkout-method').setValue('Card');
+
+    const form = wrapper.get('form');
+    const submit = form.findAll('button')[1];
+    const number = wrapper.get<HTMLInputElement>('#checkout-card-number');
+    const expiry = wrapper.get<HTMLInputElement>('#checkout-card-expiry');
+    const cvv = wrapper.get<HTMLInputElement>('#checkout-card-cvv');
+
+    expect(submit.attributes('disabled')).toBeDefined();
+
+    // Luhn-failing number never arms the charge.
+    await number.setValue('4242424242424241');
+    await expiry.setValue('12/29');
+    await cvv.setValue('123');
+    expect(submit.attributes('disabled')).toBeDefined();
+
+    // An Amex needs four security digits.
+    await number.setValue('378282246310005');
+    await cvv.setValue('123');
+    expect(submit.attributes('disabled')).toBeDefined();
+
+    await cvv.setValue('1234');
+    expect(submit.attributes('disabled')).toBeUndefined();
+
+    await form.trigger('submit');
+    await flushPromises();
+
+    const request = calls.find((call) => call.url.includes('/check-out'));
+    expect(JSON.parse(request?.body ?? '{}').card).toEqual({
+      number: '378282246310005',
+      cvv: '1234',
+      expiryMonth: 12,
+      expiryYear: 2029,
+    });
+    wrapper.unmount();
+  });
+
+  it('names the card-network decline reason instead of a generic failure', async () => {
+    stubApi([
+      sessionsHandler,
+      route(
+        '/reservations/res-playing/check-out',
+        {
+          status: 402,
+          body: {
+            code: 'insufficient_funds',
+            detail: 'The card network declined the charge.',
+          },
+        },
+        'POST',
+      ),
+    ]);
+
+    const { wrapper } = await mountConsole();
+    await wrapper.findAll('tbody tr')[1].get('button').trigger('click');
+    await wrapper.get('#checkout-amount').setValue('240');
+    await wrapper.get('#checkout-method').setValue('Card');
+    await wrapper.get('#checkout-card-number').setValue('4242424242424242');
+    await wrapper.get('#checkout-card-expiry').setValue('12/29');
+    await wrapper.get('#checkout-card-cvv').setValue('111');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'insufficient funds',
+    );
+    // The confirmed card is still on the form for the retry.
+    expect(
+      wrapper.get<HTMLInputElement>('#checkout-card-number').element.value,
+    ).toBe('4242 4242 4242 4242');
     wrapper.unmount();
   });
 

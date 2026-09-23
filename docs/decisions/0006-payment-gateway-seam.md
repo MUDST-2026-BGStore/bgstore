@@ -27,6 +27,11 @@ Settlement semantics:
 - The browser only reads the receipt. No card data, QR payload, or provider
   redirect ever reaches the client; the charge is a server-side call.
 
+> 2026-09-23: card simulation (ADR-0007) refines the card case — the card
+> fields reach the client at charge time so staff can enter a PAN, CVV, and
+> expiry for the bogus gateway to judge; the receipt itself still stays
+> minimal (network brand and last four only).
+
 ## Rationale
 
 Checkout is the first place BGStore moves money. Keeping the provider behind a
