@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.chanakanlabs.bgstore.billing.BillingService;
 import com.chanakanlabs.bgstore.branches.Branch;
 import com.chanakanlabs.bgstore.branches.BranchDirectory;
 import com.chanakanlabs.bgstore.contract.model.PaymentMethod;
@@ -27,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,6 +47,7 @@ class PlaySessionServiceTest {
   @Mock private JpaReservationRepository reservations;
   @Mock private SessionAssistanceRequestJpaRepository assistanceRequests;
   @Mock private BranchDirectory branches;
+  @Mock private BillingService billing;
   @Mock private AccessPolicy accessPolicy;
 
   private PlaySessionService service;
@@ -55,6 +59,7 @@ class PlaySessionServiceTest {
             reservations,
             assistanceRequests,
             branches,
+            billing,
             accessPolicy,
             Clock.fixed(ENDED_AT, ZoneOffset.UTC));
   }
@@ -119,6 +124,8 @@ class PlaySessionServiceTest {
     when(reservations.findById("res-1")).thenReturn(Optional.of(reservation));
     when(reservations.save(any(ReservationEntity.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
+    when(billing.settle("res-1", 240, PaymentMethod.CASH))
+        .thenReturn(new BillingService.Settlement("bogus", "bogus-1", ENDED_AT));
 
     var receipt = service.checkOut("res-1", 240, PaymentMethod.CASH);
 
@@ -129,6 +136,38 @@ class PlaySessionServiceTest {
     assertThat(reservation.status()).isEqualTo("Completed");
     assertThat(reservation.toRecord().overtimeMinutes()).isEqualTo(60);
     assertThat(reservation.toRecord().canCancel()).isFalse();
+    assertThat(receipt.getPayment()).isNotNull();
+    assertThat(receipt.getPayment().getGateway()).isEqualTo("bogus");
+    assertThat(receipt.getPayment().getReference()).isEqualTo("bogus-1");
+  }
+
+  @Test
+  void checkOutSettlesBeforeClosingPlaySoADeclinedChargeLeavesTheSessionOpen() {
+    ReservationEntity reservation = checkedIn("res-1");
+    when(reservations.findById("res-1")).thenReturn(Optional.of(reservation));
+    when(billing.settle("res-1", 240, PaymentMethod.PROMPT_PAY))
+        .thenThrow(new ResponseStatusException(HttpStatus.BAD_GATEWAY, "declined"));
+
+    assertThatThrownBy(() -> service.checkOut("res-1", 240, PaymentMethod.PROMPT_PAY))
+        .isInstanceOf(ResponseStatusException.class)
+        .hasMessageContaining("declined");
+
+    verify(reservations, never()).save(any(ReservationEntity.class));
+    assertThat(reservation.status()).isEqualTo("CheckedIn");
+  }
+
+  @Test
+  void checkOutWaivedClosesTheSessionWithoutCharging() {
+    ReservationEntity reservation = checkedIn("res-1");
+    when(reservations.findById("res-1")).thenReturn(Optional.of(reservation));
+    when(reservations.save(any(ReservationEntity.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0));
+
+    var receipt = service.checkOut("res-1", 0, PaymentMethod.WAIVED);
+
+    assertThat(receipt.getPayment()).isNull();
+    verifyNoInteractions(billing);
+    assertThat(reservation.status()).isEqualTo("Completed");
   }
 
   @Test

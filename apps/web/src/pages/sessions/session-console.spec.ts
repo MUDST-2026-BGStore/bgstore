@@ -48,7 +48,28 @@ const SESSIONS = {
 
 const sessionsHandler = route('/sessions', { body: SESSIONS });
 
-const mountConsole = () => renderScreen(SessionConsolePage, '/staff/sessions');
+const receipt = (overrides: Record<string, unknown> = {}) => ({
+  reservationId: 'res-playing',
+  tableName: 'Table 8',
+  partySize: 4,
+  startedAt: '2026-09-23T03:00:00Z',
+  endedAt: '2026-09-23T06:00:00Z',
+  hours: 3,
+  ratePerHour: 150,
+  totalDue: 240,
+  currency: 'THB',
+  paymentMethod: 'PromptPay',
+  paidAt: '2026-09-23T06:00:00Z',
+  payment: {
+    gateway: 'bogus',
+    reference: 'bogus-ref-123',
+    paidAt: '2026-09-23T06:00:00Z',
+  },
+  ...overrides,
+});
+
+const mountConsole = (options: Parameters<typeof renderScreen>[2] = {}) =>
+  renderScreen(SessionConsolePage, '/staff/sessions', options);
 
 describe('SessionConsolePage', () => {
   afterEach(() => {
@@ -94,13 +115,13 @@ describe('SessionConsolePage', () => {
     wrapper.unmount();
   });
 
-  it('closes a session with the confirmed amount and method', async () => {
+  it('closes a session and confirms the gateway settlement', async () => {
     const calls = stubApi([
       sessionsHandler,
-      route('/reservations/res-playing/check-out', { body: {} }, 'POST'),
+      route('/reservations/res-playing/check-out', { body: receipt() }, 'POST'),
     ]);
 
-    const { wrapper } = await mountConsole();
+    const { wrapper } = await mountConsole({ attachTo: document.body });
     await wrapper.findAll('tbody tr')[1].get('button').trigger('click');
 
     expect(wrapper.get('[role="dialog"]').text()).toContain(
@@ -117,7 +138,44 @@ describe('SessionConsolePage', () => {
       finalAmount: 240,
       paymentMethod: 'PromptPay',
     });
+
+    // The dialog stays open so staff can read the settlement to the guest.
+    const dialog = wrapper.get('[role="dialog"]');
+    expect(dialog.text()).toContain('Session closed');
+    expect(dialog.text()).toContain('240.00');
+    expect(dialog.text()).toContain('QR Code / PromptPay');
+    expect(dialog.text()).toContain('bogus');
+    expect(dialog.text()).toContain('bogus-ref-123');
+    expect(document.activeElement?.textContent).toContain('Done');
+
+    await dialog.get('button').trigger('click');
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('keeps the checkout open when the gateway declines the charge', async () => {
+    stubApi([
+      sessionsHandler,
+      route(
+        '/reservations/res-playing/check-out',
+        { status: 502, body: {} },
+        'POST',
+      ),
+    ]);
+
+    const { wrapper } = await mountConsole();
+    await wrapper.findAll('tbody tr')[1].get('button').trigger('click');
+    await wrapper.get('#checkout-amount').setValue('240');
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(wrapper.get('[role="alert"]').text()).toContain(
+      'could not be closed',
+    );
+    // The confirmed amount is still on the form for the retry.
+    expect(wrapper.get<HTMLInputElement>('#checkout-amount').element.value).toBe(
+      '240',
+    );
     wrapper.unmount();
   });
 
@@ -143,7 +201,11 @@ describe('SessionConsolePage', () => {
   it('waives the fee without a charge', async () => {
     const calls = stubApi([
       sessionsHandler,
-      route('/reservations/res-playing/check-out', { body: {} }, 'POST'),
+      route(
+        '/reservations/res-playing/check-out',
+        { body: receipt({ paymentMethod: 'Waived', payment: undefined }) },
+        'POST',
+      ),
     ]);
 
     const { wrapper } = await mountConsole();
@@ -157,6 +219,11 @@ describe('SessionConsolePage', () => {
       finalAmount: 0,
       paymentMethod: 'Waived',
     });
+
+    const dialog = wrapper.get('[role="dialog"]');
+    expect(dialog.text()).toContain('Session closed');
+    expect(dialog.text()).toContain('without a charge');
+    expect(dialog.text()).not.toContain('bogus-ref-123');
     wrapper.unmount();
   });
 });

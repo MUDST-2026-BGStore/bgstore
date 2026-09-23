@@ -1,10 +1,12 @@
 package com.chanakanlabs.bgstore.reservations;
 
+import com.chanakanlabs.bgstore.billing.BillingService;
 import com.chanakanlabs.bgstore.branches.Branch;
 import com.chanakanlabs.bgstore.branches.BranchDirectory;
 import com.chanakanlabs.bgstore.contract.model.ActiveSessionResponse;
 import com.chanakanlabs.bgstore.contract.model.CheckoutReceiptResponse;
 import com.chanakanlabs.bgstore.contract.model.PaymentMethod;
+import com.chanakanlabs.bgstore.contract.model.PaymentRecordResponse;
 import com.chanakanlabs.bgstore.contract.model.SessionAssistanceKind;
 import com.chanakanlabs.bgstore.contract.model.SessionAssistanceResponse;
 import com.chanakanlabs.bgstore.identity.AccessPolicy;
@@ -42,6 +44,7 @@ public class PlaySessionService {
   private final JpaReservationRepository reservations;
   private final SessionAssistanceRequestJpaRepository assistanceRequests;
   private final BranchDirectory branches;
+  private final BillingService billing;
   private final AccessPolicy accessPolicy;
   private final Clock clock;
 
@@ -49,11 +52,13 @@ public class PlaySessionService {
       JpaReservationRepository reservations,
       SessionAssistanceRequestJpaRepository assistanceRequests,
       BranchDirectory branches,
+      BillingService billing,
       AccessPolicy accessPolicy,
       Clock clock) {
     this.reservations = reservations;
     this.assistanceRequests = assistanceRequests;
     this.branches = branches;
+    this.billing = billing;
     this.accessPolicy = accessPolicy;
     this.clock = clock;
   }
@@ -119,6 +124,14 @@ public class PlaySessionService {
     if (!waived && finalAmount <= 0) {
       throw badRequest("A settled fee must be greater than 0.");
     }
+    // Charge before closing play: a declined gateway charge aborts the check-out
+    // and leaves the session open for a retry instead of closing it uncollected.
+    BillingService.Settlement settlement;
+    if (waived) {
+      settlement = null;
+    } else {
+      settlement = billing.settle(reservationId, finalAmount, paymentMethod);
+    }
 
     Instant startedAt = sessionStart(reservation);
     Instant endedAt = clock.instant();
@@ -127,18 +140,27 @@ public class PlaySessionService {
     ReservationEntity saved = reservations.save(reservation);
     ReservationRecordData record = saved.toRecord();
     long seconds = Duration.between(startedAt, endedAt).toSeconds();
-    return new CheckoutReceiptResponse(
-        record.id(),
-        record.tableName(),
-        record.partySize(),
-        bangkok(startedAt),
-        bangkok(endedAt),
-        (int) Math.max(1, (seconds + 3599) / 3600),
-        record.ratePerHour(),
-        record.totalPrice(),
-        CheckoutReceiptResponse.CurrencyEnum.THB,
-        paymentMethod,
-        bangkok(endedAt));
+    CheckoutReceiptResponse receipt =
+        new CheckoutReceiptResponse(
+            record.id(),
+            record.tableName(),
+            record.partySize(),
+            bangkok(startedAt),
+            bangkok(endedAt),
+            (int) Math.max(1, (seconds + 3599) / 3600),
+            record.ratePerHour(),
+            record.totalPrice(),
+            CheckoutReceiptResponse.CurrencyEnum.THB,
+            paymentMethod,
+            bangkok(endedAt));
+    if (settlement != null) {
+      receipt.setPayment(
+          new PaymentRecordResponse()
+              .gateway(settlement.gateway())
+              .reference(settlement.reference())
+              .paidAt(bangkok(settlement.paidAt())));
+    }
+    return receipt;
   }
 
   @Transactional

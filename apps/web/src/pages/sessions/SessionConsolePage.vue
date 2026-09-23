@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import StaffLayout from '../../layouts/StaffLayout.vue';
@@ -13,6 +13,7 @@ import {
   sessionsQueryOptions,
 } from '../../queries/play-sessions';
 import type {
+  CheckoutReceiptResponse,
   PaymentMethod,
   ReservationResponse,
 } from '../../generated/api/types.gen';
@@ -49,9 +50,18 @@ const checkIn = useMutation({
 });
 
 const checkoutTarget = ref<ReservationResponse | null>(null);
+const checkoutReceipt = ref<CheckoutReceiptResponse | null>(null);
 const finalAmount = ref('');
 const paymentMethod = ref<PaymentMethod>('Cash');
 const amountError = ref<string | null>(null);
+const doneButton = ref<{ $el: HTMLButtonElement } | null>(null);
+
+const money = (amount: number) =>
+  new Intl.NumberFormat(locale.value, {
+    style: 'currency',
+    currency: 'THB',
+    minimumFractionDigits: 2,
+  }).format(amount);
 
 const paymentOptions = computed(() =>
   (['Cash', 'PromptPay', 'BankTransfer', 'Waived'] as PaymentMethod[]).map(
@@ -61,6 +71,7 @@ const paymentOptions = computed(() =>
 
 const openCheckout = (session: ReservationResponse) => {
   checkoutTarget.value = session;
+  checkoutReceipt.value = null;
   finalAmount.value = session.totalPrice > 0 ? String(session.totalPrice) : '';
   paymentMethod.value = 'Cash';
   amountError.value = null;
@@ -69,6 +80,7 @@ const openCheckout = (session: ReservationResponse) => {
 
 const closeCheckout = () => {
   checkoutTarget.value = null;
+  checkoutReceipt.value = null;
   amountError.value = null;
 };
 
@@ -86,9 +98,12 @@ const checkOut = useMutation({
       paymentMethod.value,
     );
   },
-  onSuccess: () => {
-    closeCheckout();
+  onSuccess: (receipt) => {
+    // Keep the dialog open so staff can read the settlement back to the guest.
+    checkoutReceipt.value = receipt;
+    amountError.value = null;
     void queryClient.invalidateQueries({ queryKey: ['play-sessions'] });
+    void nextTick(() => doneButton.value?.$el.focus());
   },
 });
 
@@ -243,7 +258,78 @@ const confirmCheckout = () => {
       aria-modal="true"
       aria-labelledby="checkout-dialog-title"
     >
+      <div
+        v-if="checkoutReceipt"
+        class="w-full max-w-[440px] rounded-lg border border-line bg-surface p-6"
+      >
+        <h2
+          id="checkout-dialog-title"
+          class="text-[18px] leading-6 font-semibold text-ink"
+        >
+          {{ t('sessions.successTitle') }}
+        </h2>
+        <p class="mt-1 text-[13px] leading-5 text-ink-muted">
+          {{ t('sessions.successDescription') }}
+        </p>
+
+        <p class="mt-4 text-[13px] text-ink-secondary">
+          {{ checkoutReceipt.tableName }} ·
+          {{ t('sessions.seats', { count: checkoutReceipt.partySize }) }}
+        </p>
+
+        <dl class="mt-4 flex flex-col gap-2 text-[13px] leading-5">
+          <div class="flex items-baseline justify-between gap-3">
+            <dt class="text-ink-secondary">
+              {{ t('sessions.receiptTotal') }}
+            </dt>
+            <dd class="font-medium text-ink">
+              {{ money(checkoutReceipt.totalDue) }}
+            </dd>
+          </div>
+          <div class="flex items-baseline justify-between gap-3">
+            <dt class="text-ink-secondary">
+              {{ t('sessions.paymentMethod') }}
+            </dt>
+            <dd class="font-medium text-ink">
+              {{ t(`sessions.payment.${checkoutReceipt.paymentMethod}`) }}
+            </dd>
+          </div>
+          <template v-if="checkoutReceipt.payment">
+            <div class="flex items-baseline justify-between gap-3">
+              <dt class="text-ink-secondary">
+                {{ t('sessions.settlementGateway') }}
+              </dt>
+              <dd class="font-medium text-ink">
+                {{ checkoutReceipt.payment.gateway }}
+              </dd>
+            </div>
+            <div class="flex items-baseline justify-between gap-3">
+              <dt class="text-ink-secondary">
+                {{ t('sessions.settlementReference') }}
+              </dt>
+              <dd class="truncate font-mono text-ink">
+                {{ checkoutReceipt.payment.reference }}
+              </dd>
+            </div>
+          </template>
+        </dl>
+
+        <p
+          v-if="!checkoutReceipt.payment"
+          class="mt-4 text-[13px] leading-5 text-ink-muted"
+        >
+          {{ t('sessions.waivedNote') }}
+        </p>
+
+        <div class="mt-6 flex justify-end">
+          <UiButton ref="doneButton" @click="closeCheckout">
+            {{ t('sessions.done') }}
+          </UiButton>
+        </div>
+      </div>
+
       <form
+        v-else
         class="w-full max-w-[440px] rounded-lg border border-line bg-surface p-6"
         @submit.prevent="confirmCheckout"
       >

@@ -441,6 +441,13 @@ export const messages = {
       waivedNote: 'A waived fee closes the session without a charge.',
       confirm: 'Close session',
       cancel: 'Cancel',
+      successTitle: 'Session closed',
+      successDescription:
+        'The guest is checked out and the session is complete.',
+      receiptTotal: 'Total settled',
+      settlementGateway: 'Gateway',
+      settlementReference: 'Reference',
+      done: 'Done',
     },
     auth: {
       loadingTitle: 'Getting your game night ready',
@@ -1141,6 +1148,12 @@ export const messages = {
       waivedNote: 'การยกเว้นค่าบริการจะปิดเซสชันโดยไม่คิดเงิน',
       confirm: 'ปิดเซสชัน',
       cancel: 'ยกเลิก',
+      successTitle: 'ปิดเซสชันแล้ว',
+      successDescription: 'ลูกค้าเช็คเอาท์และปิดเซสชันเรียบร้อยแล้ว',
+      receiptTotal: 'ยอดที่ชำระ',
+      settlementGateway: 'เกตเวย์',
+      settlementReference: 'รหัสอ้างอิง',
+      done: 'เสร็จสิ้น',
     },
     auth: {
       loadingTitle: 'กำลังเตรียมค่ำคืนเล่นเกมของคุณ',

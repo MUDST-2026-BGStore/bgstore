@@ -91,7 +91,12 @@ function jsonResponse({ status = 200, body }: StubbedResponse): Response {
 export async function renderScreen(
   component: Component,
   path: string,
-  options: { flush?: boolean; props?: Record<string, unknown> } = {},
+  options: {
+    flush?: boolean;
+    props?: Record<string, unknown>;
+    /** Mount into the document (e.g. `document.body`) for focus behavior. */
+    attachTo?: HTMLElement;
+  } = {},
 ) {
   const router = createRouter({
     history: createMemoryHistory(),
@@ -102,6 +107,7 @@ export async function renderScreen(
 
   const wrapper = mount(component, {
     props: options.props,
+    attachTo: options.attachTo,
     global: {
       plugins: [
         router,

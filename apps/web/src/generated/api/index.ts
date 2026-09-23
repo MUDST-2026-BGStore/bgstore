@@ -193,6 +193,7 @@ export type {
   LocalizedTitle,
   PageMeta,
   PaymentMethod,
+  PaymentRecordResponse,
   ProblemDetail,
   ReplaceStaffBranchAssignmentsData,
   ReplaceStaffBranchAssignmentsError,

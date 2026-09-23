@@ -805,7 +805,9 @@ paths:
       description: >-
         Closes play only after an authorized role confirms the final amount or
         explicitly waives it, per the play-session domain invariant. The final
-        amount and payment method are recorded on the reservation.
+        amount and payment method are recorded on the reservation, and
+        gateway-settled methods are charged through the payment gateway before
+        the session may close.
       requestBody:
         required: true
         content:
@@ -827,6 +829,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '502':
+          description: The payment gateway declined the charge; the session stays open for a retry.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
   /reservations/{reservationId}/assistance:
     parameters:
       - name: reservationId
@@ -1899,6 +1907,26 @@ components:
           enum: [THB]
         paymentMethod:
           $ref: '#/components/schemas/PaymentMethod'
+        paidAt:
+          type: string
+          format: date-time
+        payment:
+          description: >-
+            Settlement the payment gateway recorded for the confirmed fee.
+            Absent when the fee was waived, which closes the session without
+            charging.
+          $ref: '#/components/schemas/PaymentRecordResponse'
+    PaymentRecordResponse:
+      type: object
+      additionalProperties: false
+      required: [gateway, reference, paidAt]
+      properties:
+        gateway:
+          type: string
+          description: Name of the payment gateway that processed the charge, e.g. `bogus`.
+        reference:
+          type: string
+          description: Gateway transaction reference for this charge.
         paidAt:
           type: string
           format: date-time

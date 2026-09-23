@@ -74,6 +74,7 @@ class PlaySessionApiIntegrationTest {
 
   @BeforeEach
   void seed() {
+    database.execute("delete from payment");
     database.execute("delete from session_assistance_request");
     database.execute("delete from table_reservation");
     database.execute("delete from reservation");
@@ -171,10 +172,14 @@ class PlaySessionApiIntegrationTest {
         .andExpect(jsonPath("$.totalDue").value(240))
         .andExpect(jsonPath("$.paymentMethod").value("Cash"))
         .andExpect(jsonPath("$.hours").value(3))
-        .andExpect(jsonPath("$.currency").value("THB"));
+        .andExpect(jsonPath("$.currency").value("THB"))
+        .andExpect(jsonPath("$.payment.gateway").value("bogus"))
+        .andExpect(
+            jsonPath("$.payment.reference").value(org.hamcrest.Matchers.startsWith("bogus-")));
 
     assertThat(reservationStatus("res-checkout")).isEqualTo("Completed");
     assertThat(paymentMethod("res-checkout")).isEqualTo("Cash");
+    assertThat(paymentCount("res-checkout")).isEqualTo(1);
     mockMvc
         .perform(get("/api/v1/me/active-session").with(clientLogin(CLIENT)))
         .andExpect(status().isNotFound());
@@ -193,7 +198,9 @@ class PlaySessionApiIntegrationTest {
                 .with(staffLogin(STAFF)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.totalDue").value(0))
-        .andExpect(jsonPath("$.paymentMethod").value("Waived"));
+        .andExpect(jsonPath("$.paymentMethod").value("Waived"))
+        .andExpect(jsonPath("$.payment").doesNotExist());
+    assertThat(paymentCount("res-waived")).isZero();
   }
 
   @Test
@@ -370,6 +377,13 @@ class PlaySessionApiIntegrationTest {
   private String paymentMethod(String id) {
     return database.queryForObject(
         "select payment_method from reservation where id = ?", String.class, id);
+  }
+
+  private int paymentCount(String reservationId) {
+    Integer count =
+        database.queryForObject(
+            "select count(*) from payment where reservation_id = ?", Integer.class, reservationId);
+    return count == null ? 0 : count;
   }
 
   private int assistanceCount(UUID requestId) {

@@ -805,7 +805,7 @@ export const checkInReservation = <ThrowOnError extends boolean = false>(
 /**
  * Close a checked-in session once staff confirm the final fee. Staff or manager only.
  *
- * Closes play only after an authorized role confirms the final amount or explicitly waives it, per the play-session domain invariant. The final amount and payment method are recorded on the reservation.
+ * Closes play only after an authorized role confirms the final amount or explicitly waives it, per the play-session domain invariant. The final amount and payment method are recorded on the reservation, and gateway-settled methods are charged through the payment gateway before the session may close.
  */
 export const checkOutReservation = <ThrowOnError extends boolean = false>(
   options: Options<CheckOutReservationData, ThrowOnError>,

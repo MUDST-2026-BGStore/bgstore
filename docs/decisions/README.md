@@ -5,3 +5,4 @@
 - [ADR-0003: Modular monolith](0003-modular-monolith.md)
 - [ADR-0004: GitOps delivery](0004-gitops-delivery.md)
 - [ADR-0005: Application authorization policy](0005-application-authorization-policy.md)
+- [ADR-0006: Payment gateway seam](0006-payment-gateway-seam.md)

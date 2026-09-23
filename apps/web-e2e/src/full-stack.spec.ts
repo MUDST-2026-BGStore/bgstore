@@ -371,4 +371,39 @@ test.describe('real full-stack browser flows', () => {
       page.getByRole('button', { name: 'Check out' }).first(),
     ).toBeVisible();
   });
+
+  test('staff check out through the bogus gateway and read the settlement', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    requireFullStack();
+
+    await signIn(page, staffAccount);
+    await page.goto('/staff/sessions');
+
+    await page.getByRole('button', { name: 'Check out' }).first().click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('#checkout-amount').fill('240');
+    await dialog.locator('#checkout-method').selectOption('PromptPay');
+    await dialog.getByRole('button', { name: 'Close session' }).click();
+
+    // The dialog stays open and confirms the gateway settlement.
+    await expect(
+      dialog.getByRole('heading', { name: 'Session closed' }),
+    ).toBeVisible();
+    await expect(dialog.getByText('Total settled')).toBeVisible();
+    // Intl formats THB with a non-breaking space before the amount.
+    await expect(dialog.getByText(/240\.00/)).toBeVisible();
+    await expect(dialog.getByText('Gateway')).toBeVisible();
+    await expect(dialog.getByText(/^bogus-/)).toBeVisible();
+
+    await dialog.getByRole('button', { name: 'Done' }).click();
+    await expect(dialog).toBeHidden();
+    // The completed session left the queue, so nothing is in play anymore.
+    await expect(page.getByRole('button', { name: 'Check out' })).toHaveCount(
+      0,
+    );
+  });
 });

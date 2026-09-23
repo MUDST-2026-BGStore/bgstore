@@ -502,6 +502,19 @@ export type CheckoutReceiptResponse = {
   currency: 'THB';
   paymentMethod: PaymentMethod;
   paidAt: string;
+  payment?: PaymentRecordResponse;
+};
+
+export type PaymentRecordResponse = {
+  /**
+   * Name of the payment gateway that processed the charge, e.g. `bogus`.
+   */
+  gateway: string;
+  /**
+   * Gateway transaction reference for this charge.
+   */
+  reference: string;
+  paidAt: string;
 };
 
 export type SessionListResponse = {
@@ -1560,6 +1573,10 @@ export type CheckOutReservationErrors = {
    * The resource does not exist.
    */
   404: ProblemDetail;
+  /**
+   * The payment gateway declined the charge; the session stays open for a retry.
+   */
+  502: ProblemDetail;
 };
 
 export type CheckOutReservationError =
