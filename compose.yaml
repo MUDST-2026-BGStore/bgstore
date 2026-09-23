@@ -46,6 +46,9 @@ services:
       context: .
       dockerfile: infra/keycloak/Dockerfile
     image: bgstore-keycloak:local
+    # Cap the JVM heap: Keycloak runs at MaxRAMPercentage=70 and would otherwise
+    # size its heap against the whole host when no cgroup limit is set.
+    mem_limit: 1g
     command: ['start-dev', '--import-realm', '--health-enabled=true']
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
@@ -78,6 +81,10 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    # Cap the JVM heap: the image entrypoint runs at MaxRAMPercentage=75 and
+    # would otherwise size its heap against the whole host when no cgroup
+    # limit is set, starving local builds and tests.
+    mem_limit: 1g
     environment:
       DATABASE_URL: jdbc:postgresql://postgres:5432/bgstore
       POSTGRES_USER: ${POSTGRES_USER:-bgstore}
