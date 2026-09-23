@@ -128,6 +128,12 @@ install_git_hooks() {
   # The dependency install above skips lifecycle scripts, so the prepare script
   # never runs. Install Lefthook explicitly: without it a commit skips the
   # Prettier, ESLint and Spotless checks that CI enforces.
+  # Preserve user-managed hooks (for example an orb's commit-message hook)
+  # rather than replacing their global hooks path with repository hooks.
+  if [[ -n "$(git config --get core.hooksPath || true)" ]]; then
+    printf '    preserving configured core.hooksPath; skipping Lefthook installation\n'
+    return
+  fi
   "$mise_bin" exec -- pnpm exec lefthook install
 }
 

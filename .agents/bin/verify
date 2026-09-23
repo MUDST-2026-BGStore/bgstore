@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+scope="${1:-}"
+log_root="${XDG_CACHE_HOME:-$HOME/.cache}/bgstore/verify"
+run_id="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+log_file="$log_root/$run_id-$scope.log"
+
+usage() {
+  cat <<'EOF'
+Usage: .agents/bin/verify <scope>
+
+Scopes:
+  web       Vue lint, typecheck, and component tests
+  api       Gradle check (format, compile, tests, architecture, coverage)
+  contract  OpenAPI validation
+  deploy    Helm lint/render and Docker Compose rendering
+  e2e       Playwright tests against the mock-backed Vite preview
+  affected  Nx checks for projects affected relative to the default base
+  full      Formatting, all checks/builds, e2e, and delivery manifests
+EOF
+}
+
+case "$scope" in
+  web | api | contract | deploy | e2e | affected | full) ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac
+
+mkdir -p "$log_root"
+find "$log_root" -type f -name '*.log' -mtime +14 -delete 2>/dev/null || true
+ln -sfn "$(basename "$log_file")" "$log_root/latest.log"
+
+cd "$repo_root"
+export CI=1
+export NX_DAEMON=false
+export NX_TASKS_RUNNER_DYNAMIC_OUTPUT=false
+export GRADLE_OPTS="-Dorg.gradle.daemon=false ${GRADLE_OPTS:-}"
+export NO_COLOR=1
+
+cleanup_workers() {
+  # Nx's Gradle plugin can start a daemon even when direct Gradle invocations
+  # use --no-daemon. Verification is finite, so do not leave that worker idle.
+  apps/api/gradlew -p apps/api --stop >/dev/null 2>&1 || true
+}
+trap cleanup_workers EXIT
+
+run_step() {
+  local label="$1"
+  shift
+  local started=$SECONDS
+
+  printf '→ %s\n' "$label"
+  {
+    printf '\n### %s\n$' "$label"
+    printf ' %q' "$@"
+    printf '\n'
+  } >>"$log_file"
+
+  local status
+  if "$@" >>"$log_file" 2>&1; then
+    printf '✓ %s (%ss)\n' "$label" "$((SECONDS - started))"
+    return
+  else
+    status=$?
+  fi
+
+  printf '✗ %s failed (%ss)\n' "$label" "$((SECONDS - started))" >&2
+  printf '%s\n' "--- last 120 log lines ---" >&2
+  tail -n 120 "$log_file" >&2
+  printf '%s\n' "--- full log: $log_file ---" >&2
+  exit "$status"
+}
+
+verify_web() {
+  run_step 'Web lint, typecheck, and tests' \
+    pnpm nx run-many -t lint,typecheck,test -p @mudst-2026-bgstore/web
+}
+
+verify_api() {
+  run_step 'API Gradle check' apps/api/gradlew -p apps/api --no-daemon check
+}
+
+verify_contract() {
+  run_step 'OpenAPI contract validation' \
+    apps/api/gradlew -p apps/api --no-daemon openApiValidate
+}
+
+verify_deploy() {
+  run_step 'Helm chart lint' helm lint deploy/charts/bgstore
+  local environment
+  for environment in dev staging production; do
+    run_step "Render Helm environment: $environment" \
+      helm template bgstore deploy/charts/bgstore \
+      --namespace bgstore \
+      --values "deploy/environments/$environment.yaml"
+  done
+  run_step 'Docker Compose rendering' \
+    docker compose --env-file .env.example config --quiet
+}
+
+verify_e2e() {
+  run_step 'Playwright browser tests' pnpm e2e
+}
+
+verify_affected() {
+  run_step 'Affected lint, typecheck, tests, and checks' pnpm test:affected
+}
+
+verify_full() {
+  run_step 'Repository formatting' pnpm format:check
+  run_step 'Repository quality checks' pnpm check
+  run_step 'Production builds' pnpm build
+  verify_e2e
+  verify_deploy
+}
+
+printf 'BGStore verification: %s\n' "$scope"
+case "$scope" in
+  web) verify_web ;;
+  api) verify_api ;;
+  contract) verify_contract ;;
+  deploy) verify_deploy ;;
+  e2e) verify_e2e ;;
+  affected) verify_affected ;;
+  full) verify_full ;;
+esac
+printf 'PASS: %s\nFull log: %s\n' "$scope" "$log_file"

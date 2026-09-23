@@ -1,61 +1,36 @@
-# Agent instructions
+# BGStore agent guide
 
-These instructions apply to the whole repository. Read [the development guide](docs/development-guide.md) before making changes; it contains the human-facing map and workflow.
+Read [the development guide](docs/development-guide.md) when orienting to the repository and [the domain model](docs/domain-model.md) before changing business behavior. Read the relevant ADR under `docs/decisions` for authentication, module boundaries, architecture, or delivery changes.
 
-## Project shape
+## Architecture and boundaries
 
-- This is a pnpm + Nx monorepo. Nx coordinates tasks; native tools remain authoritative.
-- `apps/web` is the Vue 3/Vite frontend.
-- `apps/api` is the Java 21/Spring Boot modular monolith built by Gradle.
-- `packages/contracts/openapi.yaml` is the HTTP contract source of truth.
-- `deploy/charts`, `deploy/environments`, `deploy/argocd`, and `deploy/platform` are the Kubernetes/GitOps boundary.
-- `infra/local` and `infra/observability` define local dependencies and telemetry.
+- pnpm and Nx coordinate the monorepo; Gradle, Vite/Vitest, Playwright, Helm, and Docker Compose remain authoritative within their ecosystems.
+- `apps/api`: Java 21/Spring Boot BFF and Spring Modulith modular monolith. OIDC tokens remain server-side; the browser uses the application session.
+- `apps/web`: Vue 3/Vite SPA and generated OpenAPI client. `apps/web-e2e` owns Playwright browser coverage.
+- `packages/contracts/openapi.yaml`: HTTP contract source of truth. Change it before API implementations or consumers.
+- `deploy`: Helm application chart, environment values, Argo CD, and platform manifests. `infra`: local dependencies, Keycloak assets, and observability configuration.
+- Preserve English/Thai support, Bangkok/THB assumptions, and the in-store-only session scope unless requirements explicitly change.
 
-## Before editing
+More specific instructions live in `apps/api/AGENTS.md`, `apps/web/AGENTS.md`, `deploy/AGENTS.md`, and `infra/AGENTS.md`; they apply only while working in those trees.
 
-1. Inspect the relevant files and existing tests; do not assume a feature is absent until searching with `rg`.
-2. Read `docs/domain-model.md` for terminology and invariants.
-3. Read the relevant ADR in `docs/decisions` when changing architecture, authentication, module boundaries, or delivery.
-4. Keep the requested scope focused. Do not rewrite unrelated user changes or generated output.
+## Generated and persistent data
 
-## Implementation rules
-
-- Keep domain behavior inside Spring Modulith modules. Controllers and adapters should be thin.
-- Keep the backend-for-frontend security model: OIDC tokens stay server-side; browser code uses the secure application session.
-- Change `packages/contracts/openapi.yaml` before changing generated clients or contract-generated server code.
-- Never hand-edit `apps/web/src/generated/api`; regenerate it from the OpenAPI contract.
-- Add append-only Flyway migrations for shared database changes. Never modify an already-applied migration.
-- Preserve English/Thai support, Bangkok/THB assumptions, and the current in-store-only session scope unless requirements change.
-- Prefer existing dependencies and native project tooling over ad-hoc scripts or monorepo workarounds.
-- Keep local Keycloak accounts, passwords, and Compose secrets clearly marked as test/local-only. Never introduce production credentials.
+- Generate `apps/web/src/generated/api` with `pnpm nx run contracts:generate`; never hand-edit it.
+- Gradle creates disposable OpenAPI and jOOQ sources under `apps/api/build/generated`.
+- Add append-only Flyway migrations under `apps/api/src/main/resources/db/migration`; do not rewrite a migration used by a shared environment.
+- Change `pnpm-lock.yaml` only with dependency manifests. Do not commit build output, reports, local `.env*`, rendered Helm YAML, or caches.
 
 ## Verification
 
-Run the narrowest useful checks while iterating, then run the full gates before handoff:
+Use `.agents/bin/verify <scope>` for concise output and a full cached log. Available scopes are `web`, `api`, `contract`, `deploy`, `e2e`, `affected`, and `full`.
 
-```bash
-pnpm check
-pnpm build
-pnpm e2e
-helm lint deploy/charts/bgstore
-docker compose --env-file .env.example config --quiet
-```
+- One web test: `pnpm nx test @mudst-2026-bgstore/web --run src/path/file.spec.ts`
+- One API test/class: `apps/api/gradlew -p apps/api test --tests 'fully.qualified.TestName'`
+- Contract change: `.agents/bin/verify contract`, regenerate the web client, and inspect its diff.
+- Deployment/Compose change: `.agents/bin/verify deploy`.
+- Changed projects during iteration: `.agents/bin/verify affected`.
+- Handoff gate: `.agents/bin/verify full` (format, checks, builds, mock-backed browser tests, Helm lint/render for every environment, and Compose rendering).
 
-For API changes, also run the relevant Gradle task (for example `apps/api/gradlew -p apps/api test`). Use real Testcontainers integration tests when behavior crosses PostgreSQL or Redis-compatible session storage. With Lima, follow `docs/runbooks/local-development.md` for `DOCKER_HOST` and Ryuk settings.
+API checks use Testcontainers. In an Amp orb, start the declared Docker daemon explicitly with `amp orb services ensure`; elsewhere, provide a working Docker daemon and follow `docs/runbooks/local-development.md` for Lima. Run the production-shaped full-stack browser path from `.github/workflows/ci.yml` when authentication, proxies, containers, or cross-process behavior changes.
 
-Do not hide, skip, or weaken a failing test to make a check green. If an environment limitation prevents a check, report the exact command and reason.
-
-## Files and formatting
-
-- Use `apply_patch` for intentional source edits.
-- Run Prettier for supported JS/TS/Vue/Markdown/YAML files and Spotless for Java/Gradle files.
-- Do not commit `dist`, `build`, `.nx`, test reports, local `.env`, or dependency caches.
-- Do not edit lockfiles unless dependency manifests changed.
-- Keep documentation links and commands valid after renames.
-
-## Git and handoff
-
-- Use Conventional Commits (`feat`, `fix`, `docs`, `test`, `refactor`, `build`, `ci`, `chore`, etc.).
-- Let Lefthook run; do not bypass commit or push hooks with `--no-verify`.
-- Before handoff, report changed files, checks run and their results, remaining limitations, and any required provider credentials or deployment decisions.
-- Do not create external resources, publish images, alter cluster state, or push code unless the user explicitly requested that action.
+Use Prettier for supported web/docs/config files and Gradle Spotless for Java/Kotlin Gradle files. Do not bypass configured Git hooks; use Conventional Commits.
