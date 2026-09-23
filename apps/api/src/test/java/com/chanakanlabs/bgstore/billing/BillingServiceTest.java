@@ -73,22 +73,32 @@ class BillingServiceTest {
   }
 
   @Test
-  void settleFailsWithTheDeclineReasonAsAProblemCodeWhenTheCardIsDeclined() {
-    BillingService service =
-        service(
-            List.of(
-                charging(
-                    PaymentResult.declined(
-                        "declining", Failure.CARD_DECLINED, "insufficient_funds"))));
+  void settleFailsWithPaymentRequiredAndTheDeclineReasonWhenTheCardIsDeclined() {
+    for (String reason :
+        new String[] {
+          "insufficient_funds",
+          "stolen_card",
+          "cvv_mismatch",
+          "invalid_card_number",
+          "invalid_cvv",
+          "invalid_expiry",
+          "card_expired"
+        }) {
+      BillingService service =
+          service(
+              List.of(
+                  charging(PaymentResult.declined("declining", Failure.CARD_DECLINED, reason))));
 
-    assertThatThrownBy(() -> service.settle("res-1", 240, PaymentMethod.BANK_TRANSFER, null))
-        .isInstanceOfSatisfying(
-            ResponseStatusException.class,
-            e -> {
-              assertThat(e.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
-              assertThat(e.getBody().getProperties().get("code")).isEqualTo("insufficient_funds");
-            })
-        .hasMessageContaining("insufficient_funds");
+      assertThatThrownBy(() -> service.settle("res-1", 240, PaymentMethod.BANK_TRANSFER, null))
+          .isInstanceOfSatisfying(
+              ResponseStatusException.class,
+              e -> {
+                assertThat(e.getStatusCode()).isEqualTo(HttpStatus.PAYMENT_REQUIRED);
+                assertThat(e.getBody().getTitle()).isEqualTo("Payment Required");
+                assertThat(e.getBody().getProperties().get("code")).isEqualTo(reason);
+              })
+          .hasMessageContaining("The card was declined: " + reason + ".");
+    }
     verify(payments, org.mockito.Mockito.never()).save(any(PaymentEntity.class));
   }
 
@@ -106,6 +116,7 @@ class BillingServiceTest {
             ResponseStatusException.class,
             e -> {
               assertThat(e.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+              assertThat(e.getBody().getTitle()).isEqualTo("Bad Gateway");
               assertThat(e.getBody().getProperties().get("code")).isEqualTo("gateway_unavailable");
             })
         .hasMessageContaining("could not process the charge");

@@ -591,7 +591,7 @@ export type ProblemDetail = {
   detail?: string;
   instance?: string;
   /**
-   * Machine-readable detail code when one applies, e.g. the payment decline reason `insufficient_funds` or `gateway_unavailable` on a 502 checkout response.
+   * Machine-readable detail code when one applies, e.g. the payment decline reason `insufficient_funds` on a 402 checkout response, or `gateway_unavailable` on its 502 gateway-failure response.
    */
   code?: string;
   [key: string]: unknown;
@@ -1617,6 +1617,10 @@ export type CheckOutReservationErrors = {
    */
   401: ProblemDetail;
   /**
+   * The card was declined; the session stays open for a retry. The problem carries a `code` property naming the decline reason — for example `insufficient_funds`, `stolen_card`, `cvv_mismatch`, `invalid_card_number`, `invalid_cvv`, `invalid_expiry`, or `card_expired`.
+   */
+  402: ProblemDetail;
+  /**
    * The authenticated user is not allowed to perform this action.
    */
   403: ProblemDetail;
@@ -1625,7 +1629,7 @@ export type CheckOutReservationErrors = {
    */
   404: ProblemDetail;
   /**
-   * The payment gateway declined the charge; the session stays open for a retry. The problem carries a `code` property naming the decline reason — for example `insufficient_funds`, `stolen_card`, `cvv_mismatch`, `invalid_card_number`, `invalid_cvv`, `card_expired` for a refused card, or `gateway_unavailable` when the gateway could not process the charge and retrying may succeed.
+   * The payment gateway could not process the charge and retrying may succeed; the session stays open for a retry. The problem carries a `code` property naming the reason, `gateway_unavailable`.
    */
   502: ProblemDetail;
 };

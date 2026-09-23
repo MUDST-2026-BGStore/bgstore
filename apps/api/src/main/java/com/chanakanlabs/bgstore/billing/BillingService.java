@@ -72,8 +72,10 @@ public class BillingService {
   }
 
   /**
-   * Turns a declined charge into a 502 whose problem detail carries the machine-readable decline
-   * reason as a {@code code} property, so a client can show a localized message for it.
+   * Turns a declined charge into a problem response. A refused card is a business outcome of the
+   * charge itself, so it maps to 402 Payment Required; a gateway failure stays a 502 Bad Gateway
+   * the client may retry. Both carry the machine-readable decline reason as a {@code code}
+   * property, so a client can show a localized message for it.
    */
   private static ResponseStatusException declined(PaymentGateway.PaymentResult result) {
     String reason = result.declineReason() == null ? "unknown" : result.declineReason();
@@ -86,7 +88,7 @@ public class BillingService {
     } else {
       exception =
           new ResponseStatusException(
-              HttpStatus.BAD_GATEWAY, "The card was declined: " + reason + ".");
+              HttpStatus.PAYMENT_REQUIRED, "The card was declined: " + reason + ".");
     }
     exception.getBody().setProperty("code", reason);
     return exception;

@@ -829,14 +829,22 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '402':
+          description: >-
+            The card was declined; the session stays open for a retry. The
+            problem carries a `code` property naming the decline reason — for
+            example `insufficient_funds`, `stolen_card`, `cvv_mismatch`,
+            `invalid_card_number`, `invalid_cvv`, `invalid_expiry`, or
+            `card_expired`.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
         '502':
           description: >-
-            The payment gateway declined the charge; the session stays open for
-            a retry. The problem carries a `code` property naming the decline
-            reason — for example `insufficient_funds`, `stolen_card`,
-            `cvv_mismatch`, `invalid_card_number`, `invalid_cvv`,
-            `card_expired` for a refused card, or `gateway_unavailable` when the
-            gateway could not process the charge and retrying may succeed.
+            The payment gateway could not process the charge and retrying may
+            succeed; the session stays open for a retry. The problem carries a
+            `code` property naming the reason, `gateway_unavailable`.
           content:
             application/json:
               schema:
@@ -2043,8 +2051,8 @@ components:
           type: string
           description: >-
             Machine-readable detail code when one applies, e.g. the payment
-            decline reason `insufficient_funds` or `gateway_unavailable` on a
-            502 checkout response.
+            decline reason `insufficient_funds` on a 402 checkout response, or
+            `gateway_unavailable` on its 502 gateway-failure response.
     FieldError:
       type: object
       additionalProperties: false

@@ -309,12 +309,18 @@ describe('SessionConsolePage', () => {
     wrapper.unmount();
   });
 
-  it('keeps the checkout open when the gateway declines the charge', async () => {
+  it('keeps the checkout open when the gateway fails the charge', async () => {
     stubApi([
       sessionsHandler,
       route(
         '/reservations/res-playing/check-out',
-        { status: 502, body: {} },
+        {
+          status: 502,
+          body: {
+            code: 'gateway_unavailable',
+            detail: 'The payment gateway could not process the charge; please retry.',
+          },
+        },
         'POST',
       ),
     ]);
@@ -326,7 +332,7 @@ describe('SessionConsolePage', () => {
     await flushPromises();
 
     expect(wrapper.get('[role="alert"]').text()).toContain(
-      'could not be closed',
+      'temporarily unavailable',
     );
     // The confirmed amount is still on the form for the retry.
     expect(wrapper.get<HTMLInputElement>('#checkout-amount').element.value).toBe(

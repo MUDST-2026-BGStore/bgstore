@@ -224,7 +224,8 @@ class PlaySessionApiIntegrationTest {
                         + "\"expiryMonth\":12,\"expiryYear\":2029}}")
                 .with(csrf())
                 .with(staffLogin(STAFF)))
-        .andExpect(status().isBadGateway())
+        .andExpect(status().isPaymentRequired())
+        .andExpect(jsonPath("$.title").value("Payment Required"))
         .andExpect(jsonPath("$.code").value("insufficient_funds"));
 
     assertThat(reservationStatus("res-decline")).isEqualTo("CheckedIn");
