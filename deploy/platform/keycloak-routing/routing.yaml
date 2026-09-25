@@ -9,4 +9,4 @@ spec:
     - { name: public, namespace: gateway }
   hostnames: [auth.devopsandbox.chanakanlabs.com]
   rules:
-    - backendRefs: [{ name: keycloakx-http, port: 80 }]
+    - backendRefs: [{ name: keycloak-keycloakx-http, port: 80 }]
