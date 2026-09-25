@@ -29,7 +29,7 @@ config:
   redisHost: bgstore-valkey.bgstore.svc.cluster.local
   keycloakPublicUrl: https://auth.devopsandbox.chanakanlabs.com
   keycloakInternalUrl: http://keycloakx-http.keycloak.svc.cluster.local:80
-  otelEndpoint: http://otel-collector-opentelemetry-collector.observability.svc:4318
+  otelEndpoint: http://otel-collector.observability.svc.cluster.local:4318
   traceSamplingProbability: '0.1'
 
 secret:
