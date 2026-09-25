@@ -245,6 +245,7 @@ public class ReservationEntity {
         totalPrice,
         canCancel,
         thumbnailUrl,
+        null,
         createdAt);
   }
 }

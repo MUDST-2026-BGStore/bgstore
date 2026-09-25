@@ -447,6 +447,10 @@ export type ReservationResponse = {
   totalPrice: number;
   canCancel: boolean;
   thumbnailUrl?: string;
+  /**
+   * The branch the reservation belongs to; set on staff-facing lists only.
+   */
+  branchName?: string;
 };
 
 export type ReservationListResponse = {
@@ -1413,6 +1417,49 @@ export type GetReservationAvailabilityResponses = {
 
 export type GetReservationAvailabilityResponse =
   GetReservationAvailabilityResponses[keyof GetReservationAvailabilityResponses];
+
+export type ListStaffReservationsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    status?: ReservationStatus;
+    /**
+     * Filter to one branch by name; must be inside the caller's scope.
+     */
+    branch?: string;
+    page?: number;
+    pageSize?: number;
+  };
+  url: '/reservations/staff';
+};
+
+export type ListStaffReservationsErrors = {
+  /**
+   * The request is invalid.
+   */
+  400: ProblemDetail;
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type ListStaffReservationsError =
+  ListStaffReservationsErrors[keyof ListStaffReservationsErrors];
+
+export type ListStaffReservationsResponses = {
+  /**
+   * A paginated list of reservations ordered by booking date and slot.
+   */
+  200: ReservationListResponse;
+};
+
+export type ListStaffReservationsResponse =
+  ListStaffReservationsResponses[keyof ListStaffReservationsResponses];
 
 export type GetReservationData = {
   body?: never;

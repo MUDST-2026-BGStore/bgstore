@@ -24,6 +24,8 @@ const staffWorkspaceRoutes = new Set([
   'games-edit',
   'branches',
   'user-profile',
+  'staff-sessions',
+  'staff-reservations',
 ]);
 
 const usesStaffWorkspace = computed(

@@ -45,6 +45,7 @@ class ReservationControllerTest {
           40,
           true,
           "/images/table-sample.png",
+          null,
           OffsetDateTime.now(ZoneOffset.UTC));
 
   @BeforeEach
@@ -101,6 +102,7 @@ class ReservationControllerTest {
             40,
             false,
             "/images/table-sample.png",
+            null,
             OffsetDateTime.now(ZoneOffset.UTC));
 
     when(service.cancelReservation("res-1")).thenReturn(cancelledRecord);

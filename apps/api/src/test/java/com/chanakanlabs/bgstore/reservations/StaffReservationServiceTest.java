@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.chanakanlabs.bgstore.branches.Branch;
@@ -33,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -203,6 +206,97 @@ class StaffReservationServiceTest {
     assertThat(result.clientSubject()).isEqualTo("client-123");
     assertThat(result.customerName()).isEqualTo("Jane Doe");
     verify(accessPolicy, never()).requireBranch(any());
+  }
+
+  @Test
+  void staffReservationsRequiresStaffOrManager() {
+    doThrow(new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden"))
+        .when(accessPolicy)
+        .requireStaffOrManager();
+
+    assertThatThrownBy(() -> service.staffReservations(null, null, 1, 10))
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            e -> assertThat(e.getStatusCode()).isEqualTo(HttpStatus.FORBIDDEN));
+    verifyNoInteractions(reservations);
+  }
+
+  @Test
+  void staffReservationsScopesToAssignedBranchesAndNamesTheBranch() {
+    var otherBranchId = UUID.randomUUID();
+    when(reservations.findAllOrderByReservationDateAscTimeSlotAsc())
+        .thenReturn(
+            List.of(
+                reservation("r-1", BRANCH_ID, "Reserved"),
+                reservation("r-2", otherBranchId, "Reserved"),
+                reservation("r-3", BRANCH_ID, "Completed")));
+    when(accessPolicy.canAccessBranch(BRANCH_ID)).thenReturn(true);
+    when(accessPolicy.canAccessBranch(otherBranchId)).thenReturn(false);
+    when(branches.findById(BRANCH_ID))
+        .thenReturn(
+            Optional.of(
+                new Branch(
+                    BRANCH_ID, "Central Rama II", null, LocalTime.of(9, 0), LocalTime.of(19, 0))));
+
+    var result = service.staffReservations(null, null, 1, 10);
+
+    verify(accessPolicy).requireStaffOrManager();
+    assertThat(result.items()).hasSize(2);
+    assertThat(result.items()).allMatch(item -> item.branchName().equals("Central Rama II"));
+    assertThat(result.items().stream().map(ReservationRecordData::id))
+        .containsExactly("r-1", "r-3");
+    assertThat(result.total()).isEqualTo(2);
+  }
+
+  @Test
+  void staffReservationsFiltersByStatusAndBranchAndPaginates() {
+    var otherBranchId = UUID.randomUUID();
+    when(reservations.findAllOrderByReservationDateAscTimeSlotAsc())
+        .thenReturn(
+            List.of(
+                reservation("r-1", BRANCH_ID, "Reserved"),
+                reservation("r-2", BRANCH_ID, "Reserved"),
+                reservation("r-3", otherBranchId, "Reserved"),
+                reservation("r-4", BRANCH_ID, "Completed")));
+    when(accessPolicy.canAccessBranch(any())).thenReturn(true);
+    when(branches.findById(BRANCH_ID))
+        .thenReturn(
+            Optional.of(
+                new Branch(
+                    BRANCH_ID, "Central Rama II", null, LocalTime.of(9, 0), LocalTime.of(19, 0))));
+
+    var result = service.staffReservations("Reserved", "Central Rama II", 2, 1);
+
+    assertThat(result.items()).hasSize(1);
+    assertThat(result.items().getFirst().id()).isEqualTo("r-2");
+    assertThat(result.total()).isEqualTo(2);
+    assertThat(result.page()).isEqualTo(2);
+    assertThat(result.totalPages()).isEqualTo(2);
+  }
+
+  private static ReservationEntity reservation(String id, UUID branchId, String status) {
+    return new ReservationEntity(
+        id,
+        branchId,
+        "client-123",
+        "Table " + TABLE_ID,
+        BOOKING_DATE.toString(),
+        "10:00–12:00",
+        4,
+        TABLE_ID,
+        "Table 6",
+        6,
+        0,
+        status,
+        "Jane Doe",
+        "088-888-8888",
+        "-",
+        "-",
+        0,
+        0,
+        true,
+        null,
+        OffsetDateTime.now(ZoneOffset.UTC));
   }
 
   private static TableRecordData table(long id, String name, UUID branchId, int capacity) {

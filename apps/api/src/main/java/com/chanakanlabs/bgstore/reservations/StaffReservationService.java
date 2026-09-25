@@ -19,6 +19,7 @@ import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -75,6 +76,36 @@ public class StaffReservationService {
                 })
             .toList();
     return new ReservationAvailabilityResponse(result);
+  }
+
+  @Transactional(readOnly = true)
+  public ReservationService.PageResult<ReservationRecordData> staffReservations(
+      @Nullable String status, @Nullable String branchName, int page, int pageSize) {
+    accessPolicy.requireStaffOrManager();
+    UUID branchId = branchName == null ? null : branch(branchName).id();
+    List<ReservationRecordData> scoped =
+        reservations.findAllOrderByReservationDateAscTimeSlotAsc().stream()
+            // A manager sees every branch; staff see only the ones they are assigned to.
+            .filter(reservation -> accessPolicy.canAccessBranch(reservation.branchId()))
+            .filter(reservation -> status == null || status.equals(reservation.status()))
+            .filter(reservation -> branchId == null || branchId.equals(reservation.branchId()))
+            .map(this::withBranchName)
+            .toList();
+    int from = Math.min(Math.max(0, (page - 1) * pageSize), scoped.size());
+    int to = Math.min(from + pageSize, scoped.size());
+    int totalPages = Math.max(1, (int) Math.ceil((double) scoped.size() / pageSize));
+    return new ReservationService.PageResult<>(
+        scoped.subList(from, to), scoped.size(), Math.max(1, page), pageSize, totalPages);
+  }
+
+  /** The record's branch name; a reservation always belongs to a known branch. */
+  private ReservationRecordData withBranchName(ReservationEntity reservation) {
+    String name =
+        branches
+            .findById(reservation.branchId())
+            .map(Branch::name)
+            .orElseThrow(() -> new IllegalStateException("Reservation has no branch."));
+    return reservation.toRecord().withBranchName(name);
   }
 
   public ReservationRecordData create(CreateReservationRequest request) {

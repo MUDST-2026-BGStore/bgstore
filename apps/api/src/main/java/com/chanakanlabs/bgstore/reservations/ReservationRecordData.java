@@ -23,4 +23,32 @@ public record ReservationRecordData(
     int totalPrice,
     boolean canCancel,
     @Nullable String thumbnailUrl,
-    OffsetDateTime createdAt) {}
+    @Nullable String branchName,
+    OffsetDateTime createdAt) {
+
+  /** A staff-facing copy of the record naming the branch it belongs to. */
+  public ReservationRecordData withBranchName(@Nullable String branchName) {
+    return new ReservationRecordData(
+        id,
+        clientSubject,
+        title,
+        date,
+        timeSlot,
+        partySize,
+        tableId,
+        tableName,
+        seats,
+        ratePerHour,
+        status,
+        customerName,
+        phoneNumber,
+        checkInTime,
+        actualCheckOut,
+        overtimeMinutes,
+        totalPrice,
+        canCancel,
+        thumbnailUrl,
+        branchName,
+        createdAt);
+  }
+}

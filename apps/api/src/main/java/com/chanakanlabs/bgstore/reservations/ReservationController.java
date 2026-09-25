@@ -66,6 +66,22 @@ public class ReservationController implements ReservationsApi {
   }
 
   @Override
+  public ResponseEntity<ReservationListResponse> listStaffReservations(
+      @Nullable ReservationStatus status, @Nullable String branch, Integer page, Integer pageSize) {
+    String statusString = status != null ? status.getValue() : null;
+    int pageNum = page != null ? page : 1;
+    int size = pageSize != null ? pageSize : 10;
+
+    var result = staffReservations.staffReservations(statusString, branch, pageNum, size);
+    List<ReservationResponse> items =
+        result.items().stream().map(ReservationController::toResponse).toList();
+    ReservationListResponse response =
+        new ReservationListResponse(
+            items, result.total(), result.page(), result.pageSize(), result.totalPages());
+    return ResponseEntity.ok(response);
+  }
+
+  @Override
   public ResponseEntity<ReservationResponse> getReservation(String reservationId) {
     return ResponseEntity.ok(toResponse(reservations.getReservation(reservationId)));
   }
@@ -119,6 +135,9 @@ public class ReservationController implements ReservationsApi {
             data.canCancel());
     if (data.thumbnailUrl() != null) {
       res.setThumbnailUrl(data.thumbnailUrl());
+    }
+    if (data.branchName() != null) {
+      res.setBranchName(data.branchName());
     }
     return res;
   }

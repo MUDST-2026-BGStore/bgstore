@@ -78,6 +78,9 @@ import type {
   ListStaffBranchAssignmentsData,
   ListStaffBranchAssignmentsErrors,
   ListStaffBranchAssignmentsResponses,
+  ListStaffReservationsData,
+  ListStaffReservationsErrors,
+  ListStaffReservationsResponses,
   ListTablesData,
   ListTablesErrors,
   ListTablesResponses,
@@ -671,6 +674,34 @@ export const getReservationAvailability = <
       },
     ],
     url: '/reservations/availability',
+    ...options,
+  });
+
+/**
+ * List the branch's reservations for staff operations. Staff or manager only.
+ *
+ * Returns the reservations in the branches the caller may access — every branch for a manager, only assigned branches for a staff member — so staff can review what is booked rather than only what is in play.
+ */
+export const listStaffReservations = <ThrowOnError extends boolean = false>(
+  options?: Options<ListStaffReservationsData, ThrowOnError>,
+): RequestResult<
+  ListStaffReservationsResponses,
+  ListStaffReservationsErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    ListStaffReservationsResponses,
+    ListStaffReservationsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/reservations/staff',
     ...options,
   });
 

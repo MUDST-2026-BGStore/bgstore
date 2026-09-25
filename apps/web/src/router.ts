@@ -95,6 +95,19 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('./pages/sessions/SessionConsolePage.vue'),
     meta: { requiresAuth: true },
   },
+  // Staff review the branch's bookings here; the focused wizard creates one.
+  {
+    path: '/staff/reservations',
+    name: 'staff-reservations',
+    component: RoleView,
+    props: {
+      staff: defineAsyncComponent(
+        () => import('./pages/reservations/StaffReservationsPage.vue'),
+      ),
+      client: AccessDeniedView,
+    },
+    meta: { requiresAuth: true },
+  },
   {
     path: '/history',
     name: 'history',

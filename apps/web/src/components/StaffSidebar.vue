@@ -47,7 +47,7 @@ const items: StaffNavigationItem[] = [
     label: 'staff.nav.reservations',
     icon: navHistory,
     activeIcon: navHistory,
-    to: '/staff/reservations/new',
+    to: '/staff/reservations',
   },
   {
     key: 'sessions',

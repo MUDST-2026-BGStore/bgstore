@@ -5,12 +5,14 @@ import {
   getReservationAvailability,
   getReservation,
   listReservations,
+  listStaffReservations,
   listClients,
 } from '../generated/api/sdk.gen';
 import type {
   CancelReservationResponse,
   GetReservationResponse,
   ListReservationsData,
+  ListStaffReservationsData,
   ReservationListResponse,
   CreateReservationRequest,
 } from '../generated/api/types.gen';
@@ -19,6 +21,13 @@ export type ReservationListQuery = NonNullable<ListReservationsData['query']>;
 
 /** The history design shows four records per page. */
 export const reservationsPageSize = 4;
+
+/** The staff list keeps more rows on screen for scanning a branch's bookings. */
+export const staffReservationsPageSize = 10;
+
+export type StaffReservationListQuery = NonNullable<
+  ListStaffReservationsData['query']
+>;
 
 export const reservationAvailabilityQueryOptions = (query: {
   branch: string;
@@ -64,6 +73,26 @@ export const reservationsQueryOptions = (query: ReservationListQuery) =>
       return data;
     },
     placeholderData: (previous) => previous,
+  });
+
+/**
+ * The staff view of the same lifecycle: every reservation in the caller's
+ * branch scope, so staff can review what is booked, not only what is in play.
+ */
+export const staffReservationsQueryOptions = (
+  query: StaffReservationListQuery,
+) =>
+  queryOptions({
+    queryKey: ['reservations', 'staff', query] as const,
+    queryFn: async (): Promise<ReservationListResponse> => {
+      const { data } = await listStaffReservations({
+        query,
+        throwOnError: true,
+      });
+      return data;
+    },
+    placeholderData: (previous) => previous,
+    retry: false,
   });
 
 export const reservationQueryOptions = (reservationId: string) =>

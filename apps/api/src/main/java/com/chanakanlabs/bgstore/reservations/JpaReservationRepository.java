@@ -43,4 +43,8 @@ interface JpaReservationRepository extends JpaRepository<ReservationEntity, Stri
   /** The operational queue: reservations waiting to start and the ones in play. */
   List<ReservationEntity> findByStatusInOrderByReservationDateAscTimeSlotAsc(
       Collection<String> statuses);
+
+  /** Every reservation, soonest booking first; staff lists narrow it by scope. */
+  @Query("SELECT r FROM ReservationEntity r ORDER BY r.reservationDate ASC, r.timeSlot ASC")
+  List<ReservationEntity> findAllOrderByReservationDateAscTimeSlotAsc();
 }
