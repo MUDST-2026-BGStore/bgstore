@@ -1,5 +1,5 @@
 global:
-  domain: bgstore.dev.chanakanlabs.com
+  domain: bgstore.devopsandbox.chanakanlabs.com
 replicas: { api: 1, web: 1 }
 autoscaling: { enabled: false }
 # The dev cluster is single-node with a Klipper ServiceLB that allows only one

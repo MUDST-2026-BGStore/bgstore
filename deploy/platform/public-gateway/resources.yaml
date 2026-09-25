@@ -20,7 +20,7 @@ spec:
     - name: bgstore-dev
       protocol: HTTPS
       port: 443
-      hostname: bgstore.dev.chanakanlabs.com
+      hostname: bgstore.devopsandbox.chanakanlabs.com
       tls:
         mode: Terminate
         certificateRefs: [{ kind: Secret, name: bgstore-dev-tls }]
@@ -28,7 +28,7 @@ spec:
     - name: keycloak
       protocol: HTTPS
       port: 443
-      hostname: auth.bgstore.chanakanlabs.com
+      hostname: auth.devopsandbox.chanakanlabs.com
       tls:
         mode: Terminate
         certificateRefs: [{ kind: Secret, name: keycloak-tls }]
@@ -48,7 +48,7 @@ metadata: { name: bgstore-dev-tls, namespace: gateway }
 spec:
   secretName: bgstore-dev-tls
   issuerRef: { name: letsencrypt-production, kind: ClusterIssuer }
-  dnsNames: [bgstore.dev.chanakanlabs.com]
+  dnsNames: [bgstore.devopsandbox.chanakanlabs.com]
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -56,7 +56,7 @@ metadata: { name: keycloak-tls, namespace: gateway }
 spec:
   secretName: keycloak-tls
   issuerRef: { name: letsencrypt-production, kind: ClusterIssuer }
-  dnsNames: [auth.bgstore.chanakanlabs.com]
+  dnsNames: [auth.devopsandbox.chanakanlabs.com]
 ---
 apiVersion: cert-manager.io/v1
 kind: Certificate

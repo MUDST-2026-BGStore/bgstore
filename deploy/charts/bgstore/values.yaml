@@ -27,7 +27,7 @@ resources:
 config:
   databaseUrl: jdbc:postgresql://bgstore-postgresql-rw:5432/bgstore
   redisHost: bgstore-valkey
-  keycloakPublicUrl: https://auth.bgstore.chanakanlabs.com
+  keycloakPublicUrl: https://auth.devopsandbox.chanakanlabs.com
   keycloakInternalUrl: http://keycloakx-http.keycloak.svc.cluster.local:80
   otelEndpoint: http://otel-collector-opentelemetry-collector.observability.svc:4318
   traceSamplingProbability: '0.1'
