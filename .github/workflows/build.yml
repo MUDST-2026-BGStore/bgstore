@@ -105,4 +105,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ steps.pr.outputs.pull-request-number }}
-        run: gh pr merge "$PR" --auto --squash
+        # Wait for the branch-protection checks on the PR, then merge. Auto-merge
+        # would need the repo-wide "allow auto-merge" setting; polling the merge
+        # state keeps the whole loop in one workflow run. BLOCKED means required
+        # checks are still pending; DIRTY/UNSTABLE mean a real failure.
+        run: |
+          for _ in $(seq 1 40); do
+            state="$(gh pr view "$PR" --json mergeStateStatus --jq .mergeStateStatus)"
+            case "$state" in
+              CLEAN|HAS_HOOKS) break ;;
+              DIRTY|UNSTABLE)
+                echo "::error::PR #$PR cannot merge (mergeStateStatus=$state)"
+                gh pr checks "$PR" || true
+                exit 1 ;;
+              *) sleep 30 ;;
+            esac
+          done
+          gh pr view "$PR" --json mergeStateStatus --jq .mergeStateStatus
+          gh pr merge "$PR" --squash --delete-branch
