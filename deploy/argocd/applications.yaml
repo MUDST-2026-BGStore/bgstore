@@ -10,8 +10,11 @@ spec:
     - list:
         elements:
           - { environment: dev, namespace: bgstore-dev }
-          - { environment: staging, namespace: bgstore-staging }
-          - { environment: production, namespace: bgstore }
+          # staging and production are disabled while the cluster is the
+          # single-node devopsandbox instance (m7g.xlarge, 4 vCPU / 16 GiB);
+          # re-enable them when a multi-env cluster exists.
+          # - { environment: staging, namespace: bgstore-staging }
+          # - { environment: production, namespace: bgstore }
   template:
     metadata:
       name: 'bgstore-{{ .environment }}'
