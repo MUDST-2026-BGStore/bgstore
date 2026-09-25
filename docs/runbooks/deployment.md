@@ -21,7 +21,7 @@ Before deploying, choose the Kubernetes provider, DNS provider, storage class, s
 
 ## Adding staging or production
 
-1. Add `deploy/environments/staging.yaml` or `production.yaml`; the ApplicationSet creates the Application automatically (namespace `bgstore-<environment>`).
+1. Add `deploy/environments/staging/` or `production/`; the ApplicationSet creates the Application automatically (namespace `bgstore-<environment>`).
 2. Extend the release workflow to promote the signed release digest to those environments through pull requests, per ADR-0004. Dev keeps tracking trunk images.
 3. Point the new environment domains at the gateway and verify certificate readiness.
 

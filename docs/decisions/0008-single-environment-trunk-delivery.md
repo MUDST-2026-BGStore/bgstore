@@ -13,8 +13,9 @@ unused machinery — a half-workaround rather than an intentional design.
 ## Decision
 
 - One live environment: **dev**, tracked by the `bgstore` ApplicationSet. The
-  ApplicationSet generates one Application per values file in
-  `deploy/environments/`; today that is `dev.yaml` only.
+  ApplicationSet generates one Application per environment directory in
+  `deploy/environments/` (each holding a `values.yaml`); today that is
+  `dev/` only.
 - **Trunk builds deploy themselves.** Every push to main builds `bgstore-api`
   and `bgstore-web` under a content-addressed `main-<sha>` tag (trunk-images
   workflow). The ApplicationSet pins `images.tag` to the exact main commit it

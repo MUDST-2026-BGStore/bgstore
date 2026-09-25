@@ -92,8 +92,8 @@ verify_contract() {
 verify_deploy() {
   run_step 'Helm chart lint' helm lint deploy/charts/bgstore
   local environment
-  for values_file in deploy/environments/*.yaml; do
-    environment=$(basename "$values_file" .yaml)
+  for values_file in deploy/environments/*/values.yaml; do
+    environment=$(basename "$(dirname "$values_file")")
     run_step "Render Helm environment: $environment" \
       helm template bgstore deploy/charts/bgstore \
       --namespace "bgstore-${environment}" \

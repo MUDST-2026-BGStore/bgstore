@@ -74,8 +74,8 @@ jobs:
       - run: helm lint deploy/charts/bgstore
       - name: Render every environment
         run: |
-          for values_file in deploy/environments/*.yaml; do
-            environment=$(basename "$values_file" .yaml)
+          for values_file in deploy/environments/*/values.yaml; do
+            environment=$(basename "$(dirname "$values_file")")
             helm template bgstore deploy/charts/bgstore \
               --namespace "bgstore-${environment}" \
               --values "$values_file" \

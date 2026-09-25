@@ -7,17 +7,17 @@ spec:
   goTemplate: true
   goTemplateOptions: [missingkey=error]
   generators:
-    # One Application per values file in deploy/environments. The live cluster
-    # is the single-node devopsandbox instance, so only dev.yaml exists;
-    # adding staging.yaml or production.yaml there later creates its
-    # Application automatically. Images are pinned to the exact main commit
+    # One Application per environment directory in deploy/environments. The
+    # live cluster is the single-node devopsandbox instance, so only dev/
+    # exists; adding staging/ or production/ directories later creates their
+    # Applications automatically. Images are pinned to the exact main commit
     # rendered by the generator (the `main-<sha>` tag built by the
     # trunk-images workflow), so a merge to main deploys itself.
     - git:
         repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
         revision: main
-        files:
-          - path: deploy/environments/*.yaml
+        directories:
+          - path: deploy/environments/*
   template:
     metadata:
       name: 'bgstore-{{ .path.basename }}'
@@ -34,7 +34,7 @@ spec:
         path: deploy/charts/bgstore
         helm:
           valueFiles:
-            - '../../environments/{{ .path.basename }}.yaml'
+            - '../../environments/{{ .path.basename }}/values.yaml'
           parameters:
             - name: images.tag
               value: 'main-{{ .revision }}'
