@@ -130,11 +130,18 @@ spec:
     targetRevision: 7.2.3
     helm:
       values: |
-        replicas: 2
+        replicas: 1
         image:
           tag: 26.7.1
         command: ['/opt/keycloak/bin/kc.sh', 'start', '--http-enabled=true']
         extraEnv: |
+          - name: KC_BOOTSTRAP_ADMIN_USERNAME
+            value: admin
+          - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: keycloak-bootstrap
+                key: password
           - name: KC_HOSTNAME
             value: https://auth.bgstore.chanakanlabs.com
           - name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC
