@@ -16,7 +16,10 @@ spec:
     repoURL: https://charts.jetstack.io
     chart: cert-manager
     targetRevision: v1.21.1
-    helm: { values: 'crds:\n  enabled: true\n' }
+    helm:
+      values: |
+        crds:
+          enabled: true
   destination:
     { server: https://kubernetes.default.svc, namespace: cert-manager }
   syncPolicy:
@@ -47,7 +50,9 @@ spec:
     repoURL: https://charts.external-secrets.io
     chart: external-secrets
     targetRevision: 2.9.0
-    helm: { values: 'installCRDs: true\n' }
+    helm:
+      values: |
+        installCRDs: true
   destination:
     { server: https://kubernetes.default.svc, namespace: external-secrets }
   syncPolicy:
