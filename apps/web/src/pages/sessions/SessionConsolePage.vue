@@ -535,7 +535,11 @@ const confirmCheckout = () => {
           v-else-if="paymentMethod === 'PromptPay'"
           class="mt-4 flex flex-col items-center gap-2"
         >
-          <img :src="promptPayQr" :alt="t('sessions.promptPayNote')" class="w-44" />
+          <img
+            :src="promptPayQr"
+            :alt="t('sessions.promptPayNote')"
+            class="w-44"
+          />
           <p class="text-[13px] leading-5 text-ink-muted">
             {{ t('sessions.promptPayNote') }}
           </p>

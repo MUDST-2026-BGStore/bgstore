@@ -318,7 +318,8 @@ describe('SessionConsolePage', () => {
           status: 502,
           body: {
             code: 'gateway_unavailable',
-            detail: 'The payment gateway could not process the charge; please retry.',
+            detail:
+              'The payment gateway could not process the charge; please retry.',
           },
         },
         'POST',
@@ -335,9 +336,9 @@ describe('SessionConsolePage', () => {
       'temporarily unavailable',
     );
     // The confirmed amount is still on the form for the retry.
-    expect(wrapper.get<HTMLInputElement>('#checkout-amount').element.value).toBe(
-      '240',
-    );
+    expect(
+      wrapper.get<HTMLInputElement>('#checkout-amount').element.value,
+    ).toBe('240');
     wrapper.unmount();
   });
 

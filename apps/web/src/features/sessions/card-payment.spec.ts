@@ -76,9 +76,7 @@ describe('formatCardNumber', () => {
   });
 
   it('keeps punctuation out and stops at 19 digits', () => {
-    expect(formatCardNumber('4242-4242-4242-4242')).toBe(
-      '4242 4242 4242 4242',
-    );
+    expect(formatCardNumber('4242-4242-4242-4242')).toBe('4242 4242 4242 4242');
     // The printed field caps at the chargeable 19 digits.
     expect(formatCardNumber('42424242424242420060')).toBe(
       '4242 4242 4242 4242 006',

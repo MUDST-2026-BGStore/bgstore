@@ -1991,7 +1991,8 @@ components:
     CardBrand:
       type: string
       description: Card network the gateway detected from the card number's leading digits.
-      enum: [Visa, Mastercard, Amex, JCB, DinersClub, Discover, UnionPay, Unknown]
+      enum:
+        [Visa, Mastercard, Amex, JCB, DinersClub, Discover, UnionPay, Unknown]
     SessionListResponse:
       type: object
       additionalProperties: false

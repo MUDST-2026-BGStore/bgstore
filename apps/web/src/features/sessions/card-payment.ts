@@ -65,7 +65,10 @@ export const detectCardBrand = (number: string): CardBrand => {
   if (starts('4')) {
     return 'Visa';
   }
-  if (inRange(2221, 2720) || (Number(d.slice(0, 2)) >= 51 && Number(d.slice(0, 2)) <= 55)) {
+  if (
+    inRange(2221, 2720) ||
+    (Number(d.slice(0, 2)) >= 51 && Number(d.slice(0, 2)) <= 55)
+  ) {
     return 'Mastercard';
   }
   if (starts('34') || starts('37')) {
@@ -110,7 +113,9 @@ export const formatCardNumber = (number: string): string => {
 };
 
 /** Parses a printed `MM/YY` expiry into the API's month + full year. */
-export const parseCardExpiry = (expiry: string): { month: number; year: number } | null => {
+export const parseCardExpiry = (
+  expiry: string,
+): { month: number; year: number } | null => {
   const match = /^(\d{2})\s*\/?\s*(\d{2})$/.exec(expiry.trim());
   if (!match) {
     return null;
@@ -138,7 +143,10 @@ export const cardInputReady = (input: {
     return null;
   }
   const expectedCvvLength = detectCardBrand(input.number) === 'Amex' ? 4 : 3;
-  if (!/^\d+$/.test(input.cvv.trim()) || input.cvv.trim().length !== expectedCvvLength) {
+  if (
+    !/^\d+$/.test(input.cvv.trim()) ||
+    input.cvv.trim().length !== expectedCvvLength
+  ) {
     return null;
   }
   return {
