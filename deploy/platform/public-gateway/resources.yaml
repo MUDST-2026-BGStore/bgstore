@@ -1,0 +1,61 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  { name: public, namespace: gateway }
+spec:
+  gatewayClassName: eg
+  listeners:
+    # Plain HTTP listener for ACME HTTP-01 challenges (cert-manager solver
+    # attaches its temporary HTTPRoutes here).
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes: { namespaces: { from: All } }
+    - name: bgstore-dev
+      protocol: HTTPS
+      port: 443
+      hostname: bgstore.dev.chanakanlabs.com
+      tls:
+        mode: Terminate
+        certificateRefs: [{ kind: Secret, name: bgstore-dev-tls }]
+      allowedRoutes: { namespaces: { from: All } }
+    - name: keycloak
+      protocol: HTTPS
+      port: 443
+      hostname: auth.bgstore.chanakanlabs.com
+      tls:
+        mode: Terminate
+        certificateRefs: [{ kind: Secret, name: keycloak-tls }]
+      allowedRoutes: { namespaces: { from: All } }
+    - name: argocd
+      protocol: HTTPS
+      port: 443
+      hostname: argocd.devopsandbox.chanakanlabs.com
+      tls:
+        mode: Terminate
+        certificateRefs: [{ kind: Secret, name: argocd-tls }]
+      allowedRoutes: { namespaces: { from: All } }
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata: { name: bgstore-dev-tls, namespace: gateway }
+spec:
+  secretName: bgstore-dev-tls
+  issuerRef: { name: letsencrypt-production, kind: ClusterIssuer }
+  dnsNames: [bgstore.dev.chanakanlabs.com]
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata: { name: keycloak-tls, namespace: gateway }
+spec:
+  secretName: keycloak-tls
+  issuerRef: { name: letsencrypt-production, kind: ClusterIssuer }
+  dnsNames: [auth.bgstore.chanakanlabs.com]
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata: { name: argocd-tls, namespace: gateway }
+spec:
+  secretName: argocd-tls
+  issuerRef: { name: letsencrypt-production, kind: ClusterIssuer }
+  dnsNames: [argocd.devopsandbox.chanakanlabs.com]

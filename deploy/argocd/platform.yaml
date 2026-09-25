@@ -20,6 +20,9 @@ spec:
       values: |
         crds:
           enabled: true
+        config:
+          gatewayAPI:
+            enabled: true
   destination:
     { server: https://kubernetes.default.svc, namespace: cert-manager }
   syncPolicy:
@@ -235,6 +238,20 @@ spec:
     targetRevision: 1.61.3
   destination:
     { server: https://kubernetes.default.svc, namespace: observability }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: public-gateway, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
+    targetRevision: main
+    path: deploy/platform/public-gateway
+  destination: { server: https://kubernetes.default.svc, namespace: gateway }
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [CreateNamespace=true, ServerSideApply=true]
