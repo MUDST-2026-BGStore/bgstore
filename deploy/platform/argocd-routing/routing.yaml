@@ -1,0 +1,10 @@
+# Argo CD web/gRPC is served through the shared public Gateway.
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata: { name: argocd, namespace: argocd }
+spec:
+  parentRefs:
+    - { name: public, namespace: gateway }
+  hostnames: [argocd.devopsandbox.chanakanlabs.com]
+  rules:
+    - backendRefs: [{ name: argocd-server, port: 80 }]

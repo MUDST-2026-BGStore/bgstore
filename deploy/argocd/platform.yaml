@@ -265,6 +265,20 @@ spec:
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
+metadata: { name: argocd-routing, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
+    targetRevision: main
+    path: deploy/platform/argocd-routing
+  destination: { server: https://kubernetes.default.svc, namespace: argocd }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
 metadata: { name: keycloak-routing, namespace: argocd }
 spec:
   project: bgstore-platform
