@@ -96,6 +96,7 @@ jobs:
           perl -0pi -e 's/image:\n          tag: [^\n]+/image:\n          repository: ghcr.io\/mudst-2026-bgstore\/bgstore-keycloak\n          tag: $ENV{KEYCLOAK_TAG}/' deploy/argocd/platform.yaml
       - uses: peter-evans/create-pull-request@v8
         with:
+          base: main
           branch: release/${{ env.RELEASE_TAG }}-production
           commit-message: 'chore(deploy): promote ${{ env.RELEASE_TAG }}'
           title: 'chore(deploy): promote ${{ env.RELEASE_TAG }}'
