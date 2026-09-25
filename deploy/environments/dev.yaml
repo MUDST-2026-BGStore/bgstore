@@ -14,3 +14,7 @@ networkPolicy:
   enabled: false
 postgresql: { createCluster: true, instances: 1, storageSize: 2Gi }
 config: { traceSamplingProbability: '1.0' }
+images:
+  # Floating :latest tag plus IfNotPresent would keep stale node-cached images
+  # after a rebuild; dev always wants the newest pushed build.
+  pullPolicy: Always
