@@ -82,7 +82,10 @@ jobs:
       - uses: actions/checkout@v5
       - uses: mikefarah/yq@v4.47.2
         with:
-          cmd: yq -i '.images.tag = strenv(TAG)' deploy/environments/dev/values.yaml
+          cmd: >-
+            yq -i '.images.api.tag = strenv(TAG) |
+            .images.web.tag = strenv(TAG)'
+            deploy/environments/dev/values.yaml
         env:
           TAG: main-${{ github.sha }}
       - uses: peter-evans/create-pull-request@v8

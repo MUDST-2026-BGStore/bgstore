@@ -15,8 +15,9 @@ networkPolicy:
 postgresql: { createCluster: true, instances: 1, storageSize: 2Gi }
 config: { traceSamplingProbability: '1.0' }
 images:
-  # Pinned by the trunk-images workflow to the exact main commit it built
-  # (`main-<sha>`); the bump pull request updates this value. Dev always pulls
-  # the image fresh (pullPolicy Always).
-  tag: main-1e51106bccb9cfd230251198a82025f072cc7618
+  # api.tag/web.tag are pinned by the trunk-images workflow to the exact main
+  # commit it built (`main-<sha>`); its bump pull request updates both. Dev
+  # always pulls the image fresh (pullPolicy Always).
+  api: { tag: main-1e51106bccb9cfd230251198a82025f072cc7618 }
+  web: { tag: main-1e51106bccb9cfd230251198a82025f072cc7618 }
   pullPolicy: Always
