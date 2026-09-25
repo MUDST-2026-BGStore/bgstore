@@ -16,7 +16,7 @@ spec:
     - git:
         repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
         revision: main
-        directories:
+        files:
           - path: deploy/environments/*.yaml
   template:
     metadata:
