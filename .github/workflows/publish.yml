@@ -30,7 +30,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: sigstore/cosign-installer@v4
+      - uses: sigstore/cosign-installer@v4.1.2
       - id: api
         uses: docker/build-push-action@v6
         with:
@@ -38,7 +38,9 @@ jobs:
           file: apps/api/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/mudst-2026-bgstore/bgstore-api:${{ env.RELEASE_TAG }}
+          tags: |
+            ghcr.io/mudst-2026-bgstore/bgstore-api:${{ env.RELEASE_TAG }}
+            ghcr.io/mudst-2026-bgstore/bgstore-api:latest
           sbom: true
           provenance: mode=max
           cache-from: type=gha,scope=api
@@ -50,7 +52,9 @@ jobs:
           file: apps/web/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/mudst-2026-bgstore/bgstore-web:${{ env.RELEASE_TAG }}
+          tags: |
+            ghcr.io/mudst-2026-bgstore/bgstore-web:${{ env.RELEASE_TAG }}
+            ghcr.io/mudst-2026-bgstore/bgstore-web:latest
           sbom: true
           provenance: mode=max
           cache-from: type=gha,scope=web
