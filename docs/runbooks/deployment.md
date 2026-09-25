@@ -2,10 +2,10 @@
 
 ## Current delivery (single devopsandbox node)
 
-Merges to main build `main-<sha>` images (trunk-images workflow) and the
-`bgstore` ApplicationSet pins dev to that exact commit — a merge to main is a
-deployment. Tagging a release builds signed versioned images and records their
-digests in the release notes; it does not deploy anything. See
+Merges to main build `main-<sha>` images (trunk-images workflow) and open a
+pull request bumping dev's `images.tag`; merging that pull request deploys the
+build to dev via Argo CD. Tagging a release builds signed versioned images and
+records their digests in the release notes; it does not deploy anything. See
 [ADR-0008](../decisions/0008-single-environment-trunk-delivery.md).
 
 ## Provider decisions required

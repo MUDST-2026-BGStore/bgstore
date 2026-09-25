@@ -1,10 +1,9 @@
 name: Build trunk images
 
 # Dev delivery: every push to main builds the api/web images under a
-# content-addressed `main-<sha>` tag. The bgstore ApplicationSet pins that same
-# tag into the dev environment, so a merge to main is a deployment, not just a
-# build. Releases (tags) do not build from here — they are signed, versioned
-# builds in publish.yml.
+# content-addressed `main-<sha>` tag, then a pull request bumps
+# deploy/environments/dev/values.yaml to it — merging that PR deploys dev.
+# Releases (tags) are separate signed builds in publish.yml.
 
 on:
   push:
@@ -30,7 +29,6 @@ concurrency:
 permissions:
   contents: read
   packages: write
-
 jobs:
   images:
     runs-on: ubuntu-latest
@@ -70,3 +68,38 @@ jobs:
         env:
           TAG: ${{ steps.tag.outputs.sha }}
         run: echo "Built ghcr.io/mudst-2026-bgstore/{bgstore-api,bgstore-web}:$TAG" >> "$GITHUB_STEP_SUMMARY"
+
+  # Bump dev to the freshly built tag through a pull request (the repo requires
+  # pull requests on main). Merging the PR is the deployment; Argo CD picks up
+  # the changed values file and rolls the dev pods onto the new image.
+  bump-dev:
+    needs: images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: mikefarah/yq@v4.47.2
+        with:
+          cmd: yq -i '.images.tag = strenv(TAG)' deploy/environments/dev/values.yaml
+        env:
+          TAG: main-${{ github.sha }}
+      - uses: peter-evans/create-pull-request@v8
+        id: pr
+        with:
+          base: main
+          branch: chore/dev-image-bump
+          delete-branch: true
+          commit-message: 'chore(deploy): dev -> main-${{ github.sha }}'
+          title: 'chore(deploy): dev -> main-${{ github.sha }}'
+          body: |
+            Bumps the dev environment to the trunk-built image for ${{ github.sha }}.
+
+            Built by the trunk-images workflow. Merging deploys to dev (ADR-0008).
+          labels: deployment
+      - if: steps.pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ steps.pr.outputs.pull-request-number }}
+        run: gh pr merge "$PR" --auto --squash

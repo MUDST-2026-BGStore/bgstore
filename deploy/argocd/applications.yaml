@@ -1,54 +1,4 @@
 apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-metadata:
-  name: bgstore
-  namespace: argocd
-spec:
-  goTemplate: true
-  goTemplateOptions: [missingkey=error]
-  generators:
-    # One Application per environment directory in deploy/environments. The
-    # live cluster is the single-node devopsandbox instance, so only dev/
-    # exists; adding staging/ or production/ directories later creates their
-    # Applications automatically. Images are pinned to the exact main commit
-    # rendered by the generator (the `main-<sha>` tag built by the
-    # trunk-images workflow), so a merge to main deploys itself.
-    - git:
-        repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
-        revision: main
-        directories:
-          - path: deploy/environments/*
-  template:
-    metadata:
-      name: 'bgstore-{{ .path.basename }}'
-      labels:
-        {
-          app.kubernetes.io/part-of: bgstore,
-          environment: '{{ .path.basename }}',
-        }
-    spec:
-      project: bgstore
-      source:
-        repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
-        targetRevision: main
-        path: deploy/charts/bgstore
-        helm:
-          valueFiles:
-            - '../../environments/{{ .path.basename }}/values.yaml'
-          parameters:
-            - name: images.tag
-              value: 'main-{{ .revision }}'
-      destination:
-        server: https://kubernetes.default.svc
-        namespace: 'bgstore-{{ .path.basename }}'
-      syncPolicy:
-        automated: { prune: true, selfHeal: true }
-        syncOptions: [CreateNamespace=true, ServerSideApply=true]
-        retry:
-          limit: 5
-          backoff: { duration: 5s, factor: 2, maxDuration: 3m }
----
-apiVersion: argoproj.io/v1alpha1
 kind: AppProject
 metadata:
   name: bgstore
@@ -62,3 +12,35 @@ spec:
     - { group: '', kind: Namespace }
   namespaceResourceWhitelist:
     - { group: '*', kind: '*' }
+---
+# Single live environment (ADR-0008). Dev tracks main and is pinned to the
+# trunk-built `main-<sha>` image tag; the trunk-images workflow keeps that tag
+# current by opening a pull request that bumps images.tag in
+# environments/dev/values.yaml — merging it deploys the build. When a second
+# environment exists, reintroduce an ApplicationSet (per-environment directory
+# under deploy/environments/) instead of duplicating this manifest by hand.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: bgstore-dev
+  namespace: argocd
+  labels:
+    { app.kubernetes.io/part-of: bgstore, environment: dev }
+spec:
+  project: bgstore
+  source:
+    repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
+    targetRevision: main
+    path: deploy/charts/bgstore
+    helm:
+      valueFiles:
+        - ../../environments/dev/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: bgstore-dev
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+    retry:
+      limit: 5
+      backoff: { duration: 5s, factor: 2, maxDuration: 3m }
