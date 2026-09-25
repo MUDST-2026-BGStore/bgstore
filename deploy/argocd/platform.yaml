@@ -193,7 +193,7 @@ spec:
         mode: deployment
         fullnameOverride: otel-collector
         image:
-          repository: otel/opentelemetry-collector-k8s
+          repository: otel/opentelemetry-collector-contrib
         config:
           exporters:
             otlphttp/tempo: { endpoint: http://tempo-distributor.observability.svc:4318 }
