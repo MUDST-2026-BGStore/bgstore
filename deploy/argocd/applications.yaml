@@ -7,21 +7,24 @@ spec:
   goTemplate: true
   goTemplateOptions: [missingkey=error]
   generators:
-    - list:
-        elements:
-          - { environment: dev, namespace: bgstore-dev }
-          # staging and production are disabled while the cluster is the
-          # single-node devopsandbox instance (m7g.xlarge, 4 vCPU / 16 GiB);
-          # re-enable them when a multi-env cluster exists.
-          # - { environment: staging, namespace: bgstore-staging }
-          # - { environment: production, namespace: bgstore }
+    # One Application per values file in deploy/environments. The live cluster
+    # is the single-node devopsandbox instance, so only dev.yaml exists;
+    # adding staging.yaml or production.yaml there later creates its
+    # Application automatically. Images are pinned to the exact main commit
+    # rendered by the generator (the `main-<sha>` tag built by the
+    # trunk-images workflow), so a merge to main deploys itself.
+    - git:
+        repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
+        revision: main
+        directory:
+          path: deploy/environments/*.yaml
   template:
     metadata:
-      name: 'bgstore-{{ .environment }}'
+      name: 'bgstore-{{ .path.basename }}'
       labels:
         {
           app.kubernetes.io/part-of: bgstore,
-          environment: '{{ .environment }}',
+          environment: '{{ .path.basename }}',
         }
     spec:
       project: bgstore
@@ -31,10 +34,13 @@ spec:
         path: deploy/charts/bgstore
         helm:
           valueFiles:
-            - ../../environments/{{ .environment }}.yaml
+            - '../../environments/{{ .path.basename }}.yaml'
+          parameters:
+            - name: images.tag
+              value: 'main-{{ .revision }}'
       destination:
         server: https://kubernetes.default.svc
-        namespace: '{{ .namespace }}'
+        namespace: 'bgstore-{{ .path.basename }}'
       syncPolicy:
         automated: { prune: true, selfHeal: true }
         syncOptions: [CreateNamespace=true, ServerSideApply=true]

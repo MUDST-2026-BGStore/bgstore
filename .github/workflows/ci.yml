@@ -74,10 +74,11 @@ jobs:
       - run: helm lint deploy/charts/bgstore
       - name: Render every environment
         run: |
-          for environment in dev staging production; do
+          for values_file in deploy/environments/*.yaml; do
+            environment=$(basename "$values_file" .yaml)
             helm template bgstore deploy/charts/bgstore \
-              --namespace bgstore \
-              --values "deploy/environments/${environment}.yaml" \
+              --namespace "bgstore-${environment}" \
+              --values "$values_file" \
               > "/tmp/bgstore-${environment}.yaml"
           done
       - uses: aquasecurity/trivy-action@v0.36.0

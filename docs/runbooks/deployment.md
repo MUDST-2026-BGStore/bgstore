@@ -1,29 +1,38 @@
 # Deployment runbook
 
+## Current delivery (single devopsandbox node)
+
+Merges to main build `main-<sha>` images (trunk-images workflow) and the
+`bgstore` ApplicationSet pins dev to that exact commit — a merge to main is a
+deployment. Tagging a release builds signed versioned images and records their
+digests in the release notes; it does not deploy anything. See
+[ADR-0008](../decisions/0008-single-environment-trunk-delivery.md).
+
 ## Provider decisions required
 
 Before deploying, choose the Kubernetes provider, DNS provider, storage class, secret manager, and backup destination. These choices are intentionally not guessed by the repository.
 
 1. Install Argo CD and apply `deploy/argocd/platform.yaml`, then `deploy/argocd/applications.yaml`.
 2. Create a `letsencrypt-production` ClusterIssuer with the correct DNS-01 or HTTP-01 solver and contact address.
-3. Point `bgstore.chanakanlabs.com` and `auth.bgstore.chanakanlabs.com` at the relevant Envoy Gateway load-balancer addresses. Use ExternalDNS only after its provider credentials and ownership policy are defined.
-4. Configure the External Secrets ClusterSecretStore named `bgstore`. The remote `environments/production/bgstore-api` secret requires `POSTGRES_USER`, `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, and `KEYCLOAK_CLIENT_SECRET`. The chart derives a separate CloudNativePG `kubernetes.io/basic-auth` secret from those database fields.
-5. Add `environments/production/keycloak-database` to the same provider with `POSTGRES_USER=keycloak` and a generated `POSTGRES_PASSWORD`. External Secrets maps it to the Keycloak chart and CloudNativePG database secret.
-6. Configure CloudNativePG object-store backups, recovery testing, retention, and a provider storage class before production data is admitted.
-7. Replace the seeded local Keycloak realm with an exported, reviewed production realm. Configure the OIDC redirect URI as `https://bgstore.chanakanlabs.com/auth/callback/bgstore`, enable email verification with a production SMTP provider, and set the login theme to `bgstore`. A published release builds, signs, and promotes the matching `bgstore-keycloak` image through the platform manifest.
-8. Merge a release promotion PR and verify Argo health, Gateway routes, certificate readiness, and telemetry.
+3. Point the environment domains (dev currently `bgstore.devopsandbox.chanakanlabs.com` and `auth.devopsandbox.chanakanlabs.com`) at the relevant Envoy Gateway load-balancer addresses. Use ExternalDNS only after its provider credentials and ownership policy are defined.
+4. Create the manual secrets the platform manifests expect (`bgstore-api`, `bgstore-database`, `keycloak-database`, `keycloak-bootstrap`) or configure an External Secrets ClusterSecretStore named `bgstore` before re-enabling `externalSecret` in an environment.
+5. Configure CloudNativePG object-store backups, recovery testing, retention, and a provider storage class before production data is admitted.
+6. Replace the seeded local Keycloak realm with an exported, reviewed realm. Configure the OIDC redirect URI as `https://<domain>/auth/callback/bgstore`, enable email verification with a production SMTP provider, and set the login theme to `bgstore`. When a release carries theme changes, bump the `bgstore-keycloak` image tag in `deploy/argocd/platform.yaml` and apply it.
+
+## Adding staging or production
+
+1. Add `deploy/environments/staging.yaml` or `production.yaml`; the ApplicationSet creates the Application automatically (namespace `bgstore-<environment>`).
+2. Extend the release workflow to promote the signed release digest to those environments through pull requests, per ADR-0004. Dev keeps tracking trunk images.
+3. Point the new environment domains at the gateway and verify certificate readiness.
 
 ## Verification
 
 ```bash
-helm lint deploy/charts/bgstore
-helm template bgstore deploy/charts/bgstore \
-  --namespace bgstore \
-  --values deploy/environments/production.yaml
-kubectl -n bgstore get applications,pods,httproutes
+.agents/bin/verify deploy
+kubectl -n bgstore-dev get applications,pods,httproutes
 kubectl -n keycloak get gateway,httproute,certificate
 ```
 
 ## Rollback
 
-Revert the digest promotion commit. Argo CD will restore the prior immutable image. Flyway migrations are append-only and expand-first, so application rollback remains possible when the prior image can read the expanded schema; destructive cleanup is a separate, reviewed recovery operation.
+Dev: revert the offending commit on main (Argo CD redeploys the prior `main-<sha>` image, which remains in the registry). When digest-pinned environments exist, revert the digest promotion commit instead. Flyway migrations are append-only and expand-first, so application rollback remains possible when the prior image can read the expanded schema; destructive cleanup is a separate, reviewed recovery operation.

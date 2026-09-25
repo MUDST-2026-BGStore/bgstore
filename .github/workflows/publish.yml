@@ -1,5 +1,11 @@
 name: Publish release
 
+# A release is a promotion, not a rebuild trigger for dev: it produces
+# signed, versioned multi-arch images (tag + latest) and records their
+# digests in the release notes. Production deployment wiring does not
+# exist yet (single devopsandbox node); when it does, extend this
+# workflow or ADR-0008 with digest promotion.
+
 on:
   release:
     types: [published]
@@ -14,7 +20,6 @@ permissions:
   contents: write
   packages: write
   id-token: write
-  pull-requests: write
 
 jobs:
   images:
@@ -80,25 +85,20 @@ jobs:
           cosign sign --yes "ghcr.io/mudst-2026-bgstore/bgstore-api@${API_DIGEST}"
           cosign sign --yes "ghcr.io/mudst-2026-bgstore/bgstore-web@${WEB_DIGEST}"
           cosign sign --yes "ghcr.io/mudst-2026-bgstore/bgstore-keycloak@${KEYCLOAK_DIGEST}"
-      - uses: mikefarah/yq@v4.47.2
+      - name: Record signed digests in the release notes
         env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
           API_DIGEST: ${{ steps.api.outputs.digest }}
           WEB_DIGEST: ${{ steps.web.outputs.digest }}
-        with:
-          cmd: >-
-            yq -i '.images.api.digest = strenv(API_DIGEST) |
-            .images.web.digest = strenv(WEB_DIGEST)'
-            deploy/environments/production.yaml
-      - name: Promote the Keycloak theme image
-        env:
-          KEYCLOAK_TAG: ${{ env.RELEASE_TAG }}
+          KEYCLOAK_DIGEST: ${{ steps.keycloak.outputs.digest }}
         run: |
-          perl -0pi -e 's/image:\n          tag: [^\n]+/image:\n          repository: ghcr.io\/mudst-2026-bgstore\/bgstore-keycloak\n          tag: $ENV{KEYCLOAK_TAG}/' deploy/argocd/platform.yaml
-      - uses: peter-evans/create-pull-request@v8
-        with:
-          base: main
-          branch: release/${{ env.RELEASE_TAG }}-production
-          commit-message: 'chore(deploy): promote ${{ env.RELEASE_TAG }}'
-          title: 'chore(deploy): promote ${{ env.RELEASE_TAG }}'
-          body: Promotes signed image digests produced by the release workflow.
-          labels: deployment
+          notes=$(mktemp)
+          {
+            echo '**Signed image digests**'
+            echo
+            echo "- bgstore-api: \`$API_DIGEST\`"
+            echo "- bgstore-web: \`$WEB_DIGEST\`"
+            echo "- bgstore-keycloak: \`$KEYCLOAK_DIGEST\`"
+          } > "$notes"
+          gh release edit "$RELEASE_TAG" --append-notes "$(cat "$notes")"

@@ -92,11 +92,12 @@ verify_contract() {
 verify_deploy() {
   run_step 'Helm chart lint' helm lint deploy/charts/bgstore
   local environment
-  for environment in dev staging production; do
+  for values_file in deploy/environments/*.yaml; do
+    environment=$(basename "$values_file" .yaml)
     run_step "Render Helm environment: $environment" \
       helm template bgstore deploy/charts/bgstore \
-      --namespace bgstore \
-      --values "deploy/environments/$environment.yaml"
+      --namespace "bgstore-${environment}" \
+      --values "$values_file"
   done
   run_step 'Docker Compose rendering' \
     docker compose --env-file .env.example config --quiet
