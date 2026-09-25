@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/vue-query';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import StaffLayout from '../../layouts/StaffLayout.vue';
+import OwnerPortalLayout from '../../layouts/OwnerPortalLayout.vue';
 import StatCard from '../../components/ui/StatCard.vue';
 import UiBadge from '../../components/ui/UiBadge.vue';
 import UiButton from '../../components/ui/UiButton.vue';
@@ -112,7 +112,7 @@ function laterSlots(table: FloorTableResponse): string {
 </script>
 
 <template>
-  <StaffLayout active="dashboard">
+  <OwnerPortalLayout active="dashboard">
     <div
       class="staff-page-content flex w-full flex-col items-start gap-6 px-10 pt-8 pb-10"
       data-page="floor-overview"
@@ -277,5 +277,5 @@ function laterSlots(table: FloorTableResponse): string {
         </div>
       </template>
     </div>
-  </StaffLayout>
+  </OwnerPortalLayout>
 </template>

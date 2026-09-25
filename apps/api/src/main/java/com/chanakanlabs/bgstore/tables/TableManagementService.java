@@ -32,7 +32,6 @@ public class TableManagementService {
 
   public PageResult<TableRecordData> listTables(
       @Nullable String branch,
-      @Nullable String zone,
       @Nullable String status,
       @Nullable String search,
       int page,
@@ -40,7 +39,7 @@ public class TableManagementService {
     var identity = accessPolicy.requireStaffOrManager();
     var rows =
         repository.findAll(
-            canonicalBranchForRead(branch, identity), zone, status, trimmed(search), false);
+            canonicalBranchForRead(branch, identity), status, trimmed(search), false);
     return pageOf(scopeRows(rows, identity), page, pageSize);
   }
 
@@ -53,8 +52,7 @@ public class TableManagementService {
       int pageSize) {
     var identity = accessPolicy.requireStaffOrManager();
     var rows =
-        repository.findAll(
-            canonicalBranchForRead(branch, identity), null, status, trimmed(search), true);
+        repository.findAll(canonicalBranchForRead(branch, identity), status, trimmed(search), true);
     return pageOf(scopeRows(rows, identity), page, pageSize);
   }
 
@@ -63,7 +61,7 @@ public class TableManagementService {
    */
   public Map<String, Long> countActiveByStatus(@Nullable String branch) {
     var identity = accessPolicy.requireStaffOrManager();
-    var rows = repository.findAll(canonicalBranchForRead(branch, identity), null, null, null, true);
+    var rows = repository.findAll(canonicalBranchForRead(branch, identity), null, null, true);
     return scopeRows(rows, identity).stream()
         .collect(
             java.util.stream.Collectors.groupingBy(
@@ -100,13 +98,7 @@ public class TableManagementService {
   }
 
   public TableRecordData createTable(
-      String name,
-      String branch,
-      int capacity,
-      String shape,
-      String status,
-      boolean active,
-      String zone) {
+      String name, String branch, int capacity, String shape, String status, boolean active) {
     accessPolicy.requireStaffOrManager();
 
     validateTableFields(name, branch, capacity);
@@ -128,7 +120,6 @@ public class TableManagementService {
             shape.trim(),
             status.trim(),
             active,
-            zone.trim(),
             OffsetDateTime.now(ZoneOffset.UTC),
             selectedBranch.id());
 
@@ -142,8 +133,7 @@ public class TableManagementService {
       int capacity,
       String shape,
       String status,
-      boolean active,
-      String zone) {
+      boolean active) {
     accessPolicy.requireStaffOrManager();
 
     TableRecordData existing = repository.findById(tableId).orElse(null);
@@ -172,7 +162,6 @@ public class TableManagementService {
             shape.trim(),
             status.trim(),
             active,
-            zone.trim(),
             OffsetDateTime.now(ZoneOffset.UTC),
             selectedBranch.id());
 

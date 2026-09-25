@@ -210,7 +210,10 @@ export const router = createRouter({
           () => import('./views/CreateReservationView.vue'),
         ),
       },
-      meta: { requiresAuth: true, focused: true },
+      // Staff keep the sidebar (via OwnerPortalLayout in the view itself) and
+      // a client keeps the top nav here, unlike the other focused flows below
+      // (checkout/active session), which intentionally hide all chrome.
+      meta: { requiresAuth: true },
     },
     {
       path: '/sessions/checkout',

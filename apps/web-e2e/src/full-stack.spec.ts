@@ -254,6 +254,74 @@ test.describe('real full-stack browser flows', () => {
     );
   });
 
+  test('staff can add, edit and delete a table with no zone through the real API', async ({
+    page,
+  }) => {
+    test.setTimeout(90_000);
+    requireFullStack();
+
+    const name = `E2E table ${Date.now()}`;
+    await signIn(page, staffAccount);
+    await page.getByRole('link', { name: 'Tables' }).click();
+    await expect(
+      page.getByRole('heading', { name: 'Table management' }),
+    ).toBeVisible();
+    await page.locator('#panel-branch').selectOption('Central Rama II');
+    await expect(page.getByText('We could not load the tables.')).toHaveCount(
+      0,
+    );
+    // Zone no longer exists anywhere on the screen.
+    await expect(page.locator('#table-zone')).toHaveCount(0);
+
+    await page.getByRole('button', { name: '+ Add table' }).click();
+    await expect(page.locator('#form-zone')).toHaveCount(0);
+    await page.locator('#form-name').fill(name);
+    await page.locator('#form-branch').selectOption('Central Rama II');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+    await page.getByPlaceholder('Search tables').fill(name);
+    const row = page.locator('tbody tr', { hasText: name });
+    await expect(row).toBeVisible();
+
+    const listed = await page.request.get(
+      `/api/v1/tables?branch=Central%20Rama%20II&search=${encodeURIComponent(name)}`,
+    );
+    expect(listed.status()).toBe(200);
+    const items = (await listed.json()).items as Array<Record<string, unknown>>;
+    expect(items).toHaveLength(1);
+    expect(items[0]).not.toHaveProperty('zone');
+
+    await row.getByRole('button', { name: 'Edit' }).click();
+    await page.locator('#form-name').fill(`${name} edited`);
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByPlaceholder('Search tables').fill(`${name} edited`);
+    const edited = page.locator('tbody tr', { hasText: `${name} edited` });
+    await expect(edited).toBeVisible();
+
+    page.once('dialog', (dialog) => void dialog.accept());
+    await edited.getByRole('button', { name: 'Delete' }).click();
+    await expect(edited).toHaveCount(0);
+  });
+
+  test('availability explains a request outside branch opening hours', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    requireFullStack();
+
+    await signIn(page, staffAccount);
+    const date = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    const response = await page.request.get(
+      `/api/v1/reservations/availability?branch=${encodeURIComponent('Central Rama II')}&date=${date}&startTime=03:00&endTime=04:00&partySize=2`,
+    );
+    expect(response.status()).toBe(400);
+    expect((await response.json()).detail).toMatch(
+      /must fit branch opening hours \(\d{2}:\d{2}.\d{2}:\d{2}\)/,
+    );
+  });
+
   test('manager can create a branch through the real API and workspace', async ({
     page,
   }) => {

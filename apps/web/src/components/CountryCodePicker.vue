@@ -220,7 +220,7 @@ onBeforeUnmount(() => {
   padding: 0 0.8rem;
   border: 0;
   border-radius: 0.95rem 0 0 0.95rem;
-  color: var(--ink);
+  color: var(--color-ink);
   background: transparent;
   cursor: pointer;
   font: inherit;
@@ -310,7 +310,7 @@ onBeforeUnmount(() => {
   padding: 0.62rem 0.65rem;
   border: 0;
   border-radius: 0.65rem;
-  color: var(--ink);
+  color: var(--color-ink);
   background: transparent;
   cursor: pointer;
   font: inherit;
@@ -332,7 +332,7 @@ onBeforeUnmount(() => {
 
 .phone-country-option-code {
   margin-left: auto;
-  color: var(--muted);
+  color: var(--color-ink-muted);
   font-size: 0.8rem;
   font-variant-numeric: tabular-nums;
 }

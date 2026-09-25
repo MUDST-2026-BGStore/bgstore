@@ -36,8 +36,7 @@ class FloorOverviewControllerTest {
     var startsAt = OffsetDateTime.parse("2026-09-08T12:00:00+07:00");
     var endsAt = OffsetDateTime.parse("2026-09-08T13:00:00+07:00");
     var table =
-        new TableRecordData(
-            2L, "Table 2", "Silom", 6, "Square", "Occupied", true, "Main Hall", startsAt);
+        new TableRecordData(2L, "Table 2", "Silom", 6, "Square", "Occupied", true, startsAt);
     when(service.overview("Silom", "Occupied", "2", 1, 5))
         .thenReturn(
             new FloorOverview(

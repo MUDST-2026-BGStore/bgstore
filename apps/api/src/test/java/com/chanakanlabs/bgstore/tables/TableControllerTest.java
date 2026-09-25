@@ -42,14 +42,11 @@ class TableControllerTest {
             "Round",
             "Available",
             true,
-            "Main Hall",
             OffsetDateTime.now(ZoneOffset.UTC));
-    when(service.listTables(
-            eq("Sukhumvit"), eq("Main Hall"), eq("Available"), eq("query"), eq(1), eq(10)))
+    when(service.listTables(eq("Sukhumvit"), eq("Available"), eq("query"), eq(1), eq(10)))
         .thenReturn(new TableManagementService.PageResult<>(List.of(record), 1, 1, 10, 1));
 
-    var response =
-        controller.listTables("Sukhumvit", "Main Hall", TableStatus.AVAILABLE, "query", 1, 10);
+    var response = controller.listTables("Sukhumvit", TableStatus.AVAILABLE, "query", 1, 10);
 
     assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
     assertThat(response.getBody()).isNotNull();
@@ -68,7 +65,6 @@ class TableControllerTest {
             "Round",
             "Available",
             true,
-            "Main Hall",
             OffsetDateTime.now(ZoneOffset.UTC));
     when(service.getTable(1L)).thenReturn(record);
 
@@ -83,7 +79,7 @@ class TableControllerTest {
   void createsTable() {
     var request =
         new CreateTableRequest(
-            "New Table", "Sukhumvit", 6, TableShape.ROUND, TableStatus.AVAILABLE, true, "VIP");
+            "New Table", "Sukhumvit", 6, TableShape.ROUND, TableStatus.AVAILABLE, true);
     var record =
         new TableRecordData(
             100L,
@@ -93,9 +89,8 @@ class TableControllerTest {
             "Round",
             "Available",
             true,
-            "VIP",
             OffsetDateTime.now(ZoneOffset.UTC));
-    when(service.createTable("New Table", "Sukhumvit", 6, "Round", "Available", true, "VIP"))
+    when(service.createTable("New Table", "Sukhumvit", 6, "Round", "Available", true))
         .thenReturn(record);
 
     var response = controller.createTable(request);
@@ -109,7 +104,7 @@ class TableControllerTest {
   void updatesTable() {
     var request =
         new UpdateTableRequest(
-            "Updated", "Sukhumvit", 8, TableShape.SQUARE, TableStatus.RESERVED, true, "Main Hall");
+            "Updated", "Sukhumvit", 8, TableShape.SQUARE, TableStatus.RESERVED, true);
     var record =
         new TableRecordData(
             1L,
@@ -119,10 +114,8 @@ class TableControllerTest {
             "Square",
             "Reserved",
             true,
-            "Main Hall",
             OffsetDateTime.now(ZoneOffset.UTC));
-    when(service.updateTable(
-            1L, "Updated", "Sukhumvit", 8, "Square", "Reserved", true, "Main Hall"))
+    when(service.updateTable(1L, "Updated", "Sukhumvit", 8, "Square", "Reserved", true))
         .thenReturn(record);
 
     var response = controller.updateTable(1L, request);

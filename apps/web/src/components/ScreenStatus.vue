@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n';
 import ClientLayout from '../layouts/ClientLayout.vue';
-import OwnerLayout from '../layouts/OwnerLayout.vue';
+import OwnerPortalLayout from '../layouts/OwnerPortalLayout.vue';
 import UiButton from './ui/UiButton.vue';
 
 /**
@@ -32,11 +32,13 @@ const message = {
   missing: 'games.state.notFound',
 }[props.state];
 
-const layout = props.audience === 'client' ? ClientLayout : OwnerLayout;
+const layout = props.audience === 'client' ? ClientLayout : OwnerPortalLayout;
+const layoutProps =
+  props.audience === 'client' ? {} : { active: 'games' as const };
 </script>
 
 <template>
-  <component :is="layout">
+  <component :is="layout" v-bind="layoutProps">
     <div class="flex flex-col items-start gap-3 px-8 py-10">
       <p
         :data-testid="testid"

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import OwnerLayout from '../../layouts/OwnerLayout.vue';
+import OwnerPortalLayout from '../../layouts/OwnerPortalLayout.vue';
 import StatCard from '../../components/ui/StatCard.vue';
 import UiBadge from '../../components/ui/UiBadge.vue';
 import UiButton from '../../components/ui/UiButton.vue';
@@ -165,7 +165,7 @@ function branchOf(row: Parameters<typeof branchLabel>[0]) {
 </script>
 
 <template>
-  <OwnerLayout>
+  <OwnerPortalLayout active="games">
     <div
       class="staff-page-toolbar flex w-full shrink-0 items-center gap-3 border-b border-line bg-surface px-8 py-4"
     >
@@ -430,5 +430,5 @@ function branchOf(row: Parameters<typeof branchLabel>[0]) {
         </table>
       </div>
     </div>
-  </OwnerLayout>
+  </OwnerPortalLayout>
 </template>

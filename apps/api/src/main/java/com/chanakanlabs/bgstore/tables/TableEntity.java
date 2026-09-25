@@ -41,9 +41,6 @@ class TableEntity {
   @Column(name = "active", nullable = false)
   private boolean active;
 
-  @Column(name = "zone", nullable = false, length = 100)
-  private String zone;
-
   @UpdateTimestamp
   @Column(name = "last_updated", nullable = false)
   private OffsetDateTime lastUpdated;
@@ -62,12 +59,11 @@ class TableEntity {
     shape = data.shape();
     status = data.status();
     active = data.active();
-    zone = data.zone();
   }
 
   TableRecordData toRecord(String branchName) {
     return new TableRecordData(
-        id, name, branchName, capacity, shape, status, active, zone, lastUpdated, branchId);
+        id, name, branchName, capacity, shape, status, active, lastUpdated, branchId);
   }
 
   UUID branchId() {

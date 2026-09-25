@@ -120,8 +120,7 @@ class FloorOverviewServiceTest {
   }
 
   private static TableRecordData table(long id, String status) {
-    return new TableRecordData(
-        id, "Table " + id, "Silom", 4, "Round", status, true, "Main Hall", NOW);
+    return new TableRecordData(id, "Table " + id, "Silom", 4, "Round", status, true, NOW);
   }
 
   private static ReservedSlot slot(String startsAt, String endsAt) {

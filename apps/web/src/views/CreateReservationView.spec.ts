@@ -144,6 +144,74 @@ describe('CreateReservationView', () => {
     ).toBe('Silom');
   });
 
+  it('explains why table availability could not be loaded', async () => {
+    stubApi([
+      route('/branches', {
+        body: { items: [{ id: 'central', name: 'Central Rama II' }] },
+      }),
+      route('/me', {
+        body: {
+          subject: 'staff',
+          username: 'staff',
+          email: 'staff@example.test',
+          firstName: 'Staff',
+          lastName: 'User',
+          roles: ['STAFF'],
+          onboardingRequired: false,
+        },
+      }),
+      route('/clients', { body: { items: [] } }),
+      route('/reservations/availability', {
+        status: 400,
+        body: {
+          status: 400,
+          detail:
+            'The reservation must fit branch opening hours (10:00–20:00).',
+        },
+      }),
+    ]);
+    const wrapper = await mountReservation();
+
+    await completeClientStep(wrapper);
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    const reason = wrapper.get('[data-testid="tables-error-reason"]');
+    expect(reason.text()).toContain(
+      'must fit branch opening hours (10:00–20:00)',
+    );
+  });
+
+  it('names the status when availability fails without a message', async () => {
+    stubApi([
+      route('/branches', {
+        body: { items: [{ id: 'central', name: 'Central Rama II' }] },
+      }),
+      route('/me', {
+        body: {
+          subject: 'staff',
+          username: 'staff',
+          email: 'staff@example.test',
+          firstName: 'Staff',
+          lastName: 'User',
+          roles: ['STAFF'],
+          onboardingRequired: false,
+        },
+      }),
+      route('/clients', { body: { items: [] } }),
+      route('/reservations/availability', { status: 404 }),
+    ]);
+    const wrapper = await mountReservation();
+
+    await completeClientStep(wrapper);
+    await wrapper.get('form').trigger('submit');
+    await flushPromises();
+
+    expect(wrapper.get('[data-testid="tables-error-reason"]').text()).toContain(
+      'could not be found',
+    );
+  });
+
   it('completes all four staff reservation steps', async () => {
     const wrapper = await mountReservation();
 

@@ -4,6 +4,7 @@ import {
   createReservationDateRange,
   offsetReservationDate,
 } from './reservation-date';
+import { apiErrorMessage } from '../../api-error';
 import { branchesQueryOptions } from '../../queries/games';
 import {
   currentUserQueryOptions,
@@ -164,8 +165,7 @@ export const useStaffReservation = (requestedBranch = '') => {
       });
       isConfirmed.value = true;
     } catch (error) {
-      submissionError.value =
-        error instanceof Error ? error.message : 'Reservation failed.';
+      submissionError.value = apiErrorMessage(error, 'Reservation failed.');
     } finally {
       isSubmitting.value = false;
     }

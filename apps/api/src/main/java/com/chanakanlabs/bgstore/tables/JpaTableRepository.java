@@ -14,17 +14,14 @@ interface JpaTableRepository extends JpaRepository<TableEntity, Long> {
           """
       select t.* from store_table t join branch b on b.id = t.branch_id
       where (:branch is null or :branch = '' or lower(b.name) = lower(:branch))
-        and (:zone is null or :zone = '' or lower(:zone) = 'all zones' or lower(t.zone) = lower(:zone))
         and (:status is null or :status = '' or lower(:status) = 'all statuses' or lower(t.status) = lower(:status))
         and (:search is null or :search = '' or lower(t.name) like lower(concat('%', :search, '%'))
-             or lower(t.zone) like lower(concat('%', :search, '%'))
              or cast(t.id as text) = :search)
         and (:activeOnly = false or t.active = true)
       order by t.id
       """)
   List<TableEntity> findFiltered(
       @Param("branch") @Nullable String branch,
-      @Param("zone") @Nullable String zone,
       @Param("status") @Nullable String status,
       @Param("search") @Nullable String search,
       @Param("activeOnly") boolean activeOnly);

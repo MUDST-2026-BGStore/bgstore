@@ -45,5 +45,6 @@ The Kubernetes Grafana dashboard must be provisioned separately in that Grafana 
   `TESTCONTAINERS_RYUK_DISABLED=true`. The latter is a Lima-only workaround;
   CI keeps Ryuk enabled.
 - If OIDC redirects use the wrong host, confirm both public and internal Keycloak URLs in `.env`.
+- If the API fails to start with a schema error such as `missing column`, or Flyway reports a schema newer than the available migrations, Nx restored stale compiled output from its local cache (its Gradle source inputs do not match on Windows paths). `pnpm dev:api` skips the Nx cache for this reason; run any other Gradle-backed Nx target with `--skip-nx-cache` or call `apps/api/gradlew` directly.
 - If a generated client differs from the contract, run `pnpm nx run contracts:generate` and commit the generated result.
 - If local data is disposable, use `docker compose down --volumes`; this permanently removes local database and telemetry volumes.

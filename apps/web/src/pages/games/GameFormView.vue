@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
-import OwnerLayout from '../../layouts/OwnerLayout.vue';
+import OwnerPortalLayout from '../../layouts/OwnerPortalLayout.vue';
 import PageBreadcrumb from '../../components/PageBreadcrumb.vue';
 import UiButton from '../../components/ui/UiButton.vue';
 import UiCard from '../../components/ui/UiCard.vue';
@@ -80,7 +80,7 @@ const submitLabel = computed(() =>
 </script>
 
 <template>
-  <OwnerLayout>
+  <OwnerPortalLayout active="games">
     <div
       class="staff-page-toolbar flex w-full shrink-0 items-center gap-3 border-b border-line bg-surface px-8 py-3.5"
     >
@@ -427,5 +427,5 @@ const submitLabel = computed(() =>
         </UiCard>
       </div>
     </form>
-  </OwnerLayout>
+  </OwnerPortalLayout>
 </template>

@@ -27,7 +27,6 @@ public class TableController implements TablesApi {
   @Override
   public ResponseEntity<TableListResponse> listTables(
       @Nullable String branch,
-      @Nullable String zone,
       @Nullable TableStatus status,
       @Nullable String search,
       Integer page,
@@ -36,7 +35,7 @@ public class TableController implements TablesApi {
     int pageNum = page != null ? page : 1;
     int size = pageSize != null ? pageSize : 20;
 
-    var result = tables.listTables(branch, zone, statusString, search, pageNum, size);
+    var result = tables.listTables(branch, statusString, search, pageNum, size);
     List<TableResponse> items = result.items().stream().map(TableController::toResponse).toList();
     TableListResponse response =
         new TableListResponse(
@@ -58,8 +57,7 @@ public class TableController implements TablesApi {
             request.getCapacity(),
             request.getShape().getValue(),
             request.getStatus().getValue(),
-            request.getActive(),
-            request.getZone());
+            request.getActive());
     return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
   }
 
@@ -73,8 +71,7 @@ public class TableController implements TablesApi {
             request.getCapacity(),
             request.getShape().getValue(),
             request.getStatus().getValue(),
-            request.getActive(),
-            request.getZone());
+            request.getActive());
     return ResponseEntity.ok(toResponse(updated));
   }
 
@@ -93,7 +90,6 @@ public class TableController implements TablesApi {
         TableShape.fromValue(data.shape()),
         TableStatus.fromValue(data.status()),
         data.active(),
-        data.zone(),
         data.lastUpdated());
   }
 }

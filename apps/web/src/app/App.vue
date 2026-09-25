@@ -23,6 +23,10 @@ const staffWorkspaceRoutes = new Set([
   'games-detail',
   'games-edit',
   'branches',
+  'branch-detail',
+  'staff-permissions',
+  'staff-sessions',
+  'staff-create-reservation',
   'user-profile',
 ]);
 

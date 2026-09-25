@@ -7,6 +7,7 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 import { client } from '../generated/api/client.gen';
 import { messages } from '../i18n';
 import { routes } from '../router';
+import { installApiErrorHandling } from '../api-error';
 
 /** One request the component made, as the stubbed `fetch` saw it. */
 export interface RecordedCall {
@@ -38,6 +39,7 @@ export function stubApi(handlers: ApiHandler[]): RecordedCall[] {
   const calls: RecordedCall[] = [];
 
   client.setConfig({ baseUrl: 'http://localhost/api/v1' });
+  installApiErrorHandling();
   vi.stubGlobal(
     'fetch',
     vi.fn(async (request: Request) => {

@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/vue-query';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import OwnerLayout from '../layouts/OwnerLayout.vue';
+import OwnerPortalLayout from '../layouts/OwnerPortalLayout.vue';
 import UiButton from '../components/ui/UiButton.vue';
 import {
   currentUserQueryOptions,
@@ -36,7 +36,7 @@ const initials = computed(() => {
 </script>
 
 <template>
-  <OwnerLayout active="profile">
+  <OwnerPortalLayout active="profile">
     <section
       class="staff-page-content flex w-full flex-col gap-7 px-8 pt-8 pb-10 sm:px-10"
     >
@@ -153,5 +153,5 @@ const initials = computed(() => {
         </section>
       </div>
     </section>
-  </OwnerLayout>
+  </OwnerPortalLayout>
 </template>

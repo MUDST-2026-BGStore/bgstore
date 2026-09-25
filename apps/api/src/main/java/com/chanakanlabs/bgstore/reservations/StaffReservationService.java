@@ -60,7 +60,7 @@ public class StaffReservationService {
     Branch selectedBranch = branch(branchName);
     Interval interval = interval(selectedBranch, date, start, end, partySize);
     List<ReservationAvailabilityTable> result =
-        tables.findAll(branchName, null, null, null, true).stream()
+        tables.findAll(branchName, null, null, true).stream()
             .filter(table -> table.capacity() >= partySize)
             .filter(table -> selectedBranch.id().equals(table.branchId()))
             .map(
@@ -155,7 +155,12 @@ public class StaffReservationService {
     if (!starts.isBefore(ends)) throw badRequest("End time must be after start time.");
     if (branch.opensAt() != null
         && (starts.isBefore(branch.opensAt()) || ends.isAfter(branch.closesAt())))
-      throw badRequest("The reservation must fit branch opening hours.");
+      throw badRequest(
+          "The reservation must fit branch opening hours ("
+              + branch.opensAt()
+              + "–"
+              + branch.closesAt()
+              + ").");
     LocalDate today = LocalDate.now(BANGKOK);
     if (date.isBefore(today.plusDays(1)) || date.isAfter(today.plusDays(60)))
       throw badRequest("Date must be within the next 60 days.");

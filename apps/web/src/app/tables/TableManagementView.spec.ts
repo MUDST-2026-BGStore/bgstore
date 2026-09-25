@@ -23,7 +23,6 @@ function table(
     shape: 'Round',
     status,
     active: true,
-    zone: id % 2 === 0 ? 'Private Room' : 'Main Hall',
     lastUpdated: '2026-09-11T00:00:00Z',
   };
 }
@@ -67,7 +66,6 @@ function apiForTables() {
       if (request.method === 'GET' && url.pathname === '/api/v1/tables') {
         const branch = url.searchParams.get('branch');
         const search = url.searchParams.get('search')?.toLowerCase() ?? '';
-        const zone = url.searchParams.get('zone');
         const status = url.searchParams.get('status');
         const page = Number(url.searchParams.get('page') ?? 1);
         const pageSize = Number(url.searchParams.get('pageSize') ?? 5);
@@ -75,7 +73,6 @@ function apiForTables() {
           (record) =>
             (!branch || record.branch === branch) &&
             (!search || record.name.toLowerCase().includes(search)) &&
-            (!zone || record.zone === zone) &&
             (!status || record.status === status),
         );
         return {
@@ -172,9 +169,7 @@ describe('Owner table management screen', () => {
     await flushPromises();
 
     expect(wrapper.text()).toContain('No tables match your filters');
-    expect(wrapper.find('[aria-label="Table pagination"]').exists()).toBe(
-      false,
-    );
+    expect(wrapper.find('nav[aria-label="Pagination"]').exists()).toBe(false);
   });
 
   it('displays accurate live summary cards for the selected branch', async () => {
@@ -349,18 +344,18 @@ describe('Owner table management screen', () => {
     const { wrapper } = await mountView();
 
     // Table 1 is Available (green)
-    expect(wrapper.find('.bg-\\[\\#e9f5ee\\]').text()).toContain('Available');
+    expect(wrapper.find('tbody .bg-success-bg').text()).toContain('Available');
     // Table 3 is Reserved (blue)
-    expect(wrapper.find('.bg-\\[\\#edf3fb\\]').text()).toContain('Reserved');
+    expect(wrapper.find('tbody .bg-info-bg').text()).toContain('Reserved');
     // Table 5 is Occupied (orange)
-    expect(wrapper.find('.bg-\\[\\#fff4e9\\]').text()).toContain('Occupied');
+    expect(wrapper.find('tbody .bg-warning-bg').text()).toContain('Occupied');
 
     // Switch to Bangkok branch which has an Unavailable table
     const branchSelect = wrapper.get('#panel-branch');
     await branchSelect.setValue('Bangkok');
     await flushPromises();
 
-    expect(wrapper.find('.bg-\\[\\#fdeeed\\]').text()).toContain('Unavailable');
+    expect(wrapper.find('tbody .bg-danger-bg').text()).toContain('Unavailable');
   });
 
   it('deletes a table only after confirmation', async () => {
@@ -414,10 +409,7 @@ describe('Owner table management screen', () => {
     expect(rows()).toContainEqual(expect.stringContaining('Table 21'));
     expect(rows()).not.toContainEqual(expect.stringContaining('Table 1 '));
 
-    await selects[1].setValue('Main Hall');
-    await flushPromises();
-    expect(rows()).toContainEqual(expect.stringContaining('Table 21'));
-    await selects[2].setValue('Reserved');
+    await selects[1].setValue('Occupied');
     await flushPromises();
     expect(wrapper.text()).toContain('No tables match your filters');
   });
