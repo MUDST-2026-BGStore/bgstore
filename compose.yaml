@@ -58,10 +58,13 @@ services:
       KC_DB_USERNAME: keycloak
       KC_DB_PASSWORD: keycloak-local-only
       KC_HTTP_PORT: 8080
-      KC_HOSTNAME: http://localhost:8081
+      # Both values follow KEYCLOAK_PUBLIC_URL so a host where something else
+      # owns 8081 (CI runners, sandboxed dev environments) can remap the
+      # browser-facing port by setting KEYCLOAK_HOST_PORT/KEYCLOAK_PUBLIC_URL.
+      KC_HOSTNAME: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8081}
       KC_HOSTNAME_BACKCHANNEL_DYNAMIC: 'true'
     ports:
-      - '8081:8080'
+      - '${KEYCLOAK_HOST_PORT:-8081}:8080'
     volumes:
       - ./infra/local/keycloak/bgstore-realm.json:/opt/keycloak/data/import/bgstore-realm.json:ro
       # Keep local theme edits visible without rebuilding the Keycloak image.
@@ -91,7 +94,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bgstore-local-only}
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:-bgstore-local-only}
-      KEYCLOAK_PUBLIC_URL: http://localhost:8081
+      KEYCLOAK_PUBLIC_URL: ${KEYCLOAK_PUBLIC_URL:-http://localhost:8081}
       KEYCLOAK_INTERNAL_URL: http://keycloak:8080
       KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:-bgstore-local-client-secret}
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
