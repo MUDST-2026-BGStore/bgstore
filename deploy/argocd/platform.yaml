@@ -174,6 +174,20 @@ spec:
     repoURL: https://prometheus-community.github.io/helm-charts
     chart: kube-prometheus-stack
     targetRevision: 88.5.4
+    helm:
+      values: |
+        grafana:
+          additionalDataSources:
+            - name: Tempo
+              type: tempo
+              uid: tempo
+              url: http://tempo-query-frontend.observability:3200
+              access: proxy
+            - name: Loki
+              type: loki
+              uid: loki
+              url: http://loki-gateway.observability
+              access: proxy
   destination:
     { server: https://kubernetes.default.svc, namespace: observability }
   syncPolicy:
@@ -299,6 +313,21 @@ spec:
     targetRevision: main
     path: deploy/platform/keycloak-routing
   destination: { server: https://kubernetes.default.svc, namespace: keycloak }
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: [CreateNamespace=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: { name: grafana-routing, namespace: argocd }
+spec:
+  project: bgstore-platform
+  source:
+    repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
+    targetRevision: main
+    path: deploy/platform/grafana-routing
+  destination:
+    { server: https://kubernetes.default.svc, namespace: observability }
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [CreateNamespace=true]
