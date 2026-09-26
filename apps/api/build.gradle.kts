@@ -54,6 +54,12 @@ dependencies {
   implementation("org.springframework.boot:spring-boot-starter-jdbc")
   implementation("org.springframework.boot:spring-boot-starter-jackson")
   implementation("org.springframework.boot:spring-boot-starter-opentelemetry")
+  // Routes application logs into the OpenTelemetry SDK so they ship over OTLP
+  // (Spring Boot 4 configures the log exporter but does not install an appender).
+  implementation("io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:2.31.1-alpha")
+  runtimeOnly("io.opentelemetry:opentelemetry-api-incubator:1.62.0-alpha")
+  // JDBC observation: gives every SQL query a span under the current HTTP trace.
+  implementation("net.ttddyy.observation:datasource-micrometer-spring-boot:2.2.1")
   implementation("org.springframework.boot:spring-boot-starter-security")
   implementation("org.springframework.boot:spring-boot-starter-security-oauth2-client")
   implementation("org.springframework.boot:spring-boot-starter-session-data-redis")
