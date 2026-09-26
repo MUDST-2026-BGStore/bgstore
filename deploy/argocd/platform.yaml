@@ -269,6 +269,13 @@ spec:
     repoURL: https://grafana.github.io/helm-charts
     chart: tempo-distributed
     targetRevision: 1.61.3
+    helm:
+      values: |
+        # The API ships spans to otel-collector, which exports OTLP/HTTP here.
+        traces:
+          otlp:
+            grpc: { enabled: true }
+            http: { enabled: true }
   destination:
     { server: https://kubernetes.default.svc, namespace: observability }
   syncPolicy:
