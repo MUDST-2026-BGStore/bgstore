@@ -159,9 +159,6 @@ const rangeLabel = computed(() =>
             class="w-56"
             @update:model-value="selectStatus"
           />
-          <p class="ml-auto text-[13px] text-ink-muted" aria-live="polite">
-            {{ rangeLabel }}
-          </p>
         </div>
 
         <div

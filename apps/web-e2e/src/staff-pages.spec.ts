@@ -735,3 +735,58 @@ test.describe('staff profile and permissions', () => {
     ).toBeVisible();
   });
 });
+
+test.describe('session console', () => {
+  test('checks a guest in and closes the session with a receipt', async ({
+    page,
+  }) => {
+    await stubSession(page, staffUser);
+    let status = 'Reserved';
+    const served = () =>
+      JSON.stringify({
+        items: [reservation({ id: 'res-1', status, totalPrice: 120 })],
+      });
+    await page.route('**/api/v1/sessions', (route) =>
+      route.fulfill({ contentType: 'application/json', body: served() }),
+    );
+    await page.route('**/api/v1/reservations/res-1/check-in', (route) => {
+      status = 'CheckedIn';
+      return route.fulfill({ contentType: 'application/json', body: served() });
+    });
+    await page.route('**/api/v1/reservations/res-1/check-out', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          tableName: 'Map Room',
+          partySize: 4,
+          totalDue: 120,
+          paymentMethod: 'Cash',
+          payment: null,
+        }),
+      }),
+    );
+
+    await page.goto('/staff/sessions');
+
+    await expect(
+      page.getByRole('heading', { name: 'Session console' }),
+    ).toBeVisible();
+    const row = page.getByRole('row').filter({ hasText: 'Map Room' });
+    await expect(row).toContainText('Waiting to start');
+    await row.getByRole('button', { name: 'Check in' }).click();
+
+    await expect(row).toContainText('In play');
+    await row.getByRole('button', { name: 'Check out' }).click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByLabel('Final amount (THB)')).toHaveValue('120');
+    await dialog.getByRole('button', { name: 'Close session' }).click();
+
+    await expect(
+      dialog.getByRole('heading', { name: 'Session closed' }),
+    ).toBeVisible();
+    await dialog.getByRole('button', { name: 'Done' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+});
