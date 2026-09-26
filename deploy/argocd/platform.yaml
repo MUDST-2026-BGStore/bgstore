@@ -310,6 +310,10 @@ spec:
           otlp:
             grpc: { enabled: true }
             http: { enabled: true }
+        # Required for TraceQL metrics queries (e.g. `rate() by(...)`); without
+        # a registered metrics-generator the querier fails with "empty ring".
+        metrics_generator:
+          enabled: true
   destination:
     { server: https://kubernetes.default.svc, namespace: observability }
   syncPolicy:
