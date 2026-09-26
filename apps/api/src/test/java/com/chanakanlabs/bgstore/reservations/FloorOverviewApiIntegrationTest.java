@@ -180,8 +180,8 @@ class FloorOverviewApiIntegrationTest {
       long id, String name, String branch, int capacity, String shape, String status) {
     database.update(
         """
-        insert into store_table (id, name, branch_id, capacity, shape, status, active, zone, last_updated)
-        values (?, ?, (select id from branch where name = ?), ?, ?, ?, true, 'Main Hall', current_timestamp)
+        insert into store_table (id, name, branch_id, capacity, shape, status, active, last_updated)
+        values (?, ?, (select id from branch where name = ?), ?, ?, ?, true, current_timestamp)
         """,
         id,
         name,
