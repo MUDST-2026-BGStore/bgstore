@@ -61,7 +61,9 @@ spec:
     targetRevision: 2.11.0
     helm:
       values: |
-        installCRDs: true
+        # CRDs are applied server-side out-of-band; Argo client-side apply of
+        # these CRDs can exceed the 256 KiB annotation limit.
+        installCRDs: false
   destination:
     { server: https://kubernetes.default.svc, namespace: external-secrets }
   syncPolicy:
@@ -77,6 +79,12 @@ spec:
     repoURL: docker.io/envoyproxy
     chart: gateway-helm
     targetRevision: v1.9.1
+    helm:
+      values: |
+        # CRDs are applied server-side out-of-band; in-chart apply can exceed the
+        # 256 KiB annotation limit under Argo CD client-side apply.
+        crds:
+          enabled: false
   destination:
     { server: https://kubernetes.default.svc, namespace: envoy-gateway-system }
   syncPolicy:
@@ -182,6 +190,9 @@ spec:
     targetRevision: 91.5.3
     helm:
       values: |
+        # CRDs are applied server-side out-of-band (prometheus-community CRDs).
+        crds:
+          enabled: false
         grafana:
           additionalDataSources:
             - name: Tempo
