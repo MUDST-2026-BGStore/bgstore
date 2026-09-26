@@ -210,6 +210,12 @@ spec:
   syncPolicy:
     automated: { prune: true, selfHeal: true }
     syncOptions: [CreateNamespace=true]
+  ignoreDifferences:
+    # Grafana admin password is set out-of-band after deploy; never reconcile it.
+    - group: ""
+      kind: Secret
+      name: kube-prometheus-stack-grafana
+      jsonPointers: ["/data/admin-password"]
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
