@@ -271,6 +271,10 @@ spec:
     helm:
       values: |
         deploymentMode: SingleBinary
+        # Disable the canary that writes synthetic "ppp" lines to Loki every second;
+        # they pollute Explore with an unknown_service stream.
+        lokiCanary:
+          enabled: false
         loki:
           auth_enabled: false
           commonConfig: { replication_factor: 1 }
