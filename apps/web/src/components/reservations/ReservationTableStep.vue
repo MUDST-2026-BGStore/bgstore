@@ -38,7 +38,14 @@ const isUnavailable = (table: ReservationTableOption) =>
           {{ errorReason }}
         </p>
       </div>
-      <div class="table-grid">
+      <p
+        v-else-if="tables.length === 0"
+        data-testid="tables-empty"
+        role="status"
+      >
+        {{ t('reservation.noTables') }}
+      </p>
+      <div v-else class="table-grid">
         <button
           v-for="table in tables"
           :key="table.id"

@@ -1228,6 +1228,41 @@ export type GetFloorOverviewResponses = {
 export type GetFloorOverviewResponse =
   GetFloorOverviewResponses[keyof GetFloorOverviewResponses];
 
+export type ListStaffReservationsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    status?: ReservationStatus;
+    page?: number;
+    pageSize?: number;
+  };
+  url: '/staff/reservations';
+};
+
+export type ListStaffReservationsErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type ListStaffReservationsError =
+  ListStaffReservationsErrors[keyof ListStaffReservationsErrors];
+
+export type ListStaffReservationsResponses = {
+  /**
+   * A paginated list of branch reservations.
+   */
+  200: ReservationListResponse;
+};
+
+export type ListStaffReservationsResponse =
+  ListStaffReservationsResponses[keyof ListStaffReservationsResponses];
+
 export type ListStaffBranchAssignmentsData = {
   body?: never;
   path?: never;

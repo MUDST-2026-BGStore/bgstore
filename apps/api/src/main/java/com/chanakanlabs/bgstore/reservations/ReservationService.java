@@ -44,6 +44,27 @@ public class ReservationService {
   }
 
   @Transactional(readOnly = true)
+  public PageResult<ReservationRecordData> staffListReservations(
+      @Nullable String status, int page, int pageSize) {
+    accessPolicy.requireStaffOrManager();
+    // A manager sees every branch; staff see only the ones they are assigned to.
+    List<ReservationEntity> accessible =
+        repository.findAllForStaff(status).stream()
+            .filter(reservation -> accessPolicy.canAccessBranch(reservation.branchId()))
+            .toList();
+
+    int pageIndex = Math.max(0, page - 1);
+    int fromIndex = Math.min(pageIndex * pageSize, accessible.size());
+    int toIndex = Math.min(fromIndex + pageSize, accessible.size());
+    List<ReservationRecordData> items =
+        accessible.subList(fromIndex, toIndex).stream().map(ReservationEntity::toRecord).toList();
+
+    int total = accessible.size();
+    int totalPages = Math.max(1, (total + pageSize - 1) / pageSize);
+    return new PageResult<>(items, total, page, pageSize, totalPages);
+  }
+
+  @Transactional(readOnly = true)
   public ReservationRecordData getReservation(String reservationId) {
     String clientSubject = accessPolicy.requireClientOnly().subject();
     return repository

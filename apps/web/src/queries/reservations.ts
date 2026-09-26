@@ -5,6 +5,7 @@ import {
   getReservationAvailability,
   getReservation,
   listReservations,
+  listStaffReservations,
   listClients,
 } from '../generated/api/sdk.gen';
 import type {
@@ -61,6 +62,24 @@ export const reservationsQueryOptions = (query: ReservationListQuery) =>
     queryKey: ['reservations', 'list', query] as const,
     queryFn: async (): Promise<ReservationListResponse> => {
       const { data } = await listReservations({ query, throwOnError: true });
+      return data;
+    },
+    placeholderData: (previous) => previous,
+  });
+
+/** The staff list mirrors the client list but reads the staff endpoint. */
+export const staffReservationsQueryOptions = (
+  query: ReservationListQuery,
+  enabled = true,
+) =>
+  queryOptions({
+    queryKey: ['reservations', 'staff-list', query] as const,
+    enabled,
+    queryFn: async (): Promise<ReservationListResponse> => {
+      const { data } = await listStaffReservations({
+        query,
+        throwOnError: true,
+      });
       return data;
     },
     placeholderData: (previous) => previous,

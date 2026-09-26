@@ -78,6 +78,9 @@ import type {
   ListStaffBranchAssignmentsData,
   ListStaffBranchAssignmentsErrors,
   ListStaffBranchAssignmentsResponses,
+  ListStaffReservationsData,
+  ListStaffReservationsErrors,
+  ListStaffReservationsResponses,
   ListTablesData,
   ListTablesErrors,
   ListTablesResponses,
@@ -527,6 +530,32 @@ export const getFloorOverview = <ThrowOnError extends boolean = false>(
       },
     ],
     url: '/floor-overview',
+    ...options,
+  });
+
+/**
+ * List reservations visible to staff for the accessed branches, newest first.
+ */
+export const listStaffReservations = <ThrowOnError extends boolean = false>(
+  options?: Options<ListStaffReservationsData, ThrowOnError>,
+): RequestResult<
+  ListStaffReservationsResponses,
+  ListStaffReservationsErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    ListStaffReservationsResponses,
+    ListStaffReservationsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/staff/reservations',
     ...options,
   });
 

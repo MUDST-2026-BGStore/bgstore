@@ -198,6 +198,18 @@ export const router = createRouter({
       meta: { requiresAuth: true, focused: true },
     },
     {
+      path: '/staff/reservations',
+      name: 'staff-reservations',
+      component: RoleView,
+      props: {
+        staff: defineAsyncComponent(
+          () => import('./pages/reservations/StaffReservationsListPage.vue'),
+        ),
+        client: AccessDeniedView,
+      },
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/staff/reservations/new',
       alias: '/reservations/new',
       name: 'staff-create-reservation',

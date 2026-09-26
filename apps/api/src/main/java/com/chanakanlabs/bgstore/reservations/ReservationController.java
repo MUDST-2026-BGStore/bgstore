@@ -66,6 +66,22 @@ public class ReservationController implements ReservationsApi {
   }
 
   @Override
+  public ResponseEntity<ReservationListResponse> listStaffReservations(
+      @Nullable ReservationStatus status, Integer page, Integer pageSize) {
+    String statusString = status != null ? status.getValue() : null;
+    int pageNum = page != null ? page : 1;
+    int size = pageSize != null ? pageSize : 20;
+
+    var result = reservations.staffListReservations(statusString, pageNum, size);
+    List<ReservationResponse> items =
+        result.items().stream().map(ReservationController::toResponse).toList();
+    ReservationListResponse response =
+        new ReservationListResponse(
+            items, result.total(), result.page(), result.pageSize(), result.totalPages());
+    return ResponseEntity.ok(response);
+  }
+
+  @Override
   public ResponseEntity<ReservationResponse> getReservation(String reservationId) {
     return ResponseEntity.ok(toResponse(reservations.getReservation(reservationId)));
   }
