@@ -1,25 +1,3 @@
-apiVersion: external-secrets.io/v1
-kind: ExternalSecret
-metadata: { name: keycloak-database }
-spec:
-  refreshInterval: 1h
-  secretStoreRef:
-    name: bgstore
-    kind: ClusterSecretStore
-  target:
-    name: keycloak-database
-    creationPolicy: Owner
-    template: { type: kubernetes.io/basic-auth }
-  data:
-    - secretKey: username
-      remoteRef:
-        key: environments/production/keycloak-database
-        property: POSTGRES_USER
-    - secretKey: password
-      remoteRef:
-        key: environments/production/keycloak-database
-        property: POSTGRES_PASSWORD
----
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata: { name: keycloak-postgresql }
@@ -32,3 +10,9 @@ spec:
       secret: { name: keycloak-database }
   storage: { size: 10Gi }
   monitoring: { enablePodMonitor: true }
+# The keycloak-database ExternalSecret (AWS Secrets Manager, key
+# environments/production/keycloak-database) is intentionally not present yet:
+# it requires the ClusterSecretStore named `bgstore` with IRSA access to AWS
+# Secrets Manager (see docs/runbooks/deployment.md, provider decisions). The
+# keycloak-database secret exists as a manual secret in the meantime and CNPG
+# owns it. Re-add the ExternalSecret when the store is provisioned.
