@@ -122,8 +122,12 @@ services:
     volumes:
       - ./infra/observability/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
     ports:
-      - '4317:4317'
-      - '4318:4318'
+      # Host ports are remapped (4317x -> 14317/14318) because RunsOn runner
+      # images ship their own local OTLP collector on 4317/4318, which breaks
+      # `docker compose up` in CI on those runners. In-container traffic uses
+      # the service ports regardless.
+      - '14317:4317'
+      - '14318:4318'
     depends_on:
       - tempo
       - loki
