@@ -32,4 +32,6 @@ spec:
   hostnames: [{{ .Values.global.domain | quote }}]
   rules:
     - backendRefs:
-        - { name: web, port: 80 }
+        # weight matches what the Gateway API controller materializes, keeping
+        # the Argo CD comparison Synced instead of flagging phantom drift.
+        - { name: web, port: 80, weight: 1 }
