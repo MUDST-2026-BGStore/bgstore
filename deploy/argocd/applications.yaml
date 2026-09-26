@@ -24,8 +24,7 @@ kind: Application
 metadata:
   name: bgstore-dev
   namespace: argocd
-  labels:
-    { app.kubernetes.io/part-of: bgstore, environment: dev }
+  labels: { app.kubernetes.io/part-of: bgstore, environment: dev }
 spec:
   project: bgstore
   source:

@@ -1,23 +1,23 @@
 global:
   domain: bgstore.devopsandbox.chanakanlabs.com
-replicas: {api: 1, web: 1}
-autoscaling: {enabled: false}
+replicas: { api: 1, web: 1 }
+autoscaling: { enabled: false }
 # The dev cluster is single-node with a Klipper ServiceLB that allows only one
 # Gateway to bind host ports 80/443, so all envs attach HTTPRoutes to the
 # shared public Gateway from deploy/platform/public-gateway instead of
 # creating their own.
-gateway: {create: false}
+gateway: { create: false }
 route:
   parentGatewayName: public
   parentGatewayNamespace: gateway
 networkPolicy:
   enabled: false
-postgresql: {createCluster: true, instances: 1, storageSize: 2Gi}
-config: {traceSamplingProbability: '1.0'}
+postgresql: { createCluster: true, instances: 1, storageSize: 2Gi }
+config: { traceSamplingProbability: '1.0' }
 images:
   # api.tag/web.tag are pinned by the trunk-images workflow to the exact main
   # commit it built (`main-<sha>`); its bump pull request updates both. Dev
   # always pulls the image fresh (pullPolicy Always).
-  api: {tag: main-e2a9288dbd8311dfff0c3c7b5c8a1f900c42b9c7}
-  web: {tag: main-e2a9288dbd8311dfff0c3c7b5c8a1f900c42b9c7}
+  api: { tag: main-e2a9288dbd8311dfff0c3c7b5c8a1f900c42b9c7 }
+  web: { tag: main-e2a9288dbd8311dfff0c3c7b5c8a1f900c42b9c7 }
   pullPolicy: Always
