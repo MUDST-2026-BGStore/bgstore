@@ -37,17 +37,13 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: bgstore-dev
-  ignoreDifferences:
-    # This k3s apiserver does not persist managedFields, so the ServerSideApply
-    # dry-run compare keeps reporting the Gateway-route as OutOfSync even when
-    # the rendered target matches the live object. Telling compare to disregard
-    # field-manager ownership for argocd-server silences that phantom drift.
-    - group: gateway.networking.k8s.io
-      kind: HTTPRoute
-      managedFieldsManagers: [argocd-server]
   syncPolicy:
     automated: { prune: true, selfHeal: true }
-    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+    # No ServerSideApply: this k3s apiserver does not persist managedFields, so
+    # Argo's SSA dry-run compare flagged the Gateway-route OutOfSync although
+    # the rendered target matched the live object. Plain apply has no ownership
+    # to conflict with on such a cluster and compares cleanly.
+    syncOptions: [CreateNamespace=true]
     retry:
       limit: 5
       backoff: { duration: 5s, factor: 2, maxDuration: 3m }
