@@ -3,8 +3,10 @@
 ## Current delivery (single devopsandbox node)
 
 Merges to main build `main-<sha>` images (trunk-images workflow) and open a
-pull request bumping dev's `images.tag`; merging that pull request deploys the
-build to dev via Argo CD. Tagging a release builds signed versioned images and
+pull request bumping dev's per-component image tags. The PR is authored by
+`github-actions[bot]`, so GitHub requires a human review on it; once its
+checks are green, approve and squash-merge the pull request and Argo CD rolls
+the build onto dev. Tagging a release builds signed versioned images and
 records their digests in the release notes; it does not deploy anything. See
 [ADR-0008](../decisions/0008-single-environment-trunk-delivery.md).
 

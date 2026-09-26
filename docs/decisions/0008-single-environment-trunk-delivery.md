@@ -14,11 +14,14 @@ unused machinery — a half-workaround rather than an intentional design.
 
 - One live environment: **dev**, a plain Argo CD Application (`bgstore-dev`)
   tracking the chart at main with `deploy/environments/dev/values.yaml`.
-- **Trunk builds deploy themselves.** Every push to main builds `bgstore-api`
-  and `bgstore-web` under a content-addressed `main-<sha>` tag (trunk-images
-  workflow). The workflow then opens a pull request bumping `images.tag` in
-  dev's values file to that exact commit; merging the pull request is the
-  deployment. Argo CD picks up the merged values change and rolls dev.
+- **Trunk builds stage a deploy pull request.** Every push to main builds
+  `bgstore-api` and `bgstore-web` under a content-addressed `main-<sha>` tag
+  (trunk-images workflow). The workflow then opens a pull request bumping the
+  per-component image tags in dev's values file to that exact commit. GitHub
+  requires a human review on PRs authored by `github-actions[bot]`, and the
+  bot cannot approve its own PR, so that review is the deploy gate: once the
+  PR's checks are green, a human approves and squash-merges it, and Argo CD
+  picks up the merged values change and rolls dev.
   (The ApplicationSet generators do not expose the rendered revision as a
   template parameter in Argo CD 3.1, so pinning happens in the values file
   rather than the generator template.)

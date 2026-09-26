@@ -88,6 +88,9 @@ jobs:
             deploy/environments/dev/values.yaml
         env:
           TAG: main-${{ github.sha }}
+      # yq re-emits flow mappings without the spacing Prettier requires, which
+      # fails the required `quality` check; reformat the file after bumping.
+      - run: npm exec --yes -- prettier@3.6.2 --write deploy/environments/dev/values.yaml
       - uses: peter-evans/create-pull-request@v8
         id: pr
         with:
@@ -103,23 +106,13 @@ jobs:
           labels: deployment
       - if: steps.pr.outputs.pull-request-number != ''
         env:
-          GH_TOKEN: ${{ github.token }}
           PR: ${{ steps.pr.outputs.pull-request-number }}
-        # Wait for the branch-protection checks on the PR, then merge. Auto-merge
-        # would need the repo-wide "allow auto-merge" setting; polling the merge
-        # state keeps the whole loop in one workflow run. BLOCKED means required
-        # checks are still pending; DIRTY/UNSTABLE mean a real failure.
+          URL: ${{ steps.pr.outputs.pull-request-url }}
+        # The bump PR is authored by github-actions, so GitHub requires a human
+        # review before it can merge: the GITHUB_TOKEN cannot approve its own
+        # PR and repo-wide auto-merge is off. The review is the deploy gate —
+        # once checks are green, approve and squash-merge the PR and Argo CD
+        # rolls the dev pods onto the new image.
         run: |
-          for _ in $(seq 1 40); do
-            state="$(gh pr view "$PR" --json mergeStateStatus --jq .mergeStateStatus)"
-            case "$state" in
-              CLEAN|HAS_HOOKS) break ;;
-              DIRTY|UNSTABLE)
-                echo "::error::PR #$PR cannot merge (mergeStateStatus=$state)"
-                gh pr checks "$PR" || true
-                exit 1 ;;
-              *) sleep 30 ;;
-            esac
-          done
-          gh pr view "$PR" --json mergeStateStatus --jq .mergeStateStatus
-          gh pr merge "$PR" --squash --delete-branch
+          echo "Dev deploy pending human merge: $URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "Once its checks pass, approve the PR (unblocks the bot-authored review gate) and squash-merge it to deploy dev." >> "$GITHUB_STEP_SUMMARY"
