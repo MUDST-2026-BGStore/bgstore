@@ -219,14 +219,14 @@ spec:
     # Grafana admin password is set out-of-band after deploy; never reconcile it.
     # The deployment's checksum/secret annotation is derived from the rendered
     # secret, so it must be ignored alongside the secret key.
-    - group: ""
+    - group: ''
       kind: Secret
       name: kube-prometheus-stack-grafana
-      jsonPointers: ["/data/admin-password"]
+      jsonPointers: ['/data/admin-password']
     - group: apps
       kind: Deployment
       name: kube-prometheus-stack-grafana
-      jsonPointers: ["/spec/template/metadata/annotations/checksum~1secret"]
+      jsonPointers: ['/spec/template/metadata/annotations/checksum~1secret']
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application

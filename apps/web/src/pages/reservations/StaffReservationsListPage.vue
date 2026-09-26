@@ -230,7 +230,10 @@ const rangeLabel = computed(() =>
           <p class="text-sm text-ink-muted" aria-live="polite">
             {{ rangeLabel }}
           </p>
-          <UiPagination v-model="currentPage" :total-pages="data?.totalPages ?? 1" />
+          <UiPagination
+            v-model="currentPage"
+            :total-pages="data?.totalPages ?? 1"
+          />
         </div>
       </template>
     </div>

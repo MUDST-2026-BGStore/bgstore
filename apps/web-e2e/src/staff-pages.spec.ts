@@ -120,7 +120,9 @@ test.describe('floor overview', () => {
     await expect(stats.nth(0)).toContainText('8');
     await expect(stats.nth(1)).toContainText('3');
     await expect(stats.nth(2)).toContainText('5');
-    await expect(page.getByPlaceholder('Search table name or ID')).toBeVisible();
+    await expect(
+      page.getByPlaceholder('Search table name or ID'),
+    ).toBeVisible();
     await expect(page.getByLabel('Filter by status')).toBeVisible();
     await expect(page.getByRole('cell', { name: 'Map Room' })).toBeVisible();
   });
@@ -229,9 +231,7 @@ test.describe('table management', () => {
     await page.getByLabel('Table name').fill('New Table');
     await page.getByRole('button', { name: 'Save' }).click();
 
-    await expect(
-      page.getByRole('cell', { name: 'New Table' }),
-    ).toBeVisible();
+    await expect(page.getByRole('cell', { name: 'New Table' })).toBeVisible();
   });
 
   test('deletes a table after confirm and refetches the list', async ({
@@ -248,9 +248,7 @@ test.describe('table management', () => {
       return route.fulfill({
         contentType: 'application/json',
         body: JSON.stringify(
-          deleted
-            ? { ...tablesResponse, items: [], total: 0 }
-            : tablesResponse,
+          deleted ? { ...tablesResponse, items: [], total: 0 } : tablesResponse,
         ),
       });
     });
@@ -424,9 +422,7 @@ test.describe('game detail', () => {
     await expect(
       page.getByRole('heading', { name: 'Ticket to Ride' }),
     ).toBeVisible();
-    await expect(
-      page.getByRole('heading', { name: 'Overview' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'Copies by branch' }),
     ).toBeVisible();
@@ -494,9 +490,7 @@ test.describe('add game', () => {
 
     await page.goto('/games/new');
 
-    await expect(
-      page.getByRole('heading', { name: 'Add game' }),
-    ).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Add game' })).toBeVisible();
     await page.getByLabel('Game title (English)').fill('New Arrival');
     await page.getByLabel('Min players').fill('2');
     await page.getByLabel('Max players').fill('4');
@@ -682,7 +676,9 @@ test.describe('staff profile and permissions', () => {
     await expect(
       page.getByRole('heading', { name: 'Local Staff' }),
     ).toBeVisible();
-    await expect(page.getByText('STAFF', { exact: true }).first()).toBeVisible();
+    await expect(
+      page.getByText('STAFF', { exact: true }).first(),
+    ).toBeVisible();
     await expect(page.getByText('Managed in Keycloak')).toBeVisible();
   });
 
@@ -720,9 +716,7 @@ test.describe('staff profile and permissions', () => {
       page.getByRole('heading', { name: 'Staff branch access' }),
     ).toBeVisible();
     await page.getByRole('button', { name: /Local Staff/ }).click();
-    await page
-      .getByRole('checkbox', { name: 'Central Rama II' })
-      .check();
+    await page.getByRole('checkbox', { name: 'Central Rama II' }).check();
     await page.getByRole('button', { name: 'Save assignments' }).click();
 
     await expect(page.getByRole('status')).toContainText(
