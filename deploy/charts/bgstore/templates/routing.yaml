@@ -31,7 +31,10 @@ spec:
       namespace: {{ .Values.route.parentGatewayNamespace }}
   hostnames: [{{ .Values.global.domain | quote }}]
   rules:
-    - backendRefs:
-        # weight matches what the Gateway API controller materializes, keeping
-        # the Argo CD comparison Synced instead of flagging phantom drift.
+    # matches/weight are written out explicitly because the Gateway API
+    # controller materializes those defaults into the live object, which makes
+    # Argo CD report phantom drift on every refresh otherwise.
+    - matches:
+        - path: { type: PathPrefix, value: / }
+      backendRefs:
         - { name: web, port: 80, weight: 1 }
