@@ -194,6 +194,11 @@ spec:
         crds:
           enabled: false
         grafana:
+          # Demo environment: disable login lockout so out-of-band password
+          # resets and failed attempts never block the admin account.
+          grafana.ini:
+            users:
+              login_attempt_limit: 0
           additionalDataSources:
             - name: Tempo
               type: tempo
