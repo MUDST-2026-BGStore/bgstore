@@ -72,6 +72,45 @@ pnpm nx run @mudst-2026-bgstore/contracts:generate
 
 The OpenAPI document at `packages/contracts/openapi.yaml` is authoritative. Regenerate both sides after changing it; generated sources are not hand-edited.
 
+## Testing
+
+Web unit tests are Vitest, browser E2E is Playwright (`apps/web-e2e`), and API tests are JUnit 5 with Testcontainers. The `.agents/bin/verify <scope>` wrapper (`web`, `api`, `contract`, `deploy`, `e2e`, `affected`, `full`) runs the same commands CI runs and logs to a cached file.
+
+Web unit tests:
+
+```bash
+pnpm nx test @mudst-2026-bgstore/web                       # full suite with coverage
+cd apps/web && pnpm exec vitest run                        # direct runner, lists every file
+pnpm nx test @mudst-2026-bgstore/web --run src/i18n-parity.spec.ts --coverage=false  # one file
+```
+
+Browser E2E runs in two modes. By default Playwright starts the built SPA preview on port 4300 and stubs the API in-browser, so it needs no backend; tests that require the real stack skip automatically:
+
+```bash
+pnpm e2e
+```
+
+Full-stack mode runs the same suite against the production-shaped Compose stack with real Keycloak, BFF, PostgreSQL, Redis, and the payment gateway:
+
+```bash
+docker compose --env-file .env.example --profile app up --build --wait --wait-timeout 300
+BASE_URL=http://localhost:4200 BGSTORE_FULL_STACK=1 \
+  pnpm exec playwright test --config=apps/web-e2e/playwright.config.mts
+docker compose --env-file .env.example --profile app down --volumes
+```
+
+Reset the stack between full-stack runs: completed bookings hold their table slots, so a dirty database exhausts the tables that fit the reservation flow. When something else already owns host port 8081 (the browser-facing Keycloak port), remap it by setting both `KEYCLOAK_HOST_PORT` and `KEYCLOAK_PUBLIC_URL`, for example to `18081` and `http://localhost:18081`.
+
+API tests need a working Docker daemon for Testcontainers:
+
+```bash
+apps/api/gradlew -p apps/api test                                                   # all
+apps/api/gradlew -p apps/api test \
+  --tests 'com.chanakanlabs.bgstore.reservations.ReservationApiIntegrationTest'      # one class
+```
+
+Do not run a direct Gradle test command while `.agents/bin/verify` is in progress; the wrapper stops the Gradle daemon when it exits and will kill the concurrent run.
+
 ## Delivery
 
 CI runs unit, integration, architecture, browser, formatting, security, contract, Compose, and Helm checks. Conventional commits drive Release Please. Published releases produce multi-architecture images with SBOM and provenance, sign them keylessly with Cosign, and open a GitOps promotion PR containing immutable image digests.
