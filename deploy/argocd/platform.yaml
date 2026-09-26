@@ -317,7 +317,7 @@ spec:
         overrides:
           defaults:
             metrics_generator:
-              processors: [service-graphs, span-metrics]
+              processors: [service-graphs, span-metrics, local-blocks]
   destination:
     { server: https://kubernetes.default.svc, namespace: observability }
   syncPolicy:
