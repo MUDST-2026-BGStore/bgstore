@@ -113,7 +113,7 @@ class TableApiIntegrationTest {
   void staffCreatesUpdatesAndDeletesATableThroughTheApi() throws Exception {
     String body =
         "{\"name\":\"Created Table\",\"branch\":\"Silom\",\"capacity\":6,"
-            + "\"shape\":\"Round\",\"status\":\"Available\",\"active\":true,\"zone\":\"Terrace\"}";
+            + "\"shape\":\"Round\",\"status\":\"Available\",\"active\":true}";
 
     String created =
         mockMvc
@@ -138,8 +138,7 @@ class TableApiIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     "{\"name\":\"Created Table\",\"branch\":\"Silom\",\"capacity\":6,"
-                        + "\"shape\":\"Round\",\"status\":\"Occupied\",\"active\":true,"
-                        + "\"zone\":\"Terrace\"}")
+                        + "\"shape\":\"Round\",\"status\":\"Occupied\",\"active\":true}")
                 .with(csrf())
                 .with(staffLogin(STAFF)))
         .andExpect(status().isOk())
@@ -211,8 +210,8 @@ class TableApiIntegrationTest {
   private void table(long id, String name, String branch) {
     database.update(
         """
-        insert into store_table (id, name, branch_id, capacity, shape, status, active, zone, last_updated)
-        values (?, ?, (select id from branch where name = ?), 4, 'Round', 'Available', true, 'Main Hall', current_timestamp)
+        insert into store_table (id, name, branch_id, capacity, shape, status, active, last_updated)
+        values (?, ?, (select id from branch where name = ?), 4, 'Round', 'Available', true, current_timestamp)
         """,
         id,
         name,
