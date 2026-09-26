@@ -23,7 +23,8 @@ permissions:
 
 jobs:
   images:
-    runs-on: ubuntu-latest
+    # 8 vCPU + 80GB: multi-arch buildx with SBOM/provenance, plus cosign.
+    runs-on: runs-on=${{ github.run_id }}/runner=8cpu-linux-x64/volume=80gb
     env:
       RELEASE_TAG: ${{ inputs.tag_name || github.event.release.tag_name }}
     steps:

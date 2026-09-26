@@ -14,7 +14,8 @@ concurrency:
 
 jobs:
   quality:
-    runs-on: ubuntu-latest
+    # 4 vCPU/16GB class: pnpm install + Gradle build/check.
+    runs-on: runs-on=${{ github.run_id }}/runner=4cpu-linux-x64
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
@@ -37,7 +38,8 @@ jobs:
             apps/web/test-output
 
   browser:
-    runs-on: ubuntu-latest
+    # 4 vCPU: Playwright E2E against the mock-backed stack.
+    runs-on: runs-on=${{ github.run_id }}/runner=4cpu-linux-x64
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
@@ -65,7 +67,7 @@ jobs:
           path: apps/web-e2e/playwright-report
 
   delivery-manifests:
-    runs-on: ubuntu-latest
+    runs-on: runs-on=${{ github.run_id }}/runner=2cpu-linux-x64
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -91,7 +93,7 @@ jobs:
           exit-code: '1'
 
   compose:
-    runs-on: ubuntu-latest
+    runs-on: runs-on=${{ github.run_id }}/runner=2cpu-linux-x64
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5

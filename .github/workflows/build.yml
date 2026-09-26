@@ -31,7 +31,9 @@ permissions:
   packages: write
 jobs:
   images:
-    runs-on: ubuntu-latest
+    # 8 vCPU + 80GB: two QEMU-emulated multi-arch buildx builds are the longest,
+    # most CPU-bound job in the repo. Spot default (auto-retry on interruption).
+    runs-on: runs-on=${{ github.run_id }}/runner=8cpu-linux-x64/volume=80gb
     steps:
       - uses: actions/checkout@v5
         with:
@@ -74,7 +76,7 @@ jobs:
   # the changed values file and rolls the dev pods onto the new image.
   bump-dev:
     needs: images
-    runs-on: ubuntu-latest
+    runs-on: runs-on=${{ github.run_id }}/runner=2cpu-linux-x64
     permissions:
       contents: write
       pull-requests: write
