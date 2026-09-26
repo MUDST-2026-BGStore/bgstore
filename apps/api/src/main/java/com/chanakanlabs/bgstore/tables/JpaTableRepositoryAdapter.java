@@ -25,11 +25,10 @@ class JpaTableRepositoryAdapter implements TableRepository {
   @Transactional(readOnly = true)
   public List<TableRecordData> findAll(
       @Nullable String branch,
-      @Nullable String zone,
       @Nullable String status,
       @Nullable String search,
       boolean activeOnly) {
-    return database.findFiltered(branch, zone, status, search, activeOnly).stream()
+    return database.findFiltered(branch, status, search, activeOnly).stream()
         .map(this::toRecord)
         .toList();
   }

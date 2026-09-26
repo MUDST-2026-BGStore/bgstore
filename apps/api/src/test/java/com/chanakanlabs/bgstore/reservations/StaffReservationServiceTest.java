@@ -84,7 +84,6 @@ class StaffReservationServiceTest {
                     "Round",
                     "Available",
                     true,
-                    "Main Hall",
                     OffsetDateTime.now(ZoneOffset.UTC),
                     BRANCH_ID)));
     lenient()
@@ -135,7 +134,7 @@ class StaffReservationServiceTest {
     var otherBranch = table(8L, "Other", UUID.randomUUID(), 8);
     doReturn(List.of(fitting, tooSmall, otherBranch))
         .when(tables)
-        .findAll("Central Rama II", null, null, null, true);
+        .findAll("Central Rama II", null, null, true);
 
     var result = service.availability("Central Rama II", BOOKING_DATE, "10:00", "12:00", 4);
 
@@ -214,7 +213,6 @@ class StaffReservationServiceTest {
         "Round",
         "Available",
         true,
-        "Main Hall",
         OffsetDateTime.now(ZoneOffset.UTC),
         branchId);
   }

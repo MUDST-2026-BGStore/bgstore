@@ -351,11 +351,6 @@ paths:
           required: false
           schema:
             type: string
-        - name: zone
-          in: query
-          required: false
-          schema:
-            type: string
         - name: status
           in: query
           required: false
@@ -1575,8 +1570,7 @@ components:
     TableResponse:
       type: object
       additionalProperties: false
-      required:
-        [id, name, branch, capacity, shape, status, active, zone, lastUpdated]
+      required: [id, name, branch, capacity, shape, status, active, lastUpdated]
       properties:
         id:
           type: integer
@@ -1599,10 +1593,6 @@ components:
           $ref: '#/components/schemas/TableStatus'
         active:
           type: boolean
-        zone:
-          type: string
-          minLength: 1
-          maxLength: 100
         lastUpdated:
           type: string
           format: date-time
@@ -1626,7 +1616,7 @@ components:
     CreateTableRequest:
       type: object
       additionalProperties: false
-      required: [name, branch, capacity, shape, status, active, zone]
+      required: [name, branch, capacity, shape, status, active]
       properties:
         name:
           type: string
@@ -1646,10 +1636,6 @@ components:
           $ref: '#/components/schemas/TableStatus'
         active:
           type: boolean
-        zone:
-          type: string
-          minLength: 1
-          maxLength: 100
     UpdateTableRequest:
       allOf:
         - $ref: '#/components/schemas/CreateTableRequest'

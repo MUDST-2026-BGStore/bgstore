@@ -2,7 +2,7 @@
 import { computed, nextTick, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
-import StaffLayout from '../../layouts/StaffLayout.vue';
+import OwnerPortalLayout from '../../layouts/OwnerPortalLayout.vue';
 import UiBadge from '../../components/ui/UiBadge.vue';
 import UiButton from '../../components/ui/UiButton.vue';
 import UiSelect from '../../components/ui/UiSelect.vue';
@@ -208,7 +208,7 @@ const confirmCheckout = () => {
 </script>
 
 <template>
-  <StaffLayout active="sessions">
+  <OwnerPortalLayout active="sessions">
     <div
       class="staff-page-content flex w-full flex-col items-start gap-6 px-10 pt-8 pb-10"
       data-page="session-console"
@@ -588,5 +588,5 @@ const confirmCheckout = () => {
         </div>
       </form>
     </div>
-  </StaffLayout>
+  </OwnerPortalLayout>
 </template>

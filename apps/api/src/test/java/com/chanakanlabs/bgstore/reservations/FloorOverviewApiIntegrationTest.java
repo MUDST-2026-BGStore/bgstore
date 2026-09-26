@@ -141,12 +141,47 @@ class FloorOverviewApiIntegrationTest {
         .andExpect(jsonPath("$.items[0].name").value("Window seat"));
   }
 
+  @Test
+  void explainsWhyAvailabilityIsRejectedOutsideOpeningHours() throws Exception {
+    table(30, "Big table", "Big C Rama I", 6, "Round", "Available");
+
+    mockMvc
+        .perform(availability("09:00", "12:00"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.detail").value(org.hamcrest.Matchers.containsString("10:00–20:00")));
+  }
+
+  @Test
+  void listsTablesThatFitThePartyWithinOpeningHours() throws Exception {
+    table(30, "Big table", "Big C Rama I", 6, "Round", "Available");
+    table(31, "Small table", "Big C Rama I", 2, "Round", "Available");
+
+    mockMvc
+        .perform(availability("10:00", "13:00"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.tables.length()").value(1))
+        .andExpect(jsonPath("$.tables[0].id").value(30))
+        .andExpect(jsonPath("$.tables[0].available").value(true));
+  }
+
+  private org.springframework.test.web.servlet.RequestBuilder availability(
+      String startTime, String endTime) {
+    var date = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Bangkok")).plusDays(1);
+    return get("/api/v1/reservations/availability")
+        .param("branch", "Big C Rama I")
+        .param("date", date.toString())
+        .param("startTime", startTime)
+        .param("endTime", endTime)
+        .param("partySize", "5")
+        .with(staffLogin());
+  }
+
   private void table(
       long id, String name, String branch, int capacity, String shape, String status) {
     database.update(
         """
-        insert into store_table (id, name, branch_id, capacity, shape, status, active, zone, last_updated)
-        values (?, ?, (select id from branch where name = ?), ?, ?, ?, true, 'Main Hall', current_timestamp)
+        insert into store_table (id, name, branch_id, capacity, shape, status, active, last_updated)
+        values (?, ?, (select id from branch where name = ?), ?, ?, ?, true, current_timestamp)
         """,
         id,
         name,

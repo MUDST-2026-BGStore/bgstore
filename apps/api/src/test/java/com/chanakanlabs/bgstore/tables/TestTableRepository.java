@@ -18,18 +18,13 @@ final class TestTableRepository implements TableRepository {
 
   TestTableRepository() {
     var now = OffsetDateTime.now(ZoneOffset.UTC);
-    save(
-        new TableRecordData(
-            1L, "Table 1", "Sukhumvit", 4, "Round", "Available", true, "Main Hall", now));
-    save(
-        new TableRecordData(
-            12L, "Table 12", "Silom", 6, "Round", "Reserved", true, "Main Hall", now));
+    save(new TableRecordData(1L, "Table 1", "Sukhumvit", 4, "Round", "Available", true, now));
+    save(new TableRecordData(12L, "Table 12", "Silom", 6, "Round", "Reserved", true, now));
   }
 
   @Override
   public List<TableRecordData> findAll(
       @Nullable String branch,
-      @Nullable String zone,
       @Nullable String status,
       @Nullable String search,
       boolean activeOnly) {
@@ -38,7 +33,6 @@ final class TestTableRepository implements TableRepository {
         .filter(t -> !activeOnly || t.active())
         .filter(
             t -> branch == null || branch.isBlank() || t.branch().equalsIgnoreCase(branch.trim()))
-        .filter(t -> zone == null || zone.isBlank() || t.zone().equalsIgnoreCase(zone.trim()))
         .filter(
             t -> status == null || status.isBlank() || t.status().equalsIgnoreCase(status.trim()))
         .filter(
@@ -76,7 +70,6 @@ final class TestTableRepository implements TableRepository {
             table.shape(),
             table.status(),
             table.active(),
-            table.zone(),
             table.lastUpdated());
     tables.put(id, saved);
     return saved;

@@ -340,7 +340,6 @@ export type TableResponse = {
   shape: TableShape;
   status: TableStatus;
   active: boolean;
-  zone: string;
   lastUpdated: string;
 };
 
@@ -359,7 +358,6 @@ export type CreateTableRequest = {
   shape: TableShape;
   status: TableStatus;
   active: boolean;
-  zone: string;
 };
 
 export type UpdateTableRequest = CreateTableRequest;
@@ -1015,7 +1013,6 @@ export type ListTablesData = {
   path?: never;
   query?: {
     branch?: string;
-    zone?: string;
     status?: TableStatus;
     search?: string;
     page?: number;

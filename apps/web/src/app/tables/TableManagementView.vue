@@ -2,10 +2,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import OwnerLayout from '../../layouts/OwnerLayout.vue';
+import OwnerPortalLayout from '../../layouts/OwnerPortalLayout.vue';
+import StatCard from '../../components/ui/StatCard.vue';
+import UiBadge from '../../components/ui/UiBadge.vue';
 import UiButton from '../../components/ui/UiButton.vue';
+import UiEmptyState from '../../components/ui/UiEmptyState.vue';
+import UiLoadingState from '../../components/ui/UiLoadingState.vue';
+import UiPagination from '../../components/ui/UiPagination.vue';
 import UiSelect from '../../components/ui/UiSelect.vue';
 import UiTextInput from '../../components/ui/UiTextInput.vue';
+import type { BadgeTone } from '../../components/ui/types';
 import { branchesQueryOptions } from '../../queries/games';
 import {
   createTableRequest,
@@ -30,7 +36,6 @@ const branchDirectory = useQuery(branchesQueryOptions());
 const branches = computed(() => branchDirectory.data.value ?? []);
 const selectedBranch = ref('');
 const search = ref('');
-const zoneFilter = ref('');
 const statusFilter = ref<TableStatus | ''>('');
 // The API contract is one-based; keep the screen state one-based too so every
 // request is valid without translating at multiple call sites.
@@ -47,7 +52,6 @@ const defaultForm: CreateTableRequest = {
   status: 'Available',
   active: true,
   shape: 'Round',
-  zone: '',
 };
 const form = reactive<CreateTableRequest>({ ...defaultForm });
 
@@ -71,7 +75,6 @@ const allTablesQuery = computed(() =>
 const tablesQuery = computed(() =>
   tablesQueryOptions({
     branch: selectedBranch.value || undefined,
-    zone: zoneFilter.value || undefined,
     status: statusFilter.value || undefined,
     search: search.value.trim() || undefined,
     page: currentPage.value,
@@ -98,9 +101,6 @@ const loadError = computed(
     tables.isError.value,
 );
 
-const zoneOptions = computed(() => [
-  ...new Set(summaryRows.value.map((table) => table.zone)),
-]);
 const statusOptions: TableStatus[] = [
   'Available',
   'Reserved',
@@ -120,16 +120,20 @@ const summary = computed(() => ({
     .length,
 }));
 
-const statusClasses: Record<TableStatus, string> = {
-  Available: 'bg-[#e9f5ee] text-[#237847] border-[#cbeed6]',
-  Reserved: 'bg-[#edf3fb] text-[#2563eb] border-[#bfdbfe]',
-  Occupied: 'bg-[#fff4e9] text-[#d97706] border-[#fde68a]',
-  Unavailable: 'bg-[#fdeeed] text-[#dc2626] border-[#fecaca]',
+const statusTones: Record<TableStatus, BadgeTone> = {
+  Available: 'success',
+  Reserved: 'info',
+  Occupied: 'warning',
+  Unavailable: 'danger',
 };
 
-const pageNumbers = computed(() =>
-  Array.from({ length: totalPages.value }, (_, index) => index + 1),
-);
+const capacityModel = computed({
+  get: () => String(form.capacity),
+  set: (value: string) => {
+    form.capacity = Number(value);
+  },
+});
+
 const range = computed(() => {
   if (total.value === 0) return t('tables.showingNone');
   const from = (currentPage.value - 1) * pageSize + 1;
@@ -168,7 +172,7 @@ const remove = useMutation({
   },
 });
 
-watch([selectedBranch, search, zoneFilter, statusFilter], () => {
+watch([selectedBranch, search, statusFilter], () => {
   currentPage.value = 1;
 });
 
@@ -185,7 +189,6 @@ function resetForm(branch = selectedBranch.value) {
   Object.assign(form, {
     ...defaultForm,
     branch,
-    zone: zoneOptions.value[0] ?? '',
   });
   formError.value = '';
 }
@@ -205,7 +208,6 @@ function openEditForm(table: TableResponse) {
     status: table.status,
     active: table.active,
     shape: table.shape,
-    zone: table.zone,
   });
   formError.value = '';
   currentView.value = 'edit';
@@ -232,7 +234,7 @@ function validateForm(): boolean {
     formError.value = t('tables.nameTooLong');
     return false;
   }
-  if (!form.branch || !form.zone || form.capacity < 1) {
+  if (!form.branch || form.capacity < 1) {
     formError.value = t('tables.invalidDetails');
     return false;
   }
@@ -274,7 +276,7 @@ function formatUpdated(value: string) {
 </script>
 
 <template>
-  <OwnerLayout active="tables">
+  <OwnerPortalLayout active="tables">
     <div
       class="staff-page-content flex w-full flex-col items-start bg-canvas"
       data-page="tables"
@@ -296,24 +298,37 @@ function formatUpdated(value: string) {
         class="mx-auto w-full max-w-6xl px-8 py-7"
       >
         <div class="staff-stat-grid mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
-          <article
+          <StatCard
             v-for="card in [
-              { label: t('tables.total'), value: summary.total },
-              { label: t('tables.available'), value: summary.available },
-              { label: t('tables.reserved'), value: summary.reserved },
-              { label: t('tables.occupied'), value: summary.occupied },
+              {
+                label: t('tables.total'),
+                value: summary.total,
+                tone: 'neutral' as const,
+              },
+              {
+                label: t('tables.available'),
+                value: summary.available,
+                tone: 'success' as const,
+              },
+              {
+                label: t('tables.reserved'),
+                value: summary.reserved,
+                tone: 'info' as const,
+              },
+              {
+                label: t('tables.occupied'),
+                value: summary.occupied,
+                tone: 'warning' as const,
+              },
             ]"
             :key="card.label"
-            class="rounded-md border border-line bg-surface p-4"
-          >
-            <p class="text-[12px] text-ink-muted">{{ card.label }}</p>
-            <p class="mt-1 text-[24px] font-semibold text-ink">
-              {{ card.value }}
-            </p>
-          </article>
+            :tone="card.tone"
+            :label="card.label"
+            :value="String(card.value)"
+          />
         </div>
 
-        <div class="mb-5 grid grid-cols-1 gap-3 md:grid-cols-4">
+        <div class="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3">
           <UiSelect
             id="panel-branch"
             v-model="selectedBranch"
@@ -329,13 +344,6 @@ function formatUpdated(value: string) {
             v-model="search"
             :placeholder="t('tables.search')"
             search
-          />
-          <UiSelect
-            id="table-zone"
-            v-model="zoneFilter"
-            :placeholder="t('tables.allZones')"
-            placeholder-selectable
-            :options="zoneOptions.map((zone) => ({ value: zone, label: zone }))"
           />
           <UiSelect
             id="table-status"
@@ -370,19 +378,15 @@ function formatUpdated(value: string) {
             {{ t('tables.retry') }}
           </UiButton>
         </div>
-        <div
+        <UiLoadingState
           v-else-if="isLoading"
-          class="rounded-md border border-line bg-surface p-8 text-ink-muted"
-          data-testid="tables-loading"
-        >
-          {{ t('tables.loading') }}
-        </div>
-        <div
+          :message="t('tables.loading')"
+          testid="tables-loading"
+        />
+        <UiEmptyState
           v-else-if="rows.length === 0"
-          class="rounded-md border border-line bg-surface p-8 text-ink-muted"
-        >
-          {{ t('tables.empty') }}
-        </div>
+          :message="t('tables.empty')"
+        />
         <div
           v-else
           class="overflow-hidden rounded-md border border-line bg-surface"
@@ -409,12 +413,9 @@ function formatUpdated(value: string) {
                   {{ t('tables.seats', { count: table.capacity }) }}
                 </td>
                 <td class="px-4 py-3">
-                  <span
-                    class="inline-flex rounded-full border px-3 py-0.5 text-xs font-semibold"
-                    :class="statusClasses[table.status]"
-                  >
+                  <UiBadge :tone="statusTones[table.status]">
                     {{ t(`tables.status.${table.status}`) }}
-                  </span>
+                  </UiBadge>
                 </td>
                 <td class="px-4 py-3 text-right">
                   <button class="mr-3 text-primary" @click="openView(table)">
@@ -440,38 +441,7 @@ function formatUpdated(value: string) {
           class="mt-4 flex items-center justify-between text-[12px] text-ink-muted"
         >
           <span>{{ range }}</span>
-          <div class="flex items-center gap-1" aria-label="Table pagination">
-            <button
-              :disabled="currentPage === 1"
-              aria-label="Previous page"
-              class="rounded border border-line px-2 py-1 disabled:opacity-40"
-              @click="currentPage -= 1"
-            >
-              ‹
-            </button>
-            <button
-              v-for="page in pageNumbers"
-              :key="page"
-              :aria-current="page === currentPage ? 'page' : undefined"
-              class="rounded px-2 py-1"
-              :class="
-                page === currentPage
-                  ? 'bg-primary text-primary-fg'
-                  : 'border border-line'
-              "
-              @click="currentPage = page"
-            >
-              {{ page + 1 }}
-            </button>
-            <button
-              :disabled="currentPage >= totalPages"
-              aria-label="Next page"
-              class="rounded border border-line px-2 py-1 disabled:opacity-40"
-              @click="currentPage += 1"
-            >
-              ›
-            </button>
-          </div>
+          <UiPagination v-model="currentPage" :total-pages="totalPages" />
         </div>
       </div>
 
@@ -491,88 +461,66 @@ function formatUpdated(value: string) {
         <div class="grid gap-4 rounded-md border border-line bg-surface p-6">
           <label class="grid gap-1 text-[13px] text-ink-secondary"
             >{{ t('tables.name') }}
-            <input
+            <UiTextInput
               id="form-name"
               v-model="form.name"
-              class="h-10 rounded-md border border-line bg-surface px-3 text-ink"
               :placeholder="t('tables.namePlaceholder')"
             />
           </label>
           <label class="grid gap-1 text-[13px] text-ink-secondary"
             >{{ t('tables.branch') }}
-            <select
+            <UiSelect
               id="form-branch"
               v-model="form.branch"
-              class="h-10 rounded-md border border-line bg-surface px-3 text-ink"
-            >
-              <option
-                v-for="branch in branches"
-                :key="branch.id"
-                :value="branch.name"
-              >
-                {{ branch.name }}
-              </option>
-            </select>
+              :options="
+                branches.map((branch) => ({
+                  value: branch.name,
+                  label: branch.name,
+                }))
+              "
+            />
           </label>
           <div class="grid grid-cols-2 gap-4">
             <label class="grid gap-1 text-[13px] text-ink-secondary"
               >{{ t('tables.capacity') }}
-              <select
+              <UiSelect
                 id="form-capacity"
-                v-model.number="form.capacity"
-                class="h-10 rounded-md border border-line bg-surface px-3 text-ink"
-              >
-                <option
-                  v-for="capacity in capacityOptions"
-                  :key="capacity"
-                  :value="capacity"
-                >
-                  {{ capacity }}
-                </option>
-              </select>
+                v-model="capacityModel"
+                :options="
+                  capacityOptions.map((capacity) => ({
+                    value: String(capacity),
+                    label: String(capacity),
+                  }))
+                "
+              />
             </label>
             <label class="grid gap-1 text-[13px] text-ink-secondary"
               >{{ t('tables.statusLabel') }}
-              <select
+              <UiSelect
+                id="form-status"
                 v-model="form.status"
-                class="h-10 rounded-md border border-line bg-surface px-3 text-ink"
-              >
-                <option
-                  v-for="status in statusOptions"
-                  :key="status"
-                  :value="status"
-                >
-                  {{ t(`tables.status.${status}`) }}
-                </option>
-              </select>
+                :options="
+                  statusOptions.map((status) => ({
+                    value: status,
+                    label: t(`tables.status.${status}`),
+                  }))
+                "
+              />
             </label>
           </div>
-          <div class="grid grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 gap-4">
             <label class="grid gap-1 text-[13px] text-ink-secondary"
               >{{ t('tables.shapeLabel') }}
-              <select
+              <UiSelect
+                id="form-shape"
                 v-model="form.shape"
-                class="h-10 rounded-md border border-line bg-surface px-3 text-ink"
-              >
-                <option
-                  v-for="shape in shapeOptions"
-                  :key="shape"
-                  :value="shape"
-                >
-                  {{ t(`tables.shape.${shape}`) }}
-                </option>
-              </select>
-            </label>
-            <label class="grid gap-1 text-[13px] text-ink-secondary"
-              >{{ t('tables.zone') }}
-              <select
-                v-model="form.zone"
-                class="h-10 rounded-md border border-line bg-surface px-3 text-ink"
-              >
-                <option v-for="zone in zoneOptions" :key="zone" :value="zone">
-                  {{ zone }}
-                </option>
-              </select>
+                :options="
+                  shapeOptions.map((shape) => ({
+                    value: shape,
+                    label: t(`tables.shape.${shape}`),
+                  }))
+                "
+              />
             </label>
           </div>
           <label class="flex items-center gap-2 text-[13px] text-ink-secondary"
@@ -629,10 +577,6 @@ function formatUpdated(value: string) {
             </dd>
           </div>
           <div>
-            <dt class="text-ink-muted">{{ t('tables.zone') }}</dt>
-            <dd class="text-ink">{{ viewedTable.zone }}</dd>
-          </div>
-          <div>
             <dt class="text-ink-muted">{{ t('tables.lastUpdated') }}</dt>
             <dd class="text-ink">
               {{ formatUpdated(viewedTable.lastUpdated) }}
@@ -641,5 +585,5 @@ function formatUpdated(value: string) {
         </dl>
       </section>
     </div>
-  </OwnerLayout>
+  </OwnerPortalLayout>
 </template>

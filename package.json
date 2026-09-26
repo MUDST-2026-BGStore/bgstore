@@ -15,7 +15,7 @@
     "dev:infra": "docker compose up -d postgres redis keycloak mailpit",
     "dev:infra:stop": "docker compose stop postgres redis keycloak mailpit",
     "dev:web": "nx dev @mudst-2026-bgstore/web",
-    "dev:api": "nx bootRun bgstore-api",
+    "dev:api": "nx bootRun bgstore-api --skip-nx-cache",
     "e2e": "nx e2e @mudst-2026-bgstore/web-e2e",
     "format": "nx format:write",
     "format:check": "prettier --check .",

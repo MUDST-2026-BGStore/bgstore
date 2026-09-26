@@ -3,8 +3,11 @@ import { VueQueryPlugin } from '@tanstack/vue-query';
 import { createApp } from 'vue';
 import App from './app/App.vue';
 import { client } from './generated/api/client.gen';
+import { installApiErrorHandling } from './api-error';
 import { i18n } from './i18n';
 import { router } from './router';
+
+installApiErrorHandling();
 
 client.setConfig({
   baseUrl: '/api/v1',

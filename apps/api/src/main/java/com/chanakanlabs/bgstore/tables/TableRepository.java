@@ -8,12 +8,11 @@ import org.jspecify.annotations.Nullable;
 public interface TableRepository {
 
   /**
-   * A {@code search} matches part of a table name or zone, or a table id exactly. {@code
-   * activeOnly} leaves out tables taken out of service.
+   * A {@code search} matches part of a table name or a table id exactly. {@code activeOnly} leaves
+   * out tables taken out of service.
    */
   List<TableRecordData> findAll(
       @Nullable String branch,
-      @Nullable String zone,
       @Nullable String status,
       @Nullable String search,
       boolean activeOnly);

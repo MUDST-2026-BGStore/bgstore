@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { computed, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
-import OwnerLayout from '../../layouts/OwnerLayout.vue';
+import OwnerPortalLayout from '../../layouts/OwnerPortalLayout.vue';
 import UiButton from '../../components/ui/UiButton.vue';
 import mapPin from '../../assets/icons/map-pin.svg';
 import { createBranch } from '../../generated/api/sdk.gen';
@@ -53,7 +53,7 @@ function submit() {
 </script>
 
 <template>
-  <OwnerLayout active="branches">
+  <OwnerPortalLayout active="branches">
     <div
       class="staff-page-content flex w-full flex-col gap-7 px-8 pt-8 pb-10 sm:px-10"
     >
@@ -231,5 +231,5 @@ function submit() {
         </section>
       </div>
     </div>
-  </OwnerLayout>
+  </OwnerPortalLayout>
 </template>

@@ -12,6 +12,7 @@ const toneClass = computed(
       success: 'bg-success-bg border-success-border text-success-fg',
       warning: 'bg-warning-bg border-warning-border text-warning-fg',
       info: 'bg-info-bg border-info-border text-info-fg',
+      danger: 'bg-danger-bg border-danger-border text-danger-fg',
       neutral: 'bg-neutral-bg border-neutral-border text-neutral-fg',
     })[props.tone],
 );

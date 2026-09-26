@@ -63,11 +63,33 @@
     sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --paper: #fff;
-  --ink: #20252d;
-  --muted: #64717a;
-  --line: #e2e6e9;
-  --accent: #4c838f;
+
+  /* Semantic aliases over the @theme palette above, so raw CSS and
+     component code share one source of truth with the Tailwind utilities.
+     Change --primary here and both update together. */
+  --primary: var(--color-primary);
+  --primary-hover: var(--color-primary-subtle-fg);
+  --primary-light: var(--color-primary-subtle);
+
+  --background: #f8fafb;
+  --surface: var(--color-surface);
+  --surface-muted: var(--color-surface-sunken);
+
+  --border: var(--color-line);
+  --border-light: var(--color-line-strong);
+
+  --text-primary: var(--color-ink);
+  --text-secondary: var(--color-ink-secondary);
+  --text-muted: var(--color-ink-muted);
+
+  --success: var(--color-success-fg);
+  --success-light: var(--color-success-bg);
+  --info: var(--color-info-fg);
+  --info-light: var(--color-info-bg);
+  --warning: var(--color-warning-fg);
+  --warning-light: var(--color-warning-bg);
+  --danger: var(--color-danger-fg);
+  --danger-light: var(--color-danger-bg);
 }
 
 * {
@@ -92,7 +114,7 @@ body {
 
 .eyebrow {
   margin: 0 0 1rem;
-  color: var(--accent);
+  color: var(--color-primary);
   font-size: 0.78rem;
   font-weight: 750;
   text-transform: uppercase;
@@ -104,13 +126,13 @@ body {
   padding: 0.72rem 1rem;
   border-radius: 0.65rem;
   color: white;
-  background: var(--accent);
+  background: var(--color-primary);
   font-size: 0.85rem;
   font-weight: 700;
 }
 
 .button:focus-visible {
-  outline: 3px solid var(--ink);
+  outline: 3px solid var(--color-ink);
   outline-offset: 3px;
 }
 
@@ -134,9 +156,9 @@ body {
 .onboarding-card {
   width: min(100%, 29rem);
   padding: 2.25rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--color-line);
   border-radius: 1rem;
-  background: var(--paper);
+  background: var(--color-surface);
   box-shadow: 0 1.25rem 2.5rem rgb(30 43 52 / 8%);
   text-align: center;
 }
@@ -151,7 +173,7 @@ body {
 .auth-state-card p,
 .onboarding-card > p {
   margin: 0 0 1.5rem;
-  color: var(--muted);
+  color: var(--color-ink-muted);
   line-height: 1.55;
 }
 
@@ -163,7 +185,7 @@ body {
   place-items: center;
   border-radius: 999px;
   color: white;
-  background: var(--accent);
+  background: var(--color-primary);
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -214,12 +236,12 @@ body {
   padding: 0.65rem 0.75rem;
   border: 1px solid #dce2e6;
   border-radius: 0.5rem;
-  color: var(--ink);
+  color: var(--color-ink);
   font: inherit;
 }
 
 .onboarding-form input:focus {
-  border-color: var(--accent);
+  border-color: var(--color-primary);
   outline: 3px solid rgb(76 131 143 / 18%);
 }
 
@@ -241,7 +263,7 @@ body {
 }
 
 .phone-control:focus-within {
-  border-color: var(--accent);
+  border-color: var(--color-primary);
   box-shadow:
     0 0 0 4px rgb(76 131 143 / 15%),
     inset 0 1px 0 rgb(255 255 255 / 90%),
@@ -283,7 +305,7 @@ body {
 
 .phone-hint {
   margin: -0.15rem 0 0.25rem;
-  color: var(--muted);
+  color: var(--color-ink-muted);
   font-size: 0.76rem;
   line-height: 1.4;
 }
@@ -1232,24 +1254,11 @@ body {
    atmosphere as the client home. The rail is structural, not decorative, so
    management screens keep a predictable reading order at every route. */
 .staff-workspace {
-  --staff-ink: #252525;
-  --staff-warm: #f3cf62;
   display: flex;
   width: 100%;
   min-height: 100vh;
-  color: var(--staff-ink);
-  background:
-    radial-gradient(
-      ellipse 56% 78% at 100% 0%,
-      rgb(255 239 177 / 58%) 0%,
-      transparent 72%
-    ),
-    radial-gradient(
-      ellipse 48% 64% at 62% 38%,
-      rgb(255 255 255 / 66%) 0%,
-      transparent 76%
-    ),
-    linear-gradient(112deg, #e3e8eb 0%, #eef1ef 43%, #d9eff1 100%);
+  color: var(--text-primary);
+  background: var(--background);
 }
 
 .owner-sidebar {
@@ -1263,10 +1272,9 @@ body {
   flex: 0 0 15.5rem;
   flex-direction: column;
   padding: 1.5rem 1.15rem;
-  color: #fff;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(73 120 131 / 28%), transparent 38%),
-    var(--staff-ink);
+  color: var(--text-primary);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
 }
 
 .owner-sidebar-brand {
@@ -1282,13 +1290,13 @@ body {
 }
 
 .owner-sidebar-brand .brand-lockup > span {
-  color: var(--staff-warm);
+  color: var(--primary);
 }
 
 .owner-sidebar-label {
   margin: 0 0 0.85rem;
   padding: 0 0.55rem;
-  color: rgb(255 255 255 / 52%);
+  color: var(--text-muted);
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -1307,7 +1315,7 @@ body {
   gap: 0.7rem;
   padding: 0.65rem 0.75rem;
   border-radius: 0.85rem;
-  color: rgb(255 255 255 / 88%);
+  color: var(--text-secondary);
   font-size: 0.83rem;
   font-weight: 550;
   transition:
@@ -1320,23 +1328,22 @@ body {
   width: 1.15rem;
   height: 1.15rem;
   flex: 0 0 auto;
-  filter: brightness(0) invert(1);
-  opacity: 0.82;
+  filter: brightness(0);
+  opacity: 0.68;
 }
 
 .owner-sidebar-item--active {
-  color: var(--staff-ink);
-  background: var(--staff-warm);
-  box-shadow: 0 0.6rem 1.2rem rgb(0 0 0 / 14%);
+  color: var(--color-primary-fg);
+  background: var(--primary);
 }
 
 .owner-sidebar-item--active img {
-  filter: none;
+  filter: brightness(0) invert(1);
   opacity: 1;
 }
 
 .owner-sidebar-item--disabled {
-  color: rgb(255 255 255 / 54%);
+  color: var(--text-muted);
   cursor: not-allowed;
 }
 
@@ -1347,12 +1354,12 @@ body {
 .owner-sidebar-item:hover:not(.owner-sidebar-item--disabled):not(
     .owner-sidebar-item--active
   ) {
-  background: rgb(255 255 255 / 11%);
+  background: var(--surface-muted);
   transform: translateX(0.1rem);
 }
 
 .owner-sidebar-item--active:hover {
-  background: var(--staff-warm);
+  background: var(--primary-hover);
 }
 
 .owner-sidebar-footer {
@@ -1361,7 +1368,7 @@ body {
   gap: 0.6rem;
   padding: 0 0.55rem;
   margin-top: auto;
-  color: rgb(255 255 255 / 76%);
+  color: var(--text-secondary);
   font-size: 0.72rem;
 }
 
@@ -1375,7 +1382,7 @@ body {
   width: fit-content;
   padding: 0;
   border: 0;
-  color: rgb(255 255 255 / 66%);
+  color: var(--text-muted);
   background: transparent;
   cursor: pointer;
   font: inherit;
@@ -1386,12 +1393,12 @@ body {
 
 .owner-sidebar-logout:hover,
 .owner-sidebar-logout:focus-visible {
-  color: #fff;
+  color: var(--text-primary);
 }
 
 .owner-sidebar-logout:focus-visible {
   border-radius: 0.2rem;
-  outline: 2px solid var(--staff-warm);
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
@@ -1402,7 +1409,7 @@ body {
 
 .owner-sidebar-logout-error {
   margin: 0.55rem 0 0;
-  color: #ffb8b8;
+  color: var(--danger);
   font-size: 0.68rem;
   line-height: 1.35;
 }
@@ -1413,8 +1420,8 @@ body {
   height: 2rem;
   place-items: center;
   border-radius: 50%;
-  color: var(--staff-ink);
-  background: var(--staff-warm);
+  color: var(--color-primary-fg);
+  background: var(--primary);
   font-size: 0.62rem;
   font-weight: 800;
 }
@@ -1435,7 +1442,7 @@ body {
 .staff-page-toolbar > p,
 .staff-page-toolbar h1,
 .staff-page-toolbar h2 {
-  color: var(--staff-ink);
+  color: var(--text-primary);
 }
 
 .staff-page-toolbar a,
@@ -1450,7 +1457,7 @@ body {
 }
 
 .staff-page-title {
-  color: var(--staff-ink) !important;
+  color: var(--text-primary) !important;
   font-size: clamp(1.8rem, 3vw, 2.65rem) !important;
   font-weight: 500 !important;
   letter-spacing: -0.065em !important;
@@ -1465,25 +1472,12 @@ body {
 
 .staff-stat-grid > * {
   min-width: 0;
-  border-color: rgb(255 255 255 / 78%) !important;
   border-radius: 1.15rem !important;
   box-shadow: 0 0.8rem 1.8rem rgb(55 63 71 / 6%);
 }
 
-.staff-stat-grid > *:nth-child(2) {
-  background: rgb(231 246 248 / 82%) !important;
-}
-
-.staff-stat-grid > *:nth-child(3) {
-  background: rgb(255 244 194 / 82%) !important;
-}
-
-.owner-layout-content .border-line {
-  border-color: rgb(37 37 37 / 13%);
-}
-
 .owner-layout-content .bg-surface {
-  background: rgb(255 255 255 / 74%);
+  background: var(--surface);
 }
 
 .owner-layout-content .rounded-lg,
@@ -1499,9 +1493,9 @@ body {
 .staff-card-grid {
   min-width: 0;
   padding: clamp(1.15rem, 2vw, 1.5rem);
-  border: 1px solid rgb(255 255 255 / 82%);
+  border: 1px solid var(--border);
   border-radius: 1.25rem;
-  background: rgb(255 255 255 / 70%);
+  background: var(--surface);
   box-shadow: 0 1rem 2.5rem rgb(55 63 71 / 7%);
 }
 
@@ -1513,10 +1507,9 @@ body {
 .staff-branch-card {
   min-width: 0;
   padding: 1.1rem;
-  border: 1px solid rgb(37 37 37 / 9%);
+  border: 1px solid var(--border);
   border-radius: 1rem;
-  background: rgb(255 255 255 / 72%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 82%);
+  background: var(--surface);
 }
 
 .staff-branch-card-header {
@@ -1538,7 +1531,7 @@ body {
 .staff-branch-card-name {
   margin-top: 0.25rem;
   overflow-wrap: anywhere;
-  color: var(--staff-ink);
+  color: var(--text-primary);
   font-size: 1rem;
   font-weight: 700;
   line-height: 1.25;
@@ -1570,7 +1563,7 @@ body {
   gap: 0.75rem;
   padding-top: 0.85rem;
   margin-top: 0.85rem;
-  border-top: 1px solid rgb(37 37 37 / 10%);
+  border-top: 1px solid var(--border);
 }
 
 .staff-branch-card-hours {
@@ -1597,7 +1590,7 @@ body {
 
 .staff-inline-state {
   padding: 2rem 1rem;
-  border: 1px dashed rgb(37 37 37 / 15%);
+  border: 1px dashed var(--border);
   border-radius: 1rem;
   color: var(--color-ink-muted);
   text-align: center;
@@ -1614,11 +1607,11 @@ body {
 .staff-form-field input,
 .staff-form-field textarea {
   width: 100%;
-  border: 1px solid rgb(37 37 37 / 16%);
+  border: 1px solid var(--border);
   border-radius: 0.85rem;
   padding: 0.7rem 0.8rem;
   color: var(--color-ink);
-  background: rgb(255 255 255 / 72%);
+  background: var(--surface);
   font: inherit;
   font-weight: 400;
   outline: none;
@@ -1632,14 +1625,14 @@ body {
 
 .staff-table-shell {
   overflow: hidden auto !important;
-  border-color: rgb(255 255 255 / 82%) !important;
+  border-color: var(--border) !important;
   border-radius: 1.1rem !important;
-  background: rgb(255 255 255 / 68%) !important;
+  background: var(--surface) !important;
   box-shadow: 0 1rem 2.5rem rgb(55 63 71 / 7%);
 }
 
 .staff-table-shell thead {
-  background: rgb(255 255 255 / 58%) !important;
+  background: var(--surface-muted) !important;
 }
 
 .staff-table-shell tbody tr {
@@ -1647,15 +1640,14 @@ body {
 }
 
 .staff-table-shell tbody tr:hover {
-  background: rgb(255 255 255 / 55%);
+  background: var(--surface-muted);
 }
 
 .staff-page-content input,
 .staff-page-content select {
-  border-color: rgb(37 37 37 / 16%);
+  border-color: var(--border);
   border-radius: 0.85rem;
-  background: rgb(255 255 255 / 72%);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 76%);
+  background: var(--surface);
 }
 
 .staff-page-content input:focus,
@@ -1678,10 +1670,10 @@ body {
   gap: 0.45rem;
   flex: 0 0 auto;
   padding: 0.5rem 0.75rem;
-  border: 1px solid rgb(37 37 37 / 13%);
+  border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--color-ink-secondary);
-  background: rgb(255 255 255 / 66%);
+  background: var(--surface);
   font-size: 0.7rem;
   font-weight: 750;
   letter-spacing: 0.03em;
@@ -1708,7 +1700,7 @@ body {
 .staff-profile-summary-card,
 .staff-profile-details-card {
   min-width: 0;
-  border: 1px solid rgb(255 255 255 / 82%);
+  border: 1px solid var(--border);
   border-radius: 1.25rem;
   box-shadow: 0 1rem 2.5rem rgb(55 63 71 / 8%);
 }
@@ -1718,10 +1710,8 @@ body {
   min-height: 18rem;
   flex-direction: column;
   padding: 1.5rem;
-  color: #fff;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(73 120 131 / 42%), transparent 42%),
-    var(--staff-ink);
+  color: var(--text-primary);
+  background: var(--surface);
 }
 
 .staff-profile-avatar {
@@ -1730,10 +1720,9 @@ body {
   height: 4.25rem;
   place-items: center;
   margin-bottom: 1.5rem;
-  border: 4px solid rgb(255 255 255 / 16%);
   border-radius: 1.25rem;
-  color: var(--staff-ink);
-  background: var(--staff-warm);
+  color: var(--color-primary-fg);
+  background: var(--primary);
   font-size: 1.2rem;
   font-weight: 850;
   letter-spacing: 0.06em;
@@ -1745,10 +1734,6 @@ body {
   font-weight: 750;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-}
-
-.staff-profile-summary-card .staff-profile-card-kicker {
-  color: rgb(255 255 255 / 58%);
 }
 
 .staff-profile-name {
@@ -1763,7 +1748,7 @@ body {
 .staff-profile-username {
   margin-top: 0.45rem;
   overflow-wrap: anywhere;
-  color: rgb(255 255 255 / 68%);
+  color: var(--text-secondary);
   font-size: 0.82rem;
 }
 
@@ -1776,10 +1761,10 @@ body {
 
 .staff-profile-role {
   padding: 0.35rem 0.55rem;
-  border: 1px solid rgb(255 255 255 / 18%);
+  border: 1px solid var(--border);
   border-radius: 999px;
-  color: rgb(255 255 255 / 82%);
-  background: rgb(255 255 255 / 8%);
+  color: var(--text-secondary);
+  background: var(--surface-muted);
   font-size: 0.65rem;
   font-weight: 750;
   letter-spacing: 0.08em;
@@ -1791,19 +1776,19 @@ body {
   gap: 0.45rem;
   padding-top: 1rem;
   margin-top: auto;
-  border-top: 1px solid rgb(255 255 255 / 14%);
-  color: rgb(255 255 255 / 70%);
+  border-top: 1px solid var(--border);
+  color: var(--text-secondary);
   font-size: 0.7rem;
 }
 
 .staff-profile-status-dot {
-  background: var(--staff-warm);
-  box-shadow: 0 0 0 4px rgb(255 219 84 / 12%);
+  background: var(--success);
+  box-shadow: 0 0 0 4px var(--success-light);
 }
 
 .staff-profile-details-card {
   padding: clamp(1.25rem, 2vw, 1.75rem);
-  background: rgb(255 255 255 / 76%);
+  background: var(--surface);
 }
 
 .staff-profile-card-heading {
@@ -1812,12 +1797,12 @@ body {
   justify-content: space-between;
   gap: 1rem;
   padding-bottom: 1.25rem;
-  border-bottom: 1px solid rgb(37 37 37 / 10%);
+  border-bottom: 1px solid var(--border);
 }
 
 .staff-profile-section-title {
   margin-top: 0.3rem;
-  color: var(--staff-ink);
+  color: var(--text-primary);
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -1825,8 +1810,8 @@ body {
 
 .staff-profile-provider-badge {
   color: var(--color-primary);
-  border-color: rgb(44 147 168 / 20%);
-  background: rgb(231 246 248 / 72%);
+  border-color: var(--color-primary-subtle);
+  background: var(--color-primary-subtle);
   text-align: center;
 }
 
@@ -1840,9 +1825,9 @@ body {
 .staff-profile-detail {
   min-width: 0;
   padding: 0.85rem 0.9rem;
-  border: 1px solid rgb(37 37 37 / 9%);
+  border: 1px solid var(--border);
   border-radius: 0.85rem;
-  background: rgb(255 255 255 / 52%);
+  background: var(--surface-muted);
 }
 
 .staff-profile-detail dt {
@@ -1856,7 +1841,7 @@ body {
 .staff-profile-detail dd {
   margin-top: 0.35rem;
   overflow-wrap: anywhere;
-  color: var(--staff-ink);
+  color: var(--text-primary);
   font-size: 0.85rem;
   font-weight: 650;
 }
@@ -1869,7 +1854,7 @@ body {
   margin-top: 1rem;
   border-radius: 0.85rem;
   color: var(--color-ink-secondary);
-  background: rgb(231 246 248 / 48%);
+  background: var(--color-primary-subtle);
   font-size: 0.76rem;
   line-height: 1.5;
 }
@@ -1891,17 +1876,18 @@ body {
   width: 100%;
   max-width: 68rem;
   padding: 2rem 1rem;
-  border: 1px dashed rgb(37 37 37 / 15%);
+  border: 1px dashed var(--border);
   border-radius: 1rem;
   color: var(--color-ink-muted);
-  background: rgb(255 255 255 / 42%);
+  background: var(--surface);
   text-align: center;
 }
 
 .staff-profile-state--error {
   border-style: solid;
+  border-color: var(--color-danger-border);
   color: var(--color-danger-fg);
-  background: rgb(255 238 238 / 65%);
+  background: var(--color-danger-bg);
 }
 
 @media (max-width: 900px) {

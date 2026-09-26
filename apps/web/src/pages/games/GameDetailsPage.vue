@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/vue-query';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import OwnerLayout from '../../layouts/OwnerLayout.vue';
+import OwnerPortalLayout from '../../layouts/OwnerPortalLayout.vue';
 import ScreenStatus from '../../components/ScreenStatus.vue';
 import PageBreadcrumb from '../../components/PageBreadcrumb.vue';
 import UiBadge from '../../components/ui/UiBadge.vue';
@@ -126,7 +126,7 @@ const lastStockIndex = computed(() => (game.value?.stock.length ?? 0) - 1);
     @retry="query.refetch()"
   />
 
-  <OwnerLayout v-else>
+  <OwnerPortalLayout v-else active="games">
     <div
       class="staff-page-toolbar flex w-full shrink-0 items-center gap-3 border-b border-line bg-surface px-8 py-3.5"
     >
@@ -298,5 +298,5 @@ const lastStockIndex = computed(() => (game.value?.stock.length ?? 0) - 1);
         </UiButton>
       </div>
     </div>
-  </OwnerLayout>
+  </OwnerPortalLayout>
 </template>

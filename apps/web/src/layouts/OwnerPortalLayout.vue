@@ -3,9 +3,7 @@ import StaffSidebar, {
   type StaffSection,
 } from '../components/StaffSidebar.vue';
 
-withDefaults(defineProps<{ active?: StaffSection }>(), {
-  active: 'dashboard',
-});
+defineProps<{ active: StaffSection }>();
 </script>
 
 <template>

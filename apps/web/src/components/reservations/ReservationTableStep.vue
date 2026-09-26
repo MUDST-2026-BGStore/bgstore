@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { apiErrorMessage } from '../../api-error';
 import type { ReservationTableOption } from '../../features/reservations/reservation-types';
 
 const props = defineProps<{
@@ -21,6 +22,7 @@ const { t } = useI18n();
 const selectedTable = computed(() =>
   props.tables.find((table) => table.id === props.selectedTableId),
 );
+const errorReason = computed(() => apiErrorMessage(props.error, ''));
 const isUnavailable = (table: ReservationTableOption) =>
   table.reserved || table.seats < props.partySize;
 </script>
@@ -30,7 +32,12 @@ const isUnavailable = (table: ReservationTableOption) =>
     <section aria-labelledby="select-table-title">
       <h2 id="select-table-title">{{ t('reservation.selectTable') }}</h2>
       <p v-if="pending" role="status">{{ t('reservation.loadingTables') }}</p>
-      <p v-else-if="error" role="alert">{{ t('reservation.tablesError') }}</p>
+      <div v-else-if="error" role="alert">
+        <p>{{ t('reservation.tablesError') }}</p>
+        <p v-if="errorReason" data-testid="tables-error-reason">
+          {{ errorReason }}
+        </p>
+      </div>
       <div class="table-grid">
         <button
           v-for="table in tables"

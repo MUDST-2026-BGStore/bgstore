@@ -8,6 +8,7 @@ import ReservationStepper from '../components/reservations/ReservationStepper.vu
 import ReservationTableStep from '../components/reservations/ReservationTableStep.vue';
 import ReservationTimePartyStep from '../components/reservations/ReservationTimePartyStep.vue';
 import StaffReservationClientStep from '../components/reservations/StaffReservationClientStep.vue';
+import OwnerPortalLayout from '../layouts/OwnerPortalLayout.vue';
 import { useStaffReservation } from '../features/reservations/use-staff-reservation';
 import {
   currentUserQueryOptions,
@@ -26,6 +27,13 @@ const clientMode = computed(() =>
   currentUser.data.value
     ? !hasStaffAccess(currentUser.data.value.roles)
     : false,
+);
+// Staff reach this page from the sidebar's "Reservations" shortcut, so it
+// keeps that chrome; a client booking their own table keeps the focused,
+// chrome-free flow.
+const wrapper = computed(() => (clientMode.value ? 'div' : OwnerPortalLayout));
+const wrapperProps = computed(() =>
+  clientMode.value ? {} : { active: 'reservations' as const },
 );
 const {
   branches,
@@ -70,94 +78,96 @@ watch(
 </script>
 
 <template>
-  <section class="reservation-page" aria-labelledby="reservation-title">
-    <h1 id="reservation-title" class="visually-hidden">
-      {{ t(clientMode ? 'reservation.title' : 'reservation.staffTitle') }}
-    </h1>
+  <component :is="wrapper" v-bind="wrapperProps">
+    <section class="reservation-page" aria-labelledby="reservation-title">
+      <h1 id="reservation-title" class="visually-hidden">
+        {{ t(clientMode ? 'reservation.title' : 'reservation.staffTitle') }}
+      </h1>
 
-    <div v-if="isConfirmed" class="reservation-success" role="status">
-      <span aria-hidden="true">✓</span>
-      <h2>{{ t('reservation.readyTitle') }}</h2>
-      <p>{{ t('reservation.readyDescription') }}</p>
-      <button type="button" @click="reviewReservation">
-        {{ t('reservation.reviewReservation') }}
-      </button>
-    </div>
+      <div v-if="isConfirmed" class="reservation-success" role="status">
+        <span aria-hidden="true">✓</span>
+        <h2>{{ t('reservation.readyTitle') }}</h2>
+        <p>{{ t('reservation.readyDescription') }}</p>
+        <button type="button" @click="reviewReservation">
+          {{ t('reservation.reviewReservation') }}
+        </button>
+      </div>
 
-    <div v-else class="reservation-card">
-      <ReservationStepper :current-step="currentStep" />
+      <div v-else class="reservation-card">
+        <ReservationStepper :current-step="currentStep" />
 
-      <StaffReservationClientStep
-        v-if="currentStep === 1"
-        :client-search="draft.client.clientSearch"
-        :branch-id="draft.client.branchId"
-        :first-name="draft.client.firstName"
-        :last-name="draft.client.lastName"
-        :nickname="draft.client.nickname"
-        :phone="draft.client.phone"
-        :clients="clients"
-        :clients-pending="clientsPending"
-        :clients-error="clientsError"
-        :branches="branches"
-        :client-mode="clientMode"
-        @update:client-search="draft.client.clientSearch = $event"
-        @update:branch-id="draft.client.branchId = $event"
-        @update:first-name="draft.client.firstName = $event"
-        @update:last-name="draft.client.lastName = $event"
-        @update:nickname="draft.client.nickname = $event"
-        @update:phone="draft.client.phone = $event"
-        @select-client="selectClient"
-        @next="continueToTimeParty"
-      />
+        <StaffReservationClientStep
+          v-if="currentStep === 1"
+          :client-search="draft.client.clientSearch"
+          :branch-id="draft.client.branchId"
+          :first-name="draft.client.firstName"
+          :last-name="draft.client.lastName"
+          :nickname="draft.client.nickname"
+          :phone="draft.client.phone"
+          :clients="clients"
+          :clients-pending="clientsPending"
+          :clients-error="clientsError"
+          :branches="branches"
+          :client-mode="clientMode"
+          @update:client-search="draft.client.clientSearch = $event"
+          @update:branch-id="draft.client.branchId = $event"
+          @update:first-name="draft.client.firstName = $event"
+          @update:last-name="draft.client.lastName = $event"
+          @update:nickname="draft.client.nickname = $event"
+          @update:phone="draft.client.phone = $event"
+          @select-client="selectClient"
+          @next="continueToTimeParty"
+        />
 
-      <ReservationTimePartyStep
-        v-else-if="currentStep === 2"
-        :date="draft.date"
-        :start-time="draft.startTime"
-        :end-time="draft.endTime"
-        :party-size="draft.partySize"
-        :min-date="dateRange.min"
-        :max-date="dateRange.max"
-        @update:date="draft.date = $event"
-        @update:start-time="draft.startTime = $event"
-        @update:end-time="draft.endTime = $event"
-        @update:party-size="draft.partySize = $event"
-        @back="returnToClient"
-        @next="continueToTable"
-      />
+        <ReservationTimePartyStep
+          v-else-if="currentStep === 2"
+          :date="draft.date"
+          :start-time="draft.startTime"
+          :end-time="draft.endTime"
+          :party-size="draft.partySize"
+          :min-date="dateRange.min"
+          :max-date="dateRange.max"
+          @update:date="draft.date = $event"
+          @update:start-time="draft.startTime = $event"
+          @update:end-time="draft.endTime = $event"
+          @update:party-size="draft.partySize = $event"
+          @back="returnToClient"
+          @next="continueToTable"
+        />
 
-      <ReservationTableStep
-        v-else-if="currentStep === 3"
-        :tables="tables"
-        :party-size="draft.partySize"
-        :selected-table-id="draft.tableId"
-        :pending="availabilityPending"
-        :error="availabilityError"
-        @select="selectTable"
-        @back="returnToTimeParty"
-        @next="continueToConfirmation"
-      />
+        <ReservationTableStep
+          v-else-if="currentStep === 3"
+          :tables="tables"
+          :party-size="draft.partySize"
+          :selected-table-id="draft.tableId"
+          :pending="availabilityPending"
+          :error="availabilityError"
+          @select="selectTable"
+          @back="returnToTimeParty"
+          @next="continueToConfirmation"
+        />
 
-      <ReservationConfirmationStep
-        v-else-if="selectedTable"
-        :draft="draft"
-        :table="selectedTable"
-        :branch-name="selectedBranchName"
-        :submitting="isSubmitting"
-        :error="submissionError"
-        @back="returnToTable"
-        @confirm="confirmReservation"
-      />
-    </div>
-  </section>
+        <ReservationConfirmationStep
+          v-else-if="selectedTable"
+          :draft="draft"
+          :table="selectedTable"
+          :branch-name="selectedBranchName"
+          :submitting="isSubmitting"
+          :error="submissionError"
+          @back="returnToTable"
+          @confirm="confirmReservation"
+        />
+      </div>
+    </section>
+  </component>
 </template>
 
 <style scoped>
 .reservation-page {
   --reservation-green: #497883;
-  width: min(88vw, 70rem);
+  width: min(100%, 70rem);
   margin: 0 auto;
-  padding: clamp(3rem, 8vh, 5.5rem) 0 3rem;
+  padding: clamp(3rem, 8vh, 5.5rem) clamp(1.25rem, 3vw, 3rem) 3rem;
   color: #20252d;
 }
 
@@ -241,8 +251,8 @@ watch(
 
 @media (max-width: 640px) {
   .reservation-page {
-    width: min(92vw, 34rem);
-    padding: 1.75rem 0 2rem;
+    width: min(100%, 34rem);
+    padding: 1.75rem clamp(1rem, 4vw, 1.5rem) 2rem;
   }
 }
 </style>

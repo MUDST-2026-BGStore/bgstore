@@ -47,7 +47,7 @@ const items = computed(() => pageItems(page.value, props.totalPages));
         class="flex size-9 shrink-0 flex-col items-center justify-center gap-1 rounded-full text-[13px] leading-5"
         :class="
           item === page
-            ? 'font-semibold text-[#27545f]'
+            ? 'font-semibold text-primary-subtle-fg'
             : 'font-medium text-primary'
         "
         :aria-label="t('pagination.page', { page: item })"
@@ -57,7 +57,7 @@ const items = computed(() => pageItems(page.value, props.totalPages));
         {{ item }}
         <span
           v-if="item === page"
-          class="h-0.5 w-4 rounded-[2px] bg-[#27545f]"
+          class="h-0.5 w-4 rounded-[2px] bg-primary-subtle-fg"
           aria-hidden="true"
         />
       </button>

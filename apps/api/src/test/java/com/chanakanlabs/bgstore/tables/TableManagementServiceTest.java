@@ -51,19 +51,18 @@ class TableManagementServiceTest {
 
   @Test
   void listsTablesWithPaginationAndFilters() {
-    var result = service.listTables("Sukhumvit", "Main Hall", "Available", "", 1, 5);
+    var result = service.listTables("Sukhumvit", "Available", "", 1, 5);
 
     verify(accessPolicy).requireStaffOrManager();
     assertThat(result.items()).isNotEmpty();
     assertThat(result.items()).allMatch(t -> "Sukhumvit".equalsIgnoreCase(t.branch()));
-    assertThat(result.items()).allMatch(t -> "Main Hall".equalsIgnoreCase(t.zone()));
     assertThat(result.items()).allMatch(t -> "Available".equalsIgnoreCase(t.status()));
     assertThat(result.pageSize()).isEqualTo(5);
   }
 
   @Test
   void listsTablesSearchFilter() {
-    var result = service.listTables(null, null, null, "Table 12", 1, 10);
+    var result = service.listTables(null, null, "Table 12", 1, 10);
 
     assertThat(result.items()).hasSize(1);
     assertThat(result.items().getFirst().name()).isEqualTo("Table 12");
@@ -80,10 +79,9 @@ class TableManagementServiceTest {
             "Square",
             "Available",
             true,
-            "Main Hall",
             OffsetDateTime.now(ZoneOffset.UTC)));
 
-    var result = service.listTables(null, null, null, " 30 ", 1, 10);
+    var result = service.listTables(null, null, " 30 ", 1, 10);
 
     assertThat(result.items()).extracting(TableRecordData::id).containsExactly(30L);
   }
@@ -108,7 +106,7 @@ class TableManagementServiceTest {
     saveOutOfService(40L, "Available");
 
     var floor = service.listActiveTables(null, null, null, 1, 10);
-    var managed = service.listTables(null, null, null, null, 1, 10);
+    var managed = service.listTables(null, null, null, 1, 10);
 
     assertThat(floor.items()).extracting(TableRecordData::id).containsExactly(1L, 12L);
     assertThat(floor.total()).isEqualTo(2);
@@ -136,8 +134,7 @@ class TableManagementServiceTest {
 
   @Test
   void createsTableSuccessfully() {
-    var created =
-        service.createTable("New VIP Table", "Sukhumvit", 8, "Round", "Available", true, "VIP");
+    var created = service.createTable("New VIP Table", "Sukhumvit", 8, "Round", "Available", true);
 
     verify(accessPolicy).requireStaffOrManager();
     assertThat(created.id()).isNotNull();
@@ -149,9 +146,7 @@ class TableManagementServiceTest {
   @Test
   void throwsBadRequestWhenCreatingDuplicateNameInSameBranch() {
     assertThatThrownBy(
-            () ->
-                service.createTable(
-                    "Table 1", "Sukhumvit", 4, "Round", "Available", true, "Main Hall"))
+            () -> service.createTable("Table 1", "Sukhumvit", 4, "Round", "Available", true))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(
             e ->
@@ -161,8 +156,7 @@ class TableManagementServiceTest {
 
   @Test
   void throwsBadRequestOnInvalidCapacityOrBlankFields() {
-    assertThatThrownBy(
-            () -> service.createTable("", "Sukhumvit", 4, "Round", "Available", true, "Main Hall"))
+    assertThatThrownBy(() -> service.createTable("", "Sukhumvit", 4, "Round", "Available", true))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(
             e ->
@@ -170,9 +164,7 @@ class TableManagementServiceTest {
                     .isEqualTo(HttpStatus.BAD_REQUEST));
 
     assertThatThrownBy(
-            () ->
-                service.createTable(
-                    "Valid", "Sukhumvit", 0, "Round", "Available", true, "Main Hall"))
+            () -> service.createTable("Valid", "Sukhumvit", 0, "Round", "Available", true))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(
             e ->
@@ -183,8 +175,7 @@ class TableManagementServiceTest {
   @Test
   void updatesTableSuccessfully() {
     var updated =
-        service.updateTable(
-            1L, "Table 1 Renamed", "Sukhumvit", 6, "Square", "Occupied", true, "Main Hall");
+        service.updateTable(1L, "Table 1 Renamed", "Sukhumvit", 6, "Square", "Occupied", true);
 
     assertThat(updated.name()).isEqualTo("Table 1 Renamed");
     assertThat(updated.capacity()).isEqualTo(6);
@@ -197,9 +188,7 @@ class TableManagementServiceTest {
   @Test
   void throwsNotFoundWhenUpdatingNonExistentTable() {
     assertThatThrownBy(
-            () ->
-                service.updateTable(
-                    9999L, "Ghost", "Sukhumvit", 4, "Round", "Available", true, "VIP"))
+            () -> service.updateTable(9999L, "Ghost", "Sukhumvit", 4, "Round", "Available", true))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(
             e ->
@@ -235,7 +224,6 @@ class TableManagementServiceTest {
             "Round",
             status,
             false,
-            "Main Hall",
             OffsetDateTime.now(ZoneOffset.UTC)));
   }
 
@@ -245,7 +233,7 @@ class TableManagementServiceTest {
         .when(accessPolicy)
         .requireStaffOrManager();
 
-    assertThatThrownBy(() -> service.listTables(null, null, null, null, 1, 10))
+    assertThatThrownBy(() -> service.listTables(null, null, null, 1, 10))
         .isInstanceOf(ResponseStatusException.class)
         .satisfies(
             e ->

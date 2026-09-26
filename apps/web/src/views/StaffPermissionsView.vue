@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import OwnerLayout from '../layouts/OwnerLayout.vue';
+import OwnerPortalLayout from '../layouts/OwnerPortalLayout.vue';
 import AccessDeniedView from './AccessDeniedView.vue';
 import UiButton from '../components/ui/UiButton.vue';
 import { branchesQueryOptions } from '../queries/games';
@@ -56,7 +56,7 @@ const save = useMutation({
 
 <template>
   <AccessDeniedView v-if="!canManage" />
-  <OwnerLayout v-else active="profile">
+  <OwnerPortalLayout v-else active="profile">
     <main class="staff-page-content w-full px-8 pt-8 pb-10 sm:px-10">
       <p class="eyebrow mb-2">{{ t('staff.nav.profile') }}</p>
       <h1 class="staff-page-title">{{ t('staff.permissions.title') }}</h1>
@@ -166,5 +166,5 @@ const save = useMutation({
         </form>
       </section>
     </main>
-  </OwnerLayout>
+  </OwnerPortalLayout>
 </template>

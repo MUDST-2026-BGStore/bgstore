@@ -12,7 +12,6 @@ public record TableRecordData(
     String shape,
     String status,
     boolean active,
-    String zone,
     OffsetDateTime lastUpdated,
     @Nullable UUID branchId) {
 
@@ -25,8 +24,7 @@ public record TableRecordData(
       String shape,
       String status,
       boolean active,
-      String zone,
       OffsetDateTime lastUpdated) {
-    this(id, name, branch, capacity, shape, status, active, zone, lastUpdated, null);
+    this(id, name, branch, capacity, shape, status, active, lastUpdated, null);
   }
 }
