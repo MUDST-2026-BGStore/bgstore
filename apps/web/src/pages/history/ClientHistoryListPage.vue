@@ -249,7 +249,7 @@ watch(
       <div
         v-if="!isLoading && paginatedData.total > 0"
         class="mt-6 flex flex-wrap items-center justify-between gap-4 py-2"
-        aria-label="Table pagination"
+        aria-label="Reservation history pagination"
       >
         <div class="text-sm font-normal text-slate-500">
           Showing

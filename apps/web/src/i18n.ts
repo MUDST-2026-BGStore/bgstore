@@ -692,6 +692,9 @@ export const messages = {
       },
       empty: 'No reservations found under this category',
       loading: 'Loading reservations…',
+      detail: {
+        notFound: 'We could not find that reservation.',
+      },
       pagination: {
         previous: 'Previous page',
         next: 'Next page',
@@ -1430,6 +1433,9 @@ export const messages = {
       },
       empty: 'ไม่พบรายการจองในหมวดหมู่นี้',
       loading: 'กำลังโหลดประวัติการจอง…',
+      detail: {
+        notFound: 'ไม่พบรายการจองนี้',
+      },
       pagination: {
         previous: 'หน้าก่อนหน้า',
         next: 'หน้าถัดไป',

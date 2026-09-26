@@ -25,7 +25,7 @@ const cancelError = ref<string | null>(null);
 const errorMessage = computed(
   () =>
     cancelError.value ??
-    (reservationQuery.isError.value ? 'Reservation not found' : null),
+    (reservationQuery.isError.value ? t('history.detail.notFound') : null),
 );
 
 // Modal state
@@ -133,7 +133,7 @@ function statusToneClass(status?: ReservationStatus) {
         class="flex w-full flex-col items-center justify-center rounded-xl border border-line bg-surface py-16 text-center"
       >
         <p class="text-[16px] font-medium text-ink-secondary">
-          {{ errorMessage || 'Reservation not found' }}
+          {{ errorMessage || t('history.detail.notFound') }}
         </p>
         <button
           type="button"
