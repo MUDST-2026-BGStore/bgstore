@@ -312,8 +312,12 @@ spec:
             http: { enabled: true }
         # Required for TraceQL metrics queries (e.g. `rate() by(...)`); without
         # a registered metrics-generator the querier fails with "empty ring".
-        metrics_generator:
+        metricsGenerator:
           enabled: true
+        overrides:
+          defaults:
+            metrics_generator:
+              processors: [service-graphs, span-metrics]
   destination:
     { server: https://kubernetes.default.svc, namespace: observability }
   syncPolicy:
