@@ -22,9 +22,9 @@ jobs:
             build-mode: manual
           - language: javascript-typescript
             build-mode: none
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ubuntu-latest
     steps:
-      - uses: useblacksmith/checkout@v1
+      - uses: actions/checkout@v5
       - uses: github/codeql-action/init@v4
         with: { languages: '${{ matrix.language }}' }
       - if: matrix.language == 'java-kotlin'
