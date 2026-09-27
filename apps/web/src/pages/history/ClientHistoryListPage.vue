@@ -187,6 +187,27 @@ watch(
           </div>
         </template>
 
+        <!-- Error State -->
+        <template v-else-if="reservations.isError.value">
+          <div
+            data-testid="history-error"
+            role="alert"
+            class="flex w-full flex-col items-center justify-center rounded-lg border border-danger-border bg-surface py-16 text-center"
+          >
+            <p class="text-[15px] font-medium text-ink-secondary">
+              {{ t('history.loadError') }}
+            </p>
+            <button
+              type="button"
+              data-testid="history-retry"
+              class="mt-4 rounded-md border border-line px-4 py-2 text-[14px] text-ink hover:bg-gray-50 cursor-pointer"
+              @click="reservations.refetch()"
+            >
+              {{ t('history.retry') }}
+            </button>
+          </div>
+        </template>
+
         <!-- Empty State -->
         <template v-else-if="paginatedData.items.length === 0">
           <div

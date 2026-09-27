@@ -53,7 +53,7 @@ const assistance = useMutation({
       </button>
     </div>
 
-    <div v-else-if="!session" class="session-state">
+    <div v-else-if="!session" class="session-state" role="status">
       <h2>{{ t('activeSession.noSessionTitle') }}</h2>
       <p>{{ t('activeSession.noSessionDescription') }}</p>
     </div>

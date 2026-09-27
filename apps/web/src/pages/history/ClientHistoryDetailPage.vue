@@ -367,7 +367,8 @@ function statusToneClass(status?: ReservationStatus) {
                 v-if="canCancel"
                 type="button"
                 data-testid="cancel-button"
-                class="inline-flex h-10 items-center justify-center rounded-md bg-[#991b1b] px-6 text-[14px] font-medium text-white transition-colors hover:bg-[#7f1d1d] cursor-pointer"
+                :disabled="isCancelling"
+                class="inline-flex h-10 items-center justify-center rounded-md bg-[#991b1b] px-6 text-[14px] font-medium text-white transition-colors hover:bg-[#7f1d1d] disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
                 @click="openCancelModal"
               >
                 {{ t('history.actions.cancel') }}

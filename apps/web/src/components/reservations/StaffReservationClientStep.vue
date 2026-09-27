@@ -153,6 +153,13 @@ const updateClientSearch = (value: string) => {
         required
         @input="emit('update:phone', ($event.target as HTMLInputElement).value)"
       />
+      <small
+        v-if="clientMode && phone.trim().length === 0"
+        role="status"
+        data-testid="phone-required-hint"
+      >
+        {{ t('reservation.missingPhone') }}
+      </small>
     </label>
 
     <div class="step-actions field--wide">
