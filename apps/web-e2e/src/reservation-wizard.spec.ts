@@ -191,6 +191,51 @@ test('client mode prefills the booking form and sends the chosen date to availab
     .toBe(true);
 });
 
+test('asks a client without a phone on file for one', async ({ page }) => {
+  // A client whose profile carries no phone must supply one before continuing.
+  await mockUser(page, {
+    ...clientUser,
+    clientProfile: undefined,
+  } as unknown as typeof clientUser);
+  await mockBranches(page);
+
+  await page.goto('/reservations/new');
+
+  await expect(page.locator('#reservation-phone')).toHaveValue('');
+  await expect(page.getByTestId('phone-required-hint')).toBeVisible();
+  await expect(page.getByTestId('phone-required-hint')).toContainText(
+    'Add a phone number so staff can reach you at check-in.',
+  );
+  await expect(
+    page.getByRole('button', { name: 'Next', exact: true }),
+  ).toBeDisabled();
+});
+
+test('reports a failed availability load', async ({ page }) => {
+  await page.route('**/api/v1/reservations/availability**', (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: 'application/problem+json',
+      body: JSON.stringify({ status: 500, title: 'Internal Server Error' }),
+    }),
+  );
+  await mockUser(page, clientUser);
+  await mockBranches(page);
+
+  await page.goto('/reservations/new');
+
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.getByText('Time & Party', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+
+  await expect(
+    page.getByRole('heading', { name: 'Select table' }),
+  ).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText(
+    'We could not load table availability. Please try again.',
+  );
+});
+
 test('rejects an out-of-order time range and continues once it is valid', async ({
   page,
 }) => {

@@ -503,6 +503,48 @@ test.describe('reservation history', () => {
     );
   });
 
+  test('reports a failed history load and recovers on retry', async ({
+    page,
+  }) => {
+    // The first load fails at the network edge; a failure must not be read as
+    // "this client has no reservations".
+    let failing = true;
+    await page.route('**/api/v1/reservations?**', (route) =>
+      failing
+        ? route.fulfill({
+            status: 500,
+            contentType: 'application/problem+json',
+            body: JSON.stringify({
+              status: 500,
+              title: 'Internal Server Error',
+            }),
+          })
+        : route.fulfill({
+            contentType: 'application/json',
+            body: JSON.stringify({
+              items: [reservation(RESERVATION_ID)],
+              total: 1,
+              page: 1,
+              pageSize: 4,
+              totalPages: 1,
+            }),
+          }),
+    );
+
+    await page.goto('/history');
+
+    const error = page.getByTestId('history-error');
+    await expect(error).toBeVisible();
+    await expect(error).toContainText('Reservations could not be loaded.');
+    await expect(page.getByTestId('empty-state')).toHaveCount(0);
+
+    failing = false;
+    await page.getByTestId('history-retry').click();
+
+    await expect(page.getByTestId('reservation-card')).toHaveCount(1);
+    await expect(page.getByTestId('history-error')).toHaveCount(0);
+  });
+
   test('shows every recorded field on the reservation detail', async ({
     page,
   }) => {

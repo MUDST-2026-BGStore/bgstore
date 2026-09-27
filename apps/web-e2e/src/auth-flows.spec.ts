@@ -55,6 +55,53 @@ test('sends a guest from a protected route to the sign-in redirect', async ({
   ).toBeVisible();
 });
 
+test('returns a timed-out session to the sign-in redirect', async ({
+  page,
+}) => {
+  // The session expires between page loads: the first load sees a signed-in
+  // client on a protected route, the reload is a guest and must be sent to the
+  // sign-in redirect instead of the guest shell.
+  let signedIn = true;
+  await page.route('**/api/v1/me', (route) =>
+    signedIn
+      ? route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify(clientUser),
+        })
+      : route.fulfill({ status: 401 }),
+  );
+  await page.route('**/api/v1/reservations?**', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [],
+        total: 0,
+        page: 1,
+        pageSize: 4,
+        totalPages: 0,
+      }),
+    }),
+  );
+  // The redirect target is a real browser navigation; stub it so the assertion
+  // stays inside the app instead of hitting Keycloak.
+  await page.route('**/auth/sign-in*', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: '<h1>sign-in stub</h1>',
+    }),
+  );
+
+  await gotoApp(page, '/history');
+  await expect(page).toHaveURL(/\/history$/);
+
+  // The session is gone on the next load, so the protected route redirects.
+  signedIn = false;
+  await page.reload({ waitUntil: 'commit' });
+
+  await expect(page).toHaveURL(/\/auth\/sign-in\?returnTo=%2Fhistory$/);
+  await expect(page.getByText('sign-in stub')).toBeVisible();
+});
+
 test('collects a missing client profile and returns the client home', async ({
   page,
 }) => {
