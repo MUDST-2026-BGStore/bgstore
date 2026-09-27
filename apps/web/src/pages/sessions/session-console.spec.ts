@@ -239,27 +239,34 @@ describe('SessionConsolePage', () => {
     await wrapper.get('#checkout-method').setValue('Card');
 
     const form = wrapper.get('form');
-    const submit = form.findAll('button')[1];
     const number = wrapper.get<HTMLInputElement>('#checkout-card-number');
     const expiry = wrapper.get<HTMLInputElement>('#checkout-card-expiry');
     const cvv = wrapper.get<HTMLInputElement>('#checkout-card-cvv');
 
-    expect(submit.attributes('disabled')).toBeDefined();
+    // Submitting an incomplete entry is answered by the form, not a dead button.
+    await form.trigger('submit');
+    await flushPromises();
+    expect(wrapper.text()).toContain(
+      'Enter a valid card number, expiry, and security code first.',
+    );
+    expect(calls.some((call) => call.url.includes('/check-out'))).toBe(false);
 
     // Luhn-failing number never arms the charge.
     await number.setValue('4242424242424241');
     await expiry.setValue('12/29');
     await cvv.setValue('123');
-    expect(submit.attributes('disabled')).toBeDefined();
+    await form.trigger('submit');
+    await flushPromises();
+    expect(calls.some((call) => call.url.includes('/check-out'))).toBe(false);
 
     // An Amex needs four security digits.
     await number.setValue('378282246310005');
     await cvv.setValue('123');
-    expect(submit.attributes('disabled')).toBeDefined();
+    await form.trigger('submit');
+    await flushPromises();
+    expect(calls.some((call) => call.url.includes('/check-out'))).toBe(false);
 
     await cvv.setValue('1234');
-    expect(submit.attributes('disabled')).toBeUndefined();
-
     await form.trigger('submit');
     await flushPromises();
 

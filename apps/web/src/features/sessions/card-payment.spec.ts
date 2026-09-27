@@ -3,6 +3,7 @@ import {
   cardInputReady,
   cardNumberValid,
   detectCardBrand,
+  expiryPassed,
   formatCardNumber,
   luhnValid,
   parseCardExpiry,
@@ -101,6 +102,27 @@ describe('parseCardExpiry', () => {
   });
 });
 
+describe('expiryPassed', () => {
+  it('keeps the current month chargeable and refuses anything before it', () => {
+    const now = new Date('2026-09-15T04:00:00Z');
+    expect(expiryPassed('09/26', now)).toBe(false);
+    expect(expiryPassed('08/26', now)).toBe(true);
+    expect(expiryPassed('12/26', now)).toBe(false);
+    expect(expiryPassed('01/30', now)).toBe(false);
+  });
+
+  it('reads the Bangkok clock, not the runner timezone', () => {
+    // 30 September 17:00 UTC is already 1 October in Bangkok (+7, no DST).
+    const now = new Date('2026-09-30T17:00:00Z');
+    expect(expiryPassed('09/26', now)).toBe(true);
+    expect(expiryPassed('10/26', now)).toBe(false);
+  });
+
+  it('treats an unparsable date as not-yet-past', () => {
+    expect(expiryPassed('soon')).toBe(false);
+  });
+});
+
 describe('cardInputReady', () => {
   const base = {
     number: '4242 4242 4242 4242',
@@ -135,5 +157,16 @@ describe('cardInputReady', () => {
     expect(cardInputReady({ ...base, number: '4242424242424241' })).toBeNull();
     expect(cardInputReady({ ...base, expiry: '13/29' })).toBeNull();
     expect(cardInputReady({ ...base, expiry: '' })).toBeNull();
+  });
+
+  it('refuses a card whose expiry month has already passed', () => {
+    const now = new Date('2026-09-15T04:00:00Z');
+    expect(cardInputReady({ ...base, expiry: '08/26' }, now)).toBeNull();
+    expect(cardInputReady({ ...base, expiry: '09/26' }, now)).toEqual({
+      number: '4242424242424242',
+      cvv: '123',
+      expiryMonth: 9,
+      expiryYear: 2026,
+    });
   });
 });

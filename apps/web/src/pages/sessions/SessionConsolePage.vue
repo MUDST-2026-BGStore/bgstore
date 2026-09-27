@@ -11,6 +11,7 @@ import {
   cardBrandLogos,
   cardInputReady,
   detectCardBrand,
+  expiryPassed,
   formatCardNumber,
 } from '../../features/sessions/card-payment';
 import promptPayQr from '../../assets/promptpay-demo-qr.png';
@@ -123,6 +124,14 @@ const cardNumberFormatted = computed({
 
 const cardBrand = computed(() => detectCardBrand(cardNumber.value));
 
+/** A parsed-but-past expiry is refused locally; say so instead of a dead button. */
+const expiryExpired = computed(
+  () =>
+    isCard.value &&
+    cardExpiry.value.trim() !== '' &&
+    expiryPassed(cardExpiry.value),
+);
+
 /** The charge payload once number, expiry, and CVV all pass local checks. */
 const cardInput = computed(() =>
   cardInputReady({
@@ -131,7 +140,6 @@ const cardInput = computed(() =>
     expiry: cardExpiry.value,
   }),
 );
-const cardReady = computed(() => cardInput.value !== null);
 
 /**
  * The thrown checkout error is the parsed problem body, so a gateway decline
@@ -526,6 +534,13 @@ const confirmCheckout = () => {
             </div>
           </div>
 
+          <p
+            v-if="expiryExpired"
+            class="mt-1 text-[12px] leading-4 text-danger-fg"
+            role="alert"
+          >
+            {{ t('sessions.expiryPast') }}
+          </p>
           <p class="mt-1 text-[12px] leading-4 text-ink-muted">
             {{ t('sessions.cardKnobHint') }}
           </p>
@@ -579,10 +594,7 @@ const confirmCheckout = () => {
           <UiButton variant="outline" @click="closeCheckout">
             {{ t('sessions.cancel') }}
           </UiButton>
-          <UiButton
-            type="submit"
-            :disabled="checkOut.isPending.value || (isCard && !cardReady)"
-          >
+          <UiButton type="submit" :disabled="checkOut.isPending.value">
             {{ t('sessions.confirm') }}
           </UiButton>
         </div>

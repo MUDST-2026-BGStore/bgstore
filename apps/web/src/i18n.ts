@@ -325,6 +325,7 @@ export const messages = {
       },
       clientSearch: 'Find a client',
       clientSearchPlaceholder: 'Search by name or phone number',
+      missingPhone: 'Add a phone number so staff can reach you at check-in.',
       loadingClients: 'Loading registered clients…',
       clientsError:
         'Registered clients could not be loaded. Enter a walk-in client instead.',
@@ -443,6 +444,7 @@ export const messages = {
       cardCvv: 'Security code (CVV)',
       cardKnobHint:
         'Demo gateway: the security code picks the outcome — 111 insufficient funds · 222 stolen card · 333 wrong code · 999 gateway error; any other valid code approves.',
+      expiryPast: 'This card has already expired.',
       cardIncomplete:
         'Enter a valid card number, expiry, and security code first.',
       promptPayNote:
@@ -692,6 +694,8 @@ export const messages = {
       },
       empty: 'No reservations found under this category',
       loading: 'Loading reservations…',
+      loadError: 'Reservations could not be loaded.',
+      retry: 'Try again',
       detail: {
         notFound: 'We could not find that reservation.',
       },
@@ -1073,6 +1077,7 @@ export const messages = {
       },
       clientSearch: 'ค้นหาลูกค้า',
       clientSearchPlaceholder: 'ค้นหาด้วยชื่อหรือหมายเลขโทรศัพท์',
+      missingPhone: 'ระบุหมายเลขโทรศัพท์เพื่อให้พนักงานติดต่อคุณได้ตอนเช็คอิน',
       loadingClients: 'กำลังโหลดข้อมูลลูกค้า…',
       clientsError:
         'ไม่สามารถโหลดข้อมูลลูกค้าที่ลงทะเบียนได้ คุณยังกรอกข้อมูลลูกค้าที่หน้าร้านได้',
@@ -1188,6 +1193,7 @@ export const messages = {
       cardCvv: 'รหัสความปลอดภัย (CVV)',
       cardKnobHint:
         'เกตเวย์สาธิต: รหัสความปลอดภัยเป็นตัวเลือกผลลัพธ์ — 111 วงเงินไม่เพียงพอ · 222 บัตรถูกระงับ · 333 รหัสไม่ถูกต้อง · 999 เกตเวย์ขัดข้อง ส่วนรหัสอื่นที่ถูกต้องจะอนุมัติ',
+      expiryPast: 'บัตรนี้หมดอายุการใช้งานแล้ว',
       cardIncomplete:
         'กรุณากรอกเลขบัตร วันหมดอายุ และรหัสความปลอดภัยให้ครบถ้วน',
       promptPayNote:
@@ -1433,6 +1439,8 @@ export const messages = {
       },
       empty: 'ไม่พบรายการจองในหมวดหมู่นี้',
       loading: 'กำลังโหลดประวัติการจอง…',
+      loadError: 'ไม่สามารถโหลดรายการจองได้',
+      retry: 'ลองอีกครั้ง',
       detail: {
         notFound: 'ไม่พบรายการจองนี้',
       },

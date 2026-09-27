@@ -128,18 +128,50 @@ export const parseCardExpiry = (
 };
 
 /**
+ * Whether an `MM/YY` expiry has already passed the current month in Bangkok,
+ * where the gateway's clock lives. A card is valid through the last day of
+ * its expiry month, so the current month itself is still chargeable.
+ */
+export const expiryPassed = (
+  expiry: string,
+  now: Date = new Date(),
+): boolean => {
+  const parsed = parseCardExpiry(expiry);
+  if (!parsed) {
+    // Shape errors are reported separately; an unparsable date is not "past".
+    return false;
+  }
+  // `en-CA` prints `YYYY-MM`, which reads back as the gateway's YearMonth.
+  const [year, month] = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Bangkok',
+    year: 'numeric',
+    month: '2-digit',
+  })
+    .format(now)
+    .split('-')
+    .map(Number);
+  return parsed.year * 12 + parsed.month < year * 12 + month;
+};
+
+/**
  * Everything the gateway needs before a card charge may be submitted. The
  * expiry must not already have passed — the gateway declines expired cards,
  * so refusing them earlier reads better at the counter.
  */
-export const cardInputReady = (input: {
-  number: string;
-  cvv: string;
-  expiry: string;
-}): CardInput | null => {
+export const cardInputReady = (
+  input: {
+    number: string;
+    cvv: string;
+    expiry: string;
+  },
+  now: Date = new Date(),
+): CardInput | null => {
   const digits = cardDigits(input.number);
   const expiry = parseCardExpiry(input.expiry);
   if (!cardNumberValid(digits) || expiry === null) {
+    return null;
+  }
+  if (expiryPassed(input.expiry, now)) {
     return null;
   }
   const expectedCvvLength = detectCardBrand(input.number) === 'Amex' ? 4 : 3;
