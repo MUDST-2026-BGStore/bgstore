@@ -4,6 +4,7 @@ import {
   cardNumberValid,
   detectCardBrand,
   expiryPassed,
+  formatCardExpiry,
   formatCardNumber,
   luhnValid,
   parseCardExpiry,
@@ -82,6 +83,23 @@ describe('formatCardNumber', () => {
     expect(formatCardNumber('42424242424242420060')).toBe(
       '4242 4242 4242 4242 006',
     );
+  });
+});
+
+describe('formatCardExpiry', () => {
+  it('inserts the slash once a third digit is typed', () => {
+    expect(formatCardExpiry('1')).toBe('1');
+    expect(formatCardExpiry('12')).toBe('12');
+    expect(formatCardExpiry('122')).toBe('12/2');
+    expect(formatCardExpiry('1229')).toBe('12/29');
+  });
+
+  it('keeps stray punctuation and letters out of the printed date', () => {
+    expect(formatCardExpiry('12/29')).toBe('12/29');
+    expect(formatCardExpiry('12 / 2 9')).toBe('12/29');
+    expect(formatCardExpiry('a1b2c9d0')).toBe('12/90');
+    expect(formatCardExpiry('12295')).toBe('12/29');
+    expect(formatCardExpiry('12/')).toBe('12');
   });
 });
 

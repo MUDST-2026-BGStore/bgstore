@@ -112,6 +112,18 @@ export const formatCardNumber = (number: string): string => {
   return digits.replace(/(.{4})/g, '$1 ').trim();
 };
 
+/**
+ * Printed `MM/YY` while the guest types: digits only, the slash appears once
+ * a third digit lands, so backspacing never fights the punctuation.
+ */
+export const formatCardExpiry = (expiry: string): string => {
+  const digits = expiry.replace(/\D/g, '').slice(0, 4);
+  if (digits.length <= 2) {
+    return digits;
+  }
+  return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+};
+
 /** Parses a printed `MM/YY` expiry into the API's month + full year. */
 export const parseCardExpiry = (
   expiry: string,
