@@ -696,6 +696,7 @@ export const messages = {
       loading: 'Loading reservations…',
       loadError: 'Reservations could not be loaded.',
       retry: 'Try again',
+      cancelFailed: 'The reservation could not be cancelled. Please try again.',
       detail: {
         notFound: 'We could not find that reservation.',
       },
@@ -1441,6 +1442,7 @@ export const messages = {
       loading: 'กำลังโหลดประวัติการจอง…',
       loadError: 'ไม่สามารถโหลดรายการจองได้',
       retry: 'ลองอีกครั้ง',
+      cancelFailed: 'ไม่สามารถยกเลิกการจองได้ กรุณาลองอีกครั้ง',
       detail: {
         notFound: 'ไม่พบรายการจองนี้',
       },

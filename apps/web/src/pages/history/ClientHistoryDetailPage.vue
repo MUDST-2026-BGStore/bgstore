@@ -66,9 +66,10 @@ async function confirmCancel() {
       updated,
     );
     isModalOpen.value = false;
-  } catch (err) {
-    cancelError.value =
-      err instanceof Error ? err.message : 'Failed to cancel reservation';
+  } catch {
+    // A failed cancel is a state the counter must read in their language,
+    // never the server's English exception text.
+    cancelError.value = t('history.cancelFailed');
   } finally {
     isCancelling.value = false;
   }

@@ -12,6 +12,7 @@ import {
   cardInputReady,
   detectCardBrand,
   expiryPassed,
+  formatCardExpiry,
   formatCardNumber,
 } from '../../features/sessions/card-payment';
 import promptPayQr from '../../assets/promptpay-demo-qr.png';
@@ -48,6 +49,10 @@ const actionError = ref<string | null>(null);
 const checkIn = useMutation({
   mutationFn: (reservationId: string) =>
     checkInReservationRequest(reservationId),
+  onMutate: () => {
+    // A new attempt must not sit under the previous row's failure banner.
+    actionError.value = null;
+  },
   onSuccess: () => {
     actionError.value = null;
     void queryClient.invalidateQueries({ queryKey: ['play-sessions'] });
@@ -115,10 +120,21 @@ const cardNumber = ref('');
 const cardExpiry = ref('');
 const cardCvv = ref('');
 
+/*
+ * Both card fields print what a card actually prints: the number regroups by
+ * network and the expiry keeps its MM/YY punctuation as it is typed.
+ */
 const cardNumberFormatted = computed({
   get: () => formatCardNumber(cardNumber.value),
   set: (value: string) => {
     cardNumber.value = formatCardNumber(value);
+  },
+});
+
+const cardExpiryFormatted = computed({
+  get: () => formatCardExpiry(cardExpiry.value),
+  set: (value: string) => {
+    cardExpiry.value = formatCardExpiry(value);
   },
 });
 
@@ -514,7 +530,7 @@ const confirmCheckout = () => {
               </label>
               <UiTextInput
                 id="checkout-card-expiry"
-                v-model="cardExpiry"
+                v-model="cardExpiryFormatted"
                 inputmode="numeric"
                 placeholder="MM/YY"
               />

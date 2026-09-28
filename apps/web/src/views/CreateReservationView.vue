@@ -78,7 +78,16 @@ watch(
 </script>
 
 <template>
-  <component :is="wrapper" v-bind="wrapperProps">
+  <!--
+    The session decides which chrome this page wears, so stay quiet until it
+    resolves instead of flashing the staff layout at a booking client.
+  -->
+  <div
+    v-if="!currentUser.data.value"
+    class="flex min-h-[50vh] items-center justify-center"
+    aria-busy="true"
+  />
+  <component :is="wrapper" v-else v-bind="wrapperProps">
     <section class="reservation-page" aria-labelledby="reservation-title">
       <h1 id="reservation-title" class="visually-hidden">
         {{ t(clientMode ? 'reservation.title' : 'reservation.staffTitle') }}
