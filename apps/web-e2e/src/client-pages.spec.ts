@@ -618,6 +618,216 @@ test.describe('reservation history', () => {
     await expect(page.getByTestId('cancel-button')).toHaveCount(0);
     expect(cancelCalls).toBe(1);
   });
+
+  test('keeps the modal open and explains a failed cancel without retrying', async ({
+    page,
+  }) => {
+    await page.route(`**/api/v1/reservations/${RESERVATION_ID}`, (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(reservation(RESERVATION_ID)),
+      }),
+    );
+    let cancelCalls = 0;
+    await page.route(
+      `**/api/v1/reservations/${RESERVATION_ID}/cancel`,
+      async (route) => {
+        cancelCalls += 1;
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/problem+json',
+          body: JSON.stringify({
+            status: 500,
+            title: 'Internal Server Error',
+          }),
+        });
+      },
+    );
+
+    await page.goto(`/history/${RESERVATION_ID}`);
+    await page.getByTestId('cancel-button').click();
+    await page.getByTestId('modal-confirm-cancel-button').click();
+
+    await expect(page.getByTestId('detail-error')).toContainText(
+      'The reservation could not be cancelled. Please try again.',
+    );
+    // The confirmation modal stays open so the client can try again by hand.
+    await expect(page.getByTestId('cancel-modal')).toBeVisible();
+    expect(cancelCalls).toBe(1);
+  });
+
+  test('cancels successfully once the retry after a failure succeeds', async ({
+    page,
+  }) => {
+    await page.route(`**/api/v1/reservations/${RESERVATION_ID}`, (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(reservation(RESERVATION_ID)),
+      }),
+    );
+    let failing = true;
+    let cancelCalls = 0;
+    await page.route(
+      `**/api/v1/reservations/${RESERVATION_ID}/cancel`,
+      async (route) => {
+        cancelCalls += 1;
+        if (failing) {
+          await route.fulfill({
+            status: 500,
+            contentType: 'application/problem+json',
+            body: JSON.stringify({
+              status: 500,
+              title: 'Internal Server Error',
+            }),
+          });
+          return;
+        }
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify(
+            reservation(RESERVATION_ID, {
+              status: 'Cancelled',
+              canCancel: false,
+            }),
+          ),
+        });
+      },
+    );
+
+    await page.goto(`/history/${RESERVATION_ID}`);
+    await page.getByTestId('cancel-button').click();
+    await page.getByTestId('modal-confirm-cancel-button').click();
+    await expect(page.getByTestId('detail-error')).toBeVisible();
+    await expect(page.getByTestId('cancel-modal')).toBeVisible();
+
+    // The server recovers and the next attempt closes the modal.
+    failing = false;
+    await page.getByTestId('modal-confirm-cancel-button').click();
+
+    await expect(page.getByTestId('cancel-modal')).toHaveCount(0);
+    await expect(page.getByTestId('detail-status-badge')).toHaveText(
+      'Cancelled',
+    );
+    expect(cancelCalls).toBe(2);
+  });
+
+  test('answers an unknown reservation id with the not-found state and a back control', async ({
+    page,
+  }) => {
+    await page.route(`**/api/v1/reservations/${RESERVATION_ID}`, (route) =>
+      route.fulfill({
+        status: 404,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({ status: 404, title: 'Not Found' }),
+      }),
+    );
+
+    await page.goto(`/history/${RESERVATION_ID}`);
+
+    const error = page.getByTestId('detail-error');
+    await expect(error).toBeVisible();
+    await expect(error).toContainText('We could not find that reservation.');
+    await expect(page.getByTestId('reservation-detail-card')).toHaveCount(0);
+    await expect(error.getByRole('button', { name: 'Back' })).toBeVisible();
+  });
+
+  test('hides the cancel action for a completed reservation', async ({
+    page,
+  }) => {
+    await page.route(`**/api/v1/reservations/${RESERVATION_ID}`, (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(
+          reservation(RESERVATION_ID, {
+            status: 'Completed',
+            canCancel: false,
+          }),
+        ),
+      }),
+    );
+
+    await page.goto(`/history/${RESERVATION_ID}`);
+
+    await expect(page.getByTestId('reservation-detail-card')).toBeVisible();
+    await expect(page.getByTestId('detail-status-badge')).toHaveText(
+      'Completed',
+    );
+    await expect(page.getByTestId('cancel-button')).toHaveCount(0);
+    await expect(page.getByTestId('back-button')).toBeVisible();
+  });
+
+  test('hides the cancel action for an already cancelled reservation', async ({
+    page,
+  }) => {
+    await page.route(`**/api/v1/reservations/${RESERVATION_ID}`, (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(
+          reservation(RESERVATION_ID, {
+            status: 'Cancelled',
+            canCancel: false,
+          }),
+        ),
+      }),
+    );
+
+    await page.goto(`/history/${RESERVATION_ID}`);
+
+    await expect(page.getByTestId('detail-status-badge')).toHaveText(
+      'Cancelled',
+    );
+    await expect(page.getByTestId('cancel-button')).toHaveCount(0);
+  });
+
+  test('carries the page back to the list when leaving a detail page', async ({
+    page,
+  }) => {
+    const pages: (string | null)[] = [];
+    await page.route('**/api/v1/reservations?**', (route) => {
+      const url = new URL(route.request().url());
+      pages.push(url.searchParams.get('page'));
+      const pageNumber = url.searchParams.get('page') === '2' ? 2 : 1;
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [
+            reservation(RESERVATION_ID, {
+              title:
+                pageNumber === 2 ? 'Second page table' : 'First page table',
+            }),
+          ],
+          total: 5,
+          page: pageNumber,
+          pageSize: 4,
+          totalPages: 2,
+        }),
+      });
+    });
+    await page.route(`**/api/v1/reservations/${RESERVATION_ID}`, (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(reservation(RESERVATION_ID)),
+      }),
+    );
+
+    await page.goto('/history');
+    await page.getByTestId('page-2').click();
+    await expect(page.getByTestId('reservation-card')).toContainText(
+      'Second page table',
+    );
+
+    // Opening a card from page 2 links to the detail with the page in the query.
+    await page.getByTestId('view-button').click();
+    await expect(page).toHaveURL(/\/history\/resv-0001\?.*page=2/);
+    await expect(page.getByTestId('reservation-detail-card')).toBeVisible();
+
+    await page.getByTestId('back-button').click();
+
+    await expect(page).toHaveURL(/\/history\?.*page=2/);
+    await expect(page.getByTestId('reservation-card')).toContainText(
+      'Second page table',
+    );
+  });
 });
 
 test.describe('active session', () => {
@@ -739,6 +949,114 @@ test.describe('active session', () => {
     );
     expect(kinds).toEqual(['EndPlaying']);
   });
+
+  test('reports a failed session load and recovers on retry', async ({
+    page,
+  }) => {
+    let failing = true;
+    await page.route('**/api/v1/me/active-session', (route) =>
+      failing
+        ? route.fulfill({
+            status: 500,
+            contentType: 'application/problem+json',
+            body: JSON.stringify({
+              status: 500,
+              title: 'Internal Server Error',
+            }),
+          })
+        : route.fulfill({
+            contentType: 'application/json',
+            body: JSON.stringify(activeSession),
+          }),
+    );
+
+    await page.goto('/sessions/active');
+
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText('Your session could not be loaded.');
+
+    failing = false;
+    await alert.getByRole('button', { name: 'Try again' }).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Current Session Details' }),
+    ).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+
+  test('surfaces a failed call-staff request as an alert', async ({ page }) => {
+    await page.route('**/api/v1/me/active-session', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(activeSession),
+      }),
+    );
+    await page.route(
+      `**/api/v1/reservations/${RESERVATION_ID}/assistance`,
+      (route) =>
+        route.fulfill({
+          status: 500,
+          contentType: 'application/problem+json',
+          body: JSON.stringify({
+            status: 500,
+            title: 'Internal Server Error',
+          }),
+        }),
+    );
+
+    await page.goto('/sessions/active');
+    await page.getByRole('button', { name: 'Call Staff' }).click();
+
+    await expect(page.getByRole('alert')).toContainText(
+      'That request could not be sent. Please try again.',
+    );
+  });
+
+  test('sends a single assistance request while the first is in flight', async ({
+    page,
+  }) => {
+    await page.route('**/api/v1/me/active-session', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(activeSession),
+      }),
+    );
+    let assistanceCalls = 0;
+    await page.route(
+      `**/api/v1/reservations/${RESERVATION_ID}/assistance`,
+      async (route) => {
+        assistanceCalls += 1;
+        // Hold the response so the request is visibly in flight.
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        const body = route.request().postDataJSON() as {
+          kind: string;
+          requestId: string;
+        };
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            requestId: body.requestId,
+            kind: body.kind,
+            status: 'Recorded',
+          }),
+        });
+      },
+    );
+
+    await page.goto('/sessions/active');
+
+    const callStaff = page.getByRole('button', { name: 'Call Staff' });
+    await callStaff.click();
+    // The busy state is bound to the button: a second click while the first
+    // request is in flight must be ignored instead of double-calling staff.
+    await expect(callStaff).toBeDisabled();
+    await callStaff.click({ force: true });
+
+    await expect(page.getByRole('status')).toContainText(
+      'A staff member has been asked to come to your table.',
+    );
+    expect(assistanceCalls).toBe(1);
+  });
 });
 
 test.describe('session checkout', () => {
@@ -858,5 +1176,84 @@ test.describe('client profile', () => {
       phoneNumber: '+66899999999',
     });
     await expect(page.getByLabel('First name')).toHaveValue('Somchai');
+  });
+
+  test('explains a failed profile save and stays in edit mode', async ({
+    page,
+  }) => {
+    await page.route('**/api/v1/me/client-profile', (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          status: 500,
+          title: 'Internal Server Error',
+        }),
+      }),
+    );
+
+    await page.goto('/profile');
+    await page.getByRole('button', { name: 'Edit profile' }).click();
+    await page.getByLabel('Phone').fill('+66899999999');
+    await page.getByRole('button', { name: 'Confirm' }).click();
+
+    await expect(page.getByRole('alert')).toContainText(
+      'We could not update your profile. Check the phone number and try again.',
+    );
+    // The form is still editable so the client can correct the value.
+    await expect(page.getByRole('button', { name: 'Confirm' })).toBeVisible();
+    await expect(page.getByLabel('Phone')).not.toHaveAttribute('readonly', '');
+  });
+
+  test('sends only one profile save while the first is still pending', async ({
+    page,
+  }) => {
+    let saveCalls = 0;
+    await page.route('**/api/v1/me/client-profile', async (route) => {
+      saveCalls += 1;
+      // Hold a failing response so the save is in flight for a moment.
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await route.fulfill({
+        status: 500,
+        contentType: 'application/problem+json',
+        body: JSON.stringify({
+          status: 500,
+          title: 'Internal Server Error',
+        }),
+      });
+    });
+
+    await page.goto('/profile');
+    await page.getByRole('button', { name: 'Edit profile' }).click();
+    await page.getByLabel('Phone').fill('+66899999999');
+
+    const confirm = page.getByRole('button', { name: /Confirm|Saving/ });
+    await confirm.click();
+    // A second submit while the save is pending must be ignored.
+    await confirm.click({ force: true });
+
+    await expect(page.getByRole('alert')).toContainText(
+      'We could not update your profile. Check the phone number and try again.',
+    );
+    expect(saveCalls).toBe(1);
+  });
+
+  test('restores the saved values when editing is cancelled', async ({
+    page,
+  }) => {
+    await page.goto('/profile');
+
+    await page.getByRole('button', { name: 'Edit profile' }).click();
+    await page.getByLabel('First name').fill('Changed');
+    await page.getByLabel('Last name').fill('Name');
+    await page.getByLabel('Phone').fill('+66999999999');
+
+    await page.getByRole('button', { name: 'Cancel' }).click();
+
+    await expect(page.getByLabel('First name')).toHaveValue('Local');
+    await expect(page.getByLabel('Last name')).toHaveValue('Client');
+    await expect(
+      page.getByRole('button', { name: 'Edit profile' }),
+    ).toBeVisible();
   });
 });

@@ -227,7 +227,12 @@ test.describe('session console card settlement', () => {
     const confirm = dialog.getByRole('button', { name: 'Close session' });
     await dialog.getByLabel('Payment method').selectOption('Card');
     await dialog.getByLabel('Card number').fill('4242 4242 4242 4242');
-    await dialog.getByLabel('Expiry (MM/YY)').fill(bangkokMonths().current);
+    // The counter types the digits; the field prints the punctuation itself.
+    const expiry = bangkokMonths().current.replace('/', '');
+    await dialog.getByLabel('Expiry (MM/YY)').fill(expiry);
+    await expect(dialog.getByLabel('Expiry (MM/YY)')).toHaveValue(
+      bangkokMonths().current,
+    );
     await dialog.getByLabel('Security code (CVV)').fill('555');
     await expect(confirm).toBeEnabled();
     await confirm.click();

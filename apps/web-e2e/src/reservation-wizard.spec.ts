@@ -466,3 +466,183 @@ test('shows the empty state when a branch has no tables', async ({ page }) => {
     page.getByRole('button', { name: 'Next', exact: true }),
   ).toBeDisabled();
 });
+
+test('clamps the party-size stepper between 1 and 13', async ({ page }) => {
+  recordAvailability(page);
+  await mockUser(page, clientUser);
+  await mockBranches(page);
+
+  await page.goto('/reservations/new');
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.getByText('Time & Party', { exact: true })).toBeVisible();
+
+  const decrease = page.getByRole('button', { name: 'Decrease party size' });
+  const increase = page.getByRole('button', { name: 'Increase party size' });
+  const readout = page.locator('.party-adjuster strong');
+
+  // Walk down to the floor; the decrease control locks at 1.
+  while (await decrease.isEnabled()) {
+    await decrease.click();
+  }
+  await expect(readout).toHaveText(/^\s*1$/);
+  await expect(decrease).toBeDisabled();
+  await expect(increase).toBeEnabled();
+
+  // Walk up to the ceiling; the increase control locks at 13.
+  while (await increase.isEnabled()) {
+    await increase.click();
+  }
+  await expect(readout).toHaveText(/^\s*13$/);
+  await expect(increase).toBeDisabled();
+  await expect(decrease).toBeEnabled();
+});
+
+test('disables a table that is too small for the party', async ({ page }) => {
+  await page.route('**/api/v1/reservations/availability**', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        tables: [
+          { id: 1, name: 'Table 1', capacity: 4, available: true },
+          { id: 3, name: 'Table 3', capacity: 8, available: true },
+        ],
+      }),
+    }),
+  );
+  await mockUser(page, clientUser);
+  await mockBranches(page);
+
+  await page.goto('/reservations/new');
+  // Default party of 5 makes a 4-seat table too small.
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+
+  await expect(
+    page.getByRole('heading', { name: 'Select table' }),
+  ).toBeVisible();
+
+  const smallTable = page.getByRole('button', { name: /Table 1/ });
+  await expect(smallTable).toBeDisabled();
+  await expect(smallTable).toContainText('Too small');
+
+  // Clicking a disabled option cannot select it; Next stays blocked.
+  await smallTable.click({ force: true });
+  await expect(smallTable).toHaveAttribute('aria-pressed', 'false');
+  await expect(
+    page.getByRole('button', { name: 'Next', exact: true }),
+  ).toBeDisabled();
+
+  const bigTable = page.getByRole('button', { name: /Table 3/ });
+  await expect(bigTable).toBeEnabled();
+  await bigTable.click();
+  await expect(bigTable).toHaveAttribute('aria-pressed', 'true');
+});
+
+test('shows the availability error reason on the table step', async ({
+  page,
+}) => {
+  await page.route('**/api/v1/reservations/availability**', (route) =>
+    route.fulfill({
+      status: 500,
+      contentType: 'application/problem+json',
+      body: JSON.stringify({
+        status: 500,
+        title: 'Internal Server Error',
+        detail: 'Availability engine is offline.',
+      }),
+    }),
+  );
+  await mockUser(page, clientUser);
+  await mockBranches(page);
+
+  await page.goto('/reservations/new');
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+
+  await expect(
+    page.getByRole('heading', { name: 'Select table' }),
+  ).toBeVisible();
+  await expect(page.getByRole('alert')).toContainText(
+    'We could not load table availability. Please try again.',
+  );
+  await expect(page.getByTestId('tables-error-reason')).toContainText(
+    'Availability engine is offline.',
+  );
+});
+
+test('confirms once and disables the button while the request is pending', async ({
+  page,
+}) => {
+  recordAvailability(page);
+  await mockUser(page, clientUser);
+  await mockBranches(page);
+
+  let createCalls = 0;
+  await page.route('**/api/v1/reservations', async (route) => {
+    if (route.request().method() !== 'POST') {
+      return route.continue();
+    }
+    createCalls += 1;
+    // Hold the create for two seconds so the pending state is observable.
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    return route.fulfill({
+      contentType: 'application/json',
+      status: 201,
+      body: JSON.stringify({
+        id: 'reservation-1',
+        branch: 'Central Rama II',
+        date: '2026-05-01',
+        startTime: '09:00',
+        endTime: '12:00',
+        partySize: 5,
+        status: 'CONFIRMED',
+        tableId: 3,
+      }),
+    });
+  });
+
+  await page.goto('/reservations/new');
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Select table' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: /Table 3/ }).click();
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+
+  await expect(page.getByText('Table 3')).toBeVisible();
+
+  const confirm = page.getByRole('button', { name: /Confirm|Saving/ });
+  await confirm.click();
+
+  // While the POST is in flight the button is disabled and shows Saving.
+  await expect(confirm).toBeDisabled();
+  await confirm.click({ force: true });
+
+  await expect(page.locator('[role="status"]')).toContainText(
+    'Reservation details ready',
+  );
+  expect(createCalls).toBe(1);
+});
+
+test('falls back to the default branch for an unknown deep link branch', async ({
+  page,
+}) => {
+  recordAvailability(page);
+  await mockUser(page, clientUser);
+  await mockBranches(page);
+
+  // The directory may link a branch name that no longer exists.
+  await page.goto('/reservations/new?branch=Nowhere%20Cafe');
+
+  // The wizard still lands on step 1 with the branch select populated.
+  await expect(page.getByText('Client', { exact: true })).toBeVisible();
+  const branchSelect = page.locator('#reservation-branch');
+  await expect(branchSelect).toBeVisible();
+  await expect(branchSelect.locator('option')).toHaveCount(2);
+  await expect(branchSelect).toHaveValue('Central Rama II');
+
+  // Step 1 is usable: continue with the default branch.
+  await page.getByRole('button', { name: 'Next', exact: true }).click();
+  await expect(page.getByText('Time & Party', { exact: true })).toBeVisible();
+});

@@ -174,9 +174,10 @@ test('denies a client the staff-only tables screen', async ({ page }) => {
       name: 'You do not have access to this page',
     }),
   ).toBeVisible();
-  // NOTE: the back control renders as a router-link with no href in the served
-  // bundle (see report), so only its visible label is asserted here.
-  await expect(page.getByText('Back to home')).toBeVisible();
+  // The back control is a router-link; it must carry a real href home.
+  await expect(
+    page.getByRole('link', { name: 'Back to home' }),
+  ).toHaveAttribute('href', '/');
 });
 
 test('denies a client the staff permissions screen', async ({ page }) => {
@@ -195,4 +196,145 @@ test('denies a client the staff permissions screen', async ({ page }) => {
     }),
   ).toBeVisible();
   await expect(page.getByText('Back to home')).toBeVisible();
+});
+
+test('keeps the client on onboarding when the profile save fails', async ({
+  page,
+}) => {
+  await page.route('**/api/v1/me/client-profile', (route) =>
+    route.fulfill({ status: 500 }),
+  );
+  await page.route('**/api/v1/me', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(onboardingUser),
+    }),
+  );
+
+  await gotoApp(page, '/onboarding');
+
+  await expect(page).toHaveURL(/\/onboarding/);
+  await page.getByLabel('First name').fill('Somchai');
+  await page.getByLabel('Last name').fill('Jaidee');
+  await page.getByTestId('phone-input').fill('0812345678');
+  await page.getByRole('button', { name: 'Continue' }).click();
+
+  await expect(page.locator('.form-error[role="alert"]')).toBeVisible();
+  await expect(page.locator('.form-error[role="alert"]')).toHaveText(
+    'We could not save your details. Check the highlighted fields and try again.',
+  );
+  // The failed save leaves the user on the onboarding form.
+  await expect(page).toHaveURL(/\/onboarding/);
+  await expect(
+    page.getByRole('heading', { name: 'Tell us about yourself' }),
+  ).toBeVisible();
+});
+
+test('sends a single onboarding POST when the submit button is clicked twice', async ({
+  page,
+}) => {
+  let posts = 0;
+  await page.route('**/api/v1/me/client-profile', async (route) => {
+    posts += 1;
+    // Fail slowly so the in-flight request keeps the button pending while the
+    // user clicks a second time.
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    return route.fulfill({ status: 500 });
+  });
+  await page.route('**/api/v1/me', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(onboardingUser),
+    }),
+  );
+
+  await gotoApp(page, '/onboarding');
+
+  await page.getByLabel('First name').fill('Somchai');
+  await page.getByLabel('Last name').fill('Jaidee');
+  await page.getByTestId('phone-input').fill('0812345678');
+
+  await page.locator('.onboarding-form button[type="submit"]').dblclick();
+  await expect(page.locator('.form-error[role="alert"]')).toBeVisible();
+
+  expect(posts).toBe(1);
+});
+
+test('redirects an already-onboarded user away from the onboarding screen', async ({
+  page,
+}) => {
+  await page.route('**/api/v1/me', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(onboardedUser),
+    }),
+  );
+  await page.route('**/api/v1/branches', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [] }),
+    }),
+  );
+
+  await gotoApp(page, '/onboarding');
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(
+    page.getByRole('heading', { name: 'Games, friends, and a table waiting.' }),
+  ).toBeVisible();
+});
+
+test('keeps the client signed in and reports an error when logout fails', async ({
+  page,
+}) => {
+  await page.route('**/api/v1/me', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(clientUser),
+    }),
+  );
+  await page.route('**/logout', (route) =>
+    route.fulfill({ status: 500, contentType: 'application/json' }),
+  );
+
+  await gotoApp(page, '/');
+
+  await page.getByRole('button', { name: 'Profile' }).click();
+  const menu = page.getByRole('menu', { name: 'Profile' });
+  await expect(menu).toBeVisible();
+  await menu.getByRole('menuitem', { name: 'Log out' }).click();
+
+  const alert = page.locator('.client-profile-error[role="alert"]');
+  await expect(alert).toBeVisible();
+  await expect(alert).toHaveText('Could not sign out. Try again.');
+
+  // The session survives the failed logout, so the client shell is still here.
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('button', { name: 'Profile' })).toBeVisible();
+});
+
+test('sends an already signed-in user from the login route back home', async ({
+  page,
+}) => {
+  await page.route('**/api/v1/me', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(clientUser),
+    }),
+  );
+  await page.route('**/api/v1/branches', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ items: [] }),
+    }),
+  );
+
+  await gotoApp(page, '/login');
+
+  await expect(page).toHaveURL(/\/$/);
+  await expect(
+    page.getByRole('heading', {
+      name: 'Games, friends, and a table waiting.',
+    }),
+  ).toBeVisible();
 });

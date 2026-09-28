@@ -234,3 +234,295 @@ test('keeps branch creation hidden from normal staff', async ({ page }) => {
     0,
   );
 });
+
+const managerSession = {
+  subject: 'manager-subject',
+  username: 'manager@example.test',
+  email: 'manager@example.test',
+  firstName: 'Local',
+  lastName: 'Manager',
+  roles: ['MANAGER'],
+  onboardingRequired: false,
+};
+
+const branchItems = [
+  {
+    id: 'branch-1',
+    name: 'Central Rama II',
+    address: 'Rama II',
+    opensAt: '09:00',
+    closesAt: '19:00',
+  },
+];
+
+async function stubUser(page: import('@playwright/test').Page, user: unknown) {
+  await page.route('**/api/v1/me', (route) =>
+    route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify(user),
+    }),
+  );
+}
+
+test.describe('branch workspace states', () => {
+  test('reports a failed branch load and recovers on retry', async ({
+    page,
+  }) => {
+    let failing = true;
+    await stubUser(page, managerSession);
+    await page.route('**/api/v1/branches', (route) => {
+      if (failing) {
+        return route.fulfill({ status: 500 });
+      }
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: branchItems }),
+      });
+    });
+
+    await page.goto('/branches');
+
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText(
+      'We could not load the branch workspace.',
+    );
+    failing = false;
+    await alert.getByRole('button', { name: 'Retry' }).click();
+
+    await expect(
+      page.getByRole('heading', { name: 'Central Rama II' }),
+    ).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+
+  test('shows the empty copy when no branches exist', async ({ page }) => {
+    await stubUser(page, managerSession);
+    await page.route('**/api/v1/branches', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [] }),
+      }),
+    );
+
+    await page.goto('/branches');
+
+    await expect(
+      page.getByText('Try adjusting your search query.'),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Central Rama II' }),
+    ).toHaveCount(0);
+  });
+
+  test('a failed creation clears the earlier success banner', async ({
+    page,
+  }) => {
+    let failCreate = false;
+    await stubUser(page, managerSession);
+    await page.route('**/api/v1/branches', (route) => {
+      if (route.request().method() === 'POST') {
+        if (failCreate) {
+          return route.fulfill({ status: 400 });
+        }
+        const body = route.request().postDataJSON() as { name: string };
+        return route.fulfill({
+          contentType: 'application/json',
+          status: 201,
+          body: JSON.stringify({
+            id: 'branch-new',
+            name: body.name,
+            address: 'Sukhumvit',
+            opensAt: '09:00',
+            closesAt: '19:00',
+          }),
+        });
+      }
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: branchItems }),
+      });
+    });
+
+    await page.goto('/branches');
+
+    await page.getByLabel('Branch name').fill('First branch');
+    await page.getByRole('button', { name: 'Create branch' }).click();
+    await expect(page.getByRole('status')).toContainText('Branch created');
+
+    failCreate = true;
+    await page.getByLabel('Branch name').fill('Second branch');
+    await page.getByRole('button', { name: 'Create branch' }).click();
+
+    await expect(page.getByRole('alert')).toContainText(
+      'The branch could not be created',
+    );
+    await expect(page.getByRole('status')).toHaveCount(0);
+  });
+
+  test('enforces the name and address length limits', async ({ page }) => {
+    await stubUser(page, managerSession);
+    await page.route('**/api/v1/branches', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: branchItems }),
+      }),
+    );
+
+    await page.goto('/branches');
+
+    await expect(page.locator('#branch-name')).toHaveAttribute(
+      'maxlength',
+      '120',
+    );
+    await expect(page.locator('#branch-address')).toHaveAttribute(
+      'maxlength',
+      '300',
+    );
+  });
+});
+
+test.describe('staff permissions states', () => {
+  const assignments = {
+    items: [
+      {
+        staffSubject: 'staff-subject',
+        displayName: 'Local Staff',
+        email: 'staff@example.test',
+        branchIds: [],
+      },
+    ],
+  };
+
+  test('reports a failed assignment load and recovers on retry', async ({
+    page,
+  }) => {
+    let failing = true;
+    await stubUser(page, managerSession);
+    await page.route('**/api/v1/branches', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: branchItems }),
+      }),
+    );
+    await page.route('**/api/v1/staff/branch-assignments', (route) => {
+      if (failing) {
+        return route.fulfill({ status: 500 });
+      }
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(assignments),
+      });
+    });
+
+    await page.goto('/staff/permissions');
+
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText(
+      'Staff accounts could not be loaded. Try again.',
+    );
+    failing = false;
+    await alert.getByRole('button', { name: 'Try again' }).click();
+
+    await expect(
+      page.getByRole('button', { name: /Local Staff/ }),
+    ).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+
+  test('shows the empty staff copy when nobody has signed in', async ({
+    page,
+  }) => {
+    await stubUser(page, managerSession);
+    await page.route('**/api/v1/branches', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: branchItems }),
+      }),
+    );
+    await page.route('**/api/v1/staff/branch-assignments', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [] }),
+      }),
+    );
+
+    await page.goto('/staff/permissions');
+
+    await expect(
+      page.getByText('No staff accounts have signed in yet.'),
+    ).toBeVisible();
+  });
+
+  test('reports a failed save and keeps the form open', async ({ page }) => {
+    await stubUser(page, managerSession);
+    await page.route('**/api/v1/branches', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: branchItems }),
+      }),
+    );
+    await page.route('**/api/v1/staff/branch-assignments/*', (route) =>
+      route.fulfill({ status: 500 }),
+    );
+    await page.route('**/api/v1/staff/branch-assignments', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(assignments),
+      }),
+    );
+
+    await page.goto('/staff/permissions');
+    await page.getByRole('button', { name: /Local Staff/ }).click();
+    await page.getByRole('checkbox', { name: 'Central Rama II' }).check();
+    await page.getByRole('button', { name: 'Save assignments' }).click();
+
+    await expect(page.getByRole('alert')).toContainText(
+      'Assignments could not be saved. Try again.',
+    );
+    await expect(page.getByRole('status')).toHaveCount(0);
+  });
+
+  test('sends exactly one PUT while the save request is pending', async ({
+    page,
+  }) => {
+    const puts: string[] = [];
+    await stubUser(page, managerSession);
+    await page.route('**/api/v1/branches', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: branchItems }),
+      }),
+    );
+    await page.route('**/api/v1/staff/branch-assignments/*', async (route) => {
+      puts.push(route.request().url());
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [] }),
+      });
+    });
+    await page.route('**/api/v1/staff/branch-assignments', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(assignments),
+      }),
+    );
+
+    await page.goto('/staff/permissions');
+    await page.getByRole('button', { name: /Local Staff/ }).click();
+    await page.getByRole('checkbox', { name: 'Central Rama II' }).check();
+
+    // The label flips to "Saving…" while the mutation runs, so hold the
+    // element rather than re-resolving by its changing accessible name.
+    const save = page.locator('form button[type="submit"]');
+    await save.click();
+    // While the mutation runs the button is disabled, so an impatient second
+    // click must not issue a second PUT.
+    await expect(save).toBeDisabled();
+    await expect(save).toBeEnabled();
+    await expect(page.getByRole('status')).toContainText(
+      'Branch assignments saved.',
+    );
+    expect(puts).toHaveLength(1);
+  });
+});

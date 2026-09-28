@@ -84,6 +84,73 @@ const reservationPage = (
   totalPages: Math.max(1, Math.ceil(total / pageSize)),
 });
 
+test.describe('floor overview states', () => {
+  test('shows the empty message when the floor has no tables', async ({
+    page,
+  }) => {
+    await stubSession(page, staffUser);
+    await page.route('**/api/v1/floor-overview*', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          counts: { available: 0, occupied: 0, reserved: 0 },
+          items: [],
+          total: 0,
+          page: 1,
+          pageSize: 5,
+          totalPages: 1,
+        }),
+      }),
+    );
+
+    await page.goto('/');
+
+    await expect(page.getByText('No tables match your filters.')).toBeVisible();
+    await expect(page.locator('table')).toHaveCount(0);
+  });
+
+  test('sends the selected status as a query filter', async ({ page }) => {
+    const requests: string[] = [];
+    await stubSession(page, staffUser);
+    await page.route('**/api/v1/floor-overview*', (route) => {
+      requests.push(route.request().url());
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          counts: { available: 1, occupied: 0, reserved: 0 },
+          items: [
+            {
+              id: 1,
+              name: 'Map Room',
+              capacity: 6,
+              status: 'Available',
+              shape: 'Round',
+              reservedSlots: [],
+            },
+          ],
+          total: 1,
+          page: 1,
+          pageSize: 5,
+          totalPages: 1,
+        }),
+      });
+    });
+
+    await page.goto('/');
+    await expect(page.getByRole('cell', { name: 'Map Room' })).toBeVisible();
+
+    await page.getByLabel('Filter by status').selectOption('Occupied');
+
+    await expect
+      .poll(() =>
+        requests.some(
+          (url) => new URL(url).searchParams.get('status') === 'Occupied',
+        ),
+      )
+      .toBe(true);
+  });
+});
+
 test.describe('floor overview', () => {
   test('renders stats, rows and filters the floor table', async ({ page }) => {
     await stubSession(page, staffUser);
@@ -262,6 +329,89 @@ test.describe('table management', () => {
     await expect(page.getByRole('cell', { name: 'Map Room' })).toHaveCount(0);
     await expect(page.getByText('No tables match your filters.')).toBeVisible();
   });
+
+  test('dismissing the delete confirmation leaves the row in place', async ({
+    page,
+  }) => {
+    const deletes: string[] = [];
+    await stubSession(page, managerUser);
+    await stubBranches(page);
+    await page.route('**/api/v1/tables**', (route) => {
+      if (route.request().method() === 'DELETE') {
+        deletes.push(route.request().url());
+        return route.fulfill({ status: 204 });
+      }
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(tablesResponse),
+      });
+    });
+
+    page.on('dialog', (dialog) => dialog.dismiss());
+
+    await page.goto('/tables');
+    await expect(page.getByRole('cell', { name: 'Map Room' })).toBeVisible();
+    await page.getByRole('button', { name: 'Delete' }).click();
+
+    await expect(page.getByRole('cell', { name: 'Map Room' })).toBeVisible();
+    expect(deletes).toHaveLength(0);
+  });
+
+  test('reports a rejected table creation in the form alert', async ({
+    page,
+  }) => {
+    await stubSession(page, managerUser);
+    await stubBranches(page);
+    await page.route('**/api/v1/tables**', (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          contentType: 'application/json',
+          status: 400,
+          body: JSON.stringify({
+            code: 'invalid_request',
+            detail: 'Rejected.',
+          }),
+        });
+      }
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(tablesResponse),
+      });
+    });
+
+    await page.goto('/tables');
+    await page.getByRole('button', { name: '+ Add table' }).click();
+    await page.getByLabel('Table name').fill('Rejected table');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+    const alert = page.getByRole('alert');
+    await expect(alert).toBeVisible();
+    await expect(alert).not.toBeEmpty();
+    await expect(
+      page.getByRole('heading', { name: 'Add table' }),
+    ).toBeVisible();
+  });
+
+  test('shows the empty table list message', async ({ page }) => {
+    await stubSession(page, managerUser);
+    await stubBranches(page);
+    await page.route('**/api/v1/tables**', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [],
+          total: 0,
+          page: 1,
+          pageSize: 5,
+          totalPages: 0,
+        }),
+      }),
+    );
+
+    await page.goto('/tables');
+
+    await expect(page.getByText('No tables match your filters.')).toBeVisible();
+  });
 });
 
 test.describe('branch workspace', () => {
@@ -382,6 +532,150 @@ test.describe('game inventory', () => {
     failing = false;
     await page.getByRole('button', { name: 'Try again' }).click();
     await expect(page.getByTestId('inventory-empty')).toBeVisible();
+  });
+
+  test('reports a failed retirement and keeps the row', async ({ page }) => {
+    await stubSession(page, managerUser);
+    await stubBranches(page);
+    await page.route('**/api/v1/games/*', (route) => {
+      if (route.request().method() === 'DELETE') {
+        return route.fulfill({ status: 500 });
+      }
+      return route.fallback();
+    });
+    await page.route('**/api/v1/games?*', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(gamesResponse),
+      }),
+    );
+
+    await page.goto('/games');
+    await expect(
+      page.getByRole('link', { name: 'Ticket to Ride' }),
+    ).toBeVisible();
+
+    await page.getByRole('button', { name: 'Delete' }).click();
+
+    await expect(page.getByTestId('inventory-delete-error')).toContainText(
+      'That game could not be retired.',
+    );
+    await expect(
+      page.getByRole('link', { name: 'Ticket to Ride' }),
+    ).toBeVisible();
+  });
+});
+
+test.describe('game form errors', () => {
+  const branchDirectory = {
+    items: [
+      {
+        id: 'branch-1',
+        name: 'Central Rama II',
+        address: 'Rama II',
+        opensAt: '09:00',
+        closesAt: '19:00',
+      },
+    ],
+  };
+
+  test('shows the form error summary when the save is rejected', async ({
+    page,
+  }) => {
+    await stubSession(page, managerUser);
+    await page.route('**/api/v1/branches', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(branchDirectory),
+      }),
+    );
+    await page.route('**/api/v1/games', (route) => {
+      if (route.request().method() === 'POST') {
+        return route.fulfill({
+          contentType: 'application/json',
+          status: 500,
+          body: JSON.stringify({ code: 'internal_error' }),
+        });
+      }
+      return route.fallback();
+    });
+
+    await page.goto('/games/new');
+    await page.getByLabel('Game title (English)').fill('Rejected arrival');
+    await page.getByLabel('Min players').fill('2');
+    await page.getByLabel('Max players').fill('4');
+    await page.getByRole('button', { name: 'Add game' }).click();
+
+    await expect(page.getByTestId('form-error')).toContainText(
+      'The game could not be saved.',
+    );
+    await expect(page).toHaveURL(/\/games\/new/);
+  });
+
+  test('submitting twice while pending sends exactly one POST', async ({
+    page,
+  }) => {
+    const posts: string[] = [];
+    await stubSession(page, managerUser);
+    await page.route('**/api/v1/branches', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(branchDirectory),
+      }),
+    );
+    await page.route('**/api/v1/games?*', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [],
+          page: { number: 0, size: 20, totalElements: 0, totalPages: 0 },
+          stats: { titles: 0, availableNow: 0, inUse: 0 },
+        }),
+      }),
+    );
+    await page.route('**/api/v1/games', async (route) => {
+      if (route.request().method() === 'POST') {
+        posts.push(route.request().url());
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        return route.fulfill({
+          contentType: 'application/json',
+          status: 201,
+          body: JSON.stringify({
+            id: 'game-new',
+            title: { en: 'Slow arrival', th: null },
+            category: 'Strategy',
+            minPlayers: 2,
+            maxPlayers: 4,
+            playTimeMinutes: 45,
+            difficulty: '',
+            tags: [],
+            imageUrls: [],
+            guide: { en: '', th: '' },
+            lifecycle: 'Active',
+            status: 'Available',
+            addedAt: '2026-09-01T10:00:00Z',
+            lastPlayedAt: null,
+            totalCopies: 1,
+            branchCount: 1,
+            stock: [],
+          }),
+        });
+      }
+      return route.fallback();
+    });
+
+    await page.goto('/games/new');
+    await page.getByLabel('Game title (English)').fill('Slow arrival');
+    await page.getByLabel('Min players').fill('2');
+    await page.getByLabel('Max players').fill('4');
+
+    const submit = page.locator('button[form="game-form"]');
+    await submit.click();
+    await expect(submit).toBeDisabled();
+    await submit.click({ force: true });
+
+    await expect(page).toHaveURL(/\/games\?.*saved=/);
+    expect(posts).toHaveLength(1);
   });
 });
 
@@ -788,5 +1082,200 @@ test.describe('session console', () => {
     ).toBeVisible();
     await dialog.getByRole('button', { name: 'Done' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+});
+
+test.describe('session console failures', () => {
+  const sessionsBody = (items: unknown[]) => ({ items });
+
+  test('reports a failed check-in and clears the banner on the next success', async ({
+    page,
+  }) => {
+    let libraryStatus = 'Reserved';
+    await stubSession(page, staffUser);
+    await page.route('**/api/v1/sessions', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(
+          sessionsBody([
+            reservation({ id: 'res-1', tableName: 'Map Room' }),
+            reservation({
+              id: 'res-2',
+              tableName: 'Library',
+              customerName: 'Grace Hopper',
+              status: libraryStatus,
+            }),
+          ]),
+        ),
+      }),
+    );
+    await page.route('**/api/v1/reservations/res-1/check-in', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        status: 500,
+        body: JSON.stringify({ code: 'internal_error' }),
+      }),
+    );
+    await page.route('**/api/v1/reservations/res-2/check-in', (route) => {
+      libraryStatus = 'CheckedIn';
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [] }),
+      });
+    });
+
+    await page.goto('/staff/sessions');
+
+    const mapRow = page.getByRole('row').filter({ hasText: 'Map Room' });
+    await mapRow.getByRole('button', { name: 'Check in' }).click();
+
+    await expect(page.getByRole('alert')).toContainText(
+      'That guest could not be checked in. Please try again.',
+    );
+
+    await page
+      .getByRole('row')
+      .filter({ hasText: 'Library' })
+      .getByRole('button', { name: 'Check in' })
+      .click();
+
+    await expect(
+      page.getByRole('row').filter({ hasText: 'Library' }),
+    ).toContainText('In play');
+    await expect(page.getByRole('alert')).toHaveCount(0);
+  });
+
+  test('renders an unrecognized checkout problem as the generic failure', async ({
+    page,
+  }) => {
+    let checkOuts = 0;
+    await stubSession(page, staffUser);
+    await page.route('**/api/v1/sessions', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(
+          sessionsBody([
+            reservation({
+              id: 'res-1',
+              tableName: 'Map Room',
+              status: 'CheckedIn',
+            }),
+          ]),
+        ),
+      }),
+    );
+    await page.route('**/api/v1/reservations/res-1/check-out', (route) => {
+      checkOuts += 1;
+      return route.fulfill({
+        contentType: 'application/json',
+        status: 500,
+        body: JSON.stringify({ code: 'internal_error', detail: 'Boom.' }),
+      });
+    });
+
+    await page.goto('/staff/sessions');
+
+    await page
+      .getByRole('row')
+      .filter({ hasText: 'Map Room' })
+      .getByRole('button', { name: 'Check out' })
+      .click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: 'Close session' }).click();
+
+    await expect(page.getByRole('alert')).toContainText(
+      'The session could not be closed. Please try again.',
+    );
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByRole('heading', { name: 'Session closed' }),
+    ).toHaveCount(0);
+    await expect(dialog.getByLabel('Final amount (THB)')).toHaveValue('240');
+    expect(checkOuts).toBe(1);
+  });
+
+  test('shows the empty state when nothing is waiting or in play', async ({
+    page,
+  }) => {
+    await stubSession(page, staffUser);
+    await page.route('**/api/v1/sessions', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [] }),
+      }),
+    );
+
+    await page.goto('/staff/sessions');
+
+    await expect(
+      page.getByText('Nothing is waiting to start and no session is in play.'),
+    ).toBeVisible();
+    await expect(page.locator('table')).toHaveCount(0);
+  });
+
+  test('reports a failed sessions load and recovers on retry', async ({
+    page,
+  }) => {
+    let failing = true;
+    await stubSession(page, staffUser);
+    await page.route('**/api/v1/sessions', (route) => {
+      if (failing) {
+        return route.fulfill({ status: 500 });
+      }
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify(sessionsBody([reservation()])),
+      });
+    });
+
+    await page.goto('/staff/sessions');
+
+    const alert = page.getByRole('alert');
+    await expect(alert).toContainText('Sessions could not be loaded.');
+    failing = false;
+    await alert.getByRole('button', { name: 'Try again' }).click();
+    await expect(
+      page.getByRole('row').filter({ hasText: 'Map Room' }),
+    ).toBeVisible();
+  });
+});
+
+test.describe('session console check-in concurrency', () => {
+  test('disables the check-in action while pending and posts once', async ({
+    page,
+  }) => {
+    const checkIns: string[] = [];
+    let status = 'Reserved';
+    await stubSession(page, staffUser);
+    await page.route('**/api/v1/sessions', (route) =>
+      route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [reservation({ id: 'res-1', tableName: 'Map Room', status })],
+        }),
+      }),
+    );
+    await page.route('**/api/v1/reservations/res-1/check-in', async (route) => {
+      checkIns.push(route.request().url());
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      status = 'CheckedIn';
+      return route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ items: [] }),
+      });
+    });
+
+    await page.goto('/staff/sessions');
+
+    const checkIn = page.getByRole('button', { name: 'Check in' });
+    await expect(checkIn).toBeEnabled();
+    await checkIn.click();
+    await expect(checkIn).toBeDisabled();
+    await checkIn.click({ force: true });
+
+    await expect(page.getByRole('button', { name: 'Check out' })).toBeVisible();
+    expect(checkIns).toHaveLength(1);
   });
 });
