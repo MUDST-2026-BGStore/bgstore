@@ -7,7 +7,6 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Repository;
-import org.springframework.transaction.annotation.Transactional;
 
 /** Maps the persistence model to the tables module's stable repository port. */
 @Repository
@@ -22,7 +21,6 @@ class JpaTableRepositoryAdapter implements TableRepository {
   }
 
   @Override
-  @Transactional(readOnly = true)
   public List<TableRecordData> findAll(
       @Nullable String branch,
       @Nullable String status,
@@ -34,7 +32,6 @@ class JpaTableRepositoryAdapter implements TableRepository {
   }
 
   @Override
-  @Transactional(readOnly = true)
   public Map<String, Long> countActiveByStatus(@Nullable String branch) {
     return database.countActiveByStatus(branch).stream()
         .collect(
@@ -44,13 +41,11 @@ class JpaTableRepositoryAdapter implements TableRepository {
   }
 
   @Override
-  @Transactional(readOnly = true)
   public Optional<TableRecordData> findById(Long id) {
     return database.findById(id).map(this::toRecord);
   }
 
   @Override
-  @Transactional
   public TableRecordData save(TableRecordData data) {
     TableEntity entity =
         data.id() == null
@@ -63,7 +58,6 @@ class JpaTableRepositoryAdapter implements TableRepository {
   }
 
   @Override
-  @Transactional
   public boolean deleteById(Long id) {
     if (!database.existsById(id)) {
       return false;
@@ -73,7 +67,6 @@ class JpaTableRepositoryAdapter implements TableRepository {
   }
 
   @Override
-  @Transactional(readOnly = true)
   public boolean existsByNameAndBranch(String name, String branch, @Nullable Long excludeId) {
     return database.existsByNameAndBranch(name, branch, excludeId);
   }

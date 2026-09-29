@@ -16,8 +16,8 @@ import com.chanakanlabs.bgstore.contract.model.ReservationAvailabilityTable;
 import com.chanakanlabs.bgstore.identity.AccessPolicy;
 import com.chanakanlabs.bgstore.identity.ApplicationRole;
 import com.chanakanlabs.bgstore.identity.AuthenticatedIdentity;
+import com.chanakanlabs.bgstore.identity.ClientDirectory;
 import com.chanakanlabs.bgstore.identity.CurrentIdentityProvider;
-import com.chanakanlabs.bgstore.identity.IdentityAccountJpaRepository;
 import com.chanakanlabs.bgstore.tables.TableRecordData;
 import com.chanakanlabs.bgstore.tables.TableRepository;
 import java.time.LocalDate;
@@ -47,7 +47,7 @@ class StaffReservationServiceTest {
   @Mock private BranchDirectory branches;
   @Mock private AccessPolicy accessPolicy;
   @Mock private CurrentIdentityProvider identities;
-  @Mock private IdentityAccountJpaRepository accounts;
+  @Mock private ClientDirectory clientAccounts;
 
   private StaffReservationService service;
 
@@ -55,7 +55,13 @@ class StaffReservationServiceTest {
   void setUp() {
     service =
         new StaffReservationService(
-            tables, tableReservations, reservations, branches, accessPolicy, identities, accounts);
+            tables,
+            tableReservations,
+            reservations,
+            branches,
+            accessPolicy,
+            identities,
+            clientAccounts);
     lenient()
         .when(branches.findAll())
         .thenReturn(
@@ -108,7 +114,7 @@ class StaffReservationServiceTest {
 
   @Test
   void rejectsAnUnknownRegisteredClientBeforeWriting() {
-    when(accounts.existsBySubjectAndApplicationRole("missing-client", "CLIENT")).thenReturn(false);
+    when(clientAccounts.existsClient("missing-client")).thenReturn(false);
 
     assertThatThrownBy(() -> service.create(request("missing-client")))
         .isInstanceOf(ResponseStatusException.class)

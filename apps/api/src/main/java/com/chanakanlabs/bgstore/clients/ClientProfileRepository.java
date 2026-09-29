@@ -1,5 +1,7 @@
 package com.chanakanlabs.bgstore.clients;
 
+import java.time.Clock;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,9 +16,11 @@ import org.springframework.transaction.annotation.Transactional;
 class ClientProfileRepository {
 
   private final ClientProfileJpaRepository profiles;
+  private final Clock clock;
 
-  ClientProfileRepository(ClientProfileJpaRepository profiles) {
+  ClientProfileRepository(ClientProfileJpaRepository profiles, Clock clock) {
     this.profiles = profiles;
+    this.clock = clock;
   }
 
   @Transactional
@@ -32,7 +36,7 @@ class ClientProfileRepository {
   @Transactional
   ClientProfileData complete(String subject, String firstName, String lastName, String phoneE164) {
     var profile = profiles.findById(subject).orElseThrow();
-    profile.complete(firstName, lastName, phoneE164);
+    profile.complete(firstName, lastName, phoneE164, OffsetDateTime.now(clock));
     return profiles.save(profile).toData();
   }
 }

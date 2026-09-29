@@ -5,7 +5,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.jspecify.annotations.Nullable;
@@ -52,11 +51,11 @@ class ClientProfileRecord {
     this.subject = subject;
   }
 
-  void complete(String firstName, String lastName, String phoneE164) {
+  void complete(String firstName, String lastName, String phoneE164, OffsetDateTime completedAt) {
     this.firstName = firstName;
     this.lastName = lastName;
     this.phoneE164 = phoneE164;
-    this.completedAt = OffsetDateTime.now(ZoneOffset.UTC);
+    this.completedAt = completedAt;
   }
 
   ClientProfileData toData() {

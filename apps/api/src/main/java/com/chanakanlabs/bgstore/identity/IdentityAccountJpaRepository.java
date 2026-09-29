@@ -8,14 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /** CRUD over {@link IdentityAccount}; Spring Data supplies the implementation. */
-public interface IdentityAccountJpaRepository extends JpaRepository<IdentityAccount, String> {
-
-  record ClientLookup(
-      String subject,
-      String displayName,
-      @Nullable String firstName,
-      @Nullable String lastName,
-      @Nullable String phone) {}
+interface IdentityAccountJpaRepository extends JpaRepository<IdentityAccount, String> {
 
   /** Synchronizes the OIDC projection without a read-then-insert race on first sign-in. */
   @Modifying
@@ -66,5 +59,6 @@ public interface IdentityAccountJpaRepository extends JpaRepository<IdentityAcco
           ORDER BY displayName
           LIMIT 50
           """)
-  java.util.List<ClientLookup> findClients(@Param("search") @Nullable String search);
+  java.util.List<ClientDirectory.ClientLookup> findClients(
+      @Param("search") @Nullable String search);
 }

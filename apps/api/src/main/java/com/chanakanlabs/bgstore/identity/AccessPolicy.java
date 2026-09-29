@@ -44,11 +44,13 @@ public class AccessPolicy {
 
   /** Public directory reads remain public; only authenticated staff are scope-filtered. */
   public boolean canAccessBranch(UUID branchId) {
-    var identity = identities.findCurrentIdentity();
-    if (identity.isEmpty() || identity.get().isClientOnly()) return true;
-    if (identity.get().roles().contains(ApplicationRole.MANAGER)) return true;
-    return identity.get().roles().stream().anyMatch(STAFF_OR_MANAGER::contains)
-        && assignments.existsByIdStaffSubjectAndIdBranchId(identity.get().subject(), branchId);
+    var current = identities.findCurrentIdentity();
+    if (current.isEmpty()) return true;
+    var identity = current.get();
+    if (identity.isClientOnly()) return true;
+    if (identity.roles().contains(ApplicationRole.MANAGER)) return true;
+    return identity.roles().stream().anyMatch(STAFF_OR_MANAGER::contains)
+        && assignments.existsByIdStaffSubjectAndIdBranchId(identity.subject(), branchId);
   }
 
   /** Requires the administrative role for policy and staff-permission changes. */

@@ -7,8 +7,8 @@ import com.chanakanlabs.bgstore.contract.model.ReservationAvailabilityResponse;
 import com.chanakanlabs.bgstore.contract.model.ReservationAvailabilityTable;
 import com.chanakanlabs.bgstore.identity.AccessPolicy;
 import com.chanakanlabs.bgstore.identity.AuthenticatedIdentity;
+import com.chanakanlabs.bgstore.identity.ClientDirectory;
 import com.chanakanlabs.bgstore.identity.CurrentIdentityProvider;
-import com.chanakanlabs.bgstore.identity.IdentityAccountJpaRepository;
 import com.chanakanlabs.bgstore.tables.TableRecordData;
 import com.chanakanlabs.bgstore.tables.TableRepository;
 import java.time.LocalDate;
@@ -35,7 +35,7 @@ public class StaffReservationService {
   private final BranchDirectory branches;
   private final AccessPolicy accessPolicy;
   private final CurrentIdentityProvider identities;
-  private final IdentityAccountJpaRepository accounts;
+  private final ClientDirectory clientAccounts;
 
   public StaffReservationService(
       TableRepository tables,
@@ -44,14 +44,14 @@ public class StaffReservationService {
       BranchDirectory branches,
       AccessPolicy accessPolicy,
       CurrentIdentityProvider identities,
-      IdentityAccountJpaRepository accounts) {
+      ClientDirectory clientAccounts) {
     this.tables = tables;
     this.tableReservations = tableReservations;
     this.reservations = reservations;
     this.branches = branches;
     this.accessPolicy = accessPolicy;
     this.identities = identities;
-    this.accounts = accounts;
+    this.clientAccounts = clientAccounts;
   }
 
   @Transactional(readOnly = true)
@@ -191,7 +191,7 @@ public class StaffReservationService {
       @org.jspecify.annotations.Nullable String value) {
     String subject = value == null ? "" : value.trim();
     if (subject.isBlank()) return null;
-    if (!accounts.existsBySubjectAndApplicationRole(subject, "CLIENT"))
+    if (!clientAccounts.existsClient(subject))
       throw badRequest("The selected client account was not found.");
     return subject;
   }

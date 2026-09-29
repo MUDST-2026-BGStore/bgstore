@@ -12,6 +12,7 @@ import com.chanakanlabs.bgstore.branches.BranchDirectory;
 import com.chanakanlabs.bgstore.identity.AccessPolicy;
 import com.chanakanlabs.bgstore.identity.ApplicationRole;
 import com.chanakanlabs.bgstore.identity.AuthenticatedIdentity;
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -46,7 +47,7 @@ class TableManagementServiceTest {
             List.of(
                 new Branch(UUID.randomUUID(), "Silom", null, null, null),
                 new Branch(UUID.randomUUID(), "Sukhumvit", null, null, null)));
-    service = new TableManagementService(repository, accessPolicy, branches);
+    service = new TableManagementService(repository, accessPolicy, branches, Clock.systemUTC());
   }
 
   @Test

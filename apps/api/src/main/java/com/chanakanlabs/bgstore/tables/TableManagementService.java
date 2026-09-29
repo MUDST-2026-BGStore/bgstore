@@ -5,16 +5,18 @@ import com.chanakanlabs.bgstore.branches.BranchDirectory;
 import com.chanakanlabs.bgstore.identity.AccessPolicy;
 import com.chanakanlabs.bgstore.identity.ApplicationRole;
 import com.chanakanlabs.bgstore.identity.AuthenticatedIdentity;
+import java.time.Clock;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 @Service
+@Transactional
 public class TableManagementService {
 
   public record PageResult<T>(List<T> items, int total, int page, int pageSize, int totalPages) {}
@@ -22,14 +24,20 @@ public class TableManagementService {
   private final TableRepository repository;
   private final AccessPolicy accessPolicy;
   private final BranchDirectory branches;
+  private final Clock clock;
 
   TableManagementService(
-      TableRepository repository, AccessPolicy accessPolicy, BranchDirectory branches) {
+      TableRepository repository,
+      AccessPolicy accessPolicy,
+      BranchDirectory branches,
+      Clock clock) {
     this.repository = repository;
     this.accessPolicy = accessPolicy;
     this.branches = branches;
+    this.clock = clock;
   }
 
+  @Transactional(readOnly = true)
   public PageResult<TableRecordData> listTables(
       @Nullable String branch,
       @Nullable String status,
@@ -44,6 +52,7 @@ public class TableManagementService {
   }
 
   /** The tables in service, which are the ones the floor overview shows. */
+  @Transactional(readOnly = true)
   public PageResult<TableRecordData> listActiveTables(
       @Nullable String branch,
       @Nullable String status,
@@ -59,6 +68,7 @@ public class TableManagementService {
   /**
    * How many tables in service are in each status, across every branch when {@code branch} is null.
    */
+  @Transactional(readOnly = true)
   public Map<String, Long> countActiveByStatus(@Nullable String branch) {
     var identity = accessPolicy.requireStaffOrManager();
     var rows = repository.findAll(canonicalBranchForRead(branch, identity), null, null, true);
@@ -84,6 +94,7 @@ public class TableManagementService {
     return search == null ? null : search.trim();
   }
 
+  @Transactional(readOnly = true)
   public TableRecordData getTable(Long tableId) {
     accessPolicy.requireStaffOrManager();
     var table =
@@ -120,7 +131,7 @@ public class TableManagementService {
             shape.trim(),
             status.trim(),
             active,
-            OffsetDateTime.now(ZoneOffset.UTC),
+            OffsetDateTime.now(clock),
             selectedBranch.id());
 
     return repository.save(newTable);
@@ -162,7 +173,7 @@ public class TableManagementService {
             shape.trim(),
             status.trim(),
             active,
-            OffsetDateTime.now(ZoneOffset.UTC),
+            OffsetDateTime.now(clock),
             selectedBranch.id());
 
     return repository.save(updated);

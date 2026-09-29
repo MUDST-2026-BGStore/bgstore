@@ -3,7 +3,7 @@ package com.chanakanlabs.bgstore.clients;
 import com.chanakanlabs.bgstore.contract.model.ClientListResponse;
 import com.chanakanlabs.bgstore.contract.model.ClientSummary;
 import com.chanakanlabs.bgstore.identity.AccessPolicy;
-import com.chanakanlabs.bgstore.identity.IdentityAccountJpaRepository;
+import com.chanakanlabs.bgstore.identity.ClientDirectory;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,11 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional(readOnly = true)
 public class ClientDirectoryService {
-  private final IdentityAccountJpaRepository accounts;
+  private final ClientDirectory clientAccounts;
   private final AccessPolicy accessPolicy;
 
-  ClientDirectoryService(IdentityAccountJpaRepository accounts, AccessPolicy accessPolicy) {
-    this.accounts = accounts;
+  ClientDirectoryService(ClientDirectory clientAccounts, AccessPolicy accessPolicy) {
+    this.clientAccounts = clientAccounts;
     this.accessPolicy = accessPolicy;
   }
 
@@ -24,7 +24,7 @@ public class ClientDirectoryService {
     accessPolicy.requireStaffOrManager();
     String normalized = search == null ? null : search.trim();
     return new ClientListResponse(
-        accounts.findClients(normalized).stream()
+        clientAccounts.findClients(normalized).stream()
             .map(
                 row -> {
                   ClientSummary client = new ClientSummary(row.subject(), row.displayName());
