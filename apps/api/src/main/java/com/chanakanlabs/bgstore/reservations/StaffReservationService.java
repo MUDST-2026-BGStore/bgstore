@@ -88,7 +88,7 @@ public class StaffReservationService {
     Branch selectedBranch = branch(branchName);
     Interval interval = interval(selectedBranch, date, startTime, endTime, partySize);
     TableRecordData table =
-        tables.findById(requestedTableId).orElseThrow(() -> notFound("Table not found."));
+        tables.findByIdForUpdate(requestedTableId).orElseThrow(() -> notFound("Table not found."));
     if (!selectedBranch.id().equals(table.branchId()) || table.capacity() < partySize)
       throw badRequest("The selected table does not fit this reservation.");
     long tableId = Objects.requireNonNull(table.id(), "Table id must not be null");

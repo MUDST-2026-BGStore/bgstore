@@ -1,0 +1,42 @@
+services:
+  postgres:
+    ports: !reset []
+
+  redis:
+    environment:
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
+    ports: !reset []
+
+  keycloak:
+    volumes:
+      - ${BGSTORE_E2E_REALM_FILE:-./infra/local/keycloak/bgstore-realm.json}:/opt/keycloak/data/import/bgstore-realm.json:ro
+    ports: !override
+      - '127.0.0.1:${KEYCLOAK_HOST_PORT}:8080'
+
+  mailpit:
+    ports: !reset []
+
+  api:
+    ports: !reset []
+
+  web:
+    build:
+      args:
+        BGSTORE_E2E_COVERAGE: '1'
+    ports: !override
+      - '127.0.0.1:${WEB_HOST_PORT}:8080'
+
+  otel-collector:
+    ports: !reset []
+
+  prometheus:
+    ports: !reset []
+
+  loki:
+    ports: !reset []
+
+  tempo:
+    ports: !reset []
+
+  grafana:
+    ports: !reset []

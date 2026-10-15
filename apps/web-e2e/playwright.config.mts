@@ -17,16 +17,25 @@ const externalServer = Boolean(process.env['BASE_URL']);
  */
 export default defineConfig({
   ...nxE2EPreset(import.meta.dirname, { testDir: './src' }),
+  reporter: [
+    ['list'],
+    ['html', { outputFolder: 'test-output/playwright/report', open: 'never' }],
+    ['./src/coverage-reporter.mts'],
+  ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     baseURL,
     timezoneId: 'Asia/Bangkok',
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure',
   },
   // Keep the stateful reservation flow on Chromium and serialize seeded-account
   // mutations, including independent smoke tests on the other engines.
   workers: process.env['BGSTORE_FULL_STACK'] ? 1 : undefined,
+  // Retrying a partial stateful run reuses its mutations. Retry the isolated
+  // verifier instead so the database and seeded accounts start clean.
+  retries: process.env['BGSTORE_FULL_STACK'] ? 0 : process.env['CI'] ? 2 : 0,
   /* Run your local dev server before starting the tests */
   webServer: externalServer
     ? undefined
@@ -51,7 +60,10 @@ export default defineConfig({
     })),
     {
       name: 'mobile-chromium',
-      testMatch: '**/reservation-journey.spec.ts',
+      testMatch: [
+        '**/reservation-journey.spec.ts',
+        '**/visual-regression.spec.ts',
+      ],
       use: { ...devices['Pixel 7'] },
     },
   ],

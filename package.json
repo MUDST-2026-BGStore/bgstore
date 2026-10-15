@@ -73,6 +73,7 @@
     "jsdom": "^27.1.0",
     "lefthook": "^2.1.10",
     "markdownlint-cli2": "^0.23.2",
+    "monocart-coverage-reports": "^2.13.2",
     "nx": "23.1.1",
     "prettier": "~3.6.2",
     "tailwindcss": "^4.3.3",

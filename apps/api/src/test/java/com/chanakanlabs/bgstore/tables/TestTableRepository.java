@@ -59,6 +59,11 @@ final class TestTableRepository implements TableRepository {
   }
 
   @Override
+  public Optional<TableRecordData> findByIdForUpdate(Long id) {
+    return findById(id);
+  }
+
+  @Override
   public TableRecordData save(TableRecordData table) {
     var id = table.id() == null ? nextId() : table.id();
     var saved =

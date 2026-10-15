@@ -73,7 +73,7 @@ class StaffReservationServiceTest {
                 "Test",
                 Set.of(ApplicationRole.STAFF)));
     lenient()
-        .when(tables.findById(TABLE_ID))
+        .when(tables.findByIdForUpdate(TABLE_ID))
         .thenReturn(
             Optional.of(
                 new TableRecordData(
@@ -178,7 +178,7 @@ class StaffReservationServiceTest {
         .isInstanceOf(ResponseStatusException.class)
         .hasMessageContaining("no longer available");
 
-    when(tables.findById(TABLE_ID))
+    when(tables.findByIdForUpdate(TABLE_ID))
         .thenReturn(Optional.of(table(TABLE_ID, "Too small", BRANCH_ID, 2)));
     assertThatThrownBy(() -> service.create(request(null)))
         .isInstanceOf(ResponseStatusException.class)

@@ -1,0 +1,146 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+cd "$repo_root"
+
+timeout_seconds="${BGSTORE_FULL_STACK_TIMEOUT_SECONDS:-1500}"
+if ! [[ "$timeout_seconds" =~ ^[1-9][0-9]*$ ]]; then
+  printf 'BGSTORE_FULL_STACK_TIMEOUT_SECONDS must be a positive integer.\n' >&2
+  exit 2
+fi
+deadline=$((SECONDS + timeout_seconds))
+
+run_token="$(date -u +%Y%m%d%H%M%S)-$$-${RANDOM}"
+project="bgstore-e2e-${run_token,,}"
+project="${project//[^a-z0-9_-]/-}"
+
+choose_port() {
+  python3 -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()'
+}
+
+keycloak_port="$(choose_port)"
+web_port="$(choose_port)"
+while [[ "$web_port" == "$keycloak_port" ]]; do
+  web_port="$(choose_port)"
+done
+
+compose_files=(
+  "$repo_root/compose.yaml"
+  "$repo_root/compose.e2e.yaml"
+  "$repo_root/compose.coverage.yaml"
+)
+compose_args=()
+for compose_file in "${compose_files[@]}"; do
+  compose_args+=(--file "$compose_file")
+done
+
+compose=(docker compose --env-file .env.example --profile app --project-name "$project" "${compose_args[@]}")
+
+bounded() {
+  local max_seconds="$1"
+  shift
+  local remaining=$((deadline - SECONDS))
+  if ((remaining <= 0)); then
+    printf 'Full-stack E2E exceeded its %ss deadline.\n' "$timeout_seconds" >&2
+    return 124
+  fi
+  if ((max_seconds > 0 && remaining > max_seconds)); then
+    remaining="$max_seconds"
+  fi
+  timeout --signal=TERM --kill-after=10s "${remaining}s" "$@"
+}
+
+e2e_root="$repo_root/apps/web-e2e/test-output"
+playwright_output="$e2e_root/playwright/output"
+coverage_dist="$e2e_root/coverage-dist"
+coverage_data="${TMPDIR:-/tmp}/$project"
+mkdir -p "$playwright_output"
+rm -rf "$e2e_root/playwright/report" "$playwright_output" "$e2e_root/coverage" "$coverage_dist" "$coverage_data"
+mkdir -p "$playwright_output" "$coverage_dist" "$coverage_data"
+
+export COMPOSE_PROJECT_NAME="$project"
+export REDIS_PASSWORD="bgstore-e2e-${run_token,,}"
+export KEYCLOAK_HOST_PORT="$keycloak_port"
+export KEYCLOAK_PUBLIC_URL="http://127.0.0.1:${keycloak_port}"
+export WEB_HOST_PORT="$web_port"
+export BASE_URL="http://127.0.0.1:${web_port}"
+export BGSTORE_FULL_STACK=1
+export BGSTORE_E2E_COVERAGE=1
+export BGSTORE_E2E_COMPOSE_PROJECT="$project"
+export BGSTORE_E2E_COMPOSE_FILES="$(IFS=:; printf '%s' "${compose_files[*]}")"
+export BGSTORE_E2E_WEB_DIST="$(realpath "$coverage_dist")"
+export BGSTORE_E2E_REALM_FILE="$coverage_data/bgstore-realm.json"
+jq --arg base "$BASE_URL" '
+  (.clients[] | select(.clientId == "bgstore-web")) |= (
+    .redirectUris = [$base + "/auth/callback/bgstore"] |
+    .attributes["post.logout.redirect.uris"] = ($base + "/")
+  )
+' infra/local/keycloak/bgstore-realm.json >"$BGSTORE_E2E_REALM_FILE"
+# Keycloak runs unprivileged and must be able to read the disposable import.
+chmod 644 "$BGSTORE_E2E_REALM_FILE"
+
+stack_started=0
+cleanup() {
+  local result=$?
+  trap - EXIT
+  set +e
+
+  if ((stack_started)); then
+    # Preserve service state and logs before stopping the instrumented API.
+    timeout --signal=TERM --kill-after=5s 10s \
+      "${compose[@]}" ps --all >"$playwright_output/compose-ps.txt" 2>&1
+    timeout --signal=TERM --kill-after=5s 20s \
+      "${compose[@]}" logs --no-color >"$playwright_output/compose-logs.txt" 2>&1
+
+    timeout --signal=TERM --kill-after=5s 30s \
+      "${compose[@]}" stop --timeout 25 api >/dev/null 2>&1
+    if [[ -n "$(timeout --signal=TERM --kill-after=5s 5s "${compose[@]}" ps --all -q api 2>/dev/null)" ]]; then
+      : >"$playwright_output/jacoco-copy.log"
+      timeout --signal=TERM --kill-after=5s 20s \
+        "${compose[@]}" cp api:/tmp/jacoco-e2e.exec "$coverage_data/jacoco-e2e.exec" \
+        >"$playwright_output/jacoco-copy.log" 2>&1
+      timeout --signal=TERM --kill-after=5s 20s \
+        "${compose[@]}" cp api:/app/app.jar "$coverage_data/app.jar" \
+        >>"$playwright_output/jacoco-copy.log" 2>&1
+    fi
+  fi
+
+  if [[ -s "$coverage_data/jacoco-e2e.exec" && -s "$coverage_data/app.jar" ]]; then
+    if ! timeout --signal=TERM --kill-after=10s 60s \
+      "$repo_root/apps/api/gradlew" -p "$repo_root/apps/api" --no-daemon \
+      jacocoE2eReport \
+      "-Pe2eExecFile=$coverage_data/jacoco-e2e.exec" \
+      "-PbootJarFile=$coverage_data/app.jar"; then
+      printf 'Could not generate the API E2E JaCoCo report.\n' >&2
+      ((result != 0)) || result=1
+    fi
+  elif ((stack_started)); then
+    printf 'API E2E coverage inputs were not available; see %s.\n' \
+      "$playwright_output/jacoco-copy.log" >&2
+    ((result != 0)) || result=1
+  fi
+
+  if ((stack_started)); then
+    if ! timeout --signal=TERM --kill-after=5s 30s \
+      "${compose[@]}" down --volumes --remove-orphans \
+      >"$playwright_output/compose-down.log" 2>&1; then
+      printf 'Could not fully remove Compose project %s; see %s.\n' \
+        "$project" "$playwright_output/compose-down.log" >&2
+      ((result != 0)) || result=1
+    fi
+  fi
+  rm -rf "$coverage_data"
+  exit "$result"
+}
+trap cleanup EXIT
+
+printf 'Starting isolated full-stack E2E project %s (deadline: %ss).\n' \
+  "$project" "$timeout_seconds"
+stack_started=1
+bounded 0 "${compose[@]}" up --build --wait --wait-timeout 300 web mailpit
+
+bounded 45 "${compose[@]}" cp web:/usr/share/nginx/html/. "$coverage_dist"
+
+printf 'Running Playwright against %s.\n' "$BASE_URL"
+bounded 0 pnpm e2e "$@"

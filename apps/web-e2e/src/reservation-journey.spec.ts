@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './coverage-fixture';
 
 const tables = [
   { id: 3, name: 'Table 3', capacity: 4, available: true },
@@ -165,13 +165,14 @@ test('keeps the booking draft after a conflict and allows a fresh selection', as
   ).toBeDisabled();
 });
 
-test('prevents past dates and invalid time ranges before table selection', async ({
+test('prevents today, past dates and invalid time ranges before table selection', async ({
   page,
 }) => {
   await page.goto('/reservations/new');
   await page.getByRole('button', { name: 'Next', exact: true }).click();
   await page.getByRole('button', { name: 'Date', exact: true }).click();
   await expect(page.locator('[data-date="2026-10-14"]')).toBeDisabled();
+  await expect(page.locator('[data-date="2026-10-15"]')).toBeDisabled();
   await page.locator('[data-date="2026-10-16"]').click();
   await page.getByLabel('Start time').selectOption('13:00');
   await page.getByLabel('End time').selectOption('12:00');

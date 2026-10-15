@@ -6,12 +6,14 @@ COPY apps/api/gradlew apps/api/settings.gradle.kts apps/api/build.gradle.kts app
 COPY packages/contracts/openapi.yaml packages/contracts/openapi.yaml
 COPY apps/api/src apps/api/src
 RUN --mount=type=cache,target=/root/.gradle \
-    apps/api/gradlew -p apps/api --no-daemon bootJar
+    apps/api/gradlew -p apps/api --no-daemon bootJar copyJacocoAgent
 
 FROM eclipse-temurin:21-jre-alpine
 RUN addgroup -S -g 10001 bgstore && adduser -S -D -H -u 10001 -G bgstore bgstore
+RUN mkdir -p /opt/jacoco
 WORKDIR /app
 COPY --from=build --chown=10001:10001 /workspace/apps/api/build/libs/*.jar app.jar
+COPY --from=build --chown=10001:10001 /workspace/apps/api/build/coverage/jacocoagent.jar /opt/jacoco/jacocoagent.jar
 USER 10001:10001
 EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=3s --start-period=30s --retries=12 \

@@ -24,8 +24,11 @@ describe('reservation date window', () => {
   it('spans the sixty-day booking window the API allows', () => {
     const range = createReservationDateRange(new Date('2026-09-22T15:30:00Z'));
 
-    expect(range.min).toBe('2026-09-22');
+    expect(range.min).toBe('2026-09-23');
     expect(range.max).toBe('2026-11-21');
+    expect(
+      createReservationDateRange(new Date('2026-09-22T23:05:00Z')).min,
+    ).toBe('2026-09-24');
   });
 
   it('rolls over month and year boundaries', () => {

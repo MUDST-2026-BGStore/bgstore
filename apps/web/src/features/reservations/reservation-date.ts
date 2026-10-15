@@ -28,6 +28,6 @@ export const offsetReservationDate = (value: Date, days: number) => {
 };
 
 export const createReservationDateRange = (today = new Date()) => ({
-  min: offsetReservationDate(today, 0),
+  min: offsetReservationDate(today, 1),
   max: offsetReservationDate(today, 60),
 });

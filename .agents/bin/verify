@@ -17,13 +17,14 @@ Scopes:
   contract  OpenAPI validation
   deploy    Helm lint/render and Docker Compose rendering
   e2e       Playwright tests against the mock-backed Vite preview
+  full-stack Isolated production-shaped Compose, Playwright, and coverage run
   affected  Nx checks for projects affected relative to the default base
   full      Formatting, all checks/builds, e2e, and delivery manifests
 EOF
 }
 
 case "$scope" in
-  web | api | contract | deploy | e2e | affected | full) ;;
+  web | api | contract | deploy | e2e | full-stack | affected | full) ;;
   *)
     usage >&2
     exit 2
@@ -101,10 +102,18 @@ verify_deploy() {
   done
   run_step 'Docker Compose rendering' \
     docker compose --env-file .env.example config --quiet
+  run_step 'Docker Compose E2E and coverage rendering' \
+    env WEB_HOST_PORT=4201 KEYCLOAK_HOST_PORT=8082 \
+    docker compose --env-file .env.example --profile app \
+    -f compose.yaml -f compose.e2e.yaml -f compose.coverage.yaml config --quiet
 }
 
 verify_e2e() {
   run_step 'Playwright browser tests' pnpm e2e
+}
+
+verify_full_stack() {
+  run_step 'Isolated full-stack Playwright and coverage' .agents/bin/full-stack-e2e "$@"
 }
 
 verify_affected() {
@@ -126,6 +135,7 @@ case "$scope" in
   contract) verify_contract ;;
   deploy) verify_deploy ;;
   e2e) verify_e2e ;;
+  full-stack) verify_full_stack "${@:2}" ;;
   affected) verify_affected ;;
   full) verify_full ;;
 esac

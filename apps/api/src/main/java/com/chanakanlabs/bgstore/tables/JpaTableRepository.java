@@ -1,13 +1,21 @@
 package com.chanakanlabs.bgstore.tables;
 
+import jakarta.persistence.LockModeType;
 import java.util.List;
+import java.util.Optional;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.NativeQuery;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 /** Database adapter for the table-management repository port. */
 interface JpaTableRepository extends JpaRepository<TableEntity, Long> {
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("select t from TableEntity t where t.id = :id")
+  Optional<TableEntity> findByIdForUpdate(@Param("id") Long id);
 
   @NativeQuery(
       value =

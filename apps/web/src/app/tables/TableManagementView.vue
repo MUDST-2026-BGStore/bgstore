@@ -264,6 +264,7 @@ function confirmDelete(table: TableResponse) {
   if (remove.isPending.value || !window.confirm(t('tables.confirmDelete'))) {
     return;
   }
+  formError.value = '';
   remove.mutate(table.id);
 }
 
@@ -297,6 +298,13 @@ function formatUpdated(value: string) {
         v-if="currentView === 'list'"
         class="mx-auto w-full max-w-6xl px-8 py-7"
       >
+        <p
+          v-if="formError"
+          class="mb-4 rounded-md border border-danger-border bg-surface p-4 text-danger-fg"
+          role="alert"
+        >
+          {{ formError }}
+        </p>
         <div class="staff-stat-grid mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
           <StatCard
             v-for="card in [

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './coverage-fixture';
 
 const branchId = '3f0d7d5a-9a2b-4a71-8f0e-000000000001';
 

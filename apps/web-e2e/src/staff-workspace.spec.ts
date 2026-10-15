@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './coverage-fixture';
 
 test('renders the staff workspace with a readable operational rail', async ({
   page,
@@ -56,17 +56,11 @@ test('renders the staff workspace with a readable operational rail', async ({
     'Dashboard',
   );
   const activeItem = sidebar.locator('nav [aria-current="page"]');
-  const activeBackground = await activeItem.evaluate(
-    (element) => getComputedStyle(element).backgroundColor,
-  );
   await activeItem.hover();
-  await expect
-    .poll(() =>
-      activeItem.evaluate(
-        (element) => getComputedStyle(element).backgroundColor,
-      ),
-    )
-    .toBe(activeBackground);
+  // The selected item uses the darker primary-hover color, not a neutral hover.
+  await expect(activeItem).toHaveCSS('background-color', 'rgb(55, 90, 98)');
+  await expect(activeItem).toHaveCSS('color', 'rgb(255, 255, 255)');
+  await expect(activeItem).toHaveAttribute('aria-current', 'page');
   await expect(
     sidebar.getByRole('link', { name: 'Reservations' }),
   ).toHaveAttribute('href', '/staff/reservations/new');

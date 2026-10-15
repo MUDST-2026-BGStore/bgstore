@@ -7,6 +7,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.jspecify.annotations.Nullable;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 /** Maps the persistence model to the tables module's stable repository port. */
@@ -47,6 +48,12 @@ class JpaTableRepositoryAdapter implements TableRepository {
   @Transactional(readOnly = true)
   public Optional<TableRecordData> findById(Long id) {
     return database.findById(id).map(this::toRecord);
+  }
+
+  @Override
+  @Transactional(propagation = Propagation.MANDATORY)
+  public Optional<TableRecordData> findByIdForUpdate(Long id) {
+    return database.findByIdForUpdate(id).map(this::toRecord);
   }
 
   @Override

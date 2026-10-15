@@ -26,6 +26,9 @@ java {
 
 val applicationMainClass = "com.chanakanlabs.bgstore.BgstoreApiApplication"
 
+// The JaCoCo plugin manages this configuration using the pinned toolVersion.
+val jacocoAgentConfiguration = configurations.named("jacocoAgent")
+
 springBoot {
   mainClass = applicationMainClass
 }
@@ -230,6 +233,13 @@ jacoco {
   toolVersion = "0.8.14"
 }
 
+tasks.register<Copy>("copyJacocoAgent") {
+  from({ zipTree(jacocoAgentConfiguration.get().singleFile) }) {
+    include("jacocoagent.jar")
+  }
+  into(layout.buildDirectory.dir("coverage"))
+}
+
 tasks.jacocoTestReport {
   dependsOn(tasks.test)
   classDirectories.setFrom(
@@ -271,6 +281,73 @@ tasks.jacocoTestCoverageVerification {
         minimum = "0.75".toBigDecimal()
       }
     }
+  }
+}
+
+val e2eExecFile = providers.gradleProperty("e2eExecFile")
+val e2eBootJarFile = providers.gradleProperty("bootJarFile")
+val validateJacocoE2eInputs =
+    tasks.register("validateJacocoE2eInputs") {
+      group = "verification"
+      description = "Validates E2E JaCoCo data and the matching executable Boot JAR."
+
+      doLast {
+        val executionDataFile =
+            e2eExecFile.orNull?.let(::file)
+                ?: throw GradleException(
+                    "Specify the running-container JaCoCo data with -Pe2eExecFile=<path>."
+                )
+        if (!executionDataFile.isFile || executionDataFile.length() == 0L) {
+          throw GradleException(
+              "E2E JaCoCo execution data is missing or empty: ${executionDataFile.absolutePath}"
+          )
+        }
+
+        val bootJarFile =
+            e2eBootJarFile.orNull?.let(::file)
+                ?: throw GradleException(
+                    "Specify the matching executable Boot JAR with -PbootJarFile=<path>."
+                )
+        if (!bootJarFile.isFile) {
+          throw GradleException("Boot JAR does not exist: ${bootJarFile.absolutePath}")
+        }
+
+        val applicationClasses =
+            zipTree(bootJarFile).matching { include("BOOT-INF/classes/**/*.class") }.files
+        if (applicationClasses.isEmpty()) {
+          throw GradleException(
+              "Boot JAR contains no application classes under BOOT-INF/classes: ${bootJarFile.absolutePath}"
+          )
+        }
+      }
+    }
+
+tasks.register<JacocoReport>("jacocoE2eReport") {
+  group = "verification"
+  description = "Generates a JaCoCo report from running-container browser-test coverage."
+  dependsOn(validateJacocoE2eInputs)
+
+  if (e2eExecFile.isPresent) {
+    executionData.setFrom(e2eExecFile.map { file(it) })
+  }
+  if (e2eBootJarFile.isPresent) {
+    classDirectories.setFrom(
+        e2eBootJarFile.map {
+          zipTree(file(it)).matching {
+            include("BOOT-INF/classes/**/*.class")
+            exclude("**/contract/**", "**/database/**")
+          }
+        }
+    )
+  }
+  sourceDirectories.setFrom(sourceSets.main.get().allSource.srcDirs)
+
+  reports {
+    html.required.set(true)
+    html.outputLocation.set(layout.buildDirectory.dir("reports/jacoco/e2e/html"))
+    xml.required.set(true)
+    xml.outputLocation.set(layout.buildDirectory.file("reports/jacoco/e2e/jacoco.xml"))
+    csv.required.set(false)
   }
 }
 

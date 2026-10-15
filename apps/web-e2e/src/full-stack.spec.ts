@@ -1,4 +1,6 @@
-import { expect, test, type Page } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
+import { workspaceRoot } from '@nx/devkit';
+import { expect, test, type Page } from './coverage-fixture';
 
 type Account = {
   username: string;
@@ -47,8 +49,8 @@ async function signIn(
 
   if (account.client) {
     const phoneInput = page.getByTestId('phone-input');
-    const homeBranch = page.getByTestId('home-branch').first();
-    await expect(phoneInput.or(homeBranch)).toBeVisible();
+    const clientHome = page.getByRole('heading', { name: 'BGStore' });
+    await expect(phoneInput.or(clientHome)).toBeVisible();
 
     if (await phoneInput.isVisible()) {
       await phoneInput.fill('0812345678');
@@ -76,6 +78,103 @@ function firstItem<T>(items: T[]): T {
   const item = items[0];
   if (!item) throw new Error('The local stack returned no branches.');
   return item;
+}
+
+async function apiRequest(
+  page: Page,
+  path: string,
+  method = 'GET',
+  body?: Record<string, unknown>,
+) {
+  return page.evaluate(
+    async ({ path, method, body }) => {
+      const csrfToken = document.cookie
+        .split('; ')
+        .find((cookie) => cookie.startsWith('XSRF-TOKEN='))
+        ?.split('=')[1];
+      const response = await fetch(path, {
+        method,
+        credentials: 'include',
+        headers: {
+          ...(body ? { 'Content-Type': 'application/json' } : {}),
+          ...(csrfToken
+            ? { 'X-XSRF-TOKEN': decodeURIComponent(csrfToken) }
+            : {}),
+        },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+      const responseText = await response.text();
+      return {
+        status: response.status,
+        body: responseText ? JSON.parse(responseText) : null,
+      };
+    },
+    { path, method, body },
+  );
+}
+
+function reservationDate() {
+  return new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+async function createRealTable(page: Page, name: string, capacity = 4) {
+  const created = await apiRequest(page, '/api/v1/tables', 'POST', {
+    name,
+    branch: 'Central Rama II',
+    capacity,
+    shape: 'Square',
+    status: 'Available',
+    active: true,
+  });
+  expect(created.status).toBe(201);
+  return created.body as { id: number; name: string };
+}
+
+async function expireRedisSession(page: Page) {
+  const sessionCookie = (await page.context().cookies()).find(
+    (cookie) => cookie.name === 'bgstore-session',
+  );
+  if (!sessionCookie)
+    throw new Error('The browser has no BGStore session cookie.');
+  const sessionId = Buffer.from(sessionCookie.value, 'base64').toString('utf8');
+  expect(sessionId).toMatch(/^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i);
+
+  const composeProject = process.env['BGSTORE_E2E_COMPOSE_PROJECT'];
+  if (!composeProject) {
+    throw new Error('The full-stack harness did not set its Compose project.');
+  }
+  const result = execFileSync(
+    'docker',
+    [
+      'compose',
+      '-p',
+      composeProject,
+      '--env-file',
+      '.env.example',
+      '-f',
+      'compose.yaml',
+      '-f',
+      'compose.e2e.yaml',
+      '-f',
+      'compose.coverage.yaml',
+      'exec',
+      '-T',
+      'redis',
+      'redis-cli',
+      'EXPIREAT',
+      `bgstore:session:sessions:${sessionId}`,
+      '1',
+    ],
+    {
+      cwd: workspaceRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 30_000,
+    },
+  ).trim();
+  expect(result).toBe('1');
 }
 
 test.describe('real full-stack browser flows', () => {
@@ -290,6 +389,7 @@ test.describe('real full-stack browser flows', () => {
     const items = (await listed.json()).items as Array<Record<string, unknown>>;
     expect(items).toHaveLength(1);
     expect(items[0]).not.toHaveProperty('zone');
+    const tableId = items[0]?.['id'] as number;
 
     await row.getByRole('button', { name: 'Edit' }).click();
     await page.locator('#form-name').fill(`${name} edited`);
@@ -298,10 +398,431 @@ test.describe('real full-stack browser flows', () => {
     const edited = page.locator('tbody tr', { hasText: `${name} edited` });
     await expect(edited).toBeVisible();
 
+    const unavailable = await apiRequest(
+      page,
+      `/api/v1/tables/${tableId}`,
+      'PUT',
+      {
+        name: `${name} edited`,
+        branch: 'Central Rama II',
+        capacity: 4,
+        shape: 'Square',
+        status: 'Unavailable',
+        active: true,
+      },
+    );
+    expect(unavailable.status).toBe(200);
+    expect(unavailable.body).toMatchObject({ status: 'Unavailable' });
+    const unavailableList = await page.request.get(
+      `/api/v1/tables?branch=Central%20Rama%20II&search=${encodeURIComponent(`${name} edited`)}&status=Unavailable`,
+    );
+    expect(unavailableList.status()).toBe(200);
+    expect((await unavailableList.json()).items).toHaveLength(1);
+
     page.once('dialog', (dialog) => void dialog.accept());
     await edited.getByRole('button', { name: 'Delete' }).click();
     await expect(edited).toHaveCount(0);
   });
+
+  function registerRealStackBehaviorTests() {
+    test('real overlapping reservation submissions are serialized and respect capacity and interval boundaries', async ({
+      page,
+      browser,
+    }) => {
+      test.setTimeout(90_000);
+      requireFullStack();
+
+      await signIn(page, staffAccount);
+      const tableName = `E2E race table ${Date.now()}`;
+      const table = await createRealTable(page, tableName);
+      const clientContext = await browser.newContext({
+        baseURL: process.env['BASE_URL'] || 'http://localhost:4200',
+      });
+      const clientPage = await clientContext.newPage();
+
+      try {
+        await signIn(clientPage, clientAccount);
+        const date = reservationDate();
+        const clientSubmission = apiRequest(
+          clientPage,
+          '/api/v1/reservations',
+          'POST',
+          {
+            branch: 'Central Rama II',
+            date,
+            startTime: '09:00',
+            endTime: '11:00',
+            partySize: 2,
+            tableId: table.id,
+            customerName: clientBookingName,
+            phoneNumber: '0812345678',
+          },
+        );
+        const staffSubmission = apiRequest(
+          page,
+          '/api/v1/reservations',
+          'POST',
+          {
+            branch: 'Central Rama II',
+            date,
+            startTime: '09:00',
+            endTime: '11:00',
+            partySize: 3,
+            tableId: table.id,
+            customerName: 'Concurrent Walk-in',
+            phoneNumber: '089-222-3344',
+          },
+        );
+        const [clientResult, staffResult] = await Promise.all([
+          clientSubmission,
+          staffSubmission,
+        ]);
+        expect([clientResult.status, staffResult.status].sort()).toEqual([
+          201, 409,
+        ]);
+
+        const floorPath = `/api/v1/floor-overview?branch=${encodeURIComponent('Central Rama II')}&search=${encodeURIComponent(tableName)}&page=1&pageSize=100`;
+        const racedFloor = await apiRequest(page, floorPath);
+        expect(racedFloor.status).toBe(200);
+        const racedTables = (
+          racedFloor.body as {
+            items: Array<{ reservedSlots: unknown[] }>;
+          }
+        ).items;
+        expect(racedTables).toHaveLength(1);
+        expect(racedTables[0]?.reservedSlots).toHaveLength(1);
+
+        const adjacent = await apiRequest(
+          page,
+          '/api/v1/reservations',
+          'POST',
+          {
+            branch: 'Central Rama II',
+            date,
+            startTime: '11:00',
+            endTime: '12:00',
+            partySize: 2,
+            tableId: table.id,
+            customerName: 'Adjacent Interval',
+            phoneNumber: '089-555-6677',
+          },
+        );
+        expect(adjacent.status).toBe(201);
+
+        const overlapping = await apiRequest(
+          page,
+          '/api/v1/reservations',
+          'POST',
+          {
+            branch: 'Central Rama II',
+            date,
+            startTime: '10:00',
+            endTime: '12:00',
+            partySize: 1,
+            tableId: table.id,
+            customerName: 'Overlapping Interval',
+            phoneNumber: '089-111-2233',
+          },
+        );
+        expect(overlapping.status).toBe(409);
+
+        const capacityOverflow = await apiRequest(
+          page,
+          '/api/v1/reservations',
+          'POST',
+          {
+            branch: 'Central Rama II',
+            date,
+            startTime: '13:00',
+            endTime: '14:00',
+            partySize: 5,
+            tableId: table.id,
+            customerName: 'Over Capacity',
+            phoneNumber: '089-444-5566',
+          },
+        );
+        expect(capacityOverflow.status).toBe(400);
+
+        const resultingFloor = await apiRequest(page, floorPath);
+        const resultingTables = (
+          resultingFloor.body as {
+            items: Array<{ reservedSlots: unknown[] }>;
+          }
+        ).items;
+        expect(resultingTables).toHaveLength(1);
+        expect(resultingTables[0]?.reservedSlots).toHaveLength(2);
+      } finally {
+        await clientContext.close();
+      }
+    });
+
+    test('clients cannot check in or check out; staff cannot delete an in-use table and can waive its session', async ({
+      page,
+      browser,
+    }) => {
+      test.setTimeout(90_000);
+      requireFullStack();
+
+      await signIn(page, staffAccount);
+      const table = await createRealTable(
+        page,
+        `E2E waived checkout ${Date.now()}`,
+      );
+      const clientContext = await browser.newContext({
+        baseURL: process.env['BASE_URL'] || 'http://localhost:4200',
+      });
+      const clientPage = await clientContext.newPage();
+
+      try {
+        await signIn(clientPage, clientAccount);
+        const clientIdentity = await clientPage.request.get('/api/v1/me');
+        expect(clientIdentity.status()).toBe(200);
+        const { subject } = (await clientIdentity.json()) as {
+          subject: string;
+        };
+        const created = await apiRequest(page, '/api/v1/reservations', 'POST', {
+          clientSubject: subject,
+          branch: 'Central Rama II',
+          date: reservationDate(),
+          startTime: '09:00',
+          endTime: '11:00',
+          partySize: 2,
+          tableId: table.id,
+          customerName: 'RBAC Guest',
+          phoneNumber: '089-333-4455',
+        });
+        expect(created.status).toBe(201);
+        const reservationId = (created.body as { id: string }).id;
+        const reservationPath = `/api/v1/reservations/${reservationId}`;
+        const reservedState = await apiRequest(clientPage, reservationPath);
+        expect(reservedState.status).toBe(200);
+        expect(reservedState.body).toMatchObject({ status: 'Reserved' });
+
+        const deniedCheckIn = await apiRequest(
+          clientPage,
+          `${reservationPath}/check-in`,
+          'POST',
+        );
+        expect(deniedCheckIn.status).toBe(403);
+        const stillReserved = await apiRequest(clientPage, reservationPath);
+        expect(stillReserved.body).toEqual(reservedState.body);
+
+        const deniedReservedCheckout = await apiRequest(
+          clientPage,
+          `${reservationPath}/check-out`,
+          'POST',
+          { finalAmount: 0, paymentMethod: 'Waived' },
+        );
+        expect(deniedReservedCheckout.status).toBe(403);
+        const stillReservedAfterCheckout = await apiRequest(
+          clientPage,
+          reservationPath,
+        );
+        expect(stillReservedAfterCheckout.body).toEqual(reservedState.body);
+
+        const checkedIn = await apiRequest(
+          page,
+          `${reservationPath}/check-in`,
+          'POST',
+        );
+        expect(checkedIn.status).toBe(200);
+        const checkedInState = await apiRequest(clientPage, reservationPath);
+        expect(checkedInState.body).toMatchObject({ status: 'CheckedIn' });
+        const deniedActiveCheckout = await apiRequest(
+          clientPage,
+          `${reservationPath}/check-out`,
+          'POST',
+          { finalAmount: 0, paymentMethod: 'Waived' },
+        );
+        expect(deniedActiveCheckout.status).toBe(403);
+        const stillCheckedIn = await apiRequest(clientPage, reservationPath);
+        expect(stillCheckedIn.body).toEqual(checkedInState.body);
+
+        await page.goto('/tables');
+        await page.locator('#panel-branch').selectOption('Central Rama II');
+        await page.getByPlaceholder('Search tables').fill(table.name);
+        const row = page.locator('tbody tr', { hasText: table.name });
+        await expect(row).toBeVisible();
+        page.once('dialog', (dialog) => dialog.accept());
+        const deletion = page.waitForResponse(
+          (response) =>
+            response.url().endsWith(`/api/v1/tables/${table.id}`) &&
+            response.request().method() === 'DELETE',
+        );
+        await row.getByRole('button', { name: 'Delete' }).click();
+        expect((await deletion).status()).toBe(409);
+        await expect(page.getByRole('alert')).toContainText(
+          'Tables with reservations cannot be deleted.',
+        );
+        await expect(row).toBeVisible();
+        expect((await apiRequest(clientPage, reservationPath)).body).toEqual(
+          checkedInState.body,
+        );
+
+        const waivedReceipt = await apiRequest(
+          page,
+          `${reservationPath}/check-out`,
+          'POST',
+          { finalAmount: 0, paymentMethod: 'Waived' },
+        );
+        expect(waivedReceipt.status).toBe(200);
+        expect(waivedReceipt.body).toMatchObject({
+          reservationId,
+          totalDue: 0,
+          paymentMethod: 'Waived',
+        });
+        const completed = await apiRequest(clientPage, reservationPath);
+        expect(completed.body).toMatchObject({
+          status: 'Completed',
+          totalPrice: 0,
+        });
+      } finally {
+        await clientContext.close();
+      }
+    });
+
+    test('real Redis session expiry rejects active and checkout routes while retaining the browser cookie', async ({
+      page,
+      browser,
+    }) => {
+      test.setTimeout(120_000);
+      requireFullStack();
+
+      await signIn(page, clientAccount);
+      const checkoutContext = await browser.newContext({
+        baseURL: process.env['BASE_URL'] || 'http://localhost:4200',
+      });
+      const checkoutPage = await checkoutContext.newPage();
+      const staffContext = await browser.newContext({
+        baseURL: process.env['BASE_URL'] || 'http://localhost:4200',
+      });
+      const staffPage = await staffContext.newPage();
+
+      try {
+        await signIn(checkoutPage, clientAccount);
+        await signIn(staffPage, staffAccount);
+        const clientIdentity = await page.request.get('/api/v1/me');
+        expect(clientIdentity.status()).toBe(200);
+        const { subject } = (await clientIdentity.json()) as {
+          subject: string;
+        };
+        const table = await createRealTable(
+          staffPage,
+          `E2E expiry table ${Date.now()}`,
+        );
+        const created = await apiRequest(
+          staffPage,
+          '/api/v1/reservations',
+          'POST',
+          {
+            clientSubject: subject,
+            branch: 'Central Rama II',
+            date: reservationDate(),
+            startTime: '09:00',
+            endTime: '11:00',
+            partySize: 2,
+            tableId: table.id,
+            customerName: 'Expiry Client',
+            phoneNumber: '089-666-7788',
+          },
+        );
+        expect(created.status).toBe(201);
+        const reservationId = (created.body as { id: string }).id;
+        const checkIn = await apiRequest(
+          staffPage,
+          `/api/v1/reservations/${reservationId}/check-in`,
+          'POST',
+        );
+        expect(checkIn.status).toBe(200);
+
+        expect(
+          (await page.request.get('/api/v1/me/active-session')).status(),
+        ).toBe(200);
+        expect(
+          (
+            await checkoutPage.request.get('/api/v1/me/active-session')
+          ).status(),
+        ).toBe(200);
+        await page.goto('/sessions/active');
+        await expect(
+          page.getByRole('button', { name: 'Call Staff' }),
+        ).toBeVisible();
+        await checkoutPage.goto('/pay-session');
+        await expect(
+          checkoutPage.getByRole('heading', { name: 'Settle your session' }),
+        ).toBeVisible();
+
+        const activeCookie = (await page.context().cookies()).find(
+          (cookie) => cookie.name === 'bgstore-session',
+        );
+        await expireRedisSession(page);
+        expect(
+          (await page.context().cookies()).find(
+            (cookie) => cookie.name === 'bgstore-session',
+          )?.value,
+        ).toBe(activeCookie?.value);
+        expect((await page.request.get('/api/v1/me')).status()).toBe(401);
+        const activeAuth = page.waitForRequest(
+          (request) => new URL(request.url()).pathname === '/auth/sign-in',
+        );
+        await page.reload();
+        expect(
+          new URL((await activeAuth).url()).searchParams.get('returnTo'),
+        ).toBe('/sessions/active');
+        await expect(page).toHaveURL('/sessions/active');
+        await expect(
+          page.getByRole('button', { name: 'Call Staff' }),
+        ).toBeVisible();
+        expect((await page.request.get('/api/v1/me')).status()).toBe(200);
+        expect(
+          (await page.context().cookies()).find(
+            (cookie) => cookie.name === 'bgstore-session',
+          )?.value,
+        ).not.toBe(activeCookie?.value);
+
+        const checkoutCookie = (await checkoutPage.context().cookies()).find(
+          (cookie) => cookie.name === 'bgstore-session',
+        );
+        await expireRedisSession(checkoutPage);
+        expect(
+          (await checkoutPage.context().cookies()).find(
+            (cookie) => cookie.name === 'bgstore-session',
+          )?.value,
+        ).toBe(checkoutCookie?.value);
+        expect((await checkoutPage.request.get('/api/v1/me')).status()).toBe(
+          401,
+        );
+        const checkoutAuth = checkoutPage.waitForRequest(
+          (request) => new URL(request.url()).pathname === '/auth/sign-in',
+        );
+        await checkoutPage.reload();
+        expect(
+          new URL((await checkoutAuth).url()).searchParams.get('returnTo'),
+        ).toBe('/pay-session');
+        await expect(checkoutPage).toHaveURL('/pay-session');
+        await expect(
+          checkoutPage.getByRole('heading', { name: 'Settle your session' }),
+        ).toBeVisible();
+        expect((await checkoutPage.request.get('/api/v1/me')).status()).toBe(
+          200,
+        );
+        expect(
+          (await checkoutPage.context().cookies()).find(
+            (cookie) => cookie.name === 'bgstore-session',
+          )?.value,
+        ).not.toBe(checkoutCookie?.value);
+        const closed = await apiRequest(
+          staffPage,
+          `/api/v1/reservations/${reservationId}/check-out`,
+          'POST',
+          { paymentMethod: 'Waived', finalAmount: 0 },
+        );
+        expect(closed.status).toBe(200);
+      } finally {
+        await Promise.all([checkoutContext.close(), staffContext.close()]);
+      }
+    });
+  }
 
   test('availability explains a request outside branch opening hours', async ({
     page,
@@ -1020,4 +1541,6 @@ test.describe('real full-stack browser flows', () => {
       await context.close();
     }
   });
+
+  registerRealStackBehaviorTests();
 });

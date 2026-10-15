@@ -1,0 +1,5 @@
+services:
+  api:
+    environment:
+      JAVA_TOOL_OPTIONS: >-
+        -javaagent:/opt/jacoco/jacocoagent.jar=destfile=/tmp/jacoco-e2e.exec,append=false,dumponexit=true,output=file

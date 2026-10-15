@@ -40,7 +40,7 @@ jobs:
   browser:
     # Real-stack Chromium plus isolated cross-browser and mobile journeys.
     runs-on: runs-on=${{ github.run_id }}/runner=4cpu-linux-x64
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -51,20 +51,17 @@ jobs:
         with: { distribution: temurin, java-version: '21', cache: gradle }
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
-      - run: docker compose --env-file .env.example --profile app up --build --wait --wait-timeout 180
-      - run: pnpm e2e
-        env:
-          BASE_URL: http://localhost:4200
-          BGSTORE_FULL_STACK: '1'
-      - if: always()
-        run: docker compose --profile app logs --no-color
-      - if: always()
-        run: docker compose --profile app down --volumes
+      - run: .agents/bin/verify full-stack
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report
-          path: apps/web-e2e/playwright-report
+          name: full-stack-e2e-reports
+          if-no-files-found: warn
+          path: |
+            apps/web-e2e/test-output/playwright/report
+            apps/web-e2e/test-output/playwright/output
+            apps/web-e2e/test-output/coverage
+            apps/api/build/reports/jacoco/e2e
 
   delivery-manifests:
     runs-on: runs-on=${{ github.run_id }}/runner=2cpu-linux-x64

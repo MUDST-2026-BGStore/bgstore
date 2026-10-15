@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import org.jspecify.annotations.Nullable;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -176,7 +177,14 @@ public class TableManagementService {
           HttpStatus.NOT_FOUND, "Table not found with id: " + tableId);
     }
     requireTableBranch(existing);
-    repository.deleteById(tableId);
+    try {
+      repository.deleteById(tableId);
+    } catch (DataIntegrityViolationException exception) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "Tables with reservations cannot be deleted. Mark the table unavailable instead.",
+          exception);
+    }
   }
 
   private @Nullable String canonicalBranchForRead(

@@ -8,6 +8,7 @@
   },
   "include": [
     "**/*.ts",
+    "**/*.mts",
     "**/*.js",
     "playwright.config.mts",
     "src/**/*.spec.ts",

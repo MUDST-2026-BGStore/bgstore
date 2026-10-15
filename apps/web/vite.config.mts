@@ -3,6 +3,8 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import tailwindcss from '@tailwindcss/vite';
 
+const e2eCoverage = process.env['BGSTORE_E2E_COVERAGE'] === '1';
+
 export default defineConfig(() => ({
   root: import.meta.dirname,
   cacheDir: '../../node_modules/.vite/apps/web',
@@ -27,6 +29,8 @@ export default defineConfig(() => ({
     outDir: './dist',
     emptyOutDir: true,
     reportCompressedSize: true,
+    sourcemap: e2eCoverage,
+    minify: e2eCoverage ? false : undefined,
     commonjsOptions: {
       transformMixedEsModules: true,
     },

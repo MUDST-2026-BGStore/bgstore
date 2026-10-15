@@ -14,6 +14,64 @@ restarts when the IDE/compiler updates the API classpath. Docker is used only
 for PostgreSQL, Redis, Keycloak, and Mailpit in this workflow. Stop the
 infrastructure with `pnpm dev:infra:stop`.
 
+## Isolated full-stack browser tests
+
+Run the production-shaped browser suite and collect frontend and API coverage
+with:
+
+```bash
+.agents/bin/verify full-stack
+```
+
+The wrapper uses one uniquely named Compose project per invocation, so its
+PostgreSQL and other named volumes are isolated from local development and
+removed on exit. It starts only the web/mailpit dependency tree (PostgreSQL,
+Redis, Keycloak, API, web, and Mailpit); observability services are not
+started. Web and Keycloak ports are selected dynamically and bound only to
+`127.0.0.1` (rather than assuming ports 4200/8081 are free).
+`.env.example` supplies local defaults; exported environment variables override
+them. A disposable realm import allowlists only that run's exact callback and
+logout URLs. Override the bounded run duration with
+`BGSTORE_FULL_STACK_TIMEOUT_SECONDS` (default 1500 seconds, excluding a
+bounded cleanup/report phase).
+
+Playwright output and Compose diagnostics are written under
+`apps/web-e2e/test-output/playwright/{report,output}`, frontend source coverage
+under `apps/web-e2e/test-output/coverage`, and the API JaCoCo report under
+`apps/api/build/reports/jacoco/e2e`. The API is stopped before its execution
+data and matching executable JAR are copied for report generation; the
+disposable Compose project and volumes are then removed even when the test
+command fails.
+
+Append Playwright filters for focused diagnosis, for example
+`.agents/bin/verify full-stack --grep='clients cannot check in'`. CI runs the
+unfiltered suite. Stateful runs do not retry against partially mutated data;
+rerun the verifier to get a fresh database instead.
+
+Frontend coverage merges Chromium default-page execution with zero-count entries
+for every emitted JavaScript chunk, including unopened lazy Vue routes. Source
+maps report bundled Vue/TypeScript script code; generated clients, dependencies,
+tests, styles, and unbundled/tree-shaken code are outside that metric. Normal
+production builds do not publish these source maps. API E2E coverage uses the
+container's matching class files and remains separate from the unit-test report.
+It excludes generated OpenAPI and jOOQ classes, but includes authentication and
+security code that the unit-test coverage gate excludes.
+
+The expiry test expires real Redis session hashes while keeping browser cookies,
+checks that the API rejects them, then verifies Keycloak SSO renews the BFF
+session and returns to the same active-session or checkout route.
+Spring Boot 4 binds the namespace through `spring.session.data.redis.namespace`;
+the older `spring.session.redis.namespace` property is ignored. Deploying the
+correction moves sessions from the default namespace to `bgstore:session`, so
+previously signed-in users must sign in again.
+
+Chromium, Firefox, and WebKit run functional checks; fixed-time screenshot
+baselines cover Chromium desktop and Pixel 7 layouts. The four visual tests on
+Firefox/WebKit are intentionally skipped. Client checkout requests staff
+settlement; payment processing is exercised through staff checkout. Zones,
+manual walk-in console controls, console search/filtering, and asynchronous
+gateway callbacks are not implemented features and are not claimed as covered.
+
 ## Observability
 
 For the production-shaped, fully containerized path, start the application and

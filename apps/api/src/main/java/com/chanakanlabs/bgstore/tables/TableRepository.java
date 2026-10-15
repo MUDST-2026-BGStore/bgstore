@@ -22,6 +22,9 @@ public interface TableRepository {
 
   Optional<TableRecordData> findById(Long id);
 
+  /** Locks this table until the caller's existing write transaction completes. */
+  Optional<TableRecordData> findByIdForUpdate(Long id);
+
   TableRecordData save(TableRecordData table);
 
   boolean deleteById(Long id);

@@ -1099,6 +1099,10 @@ export type DeleteTableErrors = {
    * The resource does not exist.
    */
   404: ProblemDetail;
+  /**
+   * The table is referenced by reservations and cannot be deleted.
+   */
+  409: ProblemDetail;
 };
 
 export type DeleteTableError = DeleteTableErrors[keyof DeleteTableErrors];

@@ -473,6 +473,12 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: The table is referenced by reservations and cannot be deleted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetail'
   /floor-overview:
     get:
       tags: [Reservations]

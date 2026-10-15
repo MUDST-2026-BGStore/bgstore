@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.12
 FROM node:24.19.0-alpine AS build
 WORKDIR /workspace
+ARG BGSTORE_E2E_COVERAGE=0
+ENV BGSTORE_E2E_COVERAGE=${BGSTORE_E2E_COVERAGE}
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml nx.json tsconfig*.json ./
 COPY apps/web/package.json apps/web/package.json

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './coverage-fixture';
 
 const kittensId = '1a1f0e4c-1d3a-4a0b-8f21-4c6f5a0d7e12';
 
