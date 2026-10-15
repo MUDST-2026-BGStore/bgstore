@@ -544,7 +544,34 @@ test.describe('real full-stack browser flows', () => {
       dialog.getByRole('button', { name: 'Close session' }),
     ).toBeVisible();
 
-    // Any other CVV approves the charge.
+    // Cancel closes only the dialog; the session remains available to settle.
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await expect(dialog).toBeHidden();
+    const retryCheckOut = page
+      .getByRole('button', { name: 'Check out' })
+      .first();
+    await expect(retryCheckOut).toBeVisible();
+    await retryCheckOut.click();
+
+    // CVV 999 simulates a gateway outage. The open form is still retryable.
+    await expect(dialog).toBeVisible();
+    await dialog.locator('#checkout-amount').fill('180');
+    await dialog.locator('#checkout-method').selectOption('Card');
+    await dialog.locator('#checkout-card-number').fill('4242424242424242');
+    await dialog.locator('#checkout-card-expiry').fill('12/29');
+    await dialog.locator('#checkout-card-cvv').fill('999');
+    await dialog.getByRole('button', { name: 'Close session' }).click();
+    await expect(dialog.getByRole('alert')).toContainText(
+      /payment gateway is temporarily unavailable/i,
+    );
+    await expect(
+      dialog.getByRole('heading', { name: 'Session closed' }),
+    ).toHaveCount(0);
+    await expect(
+      dialog.getByRole('button', { name: 'Close session' }),
+    ).toBeVisible();
+
+    // A successful retry settles the still-open session.
     await dialog.locator('#checkout-card-cvv').fill('424');
     await dialog.getByRole('button', { name: 'Close session' }).click();
 
@@ -778,6 +805,54 @@ test.describe('real full-stack browser flows', () => {
     const editHref = await row.locator('a').first().getAttribute('href');
     retiredGame.detailUrl = (editHref ?? '').replace(/\/edit$/, '');
     expect(retiredGame.detailUrl).toMatch(/^\/games\//);
+
+    // Exercise the edit route using the form's localized title fields, player
+    // limits, and branch copy input before downstream catalogue/retire checks.
+    await page.goto(`${retiredGame.detailUrl}/edit`);
+    const updatedTitle = `${title} updated`;
+    await page.locator('#game-title-en').fill(updatedTitle);
+    await page.locator('#game-title-th').fill('เกมทดสอบ E2E');
+    await page.locator('#game-min').fill('3');
+    await page.locator('#game-max').fill('6');
+    await page
+      .getByRole('row')
+      .filter({ hasText: 'Central Rama II' })
+      .locator('input')
+      .fill('3');
+    await page.locator('button[form="game-form"]').click();
+
+    await expect(page).toHaveURL(
+      new RegExp(`${retiredGame.detailUrl}\\?saved=`),
+    );
+    await expect(page.getByTestId('details-saved')).toBeVisible();
+    await page.reload();
+    await expect(
+      page.getByRole('heading', { name: updatedTitle }),
+    ).toBeVisible();
+    const playerFact = page
+      .locator('dt')
+      .filter({ hasText: 'Players' })
+      .locator('..');
+    await expect(playerFact).toContainText(/3.*6/);
+    const branchStock = page
+      .getByRole('row')
+      .filter({ hasText: 'Central Rama II' });
+    await expect(branchStock.getByRole('cell').nth(0)).toHaveText('3');
+
+    // Reopening edit after the detail reload confirms the Thai title and
+    // numeric values were persisted, not just held in the submitted form.
+    await page.goto(`${retiredGame.detailUrl}/edit`);
+    await expect(page.locator('#game-title-en')).toHaveValue(updatedTitle);
+    await expect(page.locator('#game-title-th')).toHaveValue('เกมทดสอบ E2E');
+    await expect(page.locator('#game-min')).toHaveValue('3');
+    await expect(page.locator('#game-max')).toHaveValue('6');
+    await expect(
+      page
+        .getByRole('row')
+        .filter({ hasText: 'Central Rama II' })
+        .locator('input'),
+    ).toHaveValue('3');
+    retiredGame.title = updatedTitle;
   });
 
   test('client finds the new game in the catalogue', async ({ page }) => {
@@ -798,9 +873,9 @@ test.describe('real full-stack browser flows', () => {
     await card.click();
     expect(page.url()).toContain(retiredGame.detailUrl);
 
-    // The game was created without branch stock.
+    // The edit above added copies at Central Rama II.
     await expect(page.getByTestId('catalogue-availability')).toHaveText(
-      'Not in store yet',
+      '3 sets free',
     );
   });
 

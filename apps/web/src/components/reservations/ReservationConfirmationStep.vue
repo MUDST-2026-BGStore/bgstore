@@ -29,42 +29,46 @@ const formattedDate = computed(() => {
 </script>
 
 <template>
-  <dl class="confirmation-list">
-    <div class="summary-item">
-      <dt>{{ t('reservation.clientName') }}</dt>
-      <dd>
-        {{ draft.client.firstName }} {{ draft.client.lastName }}
-        <span v-if="draft.client.nickname">({{ draft.client.nickname }})</span>
-      </dd>
-    </div>
-    <div class="summary-item">
-      <dt>{{ t('reservation.phoneNumber') }}</dt>
-      <dd>{{ draft.client.phone }}</dd>
-    </div>
-    <div class="summary-item summary-item--wide">
-      <dt>{{ t('reservation.branch') }}</dt>
-      <dd>{{ branchName }}</dd>
-    </div>
-    <div class="summary-item summary-item--wide">
-      <dt>{{ t('reservation.date') }}</dt>
-      <dd>{{ formattedDate }}</dd>
-    </div>
-    <div class="summary-item">
-      <dt>{{ t('reservation.startTime') }}</dt>
-      <dd>{{ draft.startTime }}</dd>
-    </div>
-    <div class="summary-item">
-      <dt>{{ t('reservation.endTime') }}</dt>
-      <dd>{{ draft.endTime }}</dd>
-    </div>
-    <div class="summary-item">
-      <dt>{{ t('reservation.table') }}</dt>
-      <dd>{{ t('reservation.tableNumber', { number: table.id }) }}</dd>
-    </div>
-    <div class="summary-item">
-      <dt>{{ t('reservation.party') }}</dt>
-      <dd>{{ t('reservation.guestCount', { count: draft.partySize }) }}</dd>
-    </div>
+  <div class="confirmation-list">
+    <dl class="confirmation-fields">
+      <div class="summary-item">
+        <dt>{{ t('reservation.clientName') }}</dt>
+        <dd>
+          {{ draft.client.firstName }} {{ draft.client.lastName }}
+          <span v-if="draft.client.nickname"
+            >({{ draft.client.nickname }})</span
+          >
+        </dd>
+      </div>
+      <div class="summary-item">
+        <dt>{{ t('reservation.phoneNumber') }}</dt>
+        <dd>{{ draft.client.phone }}</dd>
+      </div>
+      <div class="summary-item summary-item--wide">
+        <dt>{{ t('reservation.branch') }}</dt>
+        <dd>{{ branchName }}</dd>
+      </div>
+      <div class="summary-item summary-item--wide">
+        <dt>{{ t('reservation.date') }}</dt>
+        <dd>{{ formattedDate }}</dd>
+      </div>
+      <div class="summary-item">
+        <dt>{{ t('reservation.startTime') }}</dt>
+        <dd>{{ draft.startTime }}</dd>
+      </div>
+      <div class="summary-item">
+        <dt>{{ t('reservation.endTime') }}</dt>
+        <dd>{{ draft.endTime }}</dd>
+      </div>
+      <div class="summary-item">
+        <dt>{{ t('reservation.table') }}</dt>
+        <dd>{{ t('reservation.tableNumber', { number: table.id }) }}</dd>
+      </div>
+      <div class="summary-item">
+        <dt>{{ t('reservation.party') }}</dt>
+        <dd>{{ t('reservation.guestCount', { count: draft.partySize }) }}</dd>
+      </div>
+    </dl>
 
     <div class="step-actions summary-item--wide">
       <button class="secondary-button" type="button" @click="emit('back')">
@@ -80,10 +84,14 @@ const formattedDate = computed(() => {
       </button>
       <p v-if="error" class="summary-item--wide" role="alert">{{ error }}</p>
     </div>
-  </dl>
+  </div>
 </template>
 
 <style scoped>
+.confirmation-fields {
+  display: contents;
+}
+
 .confirmation-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

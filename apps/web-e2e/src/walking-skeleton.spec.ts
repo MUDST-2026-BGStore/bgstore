@@ -112,6 +112,9 @@ test('staff can create a game through the authenticated browser flow', async ({
   await page.getByLabel('Username').fill('staff@example.test');
   await page.getByLabel('Password', { exact: true }).fill('StaffLocalOnly9!');
   await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Floor overview' }),
+  ).toBeVisible();
 
   await page.goto('/games/new');
   await page.getByLabel('Game title (English)').fill('Browser Smoke Game');

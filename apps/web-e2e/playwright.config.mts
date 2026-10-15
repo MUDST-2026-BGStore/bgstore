@@ -20,9 +20,13 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     baseURL,
+    timezoneId: 'Asia/Bangkok',
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',
   },
+  // Keep the stateful reservation flow on Chromium and serialize seeded-account
+  // mutations, including independent smoke tests on the other engines.
+  workers: process.env['BGSTORE_FULL_STACK'] ? 1 : undefined,
   /* Run your local dev server before starting the tests */
   webServer: externalServer
     ? undefined
@@ -36,6 +40,19 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+    },
+    ...[
+      { name: 'firefox', device: 'Desktop Firefox' },
+      { name: 'webkit', device: 'Desktop Safari' },
+    ].map(({ name, device }) => ({
+      name,
+      testIgnore: '**/*full-stack.spec.ts',
+      use: { ...devices[device] },
+    })),
+    {
+      name: 'mobile-chromium',
+      testMatch: '**/reservation-journey.spec.ts',
+      use: { ...devices['Pixel 7'] },
     },
   ],
 });

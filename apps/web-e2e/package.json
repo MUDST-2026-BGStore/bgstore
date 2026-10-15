@@ -5,6 +5,11 @@
   "nx": {
     "implicitDependencies": [
       "@mudst-2026-bgstore/web"
-    ]
+    ],
+    "targets": {
+      "e2e": {
+        "cache": false
+      }
+    }
   }
 }
