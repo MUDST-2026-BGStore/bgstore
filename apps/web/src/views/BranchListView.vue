@@ -317,7 +317,7 @@ function calculateDistance(branch: Branch): string | null {
                       })
                     }}
                   </span>
-                  <span v-else class="text-gray-400">
+                  <span v-else class="text-gray-600">
                     {{ t('branch.distanceUnavailable') }}
                   </span>
                 </div>
@@ -348,7 +348,7 @@ function calculateDistance(branch: Branch): string | null {
                   v-else
                   type="button"
                   disabled
-                  class="flex h-10 w-full cursor-not-allowed items-center justify-center rounded-xl bg-gray-100 px-4 text-sm font-bold text-gray-400 shadow-none"
+                  class="flex h-10 w-full cursor-not-allowed items-center justify-center rounded-xl bg-gray-100 px-4 text-sm font-bold text-gray-600 shadow-none"
                 >
                   {{ t('branch.bookingUnavailable') }}
                 </button>
@@ -358,7 +358,7 @@ function calculateDistance(branch: Branch): string | null {
 
           <div
             v-else
-            class="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-gray-400"
+            class="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-gray-600"
           >
             {{ t('branch.selectBranchPrompt') }}
           </div>
@@ -402,7 +402,7 @@ function calculateDistance(branch: Branch): string | null {
             <li v-for="branch in filteredBranches" :key="branch.id">
               <button
                 type="button"
-                :aria-selected="selectedBranchId === branch.id"
+                :aria-pressed="selectedBranchId === branch.id"
                 class="flex w-full items-center justify-between rounded-lg px-3.5 py-2.5 text-left text-sm font-medium transition"
                 :class="
                   selectedBranchId === branch.id
@@ -416,7 +416,7 @@ function calculateDistance(branch: Branch): string | null {
                   <span v-if="calculateDistance(branch)">
                     {{ calculateDistance(branch) }} km
                   </span>
-                  <span v-else class="text-gray-400">—</span>
+                  <span v-else class="text-gray-600">—</span>
                 </span>
               </button>
             </li>

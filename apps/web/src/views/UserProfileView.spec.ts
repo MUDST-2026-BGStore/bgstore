@@ -87,11 +87,9 @@ describe('user profile view', () => {
     await flushPromises();
 
     await wrapper.get('.primary-button').trigger('click');
-    expect(wrapper.find('#profile-confirm-password').exists()).toBe(true);
+    expect(wrapper.find('#profile-confirm-password').exists()).toBe(false);
     expect(wrapper.find('input[type="file"]').exists()).toBe(false);
-    expect(
-      wrapper.get('#profile-username').attributes('readonly'),
-    ).toBeUndefined();
+    expect(wrapper.get('#profile-username').attributes('readonly')).toBeDefined();
     expect(
       wrapper.get('#profile-phone').attributes('readonly'),
     ).toBeUndefined();
@@ -101,15 +99,8 @@ describe('user profile view', () => {
     expect(
       wrapper.get('#profile-last-name').attributes('readonly'),
     ).toBeUndefined();
-    expect(
-      wrapper.get('#profile-email').attributes('readonly'),
-    ).toBeUndefined();
-    expect(
-      wrapper.get('#profile-password').attributes('readonly'),
-    ).toBeUndefined();
-    expect(
-      wrapper.get('#profile-confirm-password').attributes('readonly'),
-    ).toBeUndefined();
+    expect(wrapper.get('#profile-email').attributes('readonly')).toBeDefined();
+    expect(wrapper.get('#profile-password').attributes('readonly')).toBeDefined();
     await wrapper.get('#profile-phone').setValue('098 765 4321');
     await wrapper.get('form').trigger('submit');
     await flushPromises();

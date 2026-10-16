@@ -325,7 +325,7 @@ body {
   overflow: hidden;
   --auth-ink: #252525;
   --auth-muted: #68757d;
-  --auth-teal: #548d99;
+  --auth-teal: #1f7a89;
   min-height: 100vh;
   color: var(--auth-ink);
   background: linear-gradient(115deg, #f2ebe0 0%, #f0f2ef 44%, #d9eff1 100%);
@@ -1144,7 +1144,8 @@ body {
 
 .client-branch-hint {
   margin: 0;
-  color: #858380;
+  /* Darkened from #858380 to meet WCAG AA contrast on white (4.5:1). */
+  color: #6b6a66;
   font-size: 0.7rem;
   line-height: 1.45;
 }
@@ -1809,7 +1810,7 @@ body {
 }
 
 .staff-profile-provider-badge {
-  color: var(--color-primary);
+  color: var(--color-primary-subtle-fg);
   border-color: var(--color-primary-subtle);
   background: var(--color-primary-subtle);
   text-align: center;
@@ -1990,7 +1991,8 @@ body {
   place-items: center;
   border-radius: 50%;
   color: #fff;
-  background: #2c93a8;
+  /* Darkened from #2c93a8 so white initials meet WCAG AA contrast (4.5:1). */
+  background: #1f7a89;
   font-size: 0.7rem;
   font-weight: 750;
   letter-spacing: 0.02em;

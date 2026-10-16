@@ -97,6 +97,16 @@ const retire = useMutation({
   onSuccess: () => queryClient.invalidateQueries({ queryKey: ['games'] }),
 });
 
+const confirmRetire = (gameId: string) => {
+  if (
+    retire.isPending.value ||
+    !window.confirm(t('games.inventory.confirmRetire'))
+  ) {
+    return;
+  }
+  retire.mutate(gameId);
+};
+
 const rows = computed(() => games.data.value?.items ?? []);
 const stats = computed(() => games.data.value?.stats);
 const pageMeta = computed(() => games.data.value?.page);
@@ -419,7 +429,7 @@ function branchOf(row: Parameters<typeof branchLabel>[0]) {
                     variant="ghost"
                     size="sm"
                     :disabled="retire.isPending.value"
-                    @click="retire.mutate(row.id)"
+                    @click="confirmRetire(row.id)"
                   >
                     {{ t('games.inventory.delete') }}
                   </UiButton>

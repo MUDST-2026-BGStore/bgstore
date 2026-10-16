@@ -340,6 +340,7 @@ function formatUpdated(value: string) {
           <UiSelect
             id="panel-branch"
             v-model="selectedBranch"
+            :aria-label="t('tables.branch')"
             :options="
               branches.map((branch) => ({
                 value: branch.name,
@@ -356,6 +357,7 @@ function formatUpdated(value: string) {
           <UiSelect
             id="table-status"
             v-model="statusFilter"
+            :aria-label="t('tables.statusLabel')"
             :placeholder="t('tables.allStatuses')"
             placeholder-selectable
             :options="

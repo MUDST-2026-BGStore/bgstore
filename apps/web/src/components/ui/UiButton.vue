@@ -42,10 +42,7 @@ const sizeClass = computed(() =>
 <template>
   <component
     :is="to ? 'router-link' : href ? 'a' : 'button'"
-    :to="to"
-    :href="href"
-    :type="to || href ? undefined : type"
-    :disabled="to || href ? undefined : disabled"
+    v-bind="to ? { to } : href ? { href } : { type, disabled }"
     class="inline-flex shrink-0 items-center justify-center text-center whitespace-nowrap focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
     :class="[variantClass, sizeClass]"
   >

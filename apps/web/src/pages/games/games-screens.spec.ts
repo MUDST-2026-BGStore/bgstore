@@ -205,6 +205,7 @@ describe('game inventory screen', () => {
   });
 
   it('retires a game through the API and reloads the list', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     let listed = [explodingKittens, splendor];
     const { wrapper, calls } = await inventory(
       (request) => (request.method === 'DELETE' ? { status: 204 } : undefined),
@@ -230,6 +231,7 @@ describe('game inventory screen', () => {
   });
 
   it('reports a failed retire without dropping the row', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { wrapper } = await inventory(
       (request) =>
         request.method === 'DELETE'

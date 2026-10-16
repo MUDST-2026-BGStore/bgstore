@@ -24,6 +24,11 @@ withDefaults(
     options?: readonly SelectOption[];
     invalid?: boolean;
     describedBy?: string;
+    /**
+     * Accessible name for the native select, for filter placements that show
+     * no visible label. Falls back to the placeholder text.
+     */
+    ariaLabel?: string;
   }>(),
   {
     placeholder: undefined,
@@ -31,6 +36,7 @@ withDefaults(
     options: undefined,
     invalid: false,
     describedBy: undefined,
+    ariaLabel: undefined,
   },
 );
 
@@ -45,6 +51,7 @@ const model = defineModel<string>({ default: '' });
     <select
       :id="id"
       v-model="model"
+      :aria-label="ariaLabel ?? placeholder ?? undefined"
       :aria-invalid="invalid ? 'true' : undefined"
       :aria-describedby="describedBy"
       class="min-w-0 flex-1 appearance-none bg-transparent text-[14px] leading-[22px] outline-none"

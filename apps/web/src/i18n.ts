@@ -216,6 +216,8 @@ export const messages = {
         'We could not update your profile. Check the phone number and try again.',
       staffDescription:
         'Staff account details are managed by the identity provider.',
+      clientIdentityNote:
+        'Username, email, and password are managed in Keycloak.',
       identityDetails: 'Identity details',
       accountAccess: 'Account access',
       roles: 'Account roles',
@@ -536,6 +538,8 @@ export const messages = {
         nextPage: 'Next',
         saved: '“{title}” was saved.',
         deleteFailed: 'That game could not be retired.',
+        confirmRetire:
+          'Retire this game? It will no longer be offered to clients.',
         stats: {
           titles: 'Titles',
           availableNow: 'Available now',
@@ -678,7 +682,9 @@ export const messages = {
       },
       empty: 'No reservations found under this category',
       loading: 'Loading reservations…',
+      showing: 'Showing {from}–{to} of {total}',
       pagination: {
+        label: 'Reservation history pagination',
         previous: 'Previous page',
         next: 'Next page',
       },
@@ -948,6 +954,7 @@ export const messages = {
         'ไม่สามารถอัปเดตโปรไฟล์ได้ โปรดตรวจสอบเบอร์โทรศัพท์แล้วลองอีกครั้ง',
       staffDescription:
         'รายละเอียดบัญชีพนักงานจัดการโดยผู้ให้บริการยืนยันตัวตน',
+      clientIdentityNote: 'ชื่อผู้ใช้ อีเมล และรหัสผ่าน จัดการโดย Keycloak',
       identityDetails: 'รายละเอียดตัวตน',
       accountAccess: 'การเข้าถึงบัญชี',
       roles: 'บทบาทของบัญชี',
@@ -1260,6 +1267,8 @@ export const messages = {
         nextPage: 'ถัดไป',
         saved: 'บันทึก “{title}” แล้ว',
         deleteFailed: 'ไม่สามารถปลดระวางเกมนี้ได้',
+        confirmRetire:
+          'ต้องการปลดระวางเกมนี้หรือไม่? เกมจะไม่ถูกนำเสนอต่อลูกค้าอีกต่อไป',
         stats: {
           titles: 'จำนวนชื่อเกม',
           availableNow: 'พร้อมให้บริการตอนนี้',
@@ -1402,7 +1411,9 @@ export const messages = {
       },
       empty: 'ไม่พบรายการจองในหมวดหมู่นี้',
       loading: 'กำลังโหลดประวัติการจอง…',
+      showing: 'แสดง {from}–{to} จาก {total}',
       pagination: {
+        label: 'แบ่งหน้าประวัติการจอง',
         previous: 'หน้าก่อนหน้า',
         next: 'หน้าถัดไป',
       },

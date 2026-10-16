@@ -64,7 +64,7 @@ const pendingApiChanges = computed(
 );
 const hasChanges = computed(() =>
   clientOnly.value
-    ? clientDetailsChanged.value || passwordChanged.value
+    ? clientDetailsChanged.value
     : phoneChanged.value || pendingApiChanges.value,
 );
 
@@ -201,9 +201,9 @@ const saveProfile = () => {
           name="username"
           autocomplete="username"
           :label="t('userProfile.username')"
-          :readonly="!isEditing"
-          :required="isEditing"
-          :required-mark="isEditing"
+          :readonly="!isEditing || clientOnly"
+          :required="isEditing && !clientOnly"
+          :required-mark="isEditing && !clientOnly"
         />
         <BaseFormField
           id="profile-email"
@@ -214,9 +214,9 @@ const saveProfile = () => {
           inputmode="email"
           autocomplete="email"
           :label="t('userProfile.email')"
-          :readonly="!isEditing"
-          :required="isEditing"
-          :required-mark="isEditing"
+          :readonly="!isEditing || clientOnly"
+          :required="isEditing && !clientOnly"
+          :required-mark="isEditing && !clientOnly"
         />
         <BaseFormField
           id="profile-first-name"
@@ -253,6 +253,9 @@ const saveProfile = () => {
           :required="isEditing"
           :required-mark="isEditing"
         />
+        <p v-if="isEditing && clientOnly" class="identity-note" role="note">
+          {{ t('userProfile.clientIdentityNote') }}
+        </p>
         <BaseFormField
           id="profile-password"
           v-model="form.password"
@@ -262,14 +265,14 @@ const saveProfile = () => {
           autocomplete="new-password"
           :label="t('userProfile.password')"
           :placeholder="
-            isEditing
+            isEditing && !clientOnly
               ? t('userProfile.newPasswordPlaceholder')
               : t('userProfile.passwordHidden')
           "
-          :readonly="!isEditing"
+          :readonly="!isEditing || clientOnly"
         />
         <BaseFormField
-          v-if="isEditing"
+          v-if="isEditing && !clientOnly"
           id="profile-confirm-password"
           v-model="form.confirmPassword"
           class="field-confirm-password"
@@ -339,6 +342,12 @@ const saveProfile = () => {
 </template>
 
 <style scoped>
+.identity-note {
+  margin: -0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: #647080;
+}
+
 .user-profile-page {
   --profile-green: #497883;
   --profile-green-strong: #315b65;

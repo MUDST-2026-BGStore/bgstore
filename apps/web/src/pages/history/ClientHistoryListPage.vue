@@ -212,8 +212,14 @@ watch(
                 {{ item.title }}
               </h2>
               <p class="text-[13px] text-ink-secondary">
-                {{ item.date }} · {{ item.timeSlot }} ·
-                {{ item.partySize }} People · {{ item.tableName }}
+                {{
+                  t('history.meta', {
+                    date: item.date,
+                    time: item.timeSlot,
+                    partySize: item.partySize,
+                    table: item.tableName,
+                  })
+                }}
               </p>
             </div>
 
@@ -249,20 +255,22 @@ watch(
       <div
         v-if="!isLoading && paginatedData.total > 0"
         class="mt-6 flex flex-wrap items-center justify-between gap-4 py-2"
-        aria-label="Table pagination"
+        :aria-label="t('history.pagination.label')"
       >
         <div class="text-sm font-normal text-slate-500">
-          Showing
           {{
-            Math.min(
-              (currentPage - 1) * reservationsPageSize + 1,
-              paginatedData.total,
-            )
-          }}-{{
-            Math.min(currentPage * reservationsPageSize, paginatedData.total)
+            t('history.showing', {
+              from: Math.min(
+                (currentPage - 1) * reservationsPageSize + 1,
+                paginatedData.total,
+              ),
+              to: Math.min(
+                currentPage * reservationsPageSize,
+                paginatedData.total,
+              ),
+              total: paginatedData.total,
+            })
           }}
-          of
-          {{ paginatedData.total }}
         </div>
 
         <div class="flex items-center gap-6">
