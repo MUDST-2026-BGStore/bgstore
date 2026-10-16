@@ -603,6 +603,12 @@ test('onboarding surfaces a save failure and supports the country picker', async
 });
 
 test('auth redirect neutralises unsafe returnTo targets', async ({ page }) => {
+  // The mock-mode suite verifies the SPA's returnTo sanitisation against the
+  // stubbed BFF endpoints; the real stack delegates /login straight to Keycloak.
+  test.skip(
+    Boolean(process.env['BGSTORE_FULL_STACK']),
+    'the real BFF redirects /login to Keycloak instead of the SPA route',
+  );
   await page.route('**/api/v1/me', (route) => route.fulfill({ status: 401 }));
   await page.route('**/auth/sign-in?*', (route) =>
     route.fulfill({ contentType: 'text/html', body: '<html></html>' }),
