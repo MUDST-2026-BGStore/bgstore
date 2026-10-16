@@ -26,6 +26,10 @@
   },
   "private": true,
   "pnpm": {
+    "overrides": {
+      "@vue/server-renderer": "3.5.42",
+      "source-map-js": "1.2.2"
+    },
     "onlyBuiltDependencies": [
       "lefthook"
     ]
