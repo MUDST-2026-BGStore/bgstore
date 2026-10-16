@@ -30,6 +30,9 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
+  // CI renders fonts slightly differently from local machines; allow a small
+  // pixel drift instead of flaking on 35-62 px antialiasing differences.
+  expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.02 } },
   // Keep the stateful reservation flow on Chromium and serialize seeded-account
   // mutations, including independent smoke tests on the other engines.
   workers: process.env['BGSTORE_FULL_STACK'] ? 1 : undefined,
