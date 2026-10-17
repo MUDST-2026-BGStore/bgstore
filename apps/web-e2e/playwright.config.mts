@@ -20,6 +20,7 @@ export default defineConfig({
   reporter: [
     ['list'],
     ['html', { outputFolder: 'test-output/playwright/report', open: 'never' }],
+    ['junit', { outputFile: 'test-output/playwright/junit.xml' }],
     ['./src/coverage-reporter.mts'],
   ],
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */

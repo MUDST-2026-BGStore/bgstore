@@ -49,6 +49,28 @@ The normal development path keeps the web app and API outside Docker for Vite HM
 
 The backend test suite uses Testcontainers for real PostgreSQL and Redis-compatible session storage. If using Lima locally, see the [local development runbook](runbooks/local-development.md).
 
+## CI reports and artifacts
+
+Open a **CI** workflow run in GitHub Actions to see each job's summary, check
+outcomes, and a download link to its artifacts. Quality and browser summaries
+also show JUnit test totals; missing reports are marked unavailable. Reporting
+and uploads run after failed checks as well, when the runner is still available.
+Artifacts are retained for 14 days.
+
+| Job                       | Downloadable contents                                                                                                           |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Scripts (Linux and macOS) | Python regression test log, with a separate artifact per OS                                                                     |
+| Quality                   | Formatting/check logs, API JUnit and HTML reports, JaCoCo coverage, web JUnit and coverage reports                              |
+| Browser                   | Full verification log, Playwright JUnit and HTML reports, failure traces/screenshots, Compose diagnostics, web/API E2E coverage |
+| Delivery manifests        | Helm lint log, rendered environment manifests, Trivy SARIF results                                                              |
+| Compose                   | Configuration validation log                                                                                                    |
+
+Extract an artifact to browse its HTML reports, or open retained failure traces
+with `pnpm exec playwright show-trace <trace.zip>`. If setup fails before a tool
+produces reports, use the job's setup logs. Summaries use GitHub's built-in
+[job summary support](https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-job-summary);
+test reporting does not require write access to pull requests or checks.
+
 ## Change workflow
 
 1. Confirm the terminology and invariant in `docs/domain-model.md`.

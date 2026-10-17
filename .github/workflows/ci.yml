@@ -8,11 +8,45 @@ on:
 permissions:
   contents: read
 
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  scripts:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Test verification scripts
+        id: tests
+        run: |
+          mkdir -p "test-output/ci-reports"
+          python3 -m unittest discover -s scripts/tests -v 2>&1 | tee "test-output/ci-reports/scripts.log"
+      - name: Upload script test log
+        id: reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: script-reports-${{ matrix.os }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: test-output/ci-reports
+      - name: Summarize script checks
+        if: always()
+        env:
+          CI_STEPS: ${{ toJSON(steps) }}
+          CI_ARTIFACT_URL: ${{ steps.reports.outputs.artifact-url }}
+        run: python3 scripts/ci-summary.py 'Verification scripts (${{ matrix.os }})'
+
   quality:
     # 4 vCPU/16GB class: pnpm install + Gradle build/check.
     runs-on: runs-on=${{ github.run_id }}/runner=4cpu-linux-x64
@@ -27,15 +61,36 @@ jobs:
       - uses: actions/setup-java@v5
         with: { distribution: temurin, java-version: '21', cache: gradle }
       - run: pnpm install --frozen-lockfile
-      - run: pnpm format:check
-      - run: pnpm check
-      - uses: actions/upload-artifact@v4
+      - name: Check formatting
+        id: formatting
+        run: |
+          mkdir -p "test-output/ci-reports"
+          pnpm format:check 2>&1 | tee "test-output/ci-reports/formatting.log"
+      - name: Run quality checks
+        id: checks
+        run: pnpm check 2>&1 | tee "test-output/ci-reports/quality.log"
+      - name: Upload quality reports and logs
+        id: reports
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: test-reports
+          retention-days: 14
+          if-no-files-found: warn
           path: |
+            test-output/ci-reports
             apps/api/build/reports
+            apps/api/build/test-results
             apps/web/test-output
+      - name: Summarize quality checks
+        if: always()
+        env:
+          CI_STEPS: ${{ toJSON(steps) }}
+          CI_ARTIFACT_URL: ${{ steps.reports.outputs.artifact-url }}
+        run: |
+          python3 scripts/ci-summary.py 'Quality checks' \
+            --junit 'API' 'apps/api/build/test-results/test/TEST-*.xml' \
+            --junit 'Web' 'apps/web/test-output/vitest/junit.xml'
 
   browser:
     # Real-stack Chromium plus isolated cross-browser and mobile journeys.
@@ -51,17 +106,34 @@ jobs:
         with: { distribution: temurin, java-version: '21', cache: gradle }
       - run: pnpm install --frozen-lockfile
       - run: pnpm exec playwright install --with-deps chromium firefox webkit
-      - run: .agents/bin/verify full-stack
-      - uses: actions/upload-artifact@v4
+      - name: Run full-stack browser tests
+        id: tests
+        env:
+          XDG_CACHE_HOME: ${{ github.workspace }}/test-output/ci-cache
+        run: .agents/bin/verify full-stack
+      - name: Upload browser reports and logs
+        id: reports
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: full-stack-e2e-reports
+          retention-days: 14
           if-no-files-found: warn
           path: |
             apps/web-e2e/test-output/playwright/report
             apps/web-e2e/test-output/playwright/output
+            apps/web-e2e/test-output/playwright/junit.xml
             apps/web-e2e/test-output/coverage
             apps/api/build/reports/jacoco/e2e
+            test-output/ci-cache/bgstore/verify/*.log
+      - name: Summarize browser tests
+        if: always()
+        env:
+          CI_STEPS: ${{ toJSON(steps) }}
+          CI_ARTIFACT_URL: ${{ steps.reports.outputs.artifact-url }}
+        run: |
+          python3 scripts/ci-summary.py 'Full-stack browser tests' \
+            --junit 'Playwright (all browsers)' 'apps/web-e2e/test-output/playwright/junit.xml'
 
   delivery-manifests:
     runs-on: runs-on=${{ github.run_id }}/runner=2cpu-linux-x64
@@ -70,17 +142,23 @@ jobs:
       - uses: actions/checkout@v5
       - uses: azure/setup-helm@v4
         with: { version: v3.19.0 }
-      - run: helm lint deploy/charts/bgstore
+      - name: Lint Helm chart
+        id: lint
+        run: |
+          mkdir -p "test-output/ci-reports"
+          helm lint deploy/charts/bgstore 2>&1 | tee "test-output/ci-reports/helm-lint.log"
       - name: Render every environment
+        id: render
         run: |
           for values_file in deploy/environments/*/values.yaml; do
             environment=$(basename "$(dirname "$values_file")")
             helm template bgstore deploy/charts/bgstore \
               --namespace "bgstore-${environment}" \
               --values "$values_file" \
-              > "/tmp/bgstore-${environment}.yaml"
+              > "test-output/ci-reports/bgstore-${environment}.yaml"
           done
       - uses: aquasecurity/trivy-action@v0.36.0
+        id: security
         with:
           scan-type: fs
           scan-ref: .
@@ -88,10 +166,47 @@ jobs:
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
           exit-code: '1'
+      - name: Upload manifest and security reports
+        id: reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: delivery-manifest-reports
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
+            test-output/ci-reports
+            trivy-results.sarif
+      - name: Summarize manifest checks
+        if: always()
+        env:
+          CI_STEPS: ${{ toJSON(steps) }}
+          CI_ARTIFACT_URL: ${{ steps.reports.outputs.artifact-url }}
+        run: python3 scripts/ci-summary.py 'Delivery manifests and security scan'
 
   compose:
     runs-on: runs-on=${{ github.run_id }}/runner=2cpu-linux-x64
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v5
-      - run: docker compose --env-file .env.example config --quiet
+      - name: Validate Compose configuration
+        id: validate
+        run: |
+          mkdir -p "test-output/ci-reports"
+          docker compose --env-file .env.example config --quiet 2>&1 | tee "test-output/ci-reports/compose.log"
+          echo 'Compose configuration is valid.' | tee -a "test-output/ci-reports/compose.log"
+      - name: Upload Compose validation log
+        id: reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: compose-reports
+          retention-days: 14
+          if-no-files-found: warn
+          path: test-output/ci-reports
+      - name: Summarize Compose checks
+        if: always()
+        env:
+          CI_STEPS: ${{ toJSON(steps) }}
+          CI_ARTIFACT_URL: ${{ steps.reports.outputs.artifact-url }}
+        run: python3 scripts/ci-summary.py 'Compose validation'

@@ -41,7 +41,8 @@ export default defineConfig(() => ({
     globals: true,
     environment: 'jsdom',
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    reporters: ['default'],
+    reporters: ['default', 'junit'],
+    outputFile: { junit: './test-output/vitest/junit.xml' },
     coverage: {
       enabled: true,
       reportsDirectory: './test-output/vitest/coverage',
