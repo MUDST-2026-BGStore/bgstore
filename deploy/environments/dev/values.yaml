@@ -18,6 +18,6 @@ images:
   # api.tag/web.tag are pinned by the trunk-images workflow to the exact main
   # commit it built (`main-<sha>`); its bump pull request updates both. Dev
   # always pulls the image fresh (pullPolicy Always).
-  api: { tag: main-dc4e7744d628a384557d78d25099f10d4dad09ba }
-  web: { tag: main-dc4e7744d628a384557d78d25099f10d4dad09ba }
+  api: { tag: main-de1b601609ba9872c9c6dafd62a248ed880dc206 }
+  web: { tag: main-de1b601609ba9872c9c6dafd62a248ed880dc206 }
   pullPolicy: Always
