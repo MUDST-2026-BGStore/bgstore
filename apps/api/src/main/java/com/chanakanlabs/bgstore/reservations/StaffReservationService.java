@@ -5,6 +5,9 @@ import com.chanakanlabs.bgstore.branches.BranchDirectory;
 import com.chanakanlabs.bgstore.contract.model.CreateReservationRequest;
 import com.chanakanlabs.bgstore.contract.model.ReservationAvailabilityResponse;
 import com.chanakanlabs.bgstore.contract.model.ReservationAvailabilityTable;
+import com.chanakanlabs.bgstore.contract.model.ReservationStatus;
+import com.chanakanlabs.bgstore.contract.model.StaffReservationListResponse;
+import com.chanakanlabs.bgstore.contract.model.StaffReservationSummary;
 import com.chanakanlabs.bgstore.identity.AccessPolicy;
 import com.chanakanlabs.bgstore.identity.AuthenticatedIdentity;
 import com.chanakanlabs.bgstore.identity.CurrentIdentityProvider;
@@ -16,9 +19,13 @@ import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeParseException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -134,6 +141,63 @@ public class StaffReservationService {
     tableReservations.save(
         new TableReservationEntity(id, tableId, interval.startsAt(), interval.endsAt()));
     return reservation.toRecord();
+  }
+
+  @Transactional(readOnly = true)
+  public StaffReservationListResponse list(
+      @org.jspecify.annotations.Nullable ReservationStatus status,
+      @org.jspecify.annotations.Nullable LocalDate date,
+      int page,
+      int pageSize) {
+    accessPolicy.requireStaffOrManager();
+    List<UUID> branchIds = accessibleBranchIds();
+    Page<ReservationEntity> resultPage =
+        reservations.findStaffPage(
+            branchIds,
+            status == null ? null : status.getValue(),
+            date == null ? null : date.toString(),
+            PageRequest.of(Math.max(0, page - 1), pageSize));
+    Map<UUID, String> branchNames = new HashMap<>();
+    for (UUID branchId : branchIds) {
+      branchNames.put(branchId, branches.findById(branchId).map(Branch::name).orElse(""));
+    }
+    List<StaffReservationSummary> items =
+        resultPage.getContent().stream()
+            .map(reservation -> toSummary(reservation, branchNames))
+            .toList();
+    return new StaffReservationListResponse(
+        items,
+        (int) resultPage.getTotalElements(),
+        page,
+        pageSize,
+        Math.max(1, resultPage.getTotalPages()));
+  }
+
+  /** Managers see every branch; staff see only the branches they are assigned to. */
+  private List<UUID> accessibleBranchIds() {
+    if (accessPolicy.hasManagerAccess()) {
+      return branches.findAll().stream().map(Branch::id).toList();
+    }
+    return List.copyOf(accessPolicy.assignedBranchIds());
+  }
+
+  private static StaffReservationSummary toSummary(
+      ReservationEntity reservation, Map<UUID, String> branchNames) {
+    ReservationRecordData record = reservation.toRecord();
+    StaffReservationSummary summary =
+        new StaffReservationSummary(
+            record.id(),
+            branchNames.getOrDefault(reservation.branchId(), ""),
+            record.customerName(),
+            record.phoneNumber(),
+            record.date(),
+            record.timeSlot(),
+            record.partySize(),
+            record.tableName(),
+            ReservationStatus.fromValue(record.status()));
+    summary.setCheckInTime(record.checkInTime());
+    summary.setTotalPrice(record.totalPrice());
+    return summary;
   }
 
   private Branch branch(String name) {

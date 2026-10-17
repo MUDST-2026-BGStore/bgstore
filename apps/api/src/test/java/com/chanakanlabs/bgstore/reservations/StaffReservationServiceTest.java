@@ -3,6 +3,8 @@ package com.chanakanlabs.bgstore.reservations;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
@@ -13,6 +15,7 @@ import com.chanakanlabs.bgstore.branches.Branch;
 import com.chanakanlabs.bgstore.branches.BranchDirectory;
 import com.chanakanlabs.bgstore.contract.model.CreateReservationRequest;
 import com.chanakanlabs.bgstore.contract.model.ReservationAvailabilityTable;
+import com.chanakanlabs.bgstore.contract.model.ReservationStatus;
 import com.chanakanlabs.bgstore.identity.AccessPolicy;
 import com.chanakanlabs.bgstore.identity.ApplicationRole;
 import com.chanakanlabs.bgstore.identity.AuthenticatedIdentity;
@@ -33,6 +36,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 @ExtendWith(MockitoExtension.class)
@@ -202,6 +210,94 @@ class StaffReservationServiceTest {
     assertThat(result.clientSubject()).isEqualTo("client-123");
     assertThat(result.customerName()).isEqualTo("Jane Doe");
     verify(accessPolicy, never()).requireBranch(any());
+  }
+
+  @Test
+  void staffListUsesOnlyAssignedBranches() {
+    UUID assigned = UUID.randomUUID();
+    when(accessPolicy.hasManagerAccess()).thenReturn(false);
+    when(accessPolicy.assignedBranchIds()).thenReturn(Set.of(assigned));
+    when(reservations.findStaffPage(eq(List.of(assigned)), isNull(), isNull(), any(Pageable.class)))
+        .thenReturn(
+            new PageImpl<>(
+                List.of(entity("res-1", "Reserved", assigned)), PageRequest.of(0, 20), 1));
+
+    var result = service.list(null, null, 1, 20);
+
+    assertThat(result.getTotal()).isEqualTo(1);
+    assertThat(result.getTotalPages()).isEqualTo(1);
+    assertThat(result.getItems()).hasSize(1);
+    assertThat(result.getItems().getFirst().getId()).isEqualTo("res-1");
+  }
+
+  @Test
+  void staffListPassesDateAndStatusFiltersThroughToTheRepository() {
+    UUID assigned = UUID.randomUUID();
+    when(accessPolicy.hasManagerAccess()).thenReturn(false);
+    when(accessPolicy.assignedBranchIds()).thenReturn(Set.of(assigned));
+    LocalDate filterDate = LocalDate.now(ZoneOffset.ofHours(7));
+    when(reservations.findStaffPage(
+            eq(List.of(assigned)), eq("Cancelled"), eq(filterDate.toString()), any(Pageable.class)))
+        .thenReturn(Page.empty(PageRequest.of(0, 20)));
+
+    var result = service.list(ReservationStatus.CANCELLED, filterDate, 1, 20);
+
+    assertThat(result.getItems()).isEmpty();
+  }
+
+  @Test
+  void managerListCoversEveryBranch() {
+    when(accessPolicy.hasManagerAccess()).thenReturn(true);
+    when(branches.findById(BRANCH_ID))
+        .thenReturn(
+            Optional.of(
+                new Branch(
+                    BRANCH_ID, "Central Rama II", null, LocalTime.of(9, 0), LocalTime.of(19, 0))));
+    when(reservations.findStaffPage(
+            eq(List.of(BRANCH_ID)), isNull(), isNull(), any(Pageable.class)))
+        .thenReturn(
+            new PageImpl<>(
+                List.of(entity("res-1", "Reserved", BRANCH_ID)), PageRequest.of(0, 20), 1));
+
+    var result = service.list(null, null, 1, 20);
+
+    assertThat(result.getItems().getFirst().getBranchName()).isEqualTo("Central Rama II");
+    assertThat(result.getItems().getFirst().getStatus()).isEqualTo(ReservationStatus.RESERVED);
+    assertThat(result.getItems().getFirst().getCheckInTime()).isEqualTo("-");
+  }
+
+  @Test
+  void staffListRequiresAnOperationalRole() {
+    when(accessPolicy.requireStaffOrManager())
+        .thenThrow(new ResponseStatusException(HttpStatus.FORBIDDEN));
+
+    assertThatThrownBy(() -> service.list(null, null, 1, 20))
+        .isInstanceOf(ResponseStatusException.class);
+  }
+
+  private static ReservationEntity entity(String id, String status, UUID branchId) {
+    return new ReservationEntity(
+        id,
+        branchId,
+        null,
+        "Table 6",
+        BOOKING_DATE.toString(),
+        "10:00–12:00",
+        4,
+        TABLE_ID,
+        "Table 6",
+        6,
+        120,
+        status,
+        "Jane Doe",
+        "088-888-8888",
+        "-",
+        "-",
+        0,
+        0,
+        true,
+        null,
+        OffsetDateTime.now(ZoneOffset.UTC));
   }
 
   private static TableRecordData table(long id, String name, UUID branchId, int capacity) {

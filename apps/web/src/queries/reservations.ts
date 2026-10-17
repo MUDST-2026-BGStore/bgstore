@@ -6,19 +6,28 @@ import {
   getReservation,
   listReservations,
   listClients,
+  listStaffReservations,
 } from '../generated/api/sdk.gen';
 import type {
   CancelReservationResponse,
   GetReservationResponse,
   ListReservationsData,
+  ListStaffReservationsData,
   ReservationListResponse,
+  StaffReservationListResponse,
   CreateReservationRequest,
 } from '../generated/api/types.gen';
 
 export type ReservationListQuery = NonNullable<ListReservationsData['query']>;
+export type StaffReservationsQuery = NonNullable<
+  ListStaffReservationsData['query']
+>;
 
 /** The history design shows four records per page. */
 export const reservationsPageSize = 4;
+
+/** The staff list design shows twenty records per page. */
+export const staffReservationsPageSize = 20;
 
 export const reservationAvailabilityQueryOptions = (query: {
   branch: string;
@@ -61,6 +70,20 @@ export const reservationsQueryOptions = (query: ReservationListQuery) =>
     queryKey: ['reservations', 'list', query] as const,
     queryFn: async (): Promise<ReservationListResponse> => {
       const { data } = await listReservations({ query, throwOnError: true });
+      return data;
+    },
+    placeholderData: (previous) => previous,
+  });
+
+/** Staff or manager only: reservations across the caller's accessible branches. */
+export const staffReservationsQueryOptions = (query: StaffReservationsQuery) =>
+  queryOptions({
+    queryKey: ['reservations', 'staff-list', query] as const,
+    queryFn: async (): Promise<StaffReservationListResponse> => {
+      const { data } = await listStaffReservations({
+        query,
+        throwOnError: true,
+      });
       return data;
     },
     placeholderData: (previous) => previous,

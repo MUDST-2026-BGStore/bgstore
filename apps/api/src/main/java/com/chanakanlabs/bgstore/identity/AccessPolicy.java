@@ -73,6 +73,11 @@ public class AccessPolicy {
         HttpStatus.FORBIDDEN, "This staff member has no branch assignment.");
   }
 
+  /** Branch ids assigned to the current identity for scope-filtered listings. */
+  public java.util.Set<UUID> assignedBranchIds() {
+    return assignments.findBranchIds(identities.currentIdentity().subject());
+  }
+
   /** Requires a client-only identity for personal reservation data and actions. */
   public AuthenticatedIdentity requireClientOnly() {
     AuthenticatedIdentity identity = identities.currentIdentity();

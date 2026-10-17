@@ -198,6 +198,15 @@ export const router = createRouter({
       meta: { requiresAuth: true, focused: true },
     },
     {
+      // The staff reservation list is the branch's reservation overview; the
+      // walk-in wizard hangs off it as the focused create flow.
+      path: '/staff/reservations',
+      name: 'staff-reservations',
+      component: () =>
+        import('./pages/reservations/StaffReservationsListPage.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/staff/reservations/new',
       alias: '/reservations/new',
       name: 'staff-create-reservation',

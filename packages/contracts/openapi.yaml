@@ -570,6 +570,49 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /staff/reservations:
+    get:
+      tags: [Reservations]
+      operationId: listStaffReservations
+      summary: List reservations across the branches the staff member can access. Staff or manager only.
+      description: >-
+        Returns reservations for the caller's accessible branches in
+        chronological order by date and time slot. Managers see every branch;
+        staff see only their assigned branches.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReservationStatus'
+        - name: date
+          in: query
+          required: false
+          schema: { type: string, format: date }
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: A paginated list of the branch's reservations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffReservationListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
   /reservations:
     get:
       tags: [Reservations]
@@ -1815,6 +1858,59 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ReservationResponse'
+        total:
+          type: integer
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+    StaffReservationSummary:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - branchName
+        - customerName
+        - phoneNumber
+        - date
+        - timeSlot
+        - partySize
+        - tableName
+        - status
+      properties:
+        id:
+          type: string
+        branchName:
+          type: string
+        customerName:
+          type: string
+        phoneNumber:
+          type: string
+        date:
+          type: string
+        timeSlot:
+          type: string
+        partySize:
+          type: integer
+        tableName:
+          type: string
+        status:
+          $ref: '#/components/schemas/ReservationStatus'
+        checkInTime:
+          type: string
+        totalPrice:
+          type: integer
+    StaffReservationListResponse:
+      type: object
+      additionalProperties: false
+      required: [items, total, page, pageSize, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StaffReservationSummary'
         total:
           type: integer
         page:

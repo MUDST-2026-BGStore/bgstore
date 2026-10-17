@@ -455,6 +455,28 @@ export type ReservationListResponse = {
   totalPages: number;
 };
 
+export type StaffReservationSummary = {
+  id: string;
+  branchName: string;
+  customerName: string;
+  phoneNumber: string;
+  date: string;
+  timeSlot: string;
+  partySize: number;
+  tableName: string;
+  status: ReservationStatus;
+  checkInTime?: string;
+  totalPrice?: number;
+};
+
+export type StaffReservationListResponse = {
+  items: Array<StaffReservationSummary>;
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export type ActiveSessionResponse = {
   reservationId: string;
   locationName: string;
@@ -1299,6 +1321,42 @@ export type ReplaceStaffBranchAssignmentsResponses = {
 
 export type ReplaceStaffBranchAssignmentsResponse =
   ReplaceStaffBranchAssignmentsResponses[keyof ReplaceStaffBranchAssignmentsResponses];
+
+export type ListStaffReservationsData = {
+  body?: never;
+  path?: never;
+  query?: {
+    status?: ReservationStatus;
+    date?: string;
+    page?: number;
+    pageSize?: number;
+  };
+  url: '/staff/reservations';
+};
+
+export type ListStaffReservationsErrors = {
+  /**
+   * Authentication is required.
+   */
+  401: ProblemDetail;
+  /**
+   * The authenticated user is not allowed to perform this action.
+   */
+  403: ProblemDetail;
+};
+
+export type ListStaffReservationsError =
+  ListStaffReservationsErrors[keyof ListStaffReservationsErrors];
+
+export type ListStaffReservationsResponses = {
+  /**
+   * A paginated list of the branch's reservations.
+   */
+  200: StaffReservationListResponse;
+};
+
+export type ListStaffReservationsResponse =
+  ListStaffReservationsResponses[keyof ListStaffReservationsResponses];
 
 export type ListReservationsData = {
   body?: never;

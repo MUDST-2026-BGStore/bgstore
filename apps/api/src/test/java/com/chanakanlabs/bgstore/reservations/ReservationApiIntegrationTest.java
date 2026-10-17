@@ -67,6 +67,7 @@ class ReservationApiIntegrationTest {
   private static final String CLIENT = "reservation-client";
   private static final String OTHER_CLIENT = "reservation-other";
   private static final String STAFF = "reservation-staff";
+  private static final String MANAGER = "reservation-manager";
   private static final long TABLE_ID = 9601L;
   private static final String TABLE_NAME = "Reservation Test Table";
   private static final ZoneId BANGKOK = ZoneId.of("Asia/Bangkok");
@@ -80,7 +81,7 @@ class ReservationApiIntegrationTest {
     database.execute("delete from session_assistance_request");
     database.execute("delete from table_reservation");
     database.execute("delete from reservation");
-    for (String subject : List.of(CLIENT, OTHER_CLIENT, STAFF)) {
+    for (String subject : List.of(CLIENT, OTHER_CLIENT, STAFF, MANAGER)) {
       database.update("delete from staff_branch_assignment where staff_subject = ?", subject);
       database.update("delete from client_profiles where subject = ?", subject);
       database.update("delete from identity_accounts where subject = ?", subject);
@@ -90,6 +91,7 @@ class ReservationApiIntegrationTest {
     account(CLIENT, "CLIENT");
     account(OTHER_CLIENT, "CLIENT");
     account(STAFF, "STAFF");
+    account(MANAGER, "MANAGER");
     assignStaffToEveryBranch(STAFF);
     table(TABLE_ID, TABLE_NAME, "Silom");
   }
@@ -302,6 +304,109 @@ class ReservationApiIntegrationTest {
         .andExpect(status().isBadRequest());
   }
 
+  @Test
+  void staffListsReservationsOnlyForTheirAssignedBranches() throws Exception {
+    insertReservation("res-silom", CLIENT, "Reserved", "Silom", tomorrow().toString());
+    insertReservation(
+        "res-sukhumvit", OTHER_CLIENT, "Reserved", "Sukhumvit", tomorrow().toString());
+    database.update(
+        """
+        delete from staff_branch_assignment
+        where staff_subject = ?
+          and branch_id <> (select id from branch where name = 'Silom')
+        """,
+        STAFF);
+
+    mockMvc
+        .perform(get("/api/v1/staff/reservations").with(staffLogin(STAFF)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].id").value("res-silom"))
+        .andExpect(jsonPath("$.items[0].branchName").value("Silom"))
+        .andExpect(jsonPath("$.items[0].status").value("Reserved"))
+        .andExpect(jsonPath("$.total").value(1))
+        .andExpect(jsonPath("$.page").value(1))
+        .andExpect(jsonPath("$.pageSize").value(20));
+
+    // A staff member without any assignment sees an empty page rather than an error.
+    database.update("delete from staff_branch_assignment where staff_subject = ?", STAFF);
+    mockMvc
+        .perform(get("/api/v1/staff/reservations").with(staffLogin(STAFF)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(0));
+  }
+
+  @Test
+  void staffListSupportsDateAndStatusFilters() throws Exception {
+    insertReservation("res-tomorrow", CLIENT, "Reserved", "Silom", tomorrow().toString());
+    insertReservation("res-later", CLIENT, "Reserved", "Silom", tomorrow().plusDays(2).toString());
+    insertReservation("res-cancelled", OTHER_CLIENT, "Cancelled", "Silom", tomorrow().toString());
+
+    mockMvc
+        .perform(
+            get("/api/v1/staff/reservations")
+                .queryParam("date", tomorrow().toString())
+                .queryParam("status", "Reserved")
+                .with(staffLogin(STAFF)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(1))
+        .andExpect(jsonPath("$.items[0].id").value("res-tomorrow"));
+
+    mockMvc
+        .perform(
+            get("/api/v1/staff/reservations")
+                .queryParam("status", "Cancelled")
+                .with(staffLogin(STAFF)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items[0].id").value("res-cancelled"));
+  }
+
+  @Test
+  void managerListsReservationsAcrossEveryBranch() throws Exception {
+    insertReservation("res-silom", CLIENT, "Reserved", "Silom", tomorrow().toString());
+    insertReservation(
+        "res-sukhumvit", OTHER_CLIENT, "Reserved", "Sukhumvit", tomorrow().plusDays(1).toString());
+
+    mockMvc
+        .perform(get("/api/v1/staff/reservations").with(managerLogin(MANAGER)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.items.length()").value(2))
+        .andExpect(jsonPath("$.items[0].id").value("res-silom"))
+        .andExpect(jsonPath("$.items[0].branchName").value("Silom"))
+        .andExpect(jsonPath("$.items[1].id").value("res-sukhumvit"))
+        .andExpect(jsonPath("$.items[1].branchName").value("Sukhumvit"));
+  }
+
+  @Test
+  void staffListingRejectsClientsAndAnonymousCallers() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/staff/reservations").with(clientLogin(CLIENT)))
+        .andExpect(status().isForbidden());
+    mockMvc.perform(get("/api/v1/staff/reservations")).andExpect(status().isUnauthorized());
+  }
+
+  private void insertReservation(
+      String id, String clientSubject, String status, String branch, String date) {
+    database.update(
+        """
+        insert into reservation (
+            id, client_subject, branch_id, title, reservation_date, time_slot, party_size,
+            table_id, table_name, seats, rate_per_hour, status, customer_name, phone_number,
+            check_in_time, actual_check_out, overtime_minutes, total_price, can_cancel)
+        values (
+            ?, ?, (select id from branch where name = ?), ?, ?, '14:00–16:00', 2,
+            ?, ?, 4, 120, ?, 'Local Client', '0123456789', '-', '-', 0, 0, true)
+        """,
+        id,
+        clientSubject,
+        branch,
+        "Table " + TABLE_NAME,
+        date,
+        TABLE_ID,
+        TABLE_NAME,
+        status);
+  }
+
   private ResultActions createReservation(String subject, long tableId) throws Exception {
     return createReservation(subject, tableId, "14:00", "16:00");
   }
@@ -393,6 +498,10 @@ class ReservationApiIntegrationTest {
 
   private static OidcLoginRequestPostProcessor staffLogin(String subject) {
     return login(subject, "STAFF", "Staff");
+  }
+
+  private static OidcLoginRequestPostProcessor managerLogin(String subject) {
+    return login(subject, "MANAGER", "Manager");
   }
 
   private static OidcLoginRequestPostProcessor login(

@@ -9,6 +9,7 @@ import com.chanakanlabs.bgstore.contract.model.ReservationAvailabilityResponse;
 import com.chanakanlabs.bgstore.contract.model.ReservationListResponse;
 import com.chanakanlabs.bgstore.contract.model.ReservationResponse;
 import com.chanakanlabs.bgstore.contract.model.ReservationStatus;
+import com.chanakanlabs.bgstore.contract.model.StaffReservationListResponse;
 import com.chanakanlabs.bgstore.contract.model.TableShape;
 import com.chanakanlabs.bgstore.contract.model.TableStatus;
 import java.time.LocalDate;
@@ -63,6 +64,17 @@ public class ReservationController implements ReservationsApi {
         new ReservationListResponse(
             items, result.total(), result.page(), result.pageSize(), result.totalPages());
     return ResponseEntity.ok(response);
+  }
+
+  @Override
+  public ResponseEntity<StaffReservationListResponse> listStaffReservations(
+      @Nullable ReservationStatus status,
+      @Nullable LocalDate date,
+      Integer page,
+      Integer pageSize) {
+    int pageNum = page != null ? page : 1;
+    int size = pageSize != null ? pageSize : 20;
+    return ResponseEntity.ok(staffReservations.list(status, date, pageNum, size));
   }
 
   @Override

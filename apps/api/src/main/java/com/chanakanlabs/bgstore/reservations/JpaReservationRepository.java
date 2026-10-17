@@ -3,6 +3,7 @@ package com.chanakanlabs.bgstore.reservations;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -43,4 +44,19 @@ interface JpaReservationRepository extends JpaRepository<ReservationEntity, Stri
   /** The operational queue: reservations waiting to start and the ones in play. */
   List<ReservationEntity> findByStatusInOrderByReservationDateAscTimeSlotAsc(
       Collection<String> statuses);
+
+  /** One page of reservations across the caller's accessible branches, chronological. */
+  @Query(
+      """
+      SELECT r FROM ReservationEntity r
+      WHERE r.branchId IN :branchIds
+        AND (:status IS NULL OR r.status = :status)
+        AND (:date IS NULL OR r.reservationDate = :date)
+      ORDER BY r.reservationDate ASC, r.timeSlot ASC
+      """)
+  Page<ReservationEntity> findStaffPage(
+      @Param("branchIds") Collection<UUID> branchIds,
+      @Param("status") @Nullable String status,
+      @Param("date") @Nullable String date,
+      Pageable pageable);
 }

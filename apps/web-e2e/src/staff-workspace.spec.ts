@@ -63,7 +63,7 @@ test('renders the staff workspace with a readable operational rail', async ({
   await expect(activeItem).toHaveAttribute('aria-current', 'page');
   await expect(
     sidebar.getByRole('link', { name: 'Reservations' }),
-  ).toHaveAttribute('href', '/staff/reservations/new');
+  ).toHaveAttribute('href', '/staff/reservations');
   await expect(
     page.getByRole('heading', { name: 'Floor overview' }),
   ).toBeVisible();

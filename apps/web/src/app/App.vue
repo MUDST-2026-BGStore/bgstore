@@ -26,6 +26,7 @@ const staffWorkspaceRoutes = new Set([
   'branch-detail',
   'staff-permissions',
   'staff-sessions',
+  'staff-reservations',
   'staff-create-reservation',
   'user-profile',
 ]);

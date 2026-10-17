@@ -78,6 +78,9 @@ import type {
   ListStaffBranchAssignmentsData,
   ListStaffBranchAssignmentsErrors,
   ListStaffBranchAssignmentsResponses,
+  ListStaffReservationsData,
+  ListStaffReservationsErrors,
+  ListStaffReservationsResponses,
   ListTablesData,
   ListTablesErrors,
   ListTablesResponses,
@@ -588,6 +591,34 @@ export const replaceStaffBranchAssignments = <
       'Content-Type': 'application/json',
       ...options.headers,
     },
+  });
+
+/**
+ * List reservations across the branches the staff member can access. Staff or manager only.
+ *
+ * Returns reservations for the caller's accessible branches in chronological order by date and time slot. Managers see every branch; staff see only their assigned branches.
+ */
+export const listStaffReservations = <ThrowOnError extends boolean = false>(
+  options?: Options<ListStaffReservationsData, ThrowOnError>,
+): RequestResult<
+  ListStaffReservationsResponses,
+  ListStaffReservationsErrors,
+  ThrowOnError
+> =>
+  (options?.client ?? client).get<
+    ListStaffReservationsResponses,
+    ListStaffReservationsErrors,
+    ThrowOnError
+  >({
+    security: [
+      {
+        in: 'cookie',
+        name: '__Host-bgstore-session',
+        type: 'apiKey',
+      },
+    ],
+    url: '/staff/reservations',
+    ...options,
   });
 
 /**
