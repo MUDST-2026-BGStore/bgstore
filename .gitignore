@@ -74,3 +74,8 @@ apps/api/.gradle/
 **/blob-report/
 
 .nx/polygraph
+
+# Portable verification scripts
+__pycache__/
+*.tsbuildinfo
+.mise.local.toml
