@@ -1418,6 +1418,8 @@ test.describe('real full-stack browser flows', () => {
       .filter({ hasText: retiredGame.title })
       .first();
     await expect(row).toBeVisible();
+    // Retirement asks for confirmation before the DELETE request is sent.
+    page.on('dialog', (dialog) => void dialog.accept());
     await row.getByRole('button', { name: 'Delete' }).click();
 
     // Retired games stay in the inventory with the retired status badge.
