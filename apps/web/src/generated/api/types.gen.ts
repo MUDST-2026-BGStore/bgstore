@@ -4,12 +4,6 @@ export type ClientOptions = {
   baseUrl: `${string}://${string}/api/v1` | (string & {});
 };
 
-export type HelloResponse = {
-  message: string;
-  service: 'bgstore-api';
-  database: 'connected';
-};
-
 export type ApplicationRole = 'CLIENT' | 'STAFF' | 'MANAGER';
 
 export type StaffBranchAssignment = {
@@ -631,35 +625,6 @@ export type FieldError = {
 export type ValidationProblem = ProblemDetail & {
   errors: Array<FieldError>;
 };
-
-export type GetHelloData = {
-  body?: never;
-  path?: never;
-  query?: never;
-  url: '/hello';
-};
-
-export type GetHelloErrors = {
-  /**
-   * Authentication is required.
-   */
-  401: ProblemDetail;
-  /**
-   * The client must complete onboarding before using this endpoint.
-   */
-  428: ProblemDetail;
-};
-
-export type GetHelloError = GetHelloErrors[keyof GetHelloErrors];
-
-export type GetHelloResponses = {
-  /**
-   * The API and database are reachable.
-   */
-  200: HelloResponse;
-};
-
-export type GetHelloResponse = GetHelloResponses[keyof GetHelloResponses];
 
 export type GetCurrentUserData = {
   body?: never;

@@ -48,9 +48,6 @@ import type {
   GetGameData,
   GetGameErrors,
   GetGameResponses,
-  GetHelloData,
-  GetHelloErrors,
-  GetHelloResponses,
   GetReservationAvailabilityData,
   GetReservationAvailabilityErrors,
   GetReservationAvailabilityResponses,
@@ -118,28 +115,6 @@ export type Options<
    */
   meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
-
-/**
- * Verify the authenticated application path.
- */
-export const getHello = <ThrowOnError extends boolean = false>(
-  options?: Options<GetHelloData, ThrowOnError>,
-): RequestResult<GetHelloResponses, GetHelloErrors, ThrowOnError> =>
-  (options?.client ?? client).get<
-    GetHelloResponses,
-    GetHelloErrors,
-    ThrowOnError
-  >({
-    security: [
-      {
-        in: 'cookie',
-        name: '__Host-bgstore-session',
-        type: 'apiKey',
-      },
-    ],
-    url: '/hello',
-    ...options,
-  });
 
 /**
  * Get the authenticated BGStore user context.

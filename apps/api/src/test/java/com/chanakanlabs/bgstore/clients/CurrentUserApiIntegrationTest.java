@@ -1,9 +1,11 @@
 package com.chanakanlabs.bgstore.clients;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.oidcLogin;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -52,6 +54,14 @@ class CurrentUserApiIntegrationTest {
   }
 
   @Autowired private MockMvc mockMvc;
+
+  @Test
+  void anonymousPrometheusScrapeIsAllowed() throws Exception {
+    mockMvc
+        .perform(get("/actuator/prometheus"))
+        .andExpect(status().isOk())
+        .andExpect(content().string(containsString("jvm_memory")));
+  }
 
   @Test
   void provisionsAnIncompleteClientProfileOnTheFirstAuthenticatedRequest() throws Exception {
