@@ -73,9 +73,11 @@ export BGSTORE_E2E_WEB_DIST="$(realpath "$coverage_dist")"
 export BGSTORE_E2E_REALM_FILE="$coverage_data/bgstore-realm.json"
 jq --arg base "$BASE_URL" '
   (.clients[] | select(.clientId == "bgstore-web")) |= (
+    .baseUrl = $base |
     .redirectUris = [$base + "/auth/callback/bgstore"] |
     .attributes["post.logout.redirect.uris"] = ($base + "/")
-  )
+  ) |
+  .attributes.bgstoreAppUrl = $base
 ' infra/local/keycloak/bgstore-realm.json >"$BGSTORE_E2E_REALM_FILE"
 # Keycloak runs unprivileged and must be able to read the disposable import.
 chmod 644 "$BGSTORE_E2E_REALM_FILE"

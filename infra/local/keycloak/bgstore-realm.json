@@ -93,7 +93,18 @@
     }
   ],
   "roles": {
-    "realm": [{ "name": "CLIENT" }, { "name": "STAFF" }, { "name": "MANAGER" }]
+    "realm": [
+      { "name": "CLIENT" },
+      { "name": "STAFF" },
+      { "name": "MANAGER" },
+      {
+        "name": "default-roles-bgstore",
+        "composite": true,
+        "composites": {
+          "realm": ["CLIENT"]
+        }
+      }
+    ]
   },
   "defaultRole": {
     "name": "default-roles-bgstore",
