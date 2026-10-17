@@ -22,7 +22,7 @@ class ClientOnboardingFilterTest {
     CurrentIdentityProvider identityProvider = mock(CurrentIdentityProvider.class);
     CurrentUserService currentUsers = mock(CurrentUserService.class);
     var filter = new ClientOnboardingFilter(identityProvider, currentUsers);
-    var request = new MockHttpServletRequest("GET", "/api/v1/hello");
+    var request = new MockHttpServletRequest("GET", "/api/v1/reservations");
     var response = new MockHttpServletResponse();
     var filterChain = mock(jakarta.servlet.FilterChain.class);
     AuthenticatedIdentity identity =

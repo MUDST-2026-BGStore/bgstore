@@ -22,7 +22,7 @@ Sources: [collector configuration](../infra/observability/otel-collector.yaml), 
 
 Spring Modulith verifies module dependencies during tests. ArchUnit rules also restrict controller access to repositories/entities and transaction ownership, and prevent services from depending on MVC. These are **test-enforced boundaries**, not separate deployed services or compile-time isolation.
 
-The current top-level module packages are `billing`, `branches`, `clients`, `contract`, `hello`, `identity`, `inventory`, `reservations`, `security`, `tables`, and `web`. The domain model's candidate modules are design terminology, not an exact inventory of implemented packages. In particular, play-session behavior lives within `reservations`; it is not a separate top-level play-session module.
+The current top-level module packages are `billing`, `branches`, `clients`, `contract`, `identity`, `inventory`, `reservations`, `security`, `tables`, and `web`. The domain model's candidate modules are design terminology, not an exact inventory of implemented packages. In particular, play-session behavior lives within `reservations`; it is not a separate top-level play-session module.
 
 Sources: [modular-monolith ADR](decisions/0003-modular-monolith.md), [domain model](domain-model.md), [architecture tests](../apps/api/src/test/java/com/chanakanlabs/bgstore/ArchitectureTest.java), and [API source](../apps/api/src/main/java/com/chanakanlabs/bgstore/).
 

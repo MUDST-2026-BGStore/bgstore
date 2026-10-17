@@ -10,8 +10,6 @@ servers:
 security:
   - cookieAuth: []
 tags:
-  - name: Hello
-    description: Walking-skeleton operations.
   - name: Identity
     description: The authenticated BGStore user context and client onboarding.
   - name: Branches
@@ -27,22 +25,6 @@ tags:
       In-store play sessions: the client's active session, staff check-in and
       check-out, and client assistance requests.
 paths:
-  /hello:
-    get:
-      tags: [Hello]
-      operationId: getHello
-      summary: Verify the authenticated application path.
-      responses:
-        '200':
-          description: The API and database are reachable.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HelloResponse'
-        '401':
-          $ref: '#/components/responses/Unauthorized'
-        '428':
-          $ref: '#/components/responses/OnboardingRequired'
   /me:
     get:
       tags: [Identity]
@@ -973,20 +955,6 @@ components:
           schema:
             $ref: '#/components/schemas/ValidationProblem'
   schemas:
-    HelloResponse:
-      type: object
-      additionalProperties: false
-      required: [message, service, database]
-      properties:
-        message:
-          type: string
-          example: Hello, BGStore!
-        service:
-          type: string
-          enum: [bgstore-api]
-        database:
-          type: string
-          enum: [connected]
     ApplicationRole:
       type: string
       enum: [CLIENT, STAFF, MANAGER]
