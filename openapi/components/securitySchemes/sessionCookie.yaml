@@ -1,0 +1,4 @@
+type: apiKey
+in: cookie
+name: THEPARLOR_SESSION
+description: HttpOnly session cookie established through server-side OIDC login

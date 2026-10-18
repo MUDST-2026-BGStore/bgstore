@@ -1,0 +1,11 @@
+type: object
+required:
+  - username
+  - roles
+properties:
+  username:
+    type: string
+  roles:
+    type: array
+    items:
+      type: string

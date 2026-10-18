@@ -1,0 +1,13 @@
+type: object
+description: >-
+  Amount in THB minor units (satang). THB is the only business currency and every
+  branch is in Thailand, so no currency code is carried per amount. Never a
+  floating-point amount.
+required:
+  - amountMinor
+properties:
+  amountMinor:
+    type: integer
+    format: int64
+    minimum: 0
+    example: 15000

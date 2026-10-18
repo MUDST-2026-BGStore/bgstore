@@ -1,0 +1,8 @@
+description: >-
+  Availability conflict, inactive branch, insufficient stock, invalid lifecycle
+  transition, conflicting idempotency key or a change invalidating existing
+  commitments. No partial allocation or stock mutation is committed.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/Problem.yaml

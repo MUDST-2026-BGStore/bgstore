@@ -1,0 +1,7 @@
+description: >-
+  Resource does not exist, is not public, does not belong to this branch, or is
+  owned by another customer.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/Problem.yaml

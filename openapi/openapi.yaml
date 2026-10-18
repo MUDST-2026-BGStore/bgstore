@@ -1,0 +1,367 @@
+openapi: 3.0.3
+info:
+  title: The Parlor API
+  version: 0.5.0
+  description:
+    Board game catalog, branch inventory, table reservations, hourly rentals and sales.
+    Store operations are planned; identity and connectivity endpoints are retained.
+servers:
+  - url: /
+paths:
+  /api/auth/session:
+    $ref: ./paths/authentication/session.yaml
+  /api/auth/csrf:
+    $ref: ./paths/authentication/csrf.yaml
+  /api/v1/hello:
+    $ref: ./paths/wiring/hello.yaml
+  /api/v1/secure/whoami:
+    $ref: ./paths/wiring/whoami.yaml
+  /api/v1/me:
+    $ref: ./paths/account/me.yaml
+  /api/v1/me/settings:
+    $ref: ./paths/account/settings.yaml
+  /api/v1/me/cart:
+    $ref: ./paths/account/my-cart.yaml
+  /api/v1/me/cart/merge:
+    $ref: ./paths/account/cart-merge.yaml
+  /api/v1/carts:
+    $ref: ./paths/carts/collection.yaml
+  /api/v1/carts/{cartId}:
+    $ref: ./paths/carts/item.yaml
+  /api/v1/carts/{cartId}/items:
+    $ref: ./paths/carts/items.yaml
+  /api/v1/carts/{cartId}/items/{itemId}:
+    $ref: ./paths/carts/cart-item.yaml
+  /api/v1/carts/{cartId}/checkout:
+    $ref: ./paths/carts/checkout.yaml
+  /api/v1/branches:
+    $ref: ./paths/branches/collection.yaml
+  /api/v1/branches/{branchId}:
+    $ref: ./paths/branches/item.yaml
+  /api/v1/games:
+    $ref: ./paths/games/collection.yaml
+  /api/v1/games/{gameId}:
+    $ref: ./paths/games/item.yaml
+  /api/v1/games/{gameId}/editions:
+    $ref: ./paths/editions/collection.yaml
+  /api/v1/games/{gameId}/editions/{editionId}:
+    $ref: ./paths/editions/item.yaml
+  /api/v1/categories:
+    $ref: ./paths/categories/collection.yaml
+  /api/v1/categories/{categoryId}:
+    $ref: ./paths/categories/item.yaml
+  /api/v1/mechanics:
+    $ref: ./paths/mechanics/collection.yaml
+  /api/v1/mechanics/{mechanicId}:
+    $ref: ./paths/mechanics/item.yaml
+  /api/v1/branches/{branchId}/games:
+    $ref: ./paths/inventory/branch-games.yaml
+  /api/v1/branches/{branchId}/games/{gameId}:
+    $ref: ./paths/inventory/branch-game.yaml
+  /api/v1/branches/{branchId}/editions/{editionId}:
+    $ref: ./paths/inventory/branch-edition.yaml
+  /api/v1/branches/{branchId}/editions/{editionId}/stock-adjustments:
+    $ref: ./paths/inventory/stock-adjustments.yaml
+  /api/v1/branches/{branchId}/games/{gameId}/rental-copies:
+    $ref: ./paths/inventory/rental-copies.yaml
+  /api/v1/branches/{branchId}/games/{gameId}/rental-copies/{copyId}:
+    $ref: ./paths/inventory/rental-copy.yaml
+  /api/v1/branches/{branchId}/tables:
+    $ref: ./paths/tables/collection.yaml
+  /api/v1/branches/{branchId}/tables/{tableId}:
+    $ref: ./paths/tables/item.yaml
+  /api/v1/branches/{branchId}/availability:
+    $ref: ./paths/availability/branch.yaml
+  /api/v1/me/reservations:
+    $ref: ./paths/reservations/mine.yaml
+  /api/v1/branches/{branchId}/reservations:
+    $ref: ./paths/reservations/collection.yaml
+  /api/v1/branches/{branchId}/staff/reservations:
+    $ref: ./paths/reservations/staff-create.yaml
+  /api/v1/branches/{branchId}/reservations/{reservationId}:
+    $ref: ./paths/reservations/item.yaml
+  /api/v1/branches/{branchId}/reservations/{reservationId}/cancel:
+    $ref: ./paths/reservations/cancel.yaml
+  /api/v1/branches/{branchId}/reservations/{reservationId}/check-in:
+    $ref: ./paths/reservations/check-in.yaml
+  /api/v1/branches/{branchId}/reservations/{reservationId}/no-show:
+    $ref: ./paths/reservations/no-show.yaml
+  /api/v1/branches/{branchId}/rentals:
+    $ref: ./paths/rentals/collection.yaml
+  /api/v1/branches/{branchId}/rentals/{rentalId}:
+    $ref: ./paths/rentals/item.yaml
+  /api/v1/branches/{branchId}/rentals/{rentalId}/check-out:
+    $ref: ./paths/rentals/check-out.yaml
+  /api/v1/me/orders:
+    $ref: ./paths/orders/mine.yaml
+  /api/v1/branches/{branchId}/orders:
+    $ref: ./paths/orders/collection.yaml
+  /api/v1/branches/{branchId}/staff/orders:
+    $ref: ./paths/orders/staff-create.yaml
+  /api/v1/branches/{branchId}/orders/{orderId}:
+    $ref: ./paths/orders/item.yaml
+  /api/v1/branches/{branchId}/orders/{orderId}/cancel:
+    $ref: ./paths/orders/cancel.yaml
+  /api/v1/branches/{branchId}/orders/{orderId}/fulfill:
+    $ref: ./paths/orders/fulfill.yaml
+components:
+  securitySchemes:
+    sessionCookie:
+      $ref: ./components/securitySchemes/sessionCookie.yaml
+  schemas:
+    SessionResponse:
+      $ref: ./components/schemas/SessionResponse.yaml
+    CsrfResponse:
+      $ref: ./components/schemas/CsrfResponse.yaml
+    HelloResponse:
+      $ref: ./components/schemas/HelloResponse.yaml
+    WhoamiResponse:
+      $ref: ./components/schemas/WhoamiResponse.yaml
+    AccountPreferences:
+      $ref: ./components/schemas/AccountPreferences.yaml
+    Profile:
+      $ref: ./components/schemas/Profile.yaml
+    Problem:
+      $ref: ./components/schemas/Problem.yaml
+    Money:
+      $ref: ./components/schemas/Money.yaml
+    OpeningPeriod:
+      $ref: ./components/schemas/OpeningPeriod.yaml
+    Branch:
+      $ref: ./components/schemas/Branch.yaml
+    CreateBranchRequest:
+      $ref: ./components/schemas/CreateBranchRequest.yaml
+    UpdateBranchRequest:
+      $ref: ./components/schemas/UpdateBranchRequest.yaml
+    Game:
+      $ref: ./components/schemas/Game.yaml
+    CreateGameRequest:
+      $ref: ./components/schemas/CreateGameRequest.yaml
+    UpdateGameRequest:
+      $ref: ./components/schemas/UpdateGameRequest.yaml
+    Difficulty:
+      $ref: ./components/schemas/Difficulty.yaml
+    Category:
+      $ref: ./components/schemas/Category.yaml
+    CreateCategoryRequest:
+      $ref: ./components/schemas/CreateCategoryRequest.yaml
+    UpdateCategoryRequest:
+      $ref: ./components/schemas/UpdateCategoryRequest.yaml
+    CategoryPage:
+      $ref: ./components/schemas/CategoryPage.yaml
+    Mechanic:
+      $ref: ./components/schemas/Mechanic.yaml
+    CreateMechanicRequest:
+      $ref: ./components/schemas/CreateMechanicRequest.yaml
+    UpdateMechanicRequest:
+      $ref: ./components/schemas/UpdateMechanicRequest.yaml
+    MechanicPage:
+      $ref: ./components/schemas/MechanicPage.yaml
+    GameImage:
+      $ref: ./components/schemas/GameImage.yaml
+    GameImageInput:
+      $ref: ./components/schemas/GameImageInput.yaml
+    GameEdition:
+      $ref: ./components/schemas/GameEdition.yaml
+    CreateGameEditionRequest:
+      $ref: ./components/schemas/CreateGameEditionRequest.yaml
+    UpdateGameEditionRequest:
+      $ref: ./components/schemas/UpdateGameEditionRequest.yaml
+    GameEditionPage:
+      $ref: ./components/schemas/GameEditionPage.yaml
+    BranchEditionStock:
+      $ref: ./components/schemas/BranchEditionStock.yaml
+    UpsertBranchEditionRequest:
+      $ref: ./components/schemas/UpsertBranchEditionRequest.yaml
+    Cart:
+      $ref: ./components/schemas/Cart.yaml
+    CartCreated:
+      $ref: ./components/schemas/CartCreated.yaml
+    CartItem:
+      $ref: ./components/schemas/CartItem.yaml
+    CartIssue:
+      $ref: ./components/schemas/CartIssue.yaml
+    AddCartItemRequest:
+      $ref: ./components/schemas/AddCartItemRequest.yaml
+    UpdateCartItemRequest:
+      $ref: ./components/schemas/UpdateCartItemRequest.yaml
+    UpdateCartRequest:
+      $ref: ./components/schemas/UpdateCartRequest.yaml
+    MergeCartRequest:
+      $ref: ./components/schemas/MergeCartRequest.yaml
+    ConfigureBranchGameRequest:
+      $ref: ./components/schemas/ConfigureBranchGameRequest.yaml
+    BranchGame:
+      $ref: ./components/schemas/BranchGame.yaml
+    StockAdjustmentRequest:
+      $ref: ./components/schemas/StockAdjustmentRequest.yaml
+    StockAdjustment:
+      $ref: ./components/schemas/StockAdjustment.yaml
+    RentalCopyOperationalStatus:
+      $ref: ./components/schemas/RentalCopyOperationalStatus.yaml
+    RentalCopyState:
+      $ref: ./components/schemas/RentalCopyState.yaml
+    CreateRentalCopyRequest:
+      $ref: ./components/schemas/CreateRentalCopyRequest.yaml
+    UpdateRentalCopyRequest:
+      $ref: ./components/schemas/UpdateRentalCopyRequest.yaml
+    RentalCopy:
+      $ref: ./components/schemas/RentalCopy.yaml
+    TableState:
+      $ref: ./components/schemas/TableState.yaml
+    Table:
+      $ref: ./components/schemas/Table.yaml
+    CreateTableRequest:
+      $ref: ./components/schemas/CreateTableRequest.yaml
+    UpdateTableRequest:
+      $ref: ./components/schemas/UpdateTableRequest.yaml
+    GameSelection:
+      $ref: ./components/schemas/GameSelection.yaml
+    TableAvailability:
+      $ref: ./components/schemas/TableAvailability.yaml
+    GameAvailability:
+      $ref: ./components/schemas/GameAvailability.yaml
+    BranchAvailability:
+      $ref: ./components/schemas/BranchAvailability.yaml
+    ReservationStatus:
+      $ref: ./components/schemas/ReservationStatus.yaml
+    RegisteredCustomer:
+      $ref: ./components/schemas/RegisteredCustomer.yaml
+    GuestCustomer:
+      $ref: ./components/schemas/GuestCustomer.yaml
+    CustomerReference:
+      $ref: ./components/schemas/CustomerReference.yaml
+    CreateReservationRequest:
+      $ref: ./components/schemas/CreateReservationRequest.yaml
+    RescheduleReservationRequest:
+      $ref: ./components/schemas/RescheduleReservationRequest.yaml
+    CreateStaffReservationRequest:
+      $ref: ./components/schemas/CreateStaffReservationRequest.yaml
+    StaffBookingRequest:
+      $ref: ./components/schemas/StaffBookingRequest.yaml
+    WalkInReservationRequest:
+      $ref: ./components/schemas/WalkInReservationRequest.yaml
+    ReservationGame:
+      $ref: ./components/schemas/ReservationGame.yaml
+    Reservation:
+      $ref: ./components/schemas/Reservation.yaml
+    ReasonRequest:
+      $ref: ./components/schemas/ReasonRequest.yaml
+    RentalStatus:
+      $ref: ./components/schemas/RentalStatus.yaml
+    RentalCharge:
+      $ref: ./components/schemas/RentalCharge.yaml
+    Rental:
+      $ref: ./components/schemas/Rental.yaml
+    CheckInResult:
+      $ref: ./components/schemas/CheckInResult.yaml
+    CheckOutResult:
+      $ref: ./components/schemas/CheckOutResult.yaml
+    OrderStatus:
+      $ref: ./components/schemas/OrderStatus.yaml
+    OrderItemRequest:
+      $ref: ./components/schemas/OrderItemRequest.yaml
+    CreateOrderRequest:
+      $ref: ./components/schemas/CreateOrderRequest.yaml
+    CreateStaffOrderRequest:
+      $ref: ./components/schemas/CreateStaffOrderRequest.yaml
+    OrderItem:
+      $ref: ./components/schemas/OrderItem.yaml
+    Order:
+      $ref: ./components/schemas/Order.yaml
+    BranchPage:
+      $ref: ./components/schemas/BranchPage.yaml
+    GamePage:
+      $ref: ./components/schemas/GamePage.yaml
+    BranchGamePage:
+      $ref: ./components/schemas/BranchGamePage.yaml
+    RentalCopyPage:
+      $ref: ./components/schemas/RentalCopyPage.yaml
+    TablePage:
+      $ref: ./components/schemas/TablePage.yaml
+    ReservationPage:
+      $ref: ./components/schemas/ReservationPage.yaml
+    RentalPage:
+      $ref: ./components/schemas/RentalPage.yaml
+    OrderPage:
+      $ref: ./components/schemas/OrderPage.yaml
+  parameters:
+    BranchId:
+      $ref: ./components/parameters/BranchId.yaml
+    GameId:
+      $ref: ./components/parameters/GameId.yaml
+    CategoryId:
+      $ref: ./components/parameters/CategoryId.yaml
+    MechanicId:
+      $ref: ./components/parameters/MechanicId.yaml
+    EditionId:
+      $ref: ./components/parameters/EditionId.yaml
+    CopyId:
+      $ref: ./components/parameters/CopyId.yaml
+    TableId:
+      $ref: ./components/parameters/TableId.yaml
+    ReservationId:
+      $ref: ./components/parameters/ReservationId.yaml
+    RentalId:
+      $ref: ./components/parameters/RentalId.yaml
+    OrderId:
+      $ref: ./components/parameters/OrderId.yaml
+    Limit:
+      $ref: ./components/parameters/Limit.yaml
+    Cursor:
+      $ref: ./components/parameters/Cursor.yaml
+    StartsAt:
+      $ref: ./components/parameters/StartsAt.yaml
+    EndsAt:
+      $ref: ./components/parameters/EndsAt.yaml
+    CsrfToken:
+      $ref: ./components/parameters/CsrfToken.yaml
+    IdempotencyKey:
+      $ref: ./components/parameters/IdempotencyKey.yaml
+    CartId:
+      $ref: ./components/parameters/CartId.yaml
+    CartItemId:
+      $ref: ./components/parameters/CartItemId.yaml
+    CartToken:
+      $ref: ./components/parameters/CartToken.yaml
+  responses:
+    BadRequest:
+      $ref: ./components/responses/BadRequest.yaml
+    Unauthorized:
+      $ref: ./components/responses/Unauthorized.yaml
+    Forbidden:
+      $ref: ./components/responses/Forbidden.yaml
+    NotFound:
+      $ref: ./components/responses/NotFound.yaml
+    Conflict:
+      $ref: ./components/responses/Conflict.yaml
+tags:
+  - name: Authentication
+    description: Existing browser session and CSRF endpoints.
+  - name: Wiring
+    description: Existing connectivity checks.
+  - name: Account
+    description: Existing authenticated profiles.
+  - name: Branches
+    description: Public branch discovery and administrator maintenance.
+  - name: Games
+    description: Shared board game catalog.
+  - name: Taxonomy
+    description: Catalog categories and mechanics with canonical keys and localized display names.
+  - name: Editions
+    description: Sellable editions of catalog games; the retail SKU for orders, carts and per-branch sale stock.
+  - name: Inventory
+    description: Branch sale quantities and individually tracked rental copies.
+  - name: Carts
+    description: Persistent server carts for storefront purchase flows, guest-accessible by one-time token.
+  - name: Tables
+    description: Branch tables and live occupancy.
+  - name: Availability
+    description: Time-window availability before booking.
+  - name: Reservations
+    description: Customer bookings, staff bookings and walk-ins.
+  - name: Rentals
+    description: Staff-controlled hourly in-store play sessions.
+  - name: Orders
+    description: Branch game sales and staff fulfillment.
+security: []

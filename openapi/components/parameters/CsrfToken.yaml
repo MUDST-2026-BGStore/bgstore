@@ -1,0 +1,9 @@
+name: X-CSRF-TOKEN
+in: header
+required: true
+schema:
+  type: string
+  minLength: 1
+description: >-
+  Masked token from /api/auth/csrf. Use the returned headerName (currently
+  X-CSRF-TOKEN). Missing or invalid token returns 403.

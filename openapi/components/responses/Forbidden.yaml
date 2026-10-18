@@ -1,0 +1,7 @@
+description: >-
+  Insufficient role, missing branch assignment, customer attempt at a staff-only
+  action, or missing/invalid CSRF token.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/Problem.yaml

@@ -1,0 +1,7 @@
+description: >-
+  Malformed input, invalid interval, duplicate game selection, unknown write
+  property or failed field validation.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/Problem.yaml

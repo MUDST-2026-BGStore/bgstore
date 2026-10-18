@@ -1,0 +1,11 @@
+type: object
+required:
+  - service
+  - status
+properties:
+  service:
+    type: string
+    example: theparlor-api
+  status:
+    type: string
+    example: ok

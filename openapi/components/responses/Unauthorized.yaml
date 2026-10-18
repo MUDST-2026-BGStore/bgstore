@@ -1,0 +1,5 @@
+description: Missing or expired authenticated session.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/Problem.yaml
