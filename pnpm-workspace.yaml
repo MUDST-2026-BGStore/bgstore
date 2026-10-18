@@ -1,0 +1,13 @@
+packages:
+  - 'apps/*'
+  - 'libs/web/*'
+  - 'tools/*'
+autoInstallPeers: true
+
+catalog:
+  '@playwright/test': ^1.37.0
+  pinia: ^3.0.0
+  vue: ^3.5.44
+  vue-router: ^4.5.0
+onlyBuiltDependencies:
+  - 'nx'

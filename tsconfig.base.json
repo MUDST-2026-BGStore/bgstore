@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "composite": false,
+    "declarationMap": false,
+    "emitDeclarationOnly": false,
+    "importHelpers": true,
+    "isolatedModules": true,
+    "lib": ["es2022", "dom", "dom.iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "noEmitOnError": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "target": "es2022",
+    "customConditions": ["@theparlor/source"],
+    "noEmit": true,
+    "ignoreDeprecations": "6.0",
+    "paths": {
+      "@theparlor/ui": ["./libs/web/ui/src/index.ts"],
+      "@theparlor/auth": ["./libs/web/auth/src/index.ts"],
+      "@theparlor/account": ["./libs/web/account/src/index.ts"],
+      "@theparlor/api-client": ["./libs/web/api-client/src/index.ts"]
+    },
+    "rootDir": "."
+  }
+}

@@ -1,0 +1,5 @@
+{
+  // Tailwind v4 custom at-rules (@theme, @source, @apply) are not vanilla CSS;
+  // the Tailwind IntelliSense extension owns validation for them.
+  "css.validate": false
+}

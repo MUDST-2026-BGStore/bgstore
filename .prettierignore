@@ -1,0 +1,10 @@
+**/dist
+**/build
+**/out-tsc
+**/test-output
+**/test-results
+**/playwright-report
+**/node_modules
+.nx
+pnpm-lock.yaml
+libs/web/api-client/src/generated
