@@ -1,0 +1,16 @@
+get:
+  tags:
+    - Wiring
+  operationId: whoami
+  summary: Read the authenticated identity
+  security:
+    - sessionCookie: []
+  responses:
+    '200':
+      description: Validated identity
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/WhoamiResponse.yaml
+    '401':
+      description: Missing or expired session

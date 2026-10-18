@@ -1,0 +1,47 @@
+{
+  "name": "api",
+  "tags": ["scope:theparlor", "layer:api"],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "./gradlew bootJar -x test",
+        "cwd": "apps/api"
+      },
+      "cache": true,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/openapi/**/*",
+        "{workspaceRoot}/redocly.yaml",
+        "{workspaceRoot}/.redocly.lint-ignore.yaml",
+        "{workspaceRoot}/deploy/keycloak/**/*"
+      ],
+      "outputs": ["{projectRoot}/build/libs"]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/test-api.mjs",
+        "cwd": "."
+      },
+      "cache": false
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "./gradlew spotlessCheck",
+        "cwd": "apps/api"
+      }
+    },
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node tools/run-api.mjs",
+        "cwd": ".",
+        "color": true
+      },
+      "cache": false,
+      "continuous": true
+    }
+  }
+}

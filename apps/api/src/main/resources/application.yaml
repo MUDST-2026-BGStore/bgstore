@@ -1,0 +1,77 @@
+# ──────────────────────────────────────────────────────────────
+# theparlor-api — base configuration (profile-overridable via env vars)
+# ──────────────────────────────────────────────────────────────
+
+server:
+  port: ${API_PORT:8080}
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        name: THEPARLOR_SESSION
+        http-only: true
+        secure: ${SESSION_COOKIE_SECURE:true}
+        same-site: lax
+
+spring:
+  application:
+    name: theparlor-api
+
+  # ── Database ────────────────────────────────────────────────
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/theparlor}
+    username: ${SPRING_DATASOURCE_USERNAME:theparlor}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+  # ── Flyway ──────────────────────────────────────────────────
+  flyway:
+    enabled: true
+
+  # Valkey uses the Redis protocol. Sessions are shared across API replicas.
+  data:
+    redis:
+      host: ${VALKEY_HOST:localhost}
+      port: ${VALKEY_PORT:6379}
+      password: ${VALKEY_PASSWORD}
+      ssl:
+        enabled: ${VALKEY_SSL_ENABLED:false}
+  session:
+    data:
+      redis:
+        namespace: theparlor:sessions
+
+theparlor:
+  auth:
+    public-origin: ${THEPARLOR_PUBLIC_ORIGIN:http://localhost:5173}
+    issuer: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/theparlor}
+    backchannel-issuer: ${KEYCLOAK_BACKCHANNEL_ISSUER_URI:${theparlor.auth.issuer}}
+    client-secret: ${THEPARLOR_OIDC_CLIENT_SECRET}
+
+# ── Actuator / Observability ──────────────────────────────────
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus,health,info
+  observations:
+    annotations:
+      enabled: true
+
+# ── Structured logging ────────────────────────────────────────
+logging:
+  structured:
+    format:
+      console: logstash
+
+# OTLP HTTP export; Spring Boot 4 uses management.opentelemetry.* properties.
+management.opentelemetry.tracing.export.otlp.endpoint: ${OTEL_EXPORTER_OTLP_TRACES_ENDPOINT:http://localhost:4318/v1/traces}
+
+management.endpoint.health.probes.enabled: true
+
+# Metrics use Prometheus scraping; Tempo accepts traces only.
+management.otlp.metrics.export.enabled: false
+management.tracing.sampling.probability: ${TRACING_SAMPLE_PROBABILITY:1.0}

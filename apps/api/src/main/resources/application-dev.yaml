@@ -1,0 +1,19 @@
+# Dev profile — local compose
+spring:
+  mvc:
+    problemdetails:
+      enabled: true
+  output:
+    ansi:
+      enabled: always
+
+logging:
+  structured:
+    format:
+      # Override the base JSON encoder so the console pattern below is used.
+      console: ''
+  pattern:
+    console: '%clr(%d{HH:mm:ss.SSS}){faint} %clr(%-5level) %clr([%thread]){faint} %clr(%logger{36}){cyan} - %msg%n%wEx'
+
+# Local HTTP only. Staging/production retain Secure cookies.
+server.servlet.session.cookie.secure: ${SESSION_COOKIE_SECURE:false}

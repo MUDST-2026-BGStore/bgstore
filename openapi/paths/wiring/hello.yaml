@@ -1,0 +1,12 @@
+get:
+  tags:
+    - Wiring
+  operationId: hello
+  summary: Check public API connectivity
+  responses:
+    '200':
+      description: API is running
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/HelloResponse.yaml
