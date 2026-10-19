@@ -1,0 +1,13 @@
+get:
+  tags:
+    - Authentication
+  operationId: session
+  summary: Read the browser session without forcing login
+  security: []
+  responses:
+    '200':
+      description: Session state; no OAuth tokens are exposed
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/SessionResponse.yaml

@@ -1,0 +1,27 @@
+type: object
+description: >-
+  Identity established by server-side OIDC login.
+  Roles reflect the authorities granted by Spring Security.
+required:
+  - subject
+  - username
+  - emailVerified
+  - roles
+properties:
+  subject:
+    type: string
+    description: Subject identifier issued by Keycloak
+  username:
+    type: string
+  displayName:
+    type: string
+    nullable: true
+  email:
+    type: string
+    nullable: true
+  emailVerified:
+    type: boolean
+  roles:
+    type: array
+    items:
+      type: string

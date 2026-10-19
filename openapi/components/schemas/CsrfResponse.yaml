@@ -1,0 +1,12 @@
+type: object
+required:
+  - token
+  - headerName
+  - parameterName
+properties:
+  token:
+    type: string
+  headerName:
+    type: string
+  parameterName:
+    type: string

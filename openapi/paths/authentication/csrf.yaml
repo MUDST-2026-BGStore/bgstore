@@ -1,0 +1,13 @@
+get:
+  tags:
+    - Authentication
+  operationId: csrf
+  summary: Obtain a masked CSRF token bound to the current session
+  security: []
+  responses:
+    '200':
+      description: Send this token with modifying requests or the logout form
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/CsrfResponse.yaml

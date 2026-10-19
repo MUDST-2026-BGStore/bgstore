@@ -1,0 +1,9 @@
+type: object
+description: Current server-side authentication session.
+required:
+  - authenticated
+properties:
+  authenticated:
+    type: boolean
+  profile:
+    $ref: ./IdentityProfile.yaml
