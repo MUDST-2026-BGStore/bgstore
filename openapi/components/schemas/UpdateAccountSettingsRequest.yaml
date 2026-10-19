@@ -1,0 +1,8 @@
+type: object
+description: Merge supplied preferences into the current account. Omitted preferences remain unchanged.
+required:
+  - preferences
+properties:
+  preferences:
+    $ref: ./AccountPreferences.yaml
+additionalProperties: false

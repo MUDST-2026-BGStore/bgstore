@@ -1,0 +1,74 @@
+get:
+  tags:
+    - Account
+  operationId: getMeSettings
+  summary: Get the current account's settings
+  description: Returns settings for an existing account. Does not provision an account.
+  security:
+    - sessionCookie: []
+  responses:
+    '200':
+      description: Current account settings
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/AccountSettings.yaml
+    '401':
+      description: Missing or expired session
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '404':
+      description: Account has not been provisioned
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+patch:
+  tags:
+    - Account
+  operationId: updateMeSettings
+  summary: Update the current account's settings
+  description: >-
+    Updates supplied settings; omitted fields remain unchanged.
+    At least one non-null setting is required. Does not modify names or phone number.
+  security:
+    - sessionCookie: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpdateAccountSettingsRequest.yaml
+  responses:
+    '200':
+      description: Updated account settings
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/AccountSettings.yaml
+    '400':
+      description: Invalid settings
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '401':
+      description: Missing or expired session
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '403':
+      description: Update is not permitted
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '404':
+      description: Account has not been provisioned
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml

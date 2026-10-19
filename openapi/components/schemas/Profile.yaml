@@ -1,0 +1,30 @@
+type: object
+description: The current authenticated user's The Parlor account profile.
+
+required:
+  - id
+  - firstName
+  - lastName
+  - phoneNumber
+  - preferences
+
+properties:
+  id:
+    type: string
+    format: uuid
+
+  firstName:
+    type: string
+    minLength: 1
+
+  lastName:
+    type: string
+    minLength: 1
+
+  phoneNumber:
+    type: string
+    minLength: 1
+    maxLength: 32
+
+  preferences:
+    $ref: ./AccountPreferences.yaml

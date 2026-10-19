@@ -1,0 +1,161 @@
+get:
+  tags:
+    - Account
+  operationId: me
+  summary: Get the current account
+  description: >-
+    Returns the theparlor account associated with the authenticated
+    identity. Returns 404 if the account has not been provisioned.
+    This operation does not create or modify an account.
+  security:
+    - sessionCookie: []
+  responses:
+    '200':
+      description: Current account profile
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Profile.yaml
+    '401':
+      description: Missing or expired session
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '404':
+      description: Account has not been provisioned
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+
+post:
+  tags:
+    - Account
+  operationId: createMe
+  summary: Create the current account
+  description: >-
+    Completes onboarding by creating a theparlor account and
+    associating it with the authenticated identity.
+    If an account already exists, returns the existing profile
+    without modifying it. This operation is idempotent in behavior.
+  security:
+    - sessionCookie: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreateAccountRequest.yaml
+  responses:
+    '200':
+      description: Account created or already exists
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Profile.yaml
+    '400':
+      description: Invalid onboarding information
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '401':
+      description: Missing or expired session
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '403':
+      description: Account creation is not permitted
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+
+patch:
+  tags:
+    - Account
+  operationId: updateMe
+  summary: Update the current account's profile
+  description: >-
+    Updates the authenticated user's first name, last name and/or phone number.
+    Omitted or null fields remain unchanged. At least one non-null field is required.
+    Application preferences are updated through /api/v1/me/settings.
+  security:
+    - sessionCookie: []
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpdateAccountRequest.yaml
+  responses:
+    '200':
+      description: Updated account profile
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Profile.yaml
+    '400':
+      description: Invalid profile information
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '401':
+      description: Missing or expired session
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '403':
+      description: Update is not permitted
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '404':
+      description: Account has not been provisioned
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+
+delete:
+  tags:
+    - Account
+  operationId: deleteMe
+  summary: Delete the current account
+  description: >-
+    Deletes the authenticated user's theparlor application account.
+    This does not delete their Keycloak identity.
+  security:
+    - sessionCookie: []
+  responses:
+    '204':
+      description: Account deleted successfully
+    '401':
+      description: Missing or expired session
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '403':
+      description: Account deletion is not permitted
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '404':
+      description: Account has not been provisioned
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml
+    '409':
+      description: Account cannot currently be deleted
+      content:
+        application/problem+json:
+          schema:
+            $ref: ../../components/schemas/Problem.yaml

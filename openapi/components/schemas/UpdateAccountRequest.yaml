@@ -1,0 +1,26 @@
+type: object
+description: Partially update an existing account profile. Omitted or null fields remain unchanged.
+
+minProperties: 1
+
+properties:
+  firstName:
+    type: string
+    minLength: 1
+    maxLength: 255
+    pattern: '.*\S.*'
+    example: Alice
+  lastName:
+    type: string
+    minLength: 1
+    maxLength: 255
+    pattern: '.*\S.*'
+    example: Smith
+  phoneNumber:
+    type: string
+    pattern: '^\+[1-9][0-9]{1,14}$'
+    maxLength: 16
+    description: Phone number in international E.164 format.
+    example: '+66812345678'
+
+additionalProperties: false

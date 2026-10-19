@@ -1,0 +1,38 @@
+type: object
+description: Required information for initial account onboarding.
+
+required:
+  - firstName
+  - lastName
+  - phoneNumber
+  - preferences
+
+properties:
+  firstName:
+    type: string
+    minLength: 1
+    maxLength: 255
+    example: Alice
+
+  middleName:
+    type: string
+    nullable: true
+    maxLength: 255
+    description: Optional middle name
+
+  lastName:
+    type: string
+    minLength: 1
+    maxLength: 255
+    example: Smith
+
+  phoneNumber:
+    type: string
+    minLength: 1
+    maxLength: 32
+    example: '+66812345678'
+
+  preferences:
+    $ref: ./AccountPreferences.yaml
+
+additionalProperties: false

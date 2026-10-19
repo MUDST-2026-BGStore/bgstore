@@ -1,0 +1,8 @@
+type: object
+description: Application preferences, including the preferred locale.
+required:
+  - preferredLocale
+properties:
+  preferredLocale:
+    $ref: ./PreferredLocale.yaml
+additionalProperties: true

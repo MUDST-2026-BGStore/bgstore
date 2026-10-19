@@ -1,0 +1,6 @@
+type: string
+enum:
+  - th-TH
+  - en-US
+description: Supported language and regional locale.
+example: th-TH

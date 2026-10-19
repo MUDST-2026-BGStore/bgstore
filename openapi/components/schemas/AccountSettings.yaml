@@ -1,0 +1,8 @@
+type: object
+description: Application settings for the current account.
+required:
+  - preferences
+properties:
+  preferences:
+    $ref: ./AccountPreferences.yaml
+additionalProperties: false
