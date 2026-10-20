@@ -1,0 +1,15 @@
+type: object
+description: For staff-created reservations and counter sales.
+additionalProperties: false
+required:
+  - kind
+  - subject
+properties:
+  kind:
+    type: string
+    enum:
+      - REGISTERED
+  subject:
+    type: string
+    description: Existing customer subject; the server validates the account.
+    minLength: 1

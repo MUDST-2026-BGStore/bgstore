@@ -1,0 +1,8 @@
+oneOf:
+  - $ref: ./RegisteredCustomer.yaml
+  - $ref: ./GuestCustomer.yaml
+discriminator:
+  propertyName: kind
+  mapping:
+    REGISTERED: ./RegisteredCustomer.yaml
+    GUEST: ./GuestCustomer.yaml

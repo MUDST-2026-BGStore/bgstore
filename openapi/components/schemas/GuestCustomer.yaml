@@ -1,0 +1,21 @@
+type: object
+description: >-
+  Walk-in guest without an account. Do not expose contact details through public
+  table or availability responses.
+additionalProperties: false
+required:
+  - kind
+  - displayName
+properties:
+  kind:
+    type: string
+    enum:
+      - GUEST
+  displayName:
+    type: string
+    minLength: 1
+    maxLength: 200
+  phone:
+    type: string
+    minLength: 1
+    maxLength: 40
