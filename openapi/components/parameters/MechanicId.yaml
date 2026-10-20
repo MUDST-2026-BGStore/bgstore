@@ -1,0 +1,7 @@
+name: mechanicId
+in: path
+required: true
+description: Mechanic identifier.
+schema:
+  type: integer
+  format: int64

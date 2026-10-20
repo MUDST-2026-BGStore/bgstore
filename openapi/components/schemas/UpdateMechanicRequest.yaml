@@ -1,0 +1,16 @@
+type: object
+description: Replaces localized display labels wholesale. The canonical name is immutable.
+additionalProperties: false
+required:
+  - names
+properties:
+  names:
+    type: object
+    description: >-
+      Localized display labels keyed by IETF locale tag; sends the complete map
+      on every update. Omitted locales disappear, so always include unchanged
+      translations.
+    additionalProperties:
+      type: string
+      minLength: 1
+      maxLength: 150

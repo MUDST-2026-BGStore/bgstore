@@ -1,0 +1,66 @@
+parameters:
+  - $ref: ../../components/parameters/GameId.yaml
+get:
+  tags:
+    - Editions
+  operationId: listGameEditions
+  summary: List sellable editions of a game
+  description: >-
+    Active editions of an active game. Inactive editions and inactive games are
+    hidden from public discovery and return 404.
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/Limit.yaml
+    - $ref: ../../components/parameters/Cursor.yaml
+    - name: active
+      in: query
+      required: false
+      description: Catalog managers may include inactive editions; the default lists active ones.
+      schema:
+        type: boolean
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/GameEditionPage.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+post:
+  tags:
+    - Editions
+  operationId: createGameEdition
+  summary: Add a sellable edition to a game
+  description: One edition per (game, kind, languageCode); duplicates return 409. New editions sell zero stock everywhere until branch prices and stock exist.
+  security:
+    - sessionCookie: []
+  x-access-policy: catalog-manager
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreateGameEditionRequest.yaml
+  responses:
+    '201':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/GameEdition.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

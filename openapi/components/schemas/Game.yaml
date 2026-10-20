@@ -1,0 +1,90 @@
+type: object
+description: >-
+  Shared catalog title. Categories and mechanics use canonical English names;
+  clients render localized labels. Descriptions are keyed by IETF locale tag; the
+  catalog supplies at least en-US. Rental offering flags live on branch games, and
+  per-edition retail stock and prices live on branch editions.
+required:
+  - id
+  - name
+  - categories
+  - mechanics
+  - minPlayers
+  - maxPlayers
+  - playMinutesMin
+  - playMinutesMax
+  - active
+properties:
+  id:
+    type: string
+    format: uuid
+  name:
+    type: string
+    minLength: 1
+    maxLength: 200
+  designer:
+    type: string
+    maxLength: 200
+  difficulty:
+    $ref: ./Difficulty.yaml
+  categories:
+    type: array
+    description: Canonical English category keys; localized display labels come from the taxonomy endpoints.
+    items:
+      type: string
+      minLength: 1
+      maxLength: 100
+    maxItems: 12
+    minItems: 1
+  mechanics:
+    type: array
+    description: Canonical English mechanic keys; localized display labels come from the taxonomy endpoints.
+    items:
+      type: string
+      minLength: 1
+      maxLength: 100
+    maxItems: 12
+  minPlayers:
+    type: integer
+    format: int32
+    minimum: 1
+  maxPlayers:
+    type: integer
+    format: int32
+    minimum: 1
+  minAge:
+    type: integer
+    format: int32
+    minimum: 0
+  playMinutesMin:
+    type: integer
+    format: int32
+    minimum: 1
+    description: Shortest typical playtime figure.
+  playMinutesMax:
+    type: integer
+    format: int32
+    minimum: 1
+    description: Longest typical playtime figure; never below playMinutesMin.
+  teachMinutes:
+    type: integer
+    format: int32
+    minimum: 0
+    description: Estimated rule-teaching minutes.
+  setupMinutes:
+    type: integer
+    format: int32
+    minimum: 0
+    description: Estimated table-setup minutes.
+  descriptions:
+    type: object
+    description: Localized descriptions keyed by IETF locale tag, e.g. en-US or th-TH; at least en-US is supplied.
+    additionalProperties:
+      type: string
+      maxLength: 4000
+  images:
+    type: array
+    items:
+      $ref: ./GameImage.yaml
+  active:
+    type: boolean

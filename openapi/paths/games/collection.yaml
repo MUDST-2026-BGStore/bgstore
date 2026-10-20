@@ -1,0 +1,100 @@
+get:
+  tags:
+    - Games
+  operationId: listGames
+  summary: Search the shared active game catalog
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/Limit.yaml
+    - $ref: ../../components/parameters/Cursor.yaml
+    - name: q
+      in: query
+      required: false
+      description: Case-insensitive search across game name and designer.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 200
+    - name: categories
+      in: query
+      required: false
+      description: Canonical English category names; repeatable. Games match all listed categories.
+      schema:
+        type: array
+        items:
+          type: string
+          minLength: 1
+          maxLength: 100
+        maxItems: 10
+      style: form
+      explode: true
+    - name: mechanics
+      in: query
+      required: false
+      description: Canonical English mechanic names; repeatable. Games match all listed mechanics.
+      schema:
+        type: array
+        items:
+          type: string
+          minLength: 1
+          maxLength: 100
+        maxItems: 10
+      style: form
+      explode: true
+    - name: difficulty
+      in: query
+      required: false
+      description: Filter by catalog difficulty label.
+      schema:
+        $ref: ../../components/schemas/Difficulty.yaml
+    - name: players
+      in: query
+      required: false
+      description: Games supporting this player count.
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/GamePage.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+post:
+  tags:
+    - Games
+  operationId: createGame
+  summary: Add a board game to the shared catalog
+  security:
+    - sessionCookie: []
+  x-access-policy: catalog-manager
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreateGameRequest.yaml
+  responses:
+    '201':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Game.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

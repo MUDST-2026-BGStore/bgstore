@@ -1,0 +1,34 @@
+type: object
+description: >-
+  A sellable edition of a game: the retail SKU that owns per-branch sale stock,
+  prices, cart lines and order items. Rental library membership and copies are
+  game-scoped and never derive from editions.
+required:
+  - id
+  - gameId
+  - editionKind
+  - languageCode
+  - active
+properties:
+  id:
+    type: string
+    format: uuid
+  gameId:
+    type: string
+    format: uuid
+  editionKind:
+    type: string
+    enum:
+      - BASE_GAME
+      - EXPANSION
+  languageCode:
+    type: string
+    minLength: 1
+    maxLength: 35
+    description: >-
+      Language of this edition's components and rulebook, as an IETF language
+      tag, e.g. en or th. Independent of the storefront UI language.
+    example: th
+  active:
+    type: boolean
+    description: Inactive editions stay valid for past cart and order history but sell no new copies.

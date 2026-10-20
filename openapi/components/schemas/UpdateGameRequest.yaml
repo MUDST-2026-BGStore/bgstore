@@ -1,0 +1,70 @@
+type: object
+description: Partial catalog update; merged minPlayers must not exceed maxPlayers. Lists replace wholesale; send the complete arrays.
+additionalProperties: false
+properties:
+  name:
+    type: string
+    minLength: 1
+    maxLength: 200
+  designer:
+    type: string
+    maxLength: 200
+  difficulty:
+    $ref: ./Difficulty.yaml
+  categories:
+    type: array
+    items:
+      type: string
+      minLength: 1
+      maxLength: 100
+    maxItems: 12
+    minItems: 1
+  mechanics:
+    type: array
+    items:
+      type: string
+      minLength: 1
+      maxLength: 100
+    maxItems: 12
+  minPlayers:
+    type: integer
+    format: int32
+    minimum: 1
+  maxPlayers:
+    type: integer
+    format: int32
+    minimum: 1
+  minAge:
+    type: integer
+    format: int32
+    minimum: 0
+  playMinutesMin:
+    type: integer
+    format: int32
+    minimum: 1
+  playMinutesMax:
+    type: integer
+    format: int32
+    minimum: 1
+  teachMinutes:
+    type: integer
+    format: int32
+    minimum: 0
+  setupMinutes:
+    type: integer
+    format: int32
+    minimum: 0
+  descriptions:
+    type: object
+    description: Localized descriptions keyed by IETF locale tag; replaces the whole map.
+    additionalProperties:
+      type: string
+      maxLength: 4000
+  images:
+    type: array
+    description: Approved product media; replaces the whole list. Send media in display order.
+    items:
+      $ref: ./GameImageInput.yaml
+  active:
+    type: boolean
+minProperties: 1

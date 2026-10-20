@@ -1,0 +1,7 @@
+name: categoryId
+in: path
+required: true
+description: Category identifier.
+schema:
+  type: integer
+  format: int64

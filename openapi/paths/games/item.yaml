@@ -1,0 +1,57 @@
+parameters:
+  - $ref: ../../components/parameters/GameId.yaml
+get:
+  tags:
+    - Games
+  operationId: getGame
+  summary: Read an active game
+  description: Inactive titles are hidden from public discovery and return 404.
+  security: []
+  x-access-policy: public
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Game.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+patch:
+  tags:
+    - Games
+  operationId: updateGame
+  summary: Update game details or retire a title
+  description:
+    Setting active=false prevents new orders and reservations. Return 409 while confirmed
+    reservations, active rentals or placed orders reference the title; existing history is retained.
+  security:
+    - sessionCookie: []
+  x-access-policy: catalog-manager
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpdateGameRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Game.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

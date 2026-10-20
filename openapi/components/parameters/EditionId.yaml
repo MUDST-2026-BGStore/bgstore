@@ -1,0 +1,7 @@
+name: editionId
+in: path
+required: true
+description: Sellable edition identifier. Branch-owned edition resources must match the branchId in the path.
+schema:
+  type: string
+  format: uuid

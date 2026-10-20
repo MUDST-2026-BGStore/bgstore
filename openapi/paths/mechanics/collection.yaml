@@ -1,0 +1,54 @@
+get:
+  tags:
+    - Taxonomy
+  operationId: listMechanics
+  summary: List catalog mechanics with localized names
+  description: >-
+    Canonical English keys plus localized display labels. Ordered by canonical
+    name. Clients match game mechanics by `name`.
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/Limit.yaml
+    - $ref: ../../components/parameters/Cursor.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/MechanicPage.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+post:
+  tags:
+    - Taxonomy
+  operationId: createMechanic
+  summary: Add a catalog mechanic
+  description: One row per canonical name; duplicates return 409.
+  security:
+    - sessionCookie: []
+  x-access-policy: catalog-manager
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreateMechanicRequest.yaml
+  responses:
+    '201':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Mechanic.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

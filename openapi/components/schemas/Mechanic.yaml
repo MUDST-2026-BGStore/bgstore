@@ -1,0 +1,26 @@
+type: object
+description: >-
+  A catalog mechanic. `name` is the canonical English key used for game
+  filtering and linking; it never changes after creation. `names` carries
+  localized display labels keyed by IETF locale tag, e.g. en-US or th-TH, and
+  every name is expected to include an en-US entry.
+required:
+  - id
+  - name
+  - names
+properties:
+  id:
+    type: integer
+    format: int64
+  name:
+    type: string
+    minLength: 1
+    maxLength: 100
+    description: Canonical English key; immutable.
+  names:
+    type: object
+    description: Localized display labels keyed by IETF locale tag.
+    additionalProperties:
+      type: string
+      minLength: 1
+      maxLength: 150

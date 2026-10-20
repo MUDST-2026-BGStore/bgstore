@@ -1,0 +1,22 @@
+type: object
+description: Approved product media; URLs and alt text come from store-managed assets.
+required:
+  - id
+  - url
+  - sortOrder
+properties:
+  id:
+    type: string
+    format: uuid
+  url:
+    type: string
+    minLength: 1
+    maxLength: 2000
+  altText:
+    type: string
+    maxLength: 200
+  sortOrder:
+    type: integer
+    format: int32
+    minimum: 0
+    description: Display order within the game.

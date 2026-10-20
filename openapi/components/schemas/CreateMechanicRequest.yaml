@@ -1,0 +1,18 @@
+type: object
+description: New mechanic. The canonical name must be unique; duplicates return 409.
+additionalProperties: false
+required:
+  - name
+properties:
+  name:
+    type: string
+    minLength: 1
+    maxLength: 100
+    description: Canonical English key; immutable after creation.
+  names:
+    type: object
+    description: Localized display labels keyed by IETF locale tag, e.g. en-US or th-TH.
+    additionalProperties:
+      type: string
+      minLength: 1
+      maxLength: 150

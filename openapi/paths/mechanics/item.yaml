@@ -1,0 +1,52 @@
+parameters:
+  - $ref: ../../components/parameters/MechanicId.yaml
+get:
+  tags:
+    - Taxonomy
+  operationId: getMechanic
+  summary: Get one mechanic with localized names
+  security: []
+  x-access-policy: public
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Mechanic.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+patch:
+  tags:
+    - Taxonomy
+  operationId: updateMechanic
+  summary: Update a mechanic's localized names
+  description: >-
+    Replaces the localized name map wholesale; the canonical name is immutable.
+    Updating games' mechanic membership uses the game endpoints.
+  security:
+    - sessionCookie: []
+  x-access-policy: catalog-manager
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpdateMechanicRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Mechanic.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml

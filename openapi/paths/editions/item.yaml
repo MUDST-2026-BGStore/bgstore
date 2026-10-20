@@ -1,0 +1,54 @@
+parameters:
+  - $ref: ../../components/parameters/GameId.yaml
+  - $ref: ../../components/parameters/EditionId.yaml
+get:
+  tags:
+    - Editions
+  operationId: getGameEdition
+  summary: Get one edition of a game
+  description: Public callers receive active editions of active games only; managers also read inactive ones.
+  security: []
+  x-access-policy: public
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/GameEdition.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+patch:
+  tags:
+    - Editions
+  operationId: updateGameEdition
+  summary: Update an edition
+  description: Partial update. Deactivation stops new sale commitments and preserves history.
+  security:
+    - sessionCookie: []
+  x-access-policy: catalog-manager
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpdateGameEditionRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/GameEdition.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml
