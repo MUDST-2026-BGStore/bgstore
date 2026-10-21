@@ -1,0 +1,48 @@
+type: object
+required:
+  - id
+  - branchId
+  - editionId
+  - delta
+  - reason
+  - saleOnHand
+  - saleAvailable
+  - createdAt
+  - createdBySubject
+properties:
+  id:
+    type: string
+    format: uuid
+  branchId:
+    type: string
+    format: uuid
+  editionId:
+    type: string
+    format: uuid
+  delta:
+    type: integer
+    format: int32
+    not:
+      enum:
+        - 0
+    description: >-
+      Positive receipt or negative correction; cannot reduce stock below held
+      quantity.
+  reason:
+    type: string
+    minLength: 1
+    maxLength: 500
+  saleOnHand:
+    type: integer
+    format: int32
+    minimum: 0
+  saleAvailable:
+    type: integer
+    format: int32
+    minimum: 0
+  createdAt:
+    type: string
+    format: date-time
+  createdBySubject:
+    type: string
+    description: Authenticated staff subject.

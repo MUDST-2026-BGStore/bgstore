@@ -1,0 +1,12 @@
+type: object
+description: reason is required for OUT_OF_SERVICE or RETIRED.
+additionalProperties: false
+required:
+  - operationalStatus
+properties:
+  operationalStatus:
+    $ref: ./RentalCopyOperationalStatus.yaml
+  reason:
+    type: string
+    minLength: 1
+    maxLength: 500

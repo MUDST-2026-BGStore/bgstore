@@ -1,0 +1,45 @@
+type: object
+description: >-
+  Per-branch sale stock and price for one edition. saleAvailable is
+  max(0, saleOnHand - saleHeld), zero while saleEnabled is false on the branch
+  game. Sale stock is independent of rental copies.
+required:
+  - editionId
+  - editionKind
+  - languageCode
+  - active
+  - salePrice
+  - saleOnHand
+  - saleHeld
+  - saleAvailable
+properties:
+  editionId:
+    type: string
+    format: uuid
+  editionKind:
+    type: string
+    enum:
+      - BASE_GAME
+      - EXPANSION
+  languageCode:
+    type: string
+    description: IETF language tag of this edition's components, e.g. en or th.
+  active:
+    type: boolean
+  salePrice:
+    $ref: ./Money.yaml
+  saleOnHand:
+    type: integer
+    format: int32
+    minimum: 0
+    description: Physical sale units at this branch, including held units.
+  saleHeld:
+    type: integer
+    format: int32
+    minimum: 0
+    description: Units held by PLACED orders.
+  saleAvailable:
+    type: integer
+    format: int32
+    minimum: 0
+    description: Units customers can buy at this branch right now.

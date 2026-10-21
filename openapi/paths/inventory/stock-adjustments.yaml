@@ -1,0 +1,41 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/EditionId.yaml
+post:
+  tags:
+    - Inventory
+  operationId: adjustSaleStock
+  summary: Record a sale stock receipt or correction for an edition
+  description:
+    Apply delta atomically to the branch's saleOnHand for this edition. Reject zero delta
+    or any adjustment making on-hand stock less than stock held for placed orders. Sale stock
+    is independent of rental copies. The edition needs a branch price first; the server
+    records the actor and timestamp.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/StockAdjustmentRequest.yaml
+  responses:
+    '201':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/StockAdjustment.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

@@ -1,0 +1,7 @@
+name: copyId
+in: path
+required: true
+description: Copy identifier; branch-owned resources must match the branchId in the path.
+schema:
+  type: string
+  format: uuid

@@ -1,0 +1,34 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+get:
+  tags:
+    - Inventory
+  operationId: listBranchGames
+  summary: List a branch's games, prices and stock counts
+  description:
+    Current stock only. Use /availability for a future interval. Only active catalog titles
+    at an active branch are listed.
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/Limit.yaml
+    - $ref: ../../components/parameters/Cursor.yaml
+    - name: q
+      in: query
+      required: false
+      description: Case-insensitive game name search.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 200
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/BranchGamePage.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml

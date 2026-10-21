@@ -1,0 +1,11 @@
+type: object
+description: New copies start with operationalStatus=USABLE.
+additionalProperties: false
+required:
+  - assetCode
+properties:
+  assetCode:
+    type: string
+    description: Unique within the branch.
+    minLength: 1
+    maxLength: 80

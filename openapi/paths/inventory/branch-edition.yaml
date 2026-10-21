@@ -1,0 +1,45 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/EditionId.yaml
+put:
+  tags:
+    - Inventory
+  operationId: upsertBranchEdition
+  summary: Set the branch's sale price for an edition
+  description: >-
+    Creates the branch's entry for this edition with zero stock, or updates the
+    price of the existing entry. Restock through /stock-adjustments. The edition
+    must belong to this branch's branch game with saleEnabled; the edition must
+    belong to a game that is active. THB minor units.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpsertBranchEditionRequest.yaml
+  responses:
+    '200':
+      description: Existing entry updated
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/BranchEditionStock.yaml
+    '201':
+      description: Branch entry created
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/BranchEditionStock.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml

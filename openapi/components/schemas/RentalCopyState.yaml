@@ -1,0 +1,12 @@
+type: string
+description: >-
+  Derived at server time: RETIRED/OUT_OF_SERVICE reflect operational status;
+  otherwise IN_USE if in an active rental, RESERVED if held by a confirmed
+  reservation covering now, else AVAILABLE. Future holds are evaluated by
+  /availability.
+enum:
+  - AVAILABLE
+  - RESERVED
+  - IN_USE
+  - OUT_OF_SERVICE
+  - RETIRED

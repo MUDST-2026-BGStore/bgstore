@@ -1,0 +1,19 @@
+type: object
+additionalProperties: false
+required:
+  - delta
+  - reason
+properties:
+  delta:
+    type: integer
+    format: int32
+    not:
+      enum:
+        - 0
+    description: >-
+      Positive receipt or negative correction; cannot reduce stock below held
+      quantity.
+  reason:
+    type: string
+    minLength: 1
+    maxLength: 500

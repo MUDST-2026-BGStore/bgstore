@@ -1,0 +1,42 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/GameId.yaml
+  - $ref: ../../components/parameters/CopyId.yaml
+patch:
+  tags:
+    - Inventory
+  operationId: updateRentalCopy
+  summary: Mark a rental copy usable, out of service or retired
+  description:
+    Availability is derived, not set by clients. OUT_OF_SERVICE or RETIRED removes the copy
+    from the rentable pool. If allocated to a confirmed reservation or active rental, return 409
+    unless another usable copy of the same game can atomically cover every affected interval.
+    Retired copies remain in history and cannot be reactivated.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpdateRentalCopyRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/RentalCopy.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

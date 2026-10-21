@@ -1,0 +1,60 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/GameId.yaml
+get:
+  tags:
+    - Inventory
+  operationId: getBranchGame
+  summary: Read branch game stock and prices
+  security: []
+  x-access-policy: public
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/BranchGame.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+put:
+  tags:
+    - Inventory
+  operationId: configureBranchGame
+  summary: Configure sale and hourly rental offerings
+  description:
+    Create or replace offering flags; a new entry starts with zero sale stock for every
+    edition and no rental copies. THB minor units everywhere. Per-edition sale prices go
+    through the branch edition endpoint; stock changes use stock-adjustments
+    or rental-copies. Disabling an offering stops new purchases or bookings and preserves existing
+    commitments and locked rates.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/ConfigureBranchGameRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/BranchGame.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

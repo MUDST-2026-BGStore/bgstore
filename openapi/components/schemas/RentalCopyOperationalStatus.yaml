@@ -1,0 +1,6 @@
+type: string
+description: Staff-maintained physical condition; RETIRED is terminal.
+enum:
+  - USABLE
+  - OUT_OF_SERVICE
+  - RETIRED

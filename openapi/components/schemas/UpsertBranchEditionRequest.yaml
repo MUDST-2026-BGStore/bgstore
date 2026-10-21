@@ -1,0 +1,8 @@
+type: object
+description: Initial or updated per-branch sale price for one edition. Currency is THB minor units.
+additionalProperties: false
+required:
+  - salePrice
+properties:
+  salePrice:
+    $ref: ./Money.yaml

@@ -1,0 +1,55 @@
+type: object
+required:
+  - branchId
+  - game
+  - saleEnabled
+  - rentalEnabled
+  - staffCanTeach
+  - rentalHourlyRate
+  - editions
+  - rentalTotal
+  - rentalUsable
+  - rentalAvailableNow
+properties:
+  branchId:
+    type: string
+    format: uuid
+  game:
+    $ref: ./Game.yaml
+  saleEnabled:
+    type: boolean
+    description: Whether this branch offers game sales at all; individual editions may still be sold out.
+  rentalEnabled:
+    type: boolean
+    description: Rental library membership at this branch. False means the game is not offered for in-store play here; it says nothing about future availability for a reservation date and time.
+  staffCanTeach:
+    type: boolean
+    description: Branch staff can teach this game. Meaningless as an availability promise; discovery only.
+  rentalHourlyRate:
+    $ref: ./Money.yaml
+  editions:
+    type: array
+    description: Currently sellable stock by edition at this branch; editions without an entry sold zero.
+    items:
+      $ref: ./BranchEditionStock.yaml
+  rentalTotal:
+    type: integer
+    format: int32
+    minimum: 0
+    readOnly: true
+    description: All non-retired physical rental copies, including out-of-service copies.
+  rentalUsable:
+    type: integer
+    format: int32
+    minimum: 0
+    readOnly: true
+    description: Copies with operationalStatus=USABLE, whether free, reserved or in use.
+  rentalAvailableNow:
+    type: integer
+    format: int32
+    minimum: 0
+    readOnly: true
+    description: >-
+      Usable copies unallocated at server time; zero when rentalEnabled=false.
+      Use /availability for a booking interval. An active rental retains its
+      copies until checkout, regardless of planned end.

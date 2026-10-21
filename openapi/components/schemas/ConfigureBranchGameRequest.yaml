@@ -1,0 +1,20 @@
+type: object
+description: >-
+  Rates are THB minor units. Disabling an offering preserves existing
+  commitments. saleEnabled=false zeroes saleAvailable for every edition; existing
+  sale stock is kept, not discarded.
+additionalProperties: false
+required:
+  - saleEnabled
+  - rentalEnabled
+  - staffCanTeach
+  - rentalHourlyRate
+properties:
+  saleEnabled:
+    type: boolean
+  rentalEnabled:
+    type: boolean
+  staffCanTeach:
+    type: boolean
+  rentalHourlyRate:
+    $ref: ./Money.yaml
