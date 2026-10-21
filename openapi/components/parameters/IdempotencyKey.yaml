@@ -1,0 +1,12 @@
+name: Idempotency-Key
+in: header
+required: true
+schema:
+  type: string
+  format: uuid
+description: >-
+  Caller-generated UUID for retry-safe creation. Scoped by authenticated
+  subject, HTTP method and concrete path, retained for at least 24 hours. The
+  same key and body replay the original success response; a different body
+  returns 409. Concurrent requests with the same key create at most one
+  resource.
