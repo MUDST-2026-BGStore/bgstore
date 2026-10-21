@@ -1,0 +1,32 @@
+type: object
+description: >-
+  Weekly opening period. Multiple non-overlapping periods per day are allowed;
+  omitted days are closed.
+additionalProperties: false
+required:
+  - dayOfWeek
+  - opensAt
+  - closesAt
+properties:
+  dayOfWeek:
+    type: string
+    enum:
+      - MONDAY
+      - TUESDAY
+      - WEDNESDAY
+      - THURSDAY
+      - FRIDAY
+      - SATURDAY
+      - SUNDAY
+  opensAt:
+    type: string
+    description: Local branch time.
+    pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+    example: '10:00'
+  closesAt:
+    type: string
+    description: >-
+      Exclusive local end time, later than opensAt; 24:00 is allowed. Split
+      overnight hours across adjacent days.
+    pattern: ^(([01][0-9]|2[0-3]):[0-5][0-9]|24:00)$
+    example: '22:00'

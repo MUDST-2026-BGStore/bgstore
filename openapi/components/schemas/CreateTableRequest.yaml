@@ -1,0 +1,25 @@
+type: object
+description: Hourly rates are THB minor units.
+additionalProperties: false
+required:
+  - label
+  - capacity
+  - hourlyRate
+  - operationalStatus
+properties:
+  label:
+    type: string
+    description: Unique table label within the branch.
+    minLength: 1
+    maxLength: 80
+  capacity:
+    type: integer
+    format: int32
+    minimum: 1
+  hourlyRate:
+    $ref: ./Money.yaml
+  operationalStatus:
+    type: string
+    enum:
+      - IN_SERVICE
+      - OUT_OF_SERVICE

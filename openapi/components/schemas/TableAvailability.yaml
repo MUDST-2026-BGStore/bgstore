@@ -1,0 +1,32 @@
+type: object
+required:
+  - tableId
+  - label
+  - capacity
+  - hourlyRate
+  - available
+properties:
+  tableId:
+    type: string
+    format: uuid
+  label:
+    type: string
+  capacity:
+    type: integer
+    format: int32
+    minimum: 1
+  hourlyRate:
+    $ref: ./Money.yaml
+  available:
+    type: boolean
+  unavailableReasons:
+    type: array
+    items:
+      type: string
+      enum:
+        - OUTSIDE_OPENING_HOURS
+        - OUT_OF_SERVICE
+        - CAPACITY_EXCEEDED
+        - RESERVED
+        - OCCUPIED
+    uniqueItems: true

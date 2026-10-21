@@ -1,0 +1,30 @@
+type: object
+required:
+  - id
+  - name
+  - address
+  - openingHours
+  - active
+properties:
+  id:
+    type: string
+    format: uuid
+  name:
+    type: string
+    minLength: 1
+    maxLength: 120
+  address:
+    type: string
+    minLength: 1
+    maxLength: 500
+  phone:
+    type: string
+    minLength: 1
+    maxLength: 40
+  openingHours:
+    type: array
+    items:
+      $ref: ./OpeningPeriod.yaml
+    maxItems: 28
+  active:
+    type: boolean

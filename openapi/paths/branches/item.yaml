@@ -1,0 +1,58 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+get:
+  tags:
+    - Branches
+  operationId: getBranch
+  summary: Read an active branch
+  description: Inactive branches are hidden from public discovery and return 404.
+  security: []
+  x-access-policy: public
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Branch.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+patch:
+  tags:
+    - Branches
+  operationId: updateBranch
+  summary: Update branch details, hours or activation
+  description:
+    Reject with 409 if deactivation or changed hours would invalidate a confirmed
+    reservation or active rental. Operational writes at an inactive branch return 409, even for
+    managers and administrators.
+  security:
+    - sessionCookie: []
+  x-access-policy: administrator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpdateBranchRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Branch.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

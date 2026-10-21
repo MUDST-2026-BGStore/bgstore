@@ -1,0 +1,34 @@
+type: object
+required:
+  - id
+  - branchId
+  - label
+  - capacity
+  - hourlyRate
+  - operationalStatus
+  - state
+properties:
+  id:
+    type: string
+    format: uuid
+  branchId:
+    type: string
+    format: uuid
+  label:
+    type: string
+    description: Unique table label within the branch.
+    minLength: 1
+    maxLength: 80
+  capacity:
+    type: integer
+    format: int32
+    minimum: 1
+  hourlyRate:
+    $ref: ./Money.yaml
+  operationalStatus:
+    type: string
+    enum:
+      - IN_SERVICE
+      - OUT_OF_SERVICE
+  state:
+    $ref: ./TableState.yaml

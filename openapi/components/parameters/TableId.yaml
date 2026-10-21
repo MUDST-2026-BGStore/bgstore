@@ -1,0 +1,7 @@
+name: tableId
+in: path
+required: true
+description: Table identifier; branch-owned resources must match the branchId in the path.
+schema:
+  type: string
+  format: uuid

@@ -1,0 +1,11 @@
+type: string
+description: >-
+  Derived at server time. OCCUPIED while a checked-in rental is active (even
+  after planned end); otherwise OUT_OF_SERVICE if disabled, RESERVED if a
+  confirmed booking covers now, else AVAILABLE. AVAILABLE describes occupancy,
+  not opening hours. Future bookings do not make a table currently RESERVED.
+enum:
+  - AVAILABLE
+  - RESERVED
+  - OCCUPIED
+  - OUT_OF_SERVICE

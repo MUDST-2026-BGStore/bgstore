@@ -1,0 +1,58 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/TableId.yaml
+get:
+  tags:
+    - Tables
+  operationId: getTable
+  summary: Read table capacity, pricing and current state
+  security: []
+  x-access-policy: public
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Table.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+patch:
+  tags:
+    - Tables
+  operationId: updateTable
+  summary: Update table configuration or take it out of service
+  description:
+    Clients may change operationalStatus, never derived state. Return 409 if an
+    out-of-service change or capacity reduction invalidates a confirmed reservation or active
+    rental. Rate changes affect only subsequent bookings or reschedules.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpdateTableRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Table.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml
