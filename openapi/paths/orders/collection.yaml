@@ -1,0 +1,74 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+get:
+  tags:
+    - Orders
+  operationId: listBranchOrders
+  summary: List branch sale orders for staff
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/Limit.yaml
+    - $ref: ../../components/parameters/Cursor.yaml
+    - name: status
+      in: query
+      required: false
+      description: Filter by lifecycle status.
+      schema:
+        $ref: ../../components/schemas/OrderStatus.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/OrderPage.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+post:
+  tags:
+    - Orders
+  operationId: createMyOrder
+  summary: Place an order for games sold by this branch
+  description:
+    The customer and creator subjects come from the session; source=CUSTOMER. Atomically
+    hold all requested sale quantities, lock the current server-side prices and calculate the total.
+    Only active games with active editions enabled for sale at this active branch may be ordered.
+    Duplicate edition IDs return 400; insufficient sale stock returns 409 without partial holds.
+    Rental copies are never sold through this operation.
+  security:
+    - sessionCookie: []
+  x-access-policy: authenticated-owner
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+    - $ref: ../../components/parameters/IdempotencyKey.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreateOrderRequest.yaml
+  responses:
+    '201':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Order.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

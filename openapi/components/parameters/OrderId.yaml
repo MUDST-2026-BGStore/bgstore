@@ -1,0 +1,7 @@
+name: orderId
+in: path
+required: true
+description: Order identifier; branch-owned resources must match the branchId in the path.
+schema:
+  type: string
+  format: uuid

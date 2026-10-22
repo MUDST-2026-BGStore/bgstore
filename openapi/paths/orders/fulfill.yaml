@@ -1,0 +1,35 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/OrderId.yaml
+post:
+  tags:
+    - Orders
+  operationId: fulfillOrder
+  summary: Staff-only handover of purchased games
+  description:
+    Only PLACED -> FULFILLED is allowed. Atomically decrement saleOnHand and saleHeld by
+    the ordered quantities, then record server time and staff subject. Customers always receive 403.
+    Repeating fulfillment returns the same order without decrementing stock twice. Cancelled orders
+    return 409.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Order.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

@@ -1,0 +1,27 @@
+type: object
+description: lineTotal equals quantity * unitPrice.amountMinor. The game name and unit price are snapshots from placement; later changes do not alter them.
+required:
+  - editionId
+  - gameName
+  - editionLanguage
+  - quantity
+  - unitPrice
+  - lineTotal
+properties:
+  editionId:
+    type: string
+    format: uuid
+  gameName:
+    type: string
+    description: Name snapshot at order placement.
+  editionLanguage:
+    type: string
+    description: IETF language tag of the edition's components at placement.
+  quantity:
+    type: integer
+    format: int32
+    minimum: 1
+  unitPrice:
+    $ref: ./Money.yaml
+  lineTotal:
+    $ref: ./Money.yaml

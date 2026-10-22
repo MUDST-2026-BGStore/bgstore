@@ -1,0 +1,59 @@
+type: object
+description: >-
+  All prices are THB minor units; total is the sum of line totals. An
+  order cannot contain rental copies. FULFILLED requires fulfilledAt and
+  fulfilledBySubject. CANCELLED requires cancelledAt, cancelledBySubject and
+  cancellationReason. Those fields are omitted before the corresponding
+  transition.
+required:
+  - id
+  - branchId
+  - customer
+  - source
+  - status
+  - items
+  - total
+  - createdAt
+  - createdBySubject
+properties:
+  id:
+    type: string
+    format: uuid
+  branchId:
+    type: string
+    format: uuid
+  customer:
+    $ref: ./CustomerReference.yaml
+  source:
+    type: string
+    enum:
+      - CUSTOMER
+      - STAFF_COUNTER
+  status:
+    $ref: ./OrderStatus.yaml
+  items:
+    type: array
+    items:
+      $ref: ./OrderItem.yaml
+    minItems: 1
+  total:
+    $ref: ./Money.yaml
+  notes:
+    type: string
+  createdAt:
+    type: string
+    format: date-time
+  createdBySubject:
+    type: string
+  fulfilledAt:
+    type: string
+    format: date-time
+  fulfilledBySubject:
+    type: string
+  cancelledAt:
+    type: string
+    format: date-time
+  cancelledBySubject:
+    type: string
+  cancellationReason:
+    type: string

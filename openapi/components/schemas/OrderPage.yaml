@@ -1,0 +1,11 @@
+type: object
+required:
+  - items
+properties:
+  items:
+    type: array
+    items:
+      $ref: ./Order.yaml
+  nextCursor:
+    type: string
+    description: Opaque cursor for the next page; omitted on the final page.

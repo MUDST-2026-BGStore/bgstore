@@ -1,0 +1,26 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/OrderId.yaml
+get:
+  tags:
+    - Orders
+  operationId: getOrder
+  summary: Read an order as its owner or branch staff
+  security:
+    - sessionCookie: []
+  x-access-policy: authenticated-owner-or-branch-operator
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Order.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml

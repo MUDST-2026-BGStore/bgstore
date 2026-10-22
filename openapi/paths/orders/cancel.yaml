@@ -1,0 +1,40 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/OrderId.yaml
+post:
+  tags:
+    - Orders
+  operationId: cancelOrder
+  summary: Cancel a placed sale order
+  description:
+    Only PLACED -> CANCELLED is allowed. Release sale holds atomically and record the actor
+    and timestamp. Repeating cancellation returns the unchanged order. Fulfilled orders return 409;
+    returns/refunds are outside this contract.
+  security:
+    - sessionCookie: []
+  x-access-policy: authenticated-owner-or-branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/ReasonRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Order.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

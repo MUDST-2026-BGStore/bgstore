@@ -1,0 +1,15 @@
+type: object
+description: One line per edition ID; prices and lifecycle fields are server-controlled.
+additionalProperties: false
+required:
+  - editionId
+  - quantity
+properties:
+  editionId:
+    type: string
+    format: uuid
+  quantity:
+    type: integer
+    format: int32
+    minimum: 1
+    maximum: 100

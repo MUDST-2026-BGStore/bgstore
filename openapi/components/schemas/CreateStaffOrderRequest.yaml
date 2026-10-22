@@ -1,0 +1,18 @@
+type: object
+description: Counter sale on behalf of a registered customer or guest.
+additionalProperties: false
+required:
+  - customer
+  - items
+properties:
+  customer:
+    $ref: ./CustomerReference.yaml
+  items:
+    type: array
+    items:
+      $ref: ./OrderItemRequest.yaml
+    minItems: 1
+    maxItems: 50
+  notes:
+    type: string
+    maxLength: 1000

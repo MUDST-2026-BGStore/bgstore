@@ -1,0 +1,15 @@
+type: object
+description: One line per edition ID; prices and lifecycle fields are server-controlled.
+additionalProperties: false
+required:
+  - items
+properties:
+  items:
+    type: array
+    items:
+      $ref: ./OrderItemRequest.yaml
+    minItems: 1
+    maxItems: 50
+  notes:
+    type: string
+    maxLength: 1000

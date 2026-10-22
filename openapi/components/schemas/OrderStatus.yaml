@@ -1,0 +1,8 @@
+type: string
+description: >-
+  PLACED holds sale stock; staff fulfillment consumes it; cancellation releases
+  it. FULFILLED and CANCELLED are terminal.
+enum:
+  - PLACED
+  - FULFILLED
+  - CANCELLED
