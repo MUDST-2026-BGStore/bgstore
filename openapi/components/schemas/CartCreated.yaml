@@ -1,0 +1,17 @@
+type: object
+description: Cart creation response. This is the only response containing the guest token; store it, because it cannot be recovered.
+allOf:
+  - $ref: ./Cart.yaml
+  - type: object
+    required:
+      - token
+    properties:
+      token:
+        type: string
+        minLength: 32
+        maxLength: 128
+        description: >-
+          Guest cart credential (already a one-time returned secret, not its
+          hash). Send as X-Cart-Token on every cart request. Carts created by a
+          signed-in caller are account-bound and never need the token, though the
+          token remains valid until merge.

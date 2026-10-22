@@ -1,0 +1,21 @@
+type: object
+description: Whole-cart fulfillment update. PICKUP requires a known active pickup branch in the same request; SHIPPING ignores any branch. Changing this revalidates every line on the next read and never deletes them.
+additionalProperties: false
+required:
+  - fulfillment
+properties:
+  fulfillment:
+    type: object
+    additionalProperties: false
+    required:
+      - method
+    properties:
+      method:
+        type: string
+        enum:
+          - PICKUP
+          - SHIPPING
+      pickupBranchId:
+        type: string
+        format: uuid
+        description: Required for PICKUP; the branch must be active and accessible.

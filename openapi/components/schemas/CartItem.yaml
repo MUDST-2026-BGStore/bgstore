@@ -1,0 +1,47 @@
+type: object
+description: >-
+  One cart item per edition; every edition of a game has its own line. Prices and
+  availability are revalidated server-side on every read against the selected
+  fulfillment location. A cart holds nothing and reserves no stock.
+required:
+  - id
+  - editionId
+  - editionKind
+  - editionLanguage
+  - gameName
+  - quantity
+  - unitPrice
+  - lineTotal
+  - available
+properties:
+  id:
+    type: string
+    format: uuid
+  editionId:
+    type: string
+    format: uuid
+  editionKind:
+    type: string
+    enum:
+      - BASE_GAME
+      - EXPANSION
+  editionLanguage:
+    type: string
+    description: IETF language tag of the edition's components.
+  gameName:
+    type: string
+    description: Current catalog name.
+  quantity:
+    type: integer
+    format: int32
+    minimum: 1
+    maximum: 99
+  unitPrice:
+    $ref: ./Money.yaml
+  lineTotal:
+    $ref: ./Money.yaml
+  available:
+    type: integer
+    format: int32
+    minimum: 0
+    description: Units fulfillable at the selected location right now, after existing PLACED holds.

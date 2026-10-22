@@ -1,0 +1,40 @@
+post:
+  tags:
+    - Carts
+  operationId: mergeCart
+  summary: Merge a guest cart into the account's open cart
+  description: >-
+    Called during sign-in flows: moves a guest cart identified by cartId and
+    X-Cart-Token-style cartToken into the caller's account cart. Same-edition
+    quantities add and cap at 99; shortages surface as issues on read. The
+    merged guest cart is consumed (ABANDONED) and its token stops working even
+    when the merge conflicts, so a compromised token cannot be replayed.
+    Requires an open account cart; one is created when the account has none.
+  security:
+    - sessionCookie: []
+  x-access-policy: authenticated-owner
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/MergeCartRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Cart.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

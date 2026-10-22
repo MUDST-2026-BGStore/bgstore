@@ -1,0 +1,15 @@
+type: object
+description: Adds one unit batch to a line; adding the same edition again is allowed by sending the full quantity update. Edition must currently be sold at the selected fulfillment location, or the request conflicts.
+additionalProperties: false
+required:
+  - editionId
+properties:
+  editionId:
+    type: string
+    format: uuid
+  quantity:
+    type: integer
+    format: int32
+    minimum: 1
+    maximum: 99
+    default: 1

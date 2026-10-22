@@ -1,0 +1,24 @@
+type: object
+description: >-
+  Why a line cannot currently be fulfilled at the selected location. Codes are
+  stable; clients render localized text. Reducing the quantity or removing the
+  line clears its issue.
+required:
+  - lineId
+  - code
+properties:
+  lineId:
+    type: string
+    format: uuid
+  code:
+    type: string
+    enum:
+      - EDITION_INACTIVE
+      - GAME_INACTIVE
+      - NOT_SOLD_AT_LOCATION
+      - INSUFFICIENT_STOCK
+  available:
+    type: integer
+    format: int32
+    minimum: 0
+    description: Fulfillable units for INSUFFICIENT_STOCK.

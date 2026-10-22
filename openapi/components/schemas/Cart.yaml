@@ -1,0 +1,60 @@
+type: object
+description: >-
+  Persistent cart for one visitor. Guests authenticate with the one-time
+  X-Cart-Token header; the token is returned only in the creation response and
+  cannot be recovered. Signed-in owners need no token. The cart reserves no stock,
+  so every read revalidates quantities, prices and availability and reports
+  problems in issues without deleting lines. Malformed or stale browser state is
+  rejected; the response is always authoritative.
+required:
+  - id
+  - fulfillment
+  - items
+  - issues
+  - subtotal
+  - checkoutReady
+  - createdAt
+  - updatedAt
+properties:
+  id:
+    type: string
+    format: uuid
+  fulfillment:
+    type: object
+    description: Whole-cart fulfillment choice. Shipping is fulfilled by the designated delivery branch and reports its branchId.
+    required:
+      - method
+    properties:
+      method:
+        type: string
+        enum:
+          - PICKUP
+          - SHIPPING
+      branchId:
+        type: string
+        format: uuid
+        description: >-
+          Only present for PICKUP; the single branch that must fulfill every
+          line. Never omitted while method is PICKUP.
+  items:
+    type: array
+    items:
+      $ref: ./CartItem.yaml
+  issues:
+    type: array
+    items:
+      $ref: ./CartIssue.yaml
+  subtotal:
+    type: integer
+    format: int64
+    minimum: 0
+    description: Sum of line totals in THB minor units; a display value recomputed on every read, never a quote of shipping or tax.
+  checkoutReady:
+    type: boolean
+    description: True when there is at least one line, no issues, and, for PICKUP, a resolved branch. Checkout still revalidates atomically.
+  createdAt:
+    type: string
+    format: date-time
+  updatedAt:
+    type: string
+    format: date-time

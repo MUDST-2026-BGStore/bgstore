@@ -1,0 +1,17 @@
+type: object
+description: >-
+  Merges a guest cart into the signed-in account's open cart on sign-in.
+  Quantities for the same edition add up and are capped at 99; shortages are
+  flagged on the next read. The guest cart is consumed either way.
+additionalProperties: false
+required:
+  - cartId
+  - cartToken
+properties:
+  cartId:
+    type: string
+    format: uuid
+  cartToken:
+    type: string
+    minLength: 32
+    maxLength: 128

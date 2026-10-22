@@ -1,0 +1,28 @@
+post:
+  tags:
+    - Carts
+  operationId: createCart
+  summary: Create a cart for the caller
+  description: >-
+    Creates an empty cart. Signed-in callers get it bound to the account; guests
+    receive a one-time X-Cart-Token in the response and must store it. Opening a
+    new cart never affects other carts. Uses and stores no device details beyond
+    the token hash. Replaying with the same Idempotency-Key returns the same cart.
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+    - $ref: ../../components/parameters/IdempotencyKey.yaml
+  responses:
+    '201':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/CartCreated.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml

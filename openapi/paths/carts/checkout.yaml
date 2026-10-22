@@ -1,0 +1,38 @@
+parameters:
+  - $ref: ../../components/parameters/CartId.yaml
+  - $ref: ../../components/parameters/CartToken.yaml
+post:
+  tags:
+    - Carts
+  operationId: checkoutCart
+  summary: Place an order from a cart
+  description: >-
+    Validates every line atomically against the fulfillment location, holds
+    stock (branch_editions stock_held), creates one PLACED order and marks the
+    cart CONVERTED; the cart keeps its lines and cannot be reused. Requires
+    Idempotency-Key. Replays with the same key and body return the original
+    order. Guests require X-Cart-Token; signed-in accounts may also check out
+    a guest cart they hold. 409 when the cart is empty, has issues, is not
+    OPEN, or any line no longer has enough stock.
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+    - $ref: ../../components/parameters/IdempotencyKey.yaml
+  responses:
+    '201':
+      description: Order placed from the cart
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Order.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

@@ -1,0 +1,7 @@
+name: cartId
+in: path
+required: true
+description: Cart identifier. Guest carts additionally require X-Cart-Token.
+schema:
+  type: string
+  format: uuid

@@ -1,0 +1,11 @@
+type: object
+description: Replaces the line quantity; zero is expressed by deleting the line. Quantities above currently fulfillable stock are accepted but flagged as INSUFFICIENT_STOCK instead of being clamped.
+additionalProperties: false
+required:
+  - quantity
+properties:
+  quantity:
+    type: integer
+    format: int32
+    minimum: 1
+    maximum: 99

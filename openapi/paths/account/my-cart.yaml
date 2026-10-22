@@ -1,0 +1,23 @@
+get:
+  tags:
+    - Carts
+  operationId: getMyCart
+  summary: Get the signed-in account's open cart
+  description: >-
+    Returns the caller's OPEN cart, creating an empty account-bound cart first
+    if none exists. The operation is therefore safe for store-and-forward UI
+    hydration; it never returns converted, abandoned or foreign carts. Line
+    revalidation behaves like getCart. Signing out does not delete the cart;
+    an anonymous caller with the former cart's token still uses carts/{cartId}.
+  security:
+    - sessionCookie: []
+  x-access-policy: authenticated-owner
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Cart.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml

@@ -1,0 +1,11 @@
+name: X-Cart-Token
+in: header
+required: false
+description: >-
+  Guest cart credential returned once by cart creation. Required whenever the
+  cart has no owning account; an unknown cart or a wrong token returns 404.
+  Account-bound carts reject the header when it declares a different owner.
+schema:
+  type: string
+  minLength: 32
+  maxLength: 128

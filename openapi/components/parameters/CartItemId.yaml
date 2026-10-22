@@ -1,0 +1,7 @@
+name: itemId
+in: path
+required: true
+description: Cart line identifier as returned in the cart's items.
+schema:
+  type: string
+  format: uuid

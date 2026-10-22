@@ -1,0 +1,41 @@
+parameters:
+  - $ref: ../../components/parameters/CartId.yaml
+  - $ref: ../../components/parameters/CartToken.yaml
+post:
+  tags:
+    - Carts
+  operationId: addCartItem
+  summary: Add a line to a cart
+  description: >-
+    Adds or increments the line for one edition. The edition must be active and
+    currently sold at the cart's fulfillment location; conflicting requests
+    return 409. Requests beyond currently fulfillable stock are also rejected
+    here, so the client's local preview never diverges from the server's
+    authoritative quantity limits.
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/AddCartItemRequest.yaml
+  responses:
+    '200':
+      description: Line updated with the increased quantity
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Cart.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

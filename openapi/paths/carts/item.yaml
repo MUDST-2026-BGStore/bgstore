@@ -1,0 +1,81 @@
+parameters:
+  - $ref: ../../components/parameters/CartId.yaml
+  - $ref: ../../components/parameters/CartToken.yaml
+get:
+  tags:
+    - Carts
+  operationId: getCart
+  summary: Read a cart with revalidated lines
+  description: >-
+    Recomputes each line's current price and fulfillable stock at the selected
+    fulfillment location and reports problems in issues without changing or
+    removing lines. Guests require X-Cart-Token; account-bound carts accept only
+    their owner's session. Inactive editions or games flagged as issues remain in
+    items so customers can resolve them.
+  security: []
+  x-access-policy: public
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Cart.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml
+patch:
+  tags:
+    - Carts
+  operationId: updateCart
+  summary: Choose pickup or delivery for the whole cart
+  description: >-
+    PICKUP requires pickupBranchId of a known active branch in the same request;
+    SHIPPING ignores any stored branch and uses the designated delivery branch.
+    Lines are never deleted by this change; the next read flags lines the new
+    location cannot fulfill. Checkout and review stay blocked while issues exist.
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpdateCartRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Cart.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+delete:
+  tags:
+    - Carts
+  operationId: deleteCart
+  summary: Abandon a cart
+  description: Marks the cart ABANDONED and consumes the guest token. Creating a new cart afterwards is normal.
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  responses:
+    '204':
+      description: Cart abandoned
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

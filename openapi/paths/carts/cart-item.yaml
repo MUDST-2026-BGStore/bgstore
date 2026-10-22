@@ -1,0 +1,56 @@
+parameters:
+  - $ref: ../../components/parameters/CartId.yaml
+  - $ref: ../../components/parameters/CartToken.yaml
+  - $ref: ../../components/parameters/CartItemId.yaml
+patch:
+  tags:
+    - Carts
+  operationId: updateCartItem
+  summary: Set a line's quantity
+  description: >-
+    Replaces the quantity of one line. Quantities over currently fulfillable
+    stock are accepted and flagged as INSUFFICIENT_STOCK on the next read;
+    removing stock does not delete the line. The response is the revalidated
+    cart.
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/UpdateCartItemRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Cart.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+delete:
+  tags:
+    - Carts
+  operationId: removeCartItem
+  summary: Remove a line from a cart
+  description: >-
+    Deletes one line. Unknown lines return 404 even when the cart exists.
+    Idempotent replays of the same deletion return 204.
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  responses:
+    '204':
+      description: Line removed
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
