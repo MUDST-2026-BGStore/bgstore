@@ -1,0 +1,33 @@
+type: object
+description: >-
+  Exactly one table line and one line per reserved game. lineTotal is present
+  only on completion and equals quantity * unitHourlyRate.amountMinor *
+  billableHours, in THB minor units.
+required:
+  - kind
+  - quantity
+  - unitHourlyRate
+properties:
+  kind:
+    type: string
+    enum:
+      - TABLE
+      - GAME
+  gameId:
+    type: string
+    description: Required for GAME; absent for TABLE.
+    format: uuid
+  quantity:
+    type: integer
+    format: int32
+    minimum: 1
+    description: One for a table; selected number of copies for a game.
+  unitHourlyRate:
+    $ref: ./Money.yaml
+  billableHours:
+    type: integer
+    format: int32
+    minimum: 1
+    description: Present only on completion; shared elapsed hourly count for this rental.
+  lineTotal:
+    $ref: ./Money.yaml

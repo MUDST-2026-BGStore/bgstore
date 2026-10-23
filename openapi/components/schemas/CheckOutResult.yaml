@@ -1,0 +1,10 @@
+type: object
+description: COMPLETED reservation and rental with final charges.
+required:
+  - reservation
+  - rental
+properties:
+  reservation:
+    $ref: ./Reservation.yaml
+  rental:
+    $ref: ./Rental.yaml

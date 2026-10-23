@@ -1,0 +1,29 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/RentalId.yaml
+get:
+  tags:
+    - Rentals
+  operationId: getRental
+  summary: Read a rental and its locked hourly rates
+  description:
+    The owning registered customer or branch operators may read this rental. Guest rentals
+    are visible only to branch operators.
+  security:
+    - sessionCookie: []
+  x-access-policy: authenticated-owner-or-branch-operator
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Rental.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml

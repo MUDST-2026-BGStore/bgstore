@@ -1,0 +1,38 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/RentalId.yaml
+post:
+  tags:
+    - Rentals
+  operationId: checkOutRental
+  summary: Staff-only game return, hourly charge calculation and table release
+  description:
+    Only ACTIVE -> COMPLETED is allowed. Staff confirm the physical return of every
+    allocated game by invoking this action. The server sets endedAt and checkedOutBySubject,
+    computes billableHours=max(1, ceil(elapsedSeconds/3600)), calculates charges from locked rates,
+    completes the linked CHECKED_IN reservation and releases all allocations in one transaction.
+    Checkout may be earlier or later than the planned end. Repeating checkout returns the same
+    completed rental and reservation without recalculation. Damaged copies can then be marked
+    OUT_OF_SERVICE through the copy operation.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/CheckOutResult.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

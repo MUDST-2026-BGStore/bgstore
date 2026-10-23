@@ -1,0 +1,5 @@
+type: string
+description: Created only by staff reservation check-in; completed only by staff checkout.
+enum:
+  - ACTIVE
+  - COMPLETED
