@@ -1,0 +1,67 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/ReservationId.yaml
+get:
+  tags:
+    - Reservations
+  operationId: getReservation
+  summary: Read a reservation as its owner or branch staff
+  security:
+    - sessionCookie: []
+  x-access-policy: authenticated-owner-or-branch-operator
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Reservation.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+patch:
+  tags:
+    - Reservations
+  operationId: rescheduleReservation
+  summary: Replace the planned table, interval, party size and game selections
+  description:
+    Only CONFIRMED reservations may be changed and the new start must be in the future.
+    Customers may change only their own not-yet-started reservation. All scheduling fields are
+    required; games replaces the full selection (an empty array releases all selected games).
+    Reallocate atomically, excluding the reservation's own allocations. On 409 retain the original
+    reservation, rates and holds. The customer, source, creator and lifecycle fields cannot be
+    changed. Successful rescheduling captures current rates. Rental offering flags must still be
+    enabled and the table must be in service; validate branch hours and party size as on creation.
+  security:
+    - sessionCookie: []
+  x-access-policy: authenticated-owner-or-branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/RescheduleReservationRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Reservation.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

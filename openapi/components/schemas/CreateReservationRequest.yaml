@@ -1,0 +1,37 @@
+type: object
+description: >-
+  Table and games must be offered by this branch, fit the interval and have
+  sufficient capacity. Fields such as customer, status, source, prices and
+  check-in timestamps are forbidden.
+additionalProperties: false
+required:
+  - tableId
+  - startsAt
+  - endsAt
+  - partySize
+  - games
+properties:
+  tableId:
+    type: string
+    format: uuid
+  startsAt:
+    type: string
+    format: date-time
+  endsAt:
+    type: string
+    format: date-time
+  partySize:
+    type: integer
+    format: int32
+    minimum: 1
+  games:
+    type: array
+    items:
+      $ref: ./GameSelection.yaml
+    maxItems: 50
+    description: >-
+      One entry per game ID. Empty means table-only booking. Quantities reserve
+      physical copies, not sale stock.
+  notes:
+    type: string
+    maxLength: 1000

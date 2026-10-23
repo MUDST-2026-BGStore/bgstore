@@ -1,0 +1,42 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/ReservationId.yaml
+post:
+  tags:
+    - Reservations
+  operationId: cancelReservation
+  summary: Cancel a confirmed reservation
+  description:
+    Only CONFIRMED -> CANCELLED is allowed. Customers may cancel their own reservation
+    before startsAt; branch operators may cancel it until check-in. Release all table and game holds
+    atomically and record the actor and server timestamp. Repeating an already completed
+    cancellation returns the unchanged reservation; other states return 409. Checked-in visits must
+    use staff checkout.
+  security:
+    - sessionCookie: []
+  x-access-policy: authenticated-owner-or-branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/ReasonRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Reservation.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

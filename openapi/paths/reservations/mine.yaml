@@ -1,0 +1,28 @@
+get:
+  tags:
+    - Reservations
+  operationId: listMyReservations
+  summary: List the signed-in customer's reservations across branches
+  security:
+    - sessionCookie: []
+  x-access-policy: authenticated-owner
+  parameters:
+    - $ref: ../../components/parameters/Limit.yaml
+    - $ref: ../../components/parameters/Cursor.yaml
+    - name: status
+      in: query
+      required: false
+      description: Filter by lifecycle status.
+      schema:
+        $ref: ../../components/schemas/ReservationStatus.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReservationPage.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml

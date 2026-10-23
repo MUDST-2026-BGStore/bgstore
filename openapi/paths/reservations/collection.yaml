@@ -1,0 +1,92 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+get:
+  tags:
+    - Reservations
+  operationId: listBranchReservations
+  summary: List branch reservations for staff
+  description:
+    If both range bounds are supplied, until must be after from. Includes customer details;
+    only branch operators can read this list.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/Limit.yaml
+    - $ref: ../../components/parameters/Cursor.yaml
+    - name: status
+      in: query
+      required: false
+      description: Filter by lifecycle status.
+      schema:
+        $ref: ../../components/schemas/ReservationStatus.yaml
+    - name: from
+      in: query
+      required: false
+      description: Include reservations ending after this inclusive range start.
+      schema:
+        type: string
+        format: date-time
+    - name: until
+      in: query
+      required: false
+      description: Include reservations starting before this exclusive range end.
+      schema:
+        type: string
+        format: date-time
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/ReservationPage.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+post:
+  tags:
+    - Reservations
+  operationId: createMyReservation
+  summary: Reserve a table and game quantities for the signed-in customer
+  description:
+    The customer subject and createdBySubject come from the session; source is CUSTOMER and
+    status is CONFIRMED. Require a future startsAt, endsAt > startsAt, sufficient table capacity and
+    all selected game quantities. The table and games must belong to this branch and games must be
+    enabled for rental. Assign usable physical copies and hold them for the entire interval
+    atomically. Failure returns 409 without a partial booking. Duplicate game IDs return 400.
+    Retry-safe creation requires Idempotency-Key.
+  security:
+    - sessionCookie: []
+  x-access-policy: authenticated-owner
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+    - $ref: ../../components/parameters/IdempotencyKey.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreateReservationRequest.yaml
+  responses:
+    '201':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Reservation.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

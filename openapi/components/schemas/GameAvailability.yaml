@@ -1,0 +1,29 @@
+type: object
+required:
+  - gameId
+  - rentalEnabled
+  - usableQuantity
+  - availableQuantity
+properties:
+  gameId:
+    type: string
+    format: uuid
+  rentalEnabled:
+    type: boolean
+  usableQuantity:
+    type: integer
+    format: int32
+    minimum: 0
+  availableQuantity:
+    type: integer
+    format: int32
+    minimum: 0
+    description: >-
+      Maximum copies free for the entire interval; zero outside opening hours or
+      if rental is disabled/not offered.
+  hourlyRate:
+    $ref: ./Money.yaml
+description: >-
+  hourlyRate is present when the game is configured at the branch; absent when
+  it is not offered. An unconfigured game has rentalEnabled=false and zero
+  usable/available quantities.

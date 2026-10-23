@@ -1,0 +1,11 @@
+type: string
+description: >-
+  CONFIRMED -> CHECKED_IN -> COMPLETED; CONFIRMED -> CANCELLED or NO_SHOW. Only
+  staff check-in/checkout changes arrival/completion states. No generic status
+  update is exposed.
+enum:
+  - CONFIRMED
+  - CHECKED_IN
+  - COMPLETED
+  - CANCELLED
+  - NO_SHOW

@@ -1,0 +1,12 @@
+type: object
+description: >-
+  CHECKED_IN reservation and its single ACTIVE rental. On an idempotent replay
+  after checkout, return their current completed representations.
+required:
+  - reservation
+  - rental
+properties:
+  reservation:
+    $ref: ./Reservation.yaml
+  rental:
+    $ref: ./Rental.yaml

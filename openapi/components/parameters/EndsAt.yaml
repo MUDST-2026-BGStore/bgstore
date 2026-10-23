@@ -1,0 +1,7 @@
+name: endsAt
+in: query
+required: true
+schema:
+  type: string
+  format: date-time
+description: Exclusive window end; must be after startsAt.

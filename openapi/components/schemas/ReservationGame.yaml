@@ -1,0 +1,16 @@
+type: object
+description: Locked game hourly rate per copy. Physical copy IDs are internal allocations.
+required:
+  - gameId
+  - quantity
+  - unitHourlyRate
+properties:
+  gameId:
+    type: string
+    format: uuid
+  quantity:
+    type: integer
+    format: int32
+    minimum: 1
+  unitHourlyRate:
+    $ref: ./Money.yaml

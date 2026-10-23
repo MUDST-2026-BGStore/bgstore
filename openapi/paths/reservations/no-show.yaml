@@ -1,0 +1,41 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/ReservationId.yaml
+post:
+  tags:
+    - Reservations
+  operationId: markReservationNoShow
+  summary: Staff-only release of a missed reservation
+  description:
+    Only CONFIRMED -> NO_SHOW is allowed, and only at or after startsAt. Never automatic
+    just because a customer has not self-reported arrival. Release allocations and record the staff
+    actor and server timestamp. Repeating NO_SHOW returns the same reservation; other states return
+    409.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/ReasonRequest.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Reservation.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

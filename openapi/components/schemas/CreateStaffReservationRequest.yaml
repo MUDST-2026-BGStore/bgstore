@@ -1,0 +1,8 @@
+oneOf:
+  - $ref: ./StaffBookingRequest.yaml
+  - $ref: ./WalkInReservationRequest.yaml
+discriminator:
+  propertyName: source
+  mapping:
+    STAFF_BOOKING: ./StaffBookingRequest.yaml
+    WALK_IN: ./WalkInReservationRequest.yaml

@@ -1,0 +1,38 @@
+type: object
+required:
+  - branchId
+  - startsAt
+  - endsAt
+  - partySize
+  - withinOpeningHours
+  - asOf
+  - tables
+  - games
+properties:
+  branchId:
+    type: string
+    format: uuid
+  startsAt:
+    type: string
+    format: date-time
+  endsAt:
+    type: string
+    format: date-time
+  partySize:
+    type: integer
+    format: int32
+    minimum: 1
+  withinOpeningHours:
+    type: boolean
+  asOf:
+    type: string
+    description: Server snapshot timestamp.
+    format: date-time
+  tables:
+    type: array
+    items:
+      $ref: ./TableAvailability.yaml
+  games:
+    type: array
+    items:
+      $ref: ./GameAvailability.yaml

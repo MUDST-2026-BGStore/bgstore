@@ -1,0 +1,39 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/ReservationId.yaml
+post:
+  tags:
+    - Reservations
+  operationId: checkInReservation
+  summary: Staff-only arrival confirmation and rental start
+  description:
+    Customers always receive 403, including the reservation owner. Only CONFIRMED ->
+    CHECKED_IN is allowed, with startsAt <= server time < endsAt. An early arrival must first be
+    rescheduled by staff. Atomically verify table occupancy, branch access, capacity and every
+    allocated copy, then create exactly one ACTIVE rental with server-controlled checkedInAt and
+    checkedInBySubject. A copy or table still in use from an overdue visit causes 409. Repeating a
+    successful check-in returns the existing reservation and rental, including their current
+    completed representations after checkout, without changing start time or charging twice.
+    Cancelled and no-show reservations return 409.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/CheckInResult.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

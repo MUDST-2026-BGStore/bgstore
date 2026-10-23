@@ -1,0 +1,9 @@
+name: reservationId
+in: path
+required: true
+description: >-
+  Reservation identifier; branch-owned resources must match the branchId in the
+  path.
+schema:
+  type: string
+  format: uuid

@@ -1,0 +1,44 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+post:
+  tags:
+    - Reservations
+  operationId: createStaffReservation
+  summary: Book for a customer or register a walk-in
+  description:
+    'The staff member supplies a registered customer subject or guest contact.
+    source=STAFF_BOOKING requires a future startsAt. source=WALK_IN uses server time as startsAt and
+    only requires endsAt; caller-supplied startsAt is rejected for walk-ins. Both create CONFIRMED
+    reservations and hold the table and selected games atomically. WALK_IN never implies check-in:
+    staff must call the dedicated check-in operation. The creator is always the authenticated
+    operator. Apply the same opening-hour, capacity, offering and allocation checks as customer
+    bookings.'
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+    - $ref: ../../components/parameters/IdempotencyKey.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreateStaffReservationRequest.yaml
+  responses:
+    '201':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Reservation.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

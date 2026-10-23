@@ -1,0 +1,93 @@
+type: object
+required:
+  - id
+  - branchId
+  - tableId
+  - customer
+  - source
+  - status
+  - startsAt
+  - endsAt
+  - partySize
+  - games
+  - tableHourlyRate
+  - createdAt
+  - createdBySubject
+properties:
+  id:
+    type: string
+    format: uuid
+  branchId:
+    type: string
+    format: uuid
+  tableId:
+    type: string
+    format: uuid
+  customer:
+    $ref: ./CustomerReference.yaml
+  source:
+    type: string
+    enum:
+      - CUSTOMER
+      - STAFF_BOOKING
+      - WALK_IN
+  status:
+    $ref: ./ReservationStatus.yaml
+  startsAt:
+    type: string
+    format: date-time
+  endsAt:
+    type: string
+    format: date-time
+  partySize:
+    type: integer
+    format: int32
+    minimum: 1
+  games:
+    type: array
+    items:
+      $ref: ./ReservationGame.yaml
+  tableHourlyRate:
+    $ref: ./Money.yaml
+  notes:
+    type: string
+  createdAt:
+    type: string
+    format: date-time
+  createdBySubject:
+    type: string
+  checkedInAt:
+    type: string
+    description: Server arrival timestamp; present after staff check-in.
+    format: date-time
+  checkedInBySubject:
+    type: string
+    description: Authenticated operator; present after check-in.
+  rentalId:
+    type: string
+    description: Present after check-in.
+    format: uuid
+  completedAt:
+    type: string
+    description: Server checkout time; present when COMPLETED.
+    format: date-time
+  cancelledAt:
+    type: string
+    format: date-time
+  cancelledBySubject:
+    type: string
+  cancellationReason:
+    type: string
+  noShowAt:
+    type: string
+    format: date-time
+  noShowBySubject:
+    type: string
+  noShowReason:
+    type: string
+description: >-
+  CHECKED_IN and COMPLETED require checkedInAt, checkedInBySubject and rentalId.
+  COMPLETED also requires completedAt. CANCELLED requires cancelledAt,
+  cancelledBySubject and cancellationReason; NO_SHOW requires noShowAt,
+  noShowBySubject and noShowReason. Other lifecycle audit fields are omitted
+  until the corresponding transition occurs.

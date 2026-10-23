@@ -1,0 +1,48 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+get:
+  tags:
+    - Availability
+  operationId: getBranchAvailability
+  summary: Find available tables and game quantities for a time window
+  description:
+    Both timestamps are required. Return all branch tables and the matching branch games
+    with interval-specific availability, excluding unusable copies and overlapping confirmed
+    reservations or checked-in visits. available=false for tables outside opening hours, below party
+    size, out of service, overlapping a booking or currently occupied during the requested interval.
+    A known game not offered at the branch has zero available quantity. Unknown game IDs return 404.
+    Results are advisory and contain no customer details.
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/StartsAt.yaml
+    - $ref: ../../components/parameters/EndsAt.yaml
+    - name: partySize
+      in: query
+      required: true
+      schema:
+        type: integer
+        format: int32
+        minimum: 1
+    - name: gameId
+      in: query
+      required: false
+      description: Optionally restrict games; form-style repeated gameId parameters.
+      schema:
+        type: array
+        items:
+          type: string
+          format: uuid
+        uniqueItems: true
+        maxItems: 50
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/BranchAvailability.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
