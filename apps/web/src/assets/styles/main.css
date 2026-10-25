@@ -1,0 +1,48 @@
+@import 'tailwindcss';
+
+/* Tailwind v4 auto-detects classes in the app only; libs/web components are
+   consumed from outside the Vite root, so register them explicitly.
+   The path is relative to this stylesheet. */
+@source '../../../../../libs/web';
+
+/*
+ * Design tokens — single source of truth. Each `--color-*` token:
+ *  - is emitted as a CSS variable, which @theparlor/ui components consume via
+ *    var(--color-primary) etc. (their hex fallbacks stay as safety nets), and
+ *  - generates utilities: bg-primary, text-text, border-border, ...
+ */
+@theme {
+  --color-primary: #6366f1; /* indigo-500 */
+  --color-primary-hover: #4f46e5; /* indigo-600 */
+  --color-danger: #851d24; /* red-500 */
+  --color-danger-hover: color-mix(
+    in srgb,
+    var(--color-danger, #000 20%)
+  ); /* red-600 */
+  --color-surface: #1e293b; /* slate-800 */
+  --color-surface-hover: #334155; /* slate-700 */
+  --color-text: #e2e8f0; /* slate-200 */
+  --color-border: #334155; /* slate-700 */
+}
+
+@layer base {
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    @apply !shadow-[inset_0_0_0_1000px_#F4EDDF];
+    -webkit-text-fill-color: #142b20 !important;
+    caret-color: #142b20;
+  }
+}
+
+/* The one base style Tailwind's preflight does not set */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

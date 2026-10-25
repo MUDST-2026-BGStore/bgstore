@@ -1,0 +1,36 @@
+{
+  "name": "web",
+  "targets": {
+    "serve": {
+      "options": {
+        "color": true
+      }
+    },
+    "dev": {
+      "options": {
+        "color": true
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/web",
+        "command": "vue-tsc --noEmit -p tsconfig.app.json && vue-tsc --noEmit -p tsconfig.spec.json"
+      }
+    },
+    "build": {
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "staging": {
+          "mode": "staging"
+        },
+        "production": {
+          "mode": "production"
+        }
+      },
+      "defaultConfiguration": "production"
+    }
+  }
+}
