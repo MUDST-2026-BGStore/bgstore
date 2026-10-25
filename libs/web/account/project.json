@@ -1,0 +1,12 @@
+{
+  "name": "@theparlor/account",
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "libs/web/account",
+        "command": "vue-tsc --noEmit -p tsconfig.lib.json && vue-tsc --noEmit -p tsconfig.spec.json"
+      }
+    }
+  }
+}
