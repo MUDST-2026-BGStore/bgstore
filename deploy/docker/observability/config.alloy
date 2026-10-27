@@ -1,0 +1,29 @@
+discovery.docker "theparlor" {
+  host = "unix:///var/run/docker.sock"
+  filter {
+    name = "label"
+    values = ["com.docker.compose.project=" + sys.env("THEPARLOR_COMPOSE_PROJECT")]
+  }
+}
+discovery.relabel "theparlor" {
+  targets = discovery.docker.theparlor.targets
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label = "service"
+  }
+}
+loki.source.docker "theparlor" {
+  host = "unix:///var/run/docker.sock"
+  targets = discovery.relabel.theparlor.output
+  forward_to = [loki.process.theparlor.receiver]
+}
+loki.process "theparlor" {
+  stage.json {
+    expressions = { level = "level", traceId = "traceId" }
+  }
+  stage.labels { values = { level = "" } }
+  forward_to = [loki.write.local.receiver]
+}
+loki.write "local" {
+  endpoint { url = "http://loki:3100/loki/api/v1/push" }
+}

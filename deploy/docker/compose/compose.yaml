@@ -1,0 +1,185 @@
+name: theparlor
+services:
+  postgres:
+    image: postgres:18.3
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-theparlor}
+      POSTGRES_USER: ${POSTGRES_USER:-theparlor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    ports: ['127.0.0.1:${POSTGRES_PORT:-5432}:5432']
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ../postgres-init.sh:/docker-entrypoint-initdb.d/10-keycloak.sh:ro
+    healthcheck:
+      test:
+        [CMD-SHELL, 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  valkey:
+    image: valkey/valkey:9.1.2
+    environment:
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:?Run make configure}
+    command:
+      [
+        sh,
+        -c,
+        'exec valkey-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy noeviction --requirepass "$$VALKEY_PASSWORD"',
+      ]
+    ports: ['127.0.0.1:${VALKEY_PORT:-6379}:6379']
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          'VALKEYCLI_AUTH="$$VALKEY_PASSWORD" valkey-cli ping | grep -q PONG',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  mailpit:
+    image: axllent/mailpit:v1.27.4
+    # Catch local development mail; SMTP stays on the Compose network.
+    ports: ['127.0.0.1:${MAILPIT_PORT:-8025}:8025']
+    environment:
+      MP_MAX_MESSAGES: 100
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    # Local theme edits should be visible without clearing the browser cache.
+    command:
+      - start-dev
+      - --import-realm
+      - --spi-theme--static-max-age=-1
+      - --spi-theme--cache-themes=false
+      - --spi-theme--cache-templates=false
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: ${POSTGRES_USER:-theparlor}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:?Set KC_BOOTSTRAP_ADMIN_PASSWORD}
+      KC_HOSTNAME: http://localhost:${KEYCLOAK_PORT:-8081}
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: 'true'
+      KC_HEALTH_ENABLED: 'true'
+      THEPARLOR_PUBLIC_ORIGIN: ${THEPARLOR_PUBLIC_ORIGIN:-http://localhost:5173}
+      THEPARLOR_OIDC_CLIENT_SECRET: ${THEPARLOR_OIDC_CLIENT_SECRET:?Run make configure}
+    ports: ['127.0.0.1:${KEYCLOAK_PORT:-8081}:8080']
+    volumes:
+      - ../../keycloak/realm-theparlor.json:/opt/keycloak/data/import/realm-theparlor.json:ro
+      - ../../keycloak/themes/theparlor:/opt/keycloak/themes/theparlor:ro
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test:
+        [
+          CMD-SHELL,
+          "bash -c 'exec 3<>/dev/tcp/localhost/9000; printf \"GET /health/ready HTTP/1.0\r\n\r\n\" >&3; head -1 <&3 | grep -q 200'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+  api:
+    image: theparlor-api:${IMAGE_TAG:-dev}
+    build:
+      context: ../../..
+      dockerfile: deploy/docker/api.Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      # Container logs are parsed by Alloy; host development uses colored text.
+      LOGGING_STRUCTURED_FORMAT_CONSOLE: logstash
+      SPRING_OUTPUT_ANSI_ENABLED: never
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-theparlor}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-theparlor}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      KEYCLOAK_ISSUER_URI: http://localhost:${KEYCLOAK_PORT:-8081}/realms/theparlor
+      KEYCLOAK_BACKCHANNEL_ISSUER_URI: http://keycloak:8080/realms/theparlor
+      THEPARLOR_OIDC_CLIENT_SECRET: ${THEPARLOR_OIDC_CLIENT_SECRET:?Run make configure}
+      THEPARLOR_PUBLIC_ORIGIN: http://localhost:${WEB_PORT:-5173}
+      VALKEY_HOST: valkey
+      VALKEY_PORT: 6379
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD:?Run make configure}
+      SESSION_COOKIE_SECURE: 'false'
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo:4318/v1/traces
+    ports: ['127.0.0.1:${API_PORT:-8080}:8080']
+    depends_on:
+      postgres: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, curl, --fail, --silent, http://localhost:8080/actuator/health]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+  web:
+    image: theparlor-web:${IMAGE_TAG:-dev}
+    build:
+      context: ../../..
+      dockerfile: deploy/docker/web.Dockerfile
+      args:
+        VITE_API_BASE_URL: ''
+    ports: ['127.0.0.1:${WEB_PORT:-5173}:8080']
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: [CMD, wget, -q, --spider, http://127.0.0.1:8080/health]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  prometheus:
+    image: prom/prometheus:v3.15.0
+    extra_hosts: ['host.docker.internal:host-gateway']
+    command: [--config.file=/etc/prometheus/prometheus.yml]
+    ports: ['127.0.0.1:${PROMETHEUS_PORT:-9090}:9090']
+    volumes:
+      - ../observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+  grafana:
+    image: grafana/grafana:13.2.4
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    ports: ['127.0.0.1:${GRAFANA_PORT:-3000}:3000']
+    volumes:
+      - ../observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+  loki:
+    image: grafana/loki:3.6.12
+    command: [-config.file=/etc/loki/config.yaml]
+    ports: ['127.0.0.1:${LOKI_PORT:-3100}:3100']
+    volumes:
+      - ../observability/loki.yaml:/etc/loki/config.yaml:ro
+      - loki-data:/loki
+  alloy:
+    image: grafana/alloy:v1.20.1
+    user: '0'
+    environment:
+      THEPARLOR_COMPOSE_PROJECT: ${COMPOSE_PROJECT_NAME:-theparlor}
+    command: [run, --storage.path=/var/lib/alloy, /etc/alloy/config.alloy]
+    volumes:
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock:ro
+      - ../observability/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy
+    depends_on: [loki]
+  tempo:
+    image: grafana/tempo:2.9.0
+    command: [-config.file=/etc/tempo/config.yaml]
+    ports:
+      - '127.0.0.1:${TEMPO_PORT:-3200}:3200'
+      - '127.0.0.1:${OTLP_PORT:-4318}:4318'
+    volumes:
+      - ../observability/tempo.yaml:/etc/tempo/config.yaml:ro
+      - tempo-data:/var/tempo
+networks:
+  default:
+    name: ${COMPOSE_PROJECT_NAME:-theparlor}-net
+volumes:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  alloy-data:
+  tempo-data:
