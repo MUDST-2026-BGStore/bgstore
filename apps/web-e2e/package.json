@@ -1,0 +1,18 @@
+{
+  "name": "web-e2e",
+  "version": "0.0.1",
+  "private": true,
+  "nx": {
+    "name": "web-e2e",
+    "tags": [
+      "scope:theparlor",
+      "layer:web"
+    ],
+    "implicitDependencies": [
+      "web"
+    ]
+  },
+  "devDependencies": {
+    "@playwright/test": "catalog:"
+  }
+}
