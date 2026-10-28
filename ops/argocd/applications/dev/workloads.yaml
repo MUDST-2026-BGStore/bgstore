@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: theparlor-dev-workloads
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: theparlor
+    app.kubernetes.io/part-of: theparlor
+    theparlor.io/env: dev
+spec:
+  project: theparlor
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: theparlor-dev
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+  source:
+    repoURL: https://github.com/REPLACE_ME/theparlor-new.git
+    targetRevision: main
+    path: deploy/k8s/overlays/dev

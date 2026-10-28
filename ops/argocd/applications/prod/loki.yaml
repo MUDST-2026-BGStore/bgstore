@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: theparlor-prod-loki
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: theparlor
+    app.kubernetes.io/part-of: theparlor
+    theparlor.io/env: prod
+spec:
+  project: theparlor
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability-prod
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+  sources:
+    - repoURL: https://grafana.github.io/helm-charts
+      chart: loki
+      targetRevision: 7.3.0
+      helm:
+        releaseName: loki
+        valueFiles:
+          - $values/ops/argocd/charts/values/loki/prod.yaml
+    - repoURL: https://github.com/REPLACE_ME/theparlor-new.git
+      targetRevision: main
+      ref: values

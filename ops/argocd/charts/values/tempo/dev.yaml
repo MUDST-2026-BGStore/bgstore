@@ -1,0 +1,10 @@
+tempo:
+  retention: 24h
+  receivers:
+    otlp:
+      protocols:
+        http:
+          endpoint: 0.0.0.0:4318
+persistence:
+  enabled: true
+  size: 5Gi

@@ -1,0 +1,33 @@
+grafana:
+  admin:
+    existingSecret: grafana-admin
+    userKey: username
+    passwordKey: password
+  persistence:
+    enabled: true
+    size: 2Gi
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      url: http://loki-gateway
+      access: proxy
+      jsonData:
+        derivedFields:
+          - name: TraceID
+            matcherRegex: '"traceId"\s*:\s*"([a-f0-9]+)"'
+            datasourceUid: tempo
+            url: '${__value.raw}'
+    - name: Tempo
+      uid: tempo
+      type: tempo
+      url: http://tempo:3200
+      access: proxy
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    additionalScrapeConfigs:
+      - job_name: theparlor-api
+        metrics_path: /actuator/prometheus
+        static_configs:
+          - targets: ['api.theparlor-staging.svc.cluster.local:8082']

@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: theparlor-prod
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: theparlor
+    app.kubernetes.io/part-of: theparlor
+    theparlor.io/env: prod
+spec:
+  project: theparlor
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+  source:
+    repoURL: https://github.com/REPLACE_ME/theparlor-new.git
+    targetRevision: main
+    path: ops/argocd/applications/prod
+    directory:
+      recurse: false

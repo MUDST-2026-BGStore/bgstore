@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: observability-staging
+  labels:
+    app.kubernetes.io/name: observability
+    app.kubernetes.io/part-of: theparlor
+    theparlor.io/env: staging
+    theparlor.io/observability: 'true'

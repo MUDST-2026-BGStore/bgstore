@@ -1,0 +1,34 @@
+controller:
+  type: daemonset
+alloy:
+  configMap:
+    content: |
+      discovery.kubernetes "pods" { role = "pod" }
+      discovery.relabel "logs" {
+        targets = discovery.kubernetes.pods.targets
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          regex = "theparlor-prod"
+          action = "keep"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label = "service"
+        }
+      }
+      loki.source.kubernetes "pods" {
+        targets = discovery.relabel.logs.output
+        forward_to = [loki.process.theparlor.receiver]
+      }
+      loki.process "theparlor" {
+        stage.json { expressions = { level = "level" } }
+        stage.labels { values = { level = "" } }
+        forward_to = [loki.write.local.receiver]
+      }
+      loki.write "local" {
+        endpoint { url = "http://loki-gateway/loki/api/v1/push" }
+      }

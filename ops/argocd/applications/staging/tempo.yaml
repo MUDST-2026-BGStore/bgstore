@@ -1,0 +1,29 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: theparlor-staging-tempo
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: theparlor
+    app.kubernetes.io/part-of: theparlor
+    theparlor.io/env: staging
+spec:
+  project: theparlor
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: observability-staging
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+  sources:
+    - repoURL: https://grafana-community.github.io/helm-charts
+      chart: tempo
+      targetRevision: 3.2.0
+      helm:
+        releaseName: tempo
+        valueFiles:
+          - $values/ops/argocd/charts/values/tempo/staging.yaml
+    - repoURL: https://github.com/REPLACE_ME/theparlor-new.git
+      targetRevision: main
+      ref: values
