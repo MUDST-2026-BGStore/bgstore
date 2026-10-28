@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: keycloak }
+  template:
+    metadata:
+      labels: { app: keycloak }
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.8.1
+          args: [start, --import-realm]
+          ports:
+            - { containerPort: 8080, name: http }
+            - { containerPort: 9000, name: management }
+          env:
+            - name: THEPARLOR_PUBLIC_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  { name: api-config, key: THEPARLOR_PUBLIC_ORIGIN }
+            - name: THEPARLOR_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  { name: theparlor-runtime, key: THEPARLOR_OIDC_CLIENT_SECRET }
+            - { name: KC_DB, value: postgres }
+            - { name: KC_HTTP_ENABLED, value: 'true' }
+            - { name: KC_HEALTH_ENABLED, value: 'true' }
+            - { name: KC_PROXY_HEADERS, value: xforwarded }
+            - { name: KC_HOSTNAME, value: http://keycloak.127.0.0.1.nip.io }
+            - name: KC_DB_URL
+              valueFrom:
+                { secretKeyRef: { name: theparlor-runtime, key: KC_DB_URL } }
+            - name: KC_DB_USERNAME
+              valueFrom:
+                {
+                  secretKeyRef: { name: theparlor-runtime, key: POSTGRES_USER },
+                }
+            - name: KC_DB_PASSWORD
+              valueFrom:
+                {
+                  secretKeyRef:
+                    { name: theparlor-runtime, key: POSTGRES_PASSWORD },
+                }
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom:
+                {
+                  secretKeyRef:
+                    {
+                      name: theparlor-runtime,
+                      key: KC_BOOTSTRAP_ADMIN_USERNAME,
+                    },
+                }
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom:
+                {
+                  secretKeyRef:
+                    {
+                      name: theparlor-runtime,
+                      key: KC_BOOTSTRAP_ADMIN_PASSWORD,
+                    },
+                }
+          volumeMounts:
+            - name: login-theme
+              mountPath: /opt/keycloak/themes/theparlor/login
+              readOnly: true
+            - {
+                name: realm,
+                mountPath: /opt/keycloak/data/import,
+                readOnly: true,
+              }
+          resources:
+            requests: { cpu: 200m, memory: 512Mi }
+            limits: { cpu: '1', memory: 1Gi }
+          startupProbe:
+            httpGet: { path: /health/ready, port: management }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /health/ready, port: management }
+          livenessProbe:
+            httpGet: { path: /health/live, port: management }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+      volumes:
+        - name: login-theme
+          configMap:
+            name: keycloak-login-theme
+            items:
+              - { key: theme.properties, path: theme.properties }
+              - { key: footer.ftl, path: footer.ftl }
+              - {
+                  key: login-reset-password.ftl,
+                  path: login-reset-password.ftl,
+                }
+              - { key: parlor.css, path: resources/css/parlor.css }
+              - { key: favicon.svg, path: resources/img/favicon.svg }
+              - { key: card-fan.svg, path: resources/img/card-fan.svg }
+              - {
+                  key: messages_en.properties,
+                  path: messages/messages_en.properties,
+                }
+              - {
+                  key: messages_th.properties,
+                  path: messages/messages_th.properties,
+                }
+        - name: realm
+          configMap: { name: keycloak-realm }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+spec:
+  selector: { app: keycloak }
+  ports: [{ port: 8080, targetPort: http, name: http }]

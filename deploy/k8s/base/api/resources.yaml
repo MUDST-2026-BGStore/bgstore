@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+data:
+  SPRING_PROFILES_ACTIVE: dev
+  LOGGING_STRUCTURED_FORMAT_CONSOLE: logstash
+  SPRING_OUTPUT_ANSI_ENABLED: never
+  MANAGEMENT_SERVER_PORT: '8082'
+  KEYCLOAK_ISSUER_URI: http://keycloak.127.0.0.1.nip.io/realms/theparlor
+  KEYCLOAK_BACKCHANNEL_ISSUER_URI: http://keycloak:8080/realms/theparlor
+  THEPARLOR_PUBLIC_ORIGIN: http://theparlor.127.0.0.1.nip.io
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo.observability-dev:4318/v1/traces
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: api }
+  template:
+    metadata:
+      labels: { app: api }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001 }
+      containers:
+        - name: api
+          image: ghcr.io/theparlor/theparlor-api:dev
+          ports:
+            [
+              { containerPort: 8080, name: http },
+              { containerPort: 8082, name: management },
+            ]
+          envFrom:
+            - configMapRef: { name: api-config }
+          env:
+            - name: THEPARLOR_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  { name: theparlor-runtime, key: THEPARLOR_OIDC_CLIENT_SECRET }
+            - name: VALKEY_HOST
+              valueFrom:
+                secretKeyRef: { name: theparlor-runtime, key: VALKEY_HOST }
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: theparlor-runtime, key: VALKEY_PASSWORD }
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                {
+                  secretKeyRef:
+                    { name: theparlor-runtime, key: SPRING_DATASOURCE_URL },
+                }
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                {
+                  secretKeyRef: { name: theparlor-runtime, key: POSTGRES_USER },
+                }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                {
+                  secretKeyRef:
+                    { name: theparlor-runtime, key: POSTGRES_PASSWORD },
+                }
+          resources:
+            requests: { cpu: 100m, memory: 384Mi }
+            limits: { cpu: '1', memory: 768Mi }
+          startupProbe:
+            httpGet: { path: /actuator/health, port: management }
+            periodSeconds: 5
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /actuator/health, port: management }
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: management }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api
+spec:
+  selector: { app: api }
+  ports:
+    [
+      { port: 8080, targetPort: http, name: http },
+      { port: 8082, targetPort: management, name: management },
+    ]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-ingress
+spec:
+  podSelector: { matchLabels: { app: api } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            { matchLabels: { kubernetes.io/metadata.name: ingress-nginx } }
+        - podSelector: { matchLabels: { app: web } }
+      ports: [{ port: 8080, protocol: TCP }]
+    - from:
+        - namespaceSelector:
+            { matchLabels: { theparlor.io/observability: 'true' } }
+      ports: [{ port: 8082, protocol: TCP }]

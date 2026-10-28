@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+data:
+  SPRING_PROFILES_ACTIVE: prod
+  VALKEY_SSL_ENABLED: 'true'
+  THEPARLOR_PUBLIC_ORIGIN: https://theparlor.example.com
+  SESSION_COOKIE_SECURE: 'true'
+  KEYCLOAK_ISSUER_URI: https://keycloak.theparlor.example.com/realms/theparlor
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo.observability-prod:4318/v1/traces
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  template:
+    spec:
+      containers:
+        - name: keycloak
+          env:
+            - {
+                name: KC_HOSTNAME,
+                value: 'https://keycloak.theparlor.example.com',
+              }

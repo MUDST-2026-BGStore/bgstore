@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+data:
+  SPRING_PROFILES_ACTIVE: dev
+  THEPARLOR_PUBLIC_ORIGIN: http://theparlor.127.0.0.1.nip.io
+  SESSION_COOKIE_SECURE: 'false'
+  KEYCLOAK_ISSUER_URI: http://keycloak.127.0.0.1.nip.io/realms/theparlor
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo.observability-dev:4318/v1/traces
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  template:
+    spec:
+      containers:
+        - name: keycloak
+          env:
+            - { name: KC_HOSTNAME, value: 'http://keycloak.127.0.0.1.nip.io' }

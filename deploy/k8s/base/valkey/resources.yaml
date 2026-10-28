@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey
+spec:
+  selector: { app: valkey }
+  ports: [{ port: 6379, name: valkey }]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: valkey
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: valkey }
+  template:
+    metadata:
+      labels: { app: valkey }
+    spec:
+      securityContext: { runAsNonRoot: true, runAsUser: 10001, fsGroup: 10001 }
+      containers:
+        - name: valkey
+          image: valkey/valkey:9.1.2
+          command: [sh, -c]
+          args:
+            [
+              'exec valkey-server --save "" --appendonly no --maxmemory 256mb --maxmemory-policy noeviction --requirepass "$VALKEY_PASSWORD"',
+            ]
+          ports: [{ containerPort: 6379, name: valkey }]
+          env:
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef: { name: theparlor-runtime, key: VALKEY_PASSWORD }
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: '1', memory: 384Mi }
+          readinessProbe:
+            exec:
+              command:
+                [
+                  sh,
+                  -c,
+                  'VALKEYCLI_AUTH="$VALKEY_PASSWORD" valkey-cli ping | grep -q PONG',
+                ]
+          livenessProbe:
+            tcpSocket: { port: valkey }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: valkey-ingress
+spec:
+  podSelector: { matchLabels: { app: valkey } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: api } }
+      ports: [{ port: 6379, protocol: TCP }]

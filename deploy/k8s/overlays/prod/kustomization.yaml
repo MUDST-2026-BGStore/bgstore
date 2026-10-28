@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: theparlor-prod
+resources:
+  - ../../base
+  - namespace.yaml
+  - ingress.yaml
+labels:
+  - pairs:
+      theparlor.io/env: prod
+      app.kubernetes.io/part-of: theparlor
+patches:
+  - path: config.yaml
+images:
+  - name: ghcr.io/theparlor/theparlor-api
+    newTag: prod
+  - name: ghcr.io/theparlor/theparlor-web
+    newTag: prod
+replicas:
+  - name: api
+    count: 2
+  - name: web
+    count: 2
