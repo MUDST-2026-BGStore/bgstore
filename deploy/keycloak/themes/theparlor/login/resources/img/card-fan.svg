@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="260" height="140" viewBox="0 0 260 140" fill="none">
+  <!-- Match the three-card crest in libs/web/ui/src/lib/ParlorCard.vue. -->
+  <g transform="translate(34 16) rotate(-14 42 59)">
+    <rect x=".5" y=".5" width="83" height="117" rx="5" fill="#f3ead8" stroke="#d6c7ac"/>
+    <g fill="#18261f" font-family="Georgia,serif">
+      <text x="8" y="20" font-size="14" font-weight="bold">A</text>
+      <text x="9" y="33" font-size="11">♠</text>
+      <text x="42" y="70" text-anchor="middle" font-size="28">♠</text>
+      <g transform="translate(84 118) rotate(180)">
+        <text x="8" y="20" font-size="14" font-weight="bold">A</text>
+        <text x="9" y="33" font-size="11">♠</text>
+      </g>
+    </g>
+  </g>
+  <g transform="translate(142 16) rotate(14 42 59)">
+    <rect x=".5" y=".5" width="83" height="117" rx="5" fill="#f3ead8" stroke="#d6c7ac"/>
+    <g fill="#8c2d23" font-family="Georgia,serif">
+      <text x="8" y="20" font-size="14" font-weight="bold">K</text>
+      <text x="9" y="33" font-size="11">♦</text>
+      <text x="42" y="70" text-anchor="middle" font-size="28">♦</text>
+      <g transform="translate(84 118) rotate(180)">
+        <text x="8" y="20" font-size="14" font-weight="bold">K</text>
+        <text x="9" y="33" font-size="11">♦</text>
+      </g>
+    </g>
+  </g>
+  <g transform="translate(88 2)">
+    <rect x=".5" y=".5" width="83" height="117" rx="5" fill="#183226" stroke="#d7bf8e"/>
+    <rect x="7" y="7" width="70" height="104" stroke="#c6ad7a" stroke-opacity=".45"/>
+    <circle cx="42" cy="59" r="18" stroke="#c6ad7a" stroke-opacity=".5"/>
+    <text x="41" y="66" text-anchor="middle" fill="#dfc48d" font-family="Georgia,serif" font-size="23" font-style="italic">P</text>
+  </g>
+</svg>

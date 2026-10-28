@@ -1,0 +1,63 @@
+{
+  "realm": "theparlor",
+  "enabled": true,
+  "displayName": "The Parlor",
+  "loginTheme": "theparlor",
+  "registrationAllowed": true,
+  "resetPasswordAllowed": true,
+  "sslRequired": "external",
+  "roles": {
+    "realm": [
+      {
+        "name": "admin"
+      },
+      {
+        "name": "seller"
+      },
+      {
+        "name": "manager"
+      },
+      {
+        "name": "staff"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "theparlor-bff",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/api/auth/callback/keycloak",
+        "http://theparlor.127.0.0.1.nip.io/api/auth/callback/keycloak",
+        "https://staging.theparlor.example.com/api/auth/callback/keycloak",
+        "https://theparlor.example.com/api/auth/callback/keycloak"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5173/##http://theparlor.127.0.0.1.nip.io/##https://staging.theparlor.example.com/##https://theparlor.example.com/"
+      },
+      "protocolMappers": [
+        {
+          "name": "theparlor-realm-roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "realm_access.roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ],
+      "secret": "${THEPARLOR_OIDC_CLIENT_SECRET}"
+    }
+  ]
+}
