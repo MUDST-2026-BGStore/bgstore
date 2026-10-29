@@ -1,0 +1,594 @@
+{
+  "branches": [
+    {
+      "key": "siam",
+      "name": "Siam",
+      "address": "483 Siam Square Soi 7, Pathum Wan, Bangkok 10330"
+    },
+    {
+      "key": "ari",
+      "name": "Ari",
+      "address": "71 Phahon Yothin Soi 7, Phaya Thai, Bangkok 10400"
+    },
+    {
+      "key": "riverside",
+      "name": "Riverside",
+      "address": "2194 Charoen Krung 42, Bang Rak, Bangkok 10500"
+    }
+  ],
+  "openingHours": [
+    {
+      "dayOfWeek": 1,
+      "opens": "12:00",
+      "closes": "21:00"
+    },
+    {
+      "dayOfWeek": 2,
+      "opens": "12:00",
+      "closes": "21:00"
+    },
+    {
+      "dayOfWeek": 3,
+      "opens": "12:00",
+      "closes": "21:00"
+    },
+    {
+      "dayOfWeek": 4,
+      "opens": "12:00",
+      "closes": "21:00"
+    },
+    {
+      "dayOfWeek": 5,
+      "opens": "12:00",
+      "closes": "21:30"
+    },
+    {
+      "dayOfWeek": 6,
+      "opens": "10:00",
+      "closes": "21:30"
+    },
+    {
+      "dayOfWeek": 7,
+      "opens": "10:00",
+      "closes": "21:00"
+    }
+  ],
+  "categories": [
+    "Party & Casual",
+    "Social Deduction",
+    "Strategy",
+    "Cooperative",
+    "Mystery & Puzzle",
+    "Quick & Light",
+    "Adventure & Immersive"
+  ],
+  "mechanics": [
+    "Tile placement",
+    "Drafting",
+    "Engine building",
+    "Card drafting",
+    "Word association",
+    "Team-based",
+    "Hidden roles",
+    "Bluffing",
+    "Voting",
+    "Trading",
+    "Network building",
+    "Dice rolling",
+    "Hand management",
+    "Deduction",
+    "Pattern building"
+  ],
+  "games": [
+    {
+      "key": "azul",
+      "name": "Azul",
+      "designer": "Michael Kiesling",
+      "difficulty": "EASY",
+      "players": [2, 4],
+      "playMinutes": [30, 45],
+      "teachMinutes": 5,
+      "setupMinutes": 5,
+      "retailPriceThb": 1490,
+      "languages": ["en", "th"],
+      "image": "/images/games/azul.jpg",
+      "categories": ["Strategy", "Quick & Light"],
+      "mechanics": ["Tile placement", "Drafting"],
+      "descriptions": {
+        "en-US": "Draft tiles from shared supplies and arrange them on your board to score patterns and complete rows.",
+        "th-TH": "เลือกกระเบื้องจากกองกลางแล้วจัดเรียงบนกระดานของคุณ ทำคะแนนจากลวดลายและแถวที่ต่อครบ"
+      }
+    },
+    {
+      "key": "wingspan",
+      "name": "Wingspan",
+      "designer": "Elizabeth Hargrave",
+      "difficulty": "MEDIUM",
+      "players": [1, 5],
+      "playMinutes": [40, 70],
+      "teachMinutes": 15,
+      "setupMinutes": 10,
+      "retailPriceThb": 2490,
+      "languages": ["en"],
+      "image": "/images/games/wingspan.jpg",
+      "categories": ["Strategy"],
+      "mechanics": ["Engine building", "Card drafting"],
+      "descriptions": {
+        "en-US": "Build a bird habitat by playing cards with abilities that produce food, eggs and points.",
+        "th-TH": "สร้างแหล่งอาศัยของนกด้วยการ์ดที่มีความสามารถต่างกัน เพื่อรับอาหาร ไข่ และคะแนน"
+      }
+    },
+    {
+      "key": "codenames",
+      "name": "Codenames",
+      "designer": "Vlaada Chvátil",
+      "difficulty": "EASY",
+      "players": [2, 8],
+      "playMinutes": [15, 20],
+      "teachMinutes": 5,
+      "setupMinutes": 3,
+      "retailPriceThb": 990,
+      "languages": ["en", "th"],
+      "image": "/images/games/codenames.jpg",
+      "categories": ["Party & Casual", "Quick & Light"],
+      "mechanics": ["Word association", "Team-based"],
+      "descriptions": {
+        "en-US": "Give one-word clues to help your team identify its agents on a shared grid of words. Avoid the assassin.",
+        "th-TH": "ให้คำใบ้เพียงคำเดียวเพื่อช่วยทีมค้นหาสายลับของตนบนตารางคำศัพท์ และหลีกเลี่ยงมือสังหาร"
+      }
+    },
+    {
+      "key": "avalon",
+      "name": "The Resistance: Avalon",
+      "designer": "Don Eskridge",
+      "difficulty": "EASY",
+      "players": [5, 10],
+      "playMinutes": [30, 30],
+      "teachMinutes": 10,
+      "setupMinutes": 5,
+      "retailPriceThb": null,
+      "languages": [],
+      "image": "/images/games/avalon.jpg",
+      "categories": ["Social Deduction", "Party & Casual"],
+      "mechanics": ["Hidden roles", "Bluffing", "Voting"],
+      "descriptions": {
+        "en-US": "Vote on quest teams while deducing hidden loyalties. Loyal players must complete three quests without revealing Merlin.",
+        "th-TH": "โหวตเลือกทีมออกทำภารกิจพร้อมสืบหาฝ่ายที่ซ่อนอยู่ ผู้ภักดีต้องทำภารกิจสำเร็จสามครั้งโดยไม่เปิดเผยตัวเมอร์ลิน"
+      }
+    },
+    {
+      "key": "catan",
+      "name": "Catan",
+      "designer": "Klaus Teuber",
+      "difficulty": "MEDIUM",
+      "players": [3, 4],
+      "playMinutes": [60, 120],
+      "teachMinutes": 15,
+      "setupMinutes": 10,
+      "retailPriceThb": 1890,
+      "languages": ["en", "th"],
+      "image": "/images/games/catan.jpg",
+      "categories": ["Strategy"],
+      "mechanics": ["Trading", "Network building", "Dice rolling"],
+      "descriptions": {
+        "en-US": "Collect and trade resources to build roads, settlements and cities on a modular island board.",
+        "th-TH": "เก็บและแลกเปลี่ยนทรัพยากรเพื่อสร้างถนน หมู่บ้าน และเมืองบนเกาะที่เปลี่ยนรูปแบบได้ทุกครั้ง"
+      }
+    },
+    {
+      "key": "pandemic",
+      "name": "Pandemic",
+      "designer": "Matt Leacock",
+      "difficulty": "MEDIUM",
+      "players": [2, 4],
+      "playMinutes": [45, 60],
+      "teachMinutes": 10,
+      "setupMinutes": 10,
+      "retailPriceThb": 1690,
+      "languages": ["en", "th"],
+      "image": "/images/games/pandemic.jpg",
+      "categories": ["Cooperative"],
+      "mechanics": ["Team-based", "Hand management"],
+      "descriptions": {
+        "en-US": "Coordinate specialist roles to treat outbreaks and discover four cures before time runs out.",
+        "th-TH": "ร่วมมือกันใช้ความสามารถของแต่ละบทบาทเพื่อควบคุมการระบาดและค้นพบยารักษาทั้งสี่ชนิดก่อนหมดเวลา"
+      }
+    },
+    {
+      "key": "cascadia",
+      "name": "Cascadia",
+      "designer": "Randy Flynn",
+      "difficulty": "EASY",
+      "players": [1, 4],
+      "playMinutes": [30, 45],
+      "teachMinutes": 5,
+      "setupMinutes": 5,
+      "retailPriceThb": 1790,
+      "languages": ["en"],
+      "image": "/images/games/cascadia.jpg",
+      "categories": ["Strategy", "Mystery & Puzzle"],
+      "mechanics": ["Tile placement", "Pattern building"],
+      "descriptions": {
+        "en-US": "Draft habitat tiles and wildlife tokens. Score by connecting landscapes and arranging animals in specific patterns.",
+        "th-TH": "เลือกแผ่นถิ่นอาศัยและโทเคนสัตว์ป่า ทำคะแนนจากการเชื่อมพื้นที่และจัดวางสัตว์ตามรูปแบบที่กำหนด"
+      }
+    },
+    {
+      "key": "love-letter",
+      "name": "Love Letter",
+      "designer": "Seiji Kanai",
+      "difficulty": "EASY",
+      "players": [2, 6],
+      "playMinutes": [15, 20],
+      "teachMinutes": 5,
+      "setupMinutes": 2,
+      "retailPriceThb": 690,
+      "languages": ["en", "th"],
+      "image": "/images/games/love-letter.jpg",
+      "categories": ["Quick & Light", "Party & Casual"],
+      "mechanics": ["Deduction", "Bluffing", "Hand management"],
+      "descriptions": {
+        "en-US": "Draw and play character cards to deduce other players’ hands and eliminate rivals from each round.",
+        "th-TH": "จั่วและเล่นการ์ดตัวละครเพื่อคาดเดาการ์ดในมือผู้อื่น และทำให้คู่แข่งออกจากรอบ"
+      }
+    },
+    {
+      "key": "wavelength",
+      "name": "Wavelength",
+      "players": [2, 12],
+      "playMinutes": [30, 45],
+      "retailPriceThb": null,
+      "languages": [],
+      "categories": ["Party & Casual"],
+      "mechanics": ["Word association", "Team-based"],
+      "descriptions": {
+        "en-US": "Give a clue along a spectrum, then work together to place a dial as close as possible to the hidden target.",
+        "th-TH": "ให้คำใบ้บนสเกลระหว่างสองแนวคิด แล้วช่วยกันหมุนเข็มให้ใกล้ตำแหน่งเป้าหมายที่ซ่อนอยู่มากที่สุด"
+      },
+      "image": "/images/games/wavelength.jpg",
+      "difficulty": "EASY",
+      "teachMinutes": 5,
+      "setupMinutes": 2
+    },
+    {
+      "key": "cash-n-guns",
+      "name": "Cash ’n Guns",
+      "players": [4, 8],
+      "playMinutes": [30, 30],
+      "retailPriceThb": null,
+      "languages": [],
+      "categories": ["Party & Casual"],
+      "mechanics": ["Bluffing", "Hand management"],
+      "descriptions": {
+        "en-US": "Choose ammunition in secret, bluff your opponents and decide when to back down before dividing the loot.",
+        "th-TH": "เลือกกระสุนอย่างลับ ๆ บลัฟคู่แข่ง และตัดสินใจว่าจะถอยเมื่อใด ก่อนแบ่งของที่ปล้นมาได้"
+      },
+      "image": "/images/games/cash-n-guns.jpg",
+      "difficulty": "EASY",
+      "teachMinutes": 10,
+      "setupMinutes": 5
+    },
+    {
+      "key": "monikers",
+      "name": "Monikers",
+      "players": [2, 12],
+      "playMinutes": [30, 30],
+      "retailPriceThb": null,
+      "languages": [],
+      "categories": ["Party & Casual"],
+      "mechanics": ["Team-based", "Word association"],
+      "descriptions": {
+        "en-US": "Help your team guess the same set of names over three rounds using descriptions, one word and then gestures.",
+        "th-TH": "ช่วยทีมทายชื่อจากการ์ดชุดเดิมตลอดสามรอบ โดยเริ่มจากการอธิบาย ตามด้วยคำใบ้หนึ่งคำ และจบด้วยท่าทาง"
+      },
+      "designer": "Alex Hague & Justin Vickers",
+      "image": "/images/games/monikers.jpg",
+      "difficulty": "EASY",
+      "teachMinutes": 5,
+      "setupMinutes": 2
+    },
+    {
+      "key": "betrayal-at-house-on-the-hill",
+      "name": "Betrayal at House on the Hill",
+      "players": [3, 6],
+      "playMinutes": [60, 60],
+      "retailPriceThb": null,
+      "languages": [],
+      "categories": ["Adventure & Immersive", "Mystery & Puzzle"],
+      "mechanics": ["Tile placement", "Hidden roles", "Dice rolling"],
+      "descriptions": {
+        "en-US": "Explore a haunted house room by room until a haunt changes the rules and may turn an explorer against the group.",
+        "th-TH": "สำรวจบ้านผีสิงทีละห้องจนเหตุการณ์หลอนเปลี่ยนกติกา และอาจทำให้นักสำรวจคนหนึ่งกลายเป็นฝ่ายตรงข้าม"
+      },
+      "image": "/images/games/betrayal-at-house-on-the-hill.jpg",
+      "difficulty": "MEDIUM",
+      "teachMinutes": 15,
+      "setupMinutes": 10
+    },
+    {
+      "key": "taboo",
+      "name": "Taboo",
+      "players": [4, 20],
+      "playMinutes": [20, 30],
+      "retailPriceThb": null,
+      "languages": [],
+      "categories": ["Party & Casual"],
+      "mechanics": ["Word association", "Team-based"],
+      "descriptions": {
+        "en-US": "Describe a target word to your teammates without saying the forbidden words printed on its card.",
+        "th-TH": "อธิบายคำเป้าหมายให้เพื่อนร่วมทีมทาย โดยห้ามพูดคำต้องห้ามที่ระบุบนการ์ด"
+      },
+      "image": "/images/games/taboo.jpg",
+      "difficulty": "EASY",
+      "teachMinutes": 5,
+      "setupMinutes": 2
+    },
+    {
+      "key": "beyond-balderdash",
+      "name": "Beyond Balderdash",
+      "players": [2, 6],
+      "playMinutes": [45, 60],
+      "retailPriceThb": null,
+      "languages": [],
+      "categories": ["Party & Casual"],
+      "mechanics": ["Bluffing", "Voting"],
+      "descriptions": {
+        "en-US": "Write convincing invented answers to unusual prompts, then try to identify the real answer among the bluffs.",
+        "th-TH": "แต่งคำตอบให้ดูน่าเชื่อสำหรับคำถามแปลก ๆ แล้วพยายามแยกคำตอบจริงออกจากคำตอบที่ทุกคนแต่งขึ้น"
+      },
+      "image": "/images/games/beyond-balderdash.jpg",
+      "difficulty": "EASY",
+      "teachMinutes": 10,
+      "setupMinutes": 5
+    },
+    {
+      "key": "cosmic-encounter",
+      "name": "Cosmic Encounter",
+      "players": [3, 5],
+      "playMinutes": [60, 120],
+      "retailPriceThb": null,
+      "languages": [],
+      "categories": ["Strategy", "Adventure & Immersive"],
+      "mechanics": ["Trading", "Hand management", "Bluffing"],
+      "descriptions": {
+        "en-US": "Lead an alien species, negotiate alliances and use asymmetric powers to establish colonies on other players’ planets.",
+        "th-TH": "นำเผ่าพันธุ์เอเลียน เจรจาพันธมิตร และใช้พลังเฉพาะตัวเพื่อสร้างอาณานิคมบนดาวของผู้เล่นอื่น"
+      },
+      "image": "/images/games/cosmic-encounter.jpg",
+      "difficulty": "ADVANCED",
+      "teachMinutes": 20,
+      "setupMinutes": 10
+    },
+    {
+      "key": "blood-on-the-clocktower",
+      "name": "Blood on the Clocktower",
+      "players": [5, 20],
+      "playMinutes": [30, 120],
+      "retailPriceThb": null,
+      "languages": [],
+      "categories": ["Social Deduction", "Mystery & Puzzle"],
+      "mechanics": ["Hidden roles", "Deduction", "Voting"],
+      "descriptions": {
+        "en-US": "Trade information and nominate suspects in a town divided between good and evil, guided by a separate Storyteller.",
+        "th-TH": "สืบหาปีศาจที่ซ่อนอยู่ในเมืองผ่านการพูดคุยและลงคะแนน โดยมีผู้ดำเนินเกมดูแลบทบาทลับและเหตุการณ์ยามค่ำคืน"
+      },
+      "image": "/images/games/blood-on-the-clocktower.jpg",
+      "difficulty": "ADVANCED",
+      "teachMinutes": 20,
+      "setupMinutes": 15
+    }
+  ],
+  "retailStock": {
+    "siam": {
+      "azul-en": 4,
+      "azul-th": 2,
+      "wingspan-en": 0,
+      "codenames-en": 6,
+      "codenames-th": 2,
+      "catan-en": 3,
+      "catan-th": 2,
+      "pandemic-en": 2,
+      "cascadia-en": 4,
+      "love-letter-en": 8
+    },
+    "ari": {
+      "azul-en": 1,
+      "azul-th": 3,
+      "wingspan-en": 2,
+      "codenames-en": 2,
+      "codenames-th": 0,
+      "catan-en": 0,
+      "catan-th": 1,
+      "pandemic-en": 0,
+      "cascadia-en": 2,
+      "love-letter-en": 4
+    },
+    "riverside": {
+      "azul-en": 0,
+      "azul-th": 1,
+      "wingspan-en": 1,
+      "codenames-en": 4,
+      "codenames-th": 1,
+      "catan-en": 2,
+      "pandemic-en": 3,
+      "cascadia-en": 0,
+      "love-letter-en": 2
+    }
+  },
+  "rentalLibraries": {
+    "siam": {
+      "azul": {
+        "offered": true,
+        "staffCanTeach": true
+      },
+      "wingspan": {
+        "offered": true,
+        "staffCanTeach": true
+      },
+      "codenames": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "avalon": {
+        "offered": true,
+        "staffCanTeach": true
+      },
+      "catan": {
+        "offered": true,
+        "staffCanTeach": true
+      },
+      "pandemic": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "cascadia": {
+        "offered": false,
+        "staffCanTeach": false
+      },
+      "love-letter": {
+        "offered": true,
+        "staffCanTeach": true
+      },
+      "wavelength": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "cash-n-guns": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "monikers": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "betrayal-at-house-on-the-hill": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "taboo": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "beyond-balderdash": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "cosmic-encounter": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "blood-on-the-clocktower": {
+        "offered": true,
+        "staffCanTeach": false
+      }
+    },
+    "ari": {
+      "azul": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "wingspan": {
+        "offered": false,
+        "staffCanTeach": false
+      },
+      "codenames": {
+        "offered": true,
+        "staffCanTeach": true
+      },
+      "avalon": {
+        "offered": true,
+        "staffCanTeach": true
+      },
+      "catan": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "love-letter": {
+        "offered": true,
+        "staffCanTeach": false
+      }
+    },
+    "riverside": {
+      "azul": {
+        "offered": false,
+        "staffCanTeach": false
+      },
+      "codenames": {
+        "offered": true,
+        "staffCanTeach": true
+      },
+      "catan": {
+        "offered": true,
+        "staffCanTeach": true
+      },
+      "pandemic": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "cascadia": {
+        "offered": true,
+        "staffCanTeach": false
+      },
+      "love-letter": {
+        "offered": true,
+        "staffCanTeach": false
+      }
+    }
+  },
+  "tables": {
+    "siam": [
+      {
+        "label": "Table 1",
+        "seats": 2
+      },
+      {
+        "label": "Table 2",
+        "seats": 4
+      },
+      {
+        "label": "Table 3",
+        "seats": 4
+      },
+      {
+        "label": "Table 4",
+        "seats": 6
+      }
+    ],
+    "ari": [
+      {
+        "label": "Table 1",
+        "seats": 2
+      },
+      {
+        "label": "Table 2",
+        "seats": 4
+      },
+      {
+        "label": "Table 3",
+        "seats": 4
+      },
+      {
+        "label": "Table 4",
+        "seats": 6
+      }
+    ],
+    "riverside": [
+      {
+        "label": "Table 1",
+        "seats": 2
+      },
+      {
+        "label": "Table 2",
+        "seats": 4
+      },
+      {
+        "label": "Table 3",
+        "seats": 4
+      },
+      {
+        "label": "Table 4",
+        "seats": 6
+      }
+    ]
+  }
+}
