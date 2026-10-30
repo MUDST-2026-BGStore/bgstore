@@ -1,0 +1,28 @@
+package <%= packageName %>.internal.application;
+<% if (interfaceName) { %>
+import <%= packageName %>.<%= interfaceName %>;<% } %>
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+/** Unfinished application service; replace the placeholder with domain operations. */
+@Service
+@Transactional(readOnly = true)
+public class <%= serviceName %><% if (interfaceName) { %> implements <%= interfaceName %><% } %> {
+  // TODO(<%= todoTag %>): wire dependencies.
+  // Add required collaborators through constructor injection.
+  // Use this module's repositories and other modules' public interfaces, never their internals.
+<% if (interfaceName) { %>
+  @Override<% } %><% if (write) { %>
+  @Transactional<% } %>
+  public void <%= method %>() {
+    // TODO(<%= todoTag %>): implement this operation.
+    // Define typed inputs/outputs for the operation.
+    // Reuse OpenAPI-generated models at the HTTP boundary; do not hand-edit generated bindings.
+    // Enforce authorization and validate IDs, ownership and active state before accessing data.
+    // Staff need explicit branch assignments; managers/admins can operate across branches.
+<% if (write) { %>    // Mutate through domain methods; lock shared resources and roll back all changes on failure.
+    // Keep scalar foreign keys and existing commitments; use a new migration for schema changes.
+<% } else { %>    // Keep this operation read-only; return a projection without exposing persistence entities.
+<% } %>    throw new UnsupportedOperationException("Service operation is not implemented yet");
+  }
+}

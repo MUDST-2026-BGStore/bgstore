@@ -1,0 +1,15 @@
+{
+  "name": "backend-tools",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tools/backend-tools/src",
+  "projectType": "library",
+  "tags": ["scope:theparlor", "layer:tools"],
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "tsc --noEmit -p tools/backend-tools/tsconfig.lib.json && tsc --noEmit -p tools/backend-tools/tsconfig.spec.json"
+      }
+    }
+  }
+}

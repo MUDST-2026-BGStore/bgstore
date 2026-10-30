@@ -1,0 +1,9 @@
+{
+  "generators": {
+    "backend-service": {
+      "factory": "./src/generators/backend-service/backend-service",
+      "schema": "./src/generators/backend-service/schema.json",
+      "description": "Scaffold a TODO-filled Java service inside an existing backend module"
+    }
+  }
+}

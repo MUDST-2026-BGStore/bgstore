@@ -1,0 +1,10 @@
+package <%= packageName %>;
+
+/** Public module interface; implementation belongs in internal.application. */
+public interface <%= interfaceName %> {
+  // TODO(<%= todoTag %>): define the contract.
+  // Specify typed inputs/outputs and transaction ownership for this operation.
+  // Keep domain entities and repositories internal; expose IDs and value snapshots.
+  // Add this module to consumers' allowedDependencies deliberately when wiring the interface.
+  void <%= method %>();
+}

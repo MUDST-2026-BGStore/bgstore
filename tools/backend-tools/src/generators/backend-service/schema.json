@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "$id": "TheparlorBackendService",
+  "cli": "nx",
+  "title": "Backend service",
+  "description": "Add an unfinished Spring service to an existing backend module. Example: pnpm nx g @theparlor/backend-tools:backend-service --module=inventory --name=stock-pricing --method=quote --dry-run --no-interactive",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "module": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*$",
+      "description": "Existing Spring Modulith module, such as inventory. Does not create a new module."
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*$",
+      "maxLength": 80,
+      "description": "PascalCase or kebab-case service name; Service is appended if absent.",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      }
+    },
+    "interfaceName": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]*$",
+      "maxLength": 80,
+      "description": "Optional public module interface name, e.g. StockPricing. Existing files are never overwritten."
+    },
+    "method": {
+      "type": "string",
+      "pattern": "^[a-z][A-Za-z0-9]*$",
+      "maxLength": 80,
+      "default": "execute",
+      "description": "Name of the void placeholder method. Replace its signature with domain-specific inputs/outputs."
+    },
+    "write": {
+      "type": "boolean",
+      "default": false,
+      "description": "Add a write transaction to the placeholder method; otherwise it inherits readOnly=true."
+    }
+  },
+  "required": ["module", "name"]
+}
