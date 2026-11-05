@@ -319,6 +319,80 @@ class TheparlorApiApplicationTests {
   }
 
   @Test
+  void saleStockChangesRequireBranchAccessAndPreserveHeldUnits() throws Exception {
+    var branch = UUID.randomUUID();
+    var game = UUID.randomUUID();
+    var edition = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Inventory test', 'Address')", branch);
+    jdbc.update(
+        "INSERT INTO games(id,name,min_players,max_players,play_minutes_min,play_minutes_max) VALUES (?, 'Inventory game',1,4,10,20)",
+        game);
+    jdbc.update(
+        "INSERT INTO game_descriptions(game_id,locale,description) VALUES (?, 'en-US', 'Game')",
+        game);
+    jdbc.update(
+        "INSERT INTO game_editions(id,game_id,kind,language_code) VALUES (?,?,'BASE_GAME','en')",
+        edition,
+        game);
+    jdbc.update(
+        "INSERT INTO branch_games(branch_id,game_id,sale_enabled,rental_enabled,staff_can_teach,rental_hourly_rate_minor) VALUES (?,?,true,false,false,0)",
+        branch,
+        game);
+    jdbc.update(
+        "INSERT INTO branch_editions(branch_id,edition_id,sale_price_minor,stock_on_hand,stock_held) VALUES (?,?,10000,5,2)",
+        branch,
+        edition);
+    String path = "/api/v1/branches/" + branch + "/editions/" + edition;
+    assertThat(
+            writeJson(
+                    login("staff"),
+                    "POST",
+                    path + "/stock-adjustments",
+                    "{\"delta\":1,\"reason\":\"Receipt\"}")
+                .statusCode())
+        .isEqualTo(403);
+    var manager = login("manager");
+    assertThat(
+            writeJson(manager, "PUT", path, "{\"salePrice\":{\"amountMinor\":12000}}").statusCode())
+        .isEqualTo(200);
+    var response =
+        writeJson(
+            manager,
+            "POST",
+            path + "/stock-adjustments",
+            "{\"delta\":-4,\"reason\":\"Correction\"}");
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(409);
+    response =
+        writeJson(
+            manager, "POST", path + "/stock-adjustments", "{\"delta\":3,\"reason\":\"Receipt\"}");
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(201);
+    assertThat(JSON.readTree(response.body()).get("saleOnHand").asInt()).isEqualTo(8);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT sale_price_minor FROM branch_editions WHERE branch_id=? AND edition_id=?",
+                Long.class,
+                branch,
+                edition))
+        .isEqualTo(12000);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM sale_stock_adjustments WHERE branch_id=? AND edition_id=?",
+                Integer.class,
+                branch,
+                edition))
+        .isEqualTo(1);
+    String copyPath = "/api/v1/branches/" + branch + "/games/" + game + "/rental-copies";
+    String code = "x".repeat(80);
+    var createdCopy = writeJson(manager, "POST", copyPath, "{\"assetCode\":\"" + code + "\"}");
+    assertThat(createdCopy.statusCode()).as(createdCopy.body()).isEqualTo(201);
+    assertThat(JSON.readTree(createdCopy.body()).get("state").asString()).isEqualTo("AVAILABLE");
+    assertThat(
+            writeJson(manager, "POST", copyPath, "{\"assetCode\":\"" + code + "\"}").statusCode())
+        .isEqualTo(409);
+  }
+
+  @Test
   void publicGameDetailHidesInactiveAndMissingTitles() throws Exception {
     var active = UUID.randomUUID();
     var inactive = UUID.randomUUID();

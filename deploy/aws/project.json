@@ -1,0 +1,163 @@
+{
+  "name": "aws-infra",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "tags": ["scope:infrastructure"],
+  "targets": {
+    "validate": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py validate"
+      }
+    },
+    "tools": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py tools"
+      }
+    },
+    "init": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py init"
+      }
+    },
+    "fmt": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py fmt"
+      }
+    },
+    "plan": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py plan"
+      }
+    },
+    "adopt": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py adopt"
+      }
+    },
+    "apply": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py apply"
+      }
+    },
+    "inventory": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py inventory"
+      }
+    },
+    "setup-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py setup-check"
+      }
+    },
+    "setup": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py setup"
+      }
+    },
+    "ssh": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py ssh"
+      }
+    },
+    "argocd": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py argocd"
+      }
+    },
+    "kube-tunnel": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py kube-tunnel"
+      }
+    },
+    "kubeconfig": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py kubeconfig"
+      }
+    },
+    "status": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py status"
+      }
+    },
+    "secrets": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py secrets"
+      }
+    },
+    "gitops-enable": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py gitops-enable"
+      }
+    },
+    "publish-images": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/manage.py publish-images"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 -m unittest discover -s deploy/aws -p '*_test.py'"
+      }
+    },
+    "build-images": {
+      "executor": "nx:run-commands",
+      "outputs": [],
+      "options": {
+        "command": "python3 deploy/aws/manage.py build-images"
+      },
+      "cache": false
+    },
+    "publish-snapshot": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/deploy.py publish-snapshot"
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/deploy.py sync"
+      }
+    }
+  }
+}

@@ -1,15 +1,51 @@
 package com.chanakanlabs.theparlor.inventory.internal.application;
 
+import com.chanakanlabs.theparlor.branches.BranchAccess;
+import com.chanakanlabs.theparlor.catalog.CatalogLookup;
 import com.chanakanlabs.theparlor.contracts.model.*;
+import com.chanakanlabs.theparlor.inventory.internal.domain.BranchEdition;
+import com.chanakanlabs.theparlor.inventory.internal.domain.BranchEditionId;
+import com.chanakanlabs.theparlor.inventory.internal.domain.BranchGameId;
+import com.chanakanlabs.theparlor.inventory.internal.domain.SaleStockAdjustment;
+import com.chanakanlabs.theparlor.inventory.internal.persistence.BranchEditionRepository;
+import com.chanakanlabs.theparlor.inventory.internal.persistence.BranchGameRepository;
+import com.chanakanlabs.theparlor.inventory.internal.persistence.RentalCopyRepository;
+import com.chanakanlabs.theparlor.inventory.internal.persistence.SaleStockAdjustmentRepository;
+import java.time.ZoneOffset;
 import java.util.UUID;
 import org.jspecify.annotations.Nullable;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 /** Branch offerings, current prices and physical inventory. All operations are unfinished. */
 @Service
 @Transactional(readOnly = true)
 public class InventoryService {
+  private final BranchAccess branches;
+  private final CatalogLookup catalog;
+  private final BranchGameRepository offerings;
+  private final BranchEditionRepository stock;
+  private final SaleStockAdjustmentRepository adjustments;
+  private final RentalCopyRepository copies;
+
+  public InventoryService(
+      BranchAccess branches,
+      CatalogLookup catalog,
+      BranchGameRepository offerings,
+      BranchEditionRepository stock,
+      SaleStockAdjustmentRepository adjustments,
+      RentalCopyRepository copies) {
+    this.branches = branches;
+    this.catalog = catalog;
+    this.offerings = offerings;
+    this.stock = stock;
+    this.adjustments = adjustments;
+    this.copies = copies;
+  }
+
   // TODO(inventory-access): use public catalog/branch interfaces to validate ownership and active
   // state. Add allowedDependencies only when those interfaces exist; never import their internals.
   // TODO(inventory-access): enforce branch-operator access on every write and copy-list operation:
@@ -45,23 +81,77 @@ public class InventoryService {
   @Transactional
   public BranchEditionStock upsertBranchEdition(
       UUID branchId, UUID editionId, UpsertBranchEditionRequest request) {
-    // TODO(inventory-price): authorize operator; validate edition/game/branch and sale offering
-    // through public module interfaces. Create with onHand=held=0, or change only the price.
-    // Use domain methods and handle concurrent creation of the same branch/edition pair.
-    // Existing order price snapshots must stay unchanged. Return the contract's 201/200 status.
-    throw new UnsupportedOperationException("Edition sale pricing is not implemented yet");
+    branches.requireOperator(branchId);
+    var edition = catalog.edition(editionId).orElseThrow(InventoryService::missing);
+    if (catalog.activeGame(edition.getGameId()).isEmpty()) throw missing();
+    var offering =
+        offerings
+            .lockById(new BranchGameId(branchId, edition.getGameId()))
+            .orElseThrow(InventoryService::missing);
+    if (!offering.isSaleEnabled()) throw missing();
+    var id = new BranchEditionId(branchId, editionId);
+    var row = stock.lockById(id).orElse(null);
+    long price = request.getSalePrice().getAmountMinor();
+    if (row == null) row = stock.save(BranchEdition.create(id, price));
+    else row.changePrice(price);
+    return mapStock(row, edition, offering.isSaleEnabled());
   }
 
   @Transactional
   public StockAdjustment adjustSaleStock(
       UUID branchId, UUID editionId, StockAdjustmentRequest request) {
-    // TODO(inventory-stock): authorize operator; require an existing branch price, nonzero delta
-    // and nonblank reason. Lock the same stock row used by SaleInventoryService and reject
-    // onHand+delta<held or integer overflow. Mutate through BranchEdition domain methods.
-    // Append SaleStockAdjustment with server actor/time in this transaction; rollback both on
-    // error.
-    // Never add rental copies or change the sale price through a stock adjustment.
-    throw new UnsupportedOperationException("Sale stock adjustments are not implemented yet");
+    String actor = branches.requireOperator(branchId);
+    var edition = catalog.edition(editionId).orElseThrow(InventoryService::missing);
+    var offering =
+        offerings
+            .lockById(new BranchGameId(branchId, edition.getGameId()))
+            .orElseThrow(InventoryService::missing);
+    var row =
+        stock
+            .lockById(new BranchEditionId(branchId, editionId))
+            .orElseThrow(InventoryService::missing);
+    var adjustment =
+        SaleStockAdjustment.create(
+            branchId, editionId, request.getDelta(), request.getReason(), actor);
+    try {
+      row.adjustStock(request.getDelta());
+    } catch (ArithmeticException | IllegalArgumentException ex) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Stock adjustment exceeds available units", ex);
+    }
+    adjustments.saveAndFlush(adjustment);
+    boolean available =
+        offering.isSaleEnabled()
+            && Boolean.TRUE.equals(edition.getActive())
+            && catalog.activeGame(edition.getGameId()).isPresent();
+    return new StockAdjustment(
+        adjustment.getId(),
+        branchId,
+        editionId,
+        adjustment.getDelta(),
+        adjustment.getReason(),
+        row.getSaleOnHand(),
+        available ? row.getSaleOnHand() - row.getSaleHeld() : 0,
+        adjustment.getCreatedAt().atOffset(ZoneOffset.UTC),
+        actor);
+  }
+
+  private static BranchEditionStock mapStock(
+      BranchEdition row, GameEdition edition, boolean saleEnabled) {
+    boolean available = saleEnabled && Boolean.TRUE.equals(edition.getActive());
+    return new BranchEditionStock(
+        edition.getId(),
+        BranchEditionStock.EditionKindEnum.fromValue(edition.getEditionKind().getValue()),
+        edition.getLanguageCode(),
+        edition.getActive(),
+        new Money(row.getSalePriceMinor()),
+        row.getSaleOnHand(),
+        row.getSaleHeld(),
+        available ? row.getSaleOnHand() - row.getSaleHeld() : 0);
+  }
+
+  private static ResponseStatusException missing() {
+    return new ResponseStatusException(HttpStatus.NOT_FOUND, "Inventory item not found");
   }
 
   public RentalCopyPage listRentalCopies(
@@ -74,13 +164,25 @@ public class InventoryService {
 
   @Transactional
   public RentalCopy createRentalCopy(UUID branchId, UUID gameId, CreateRentalCopyRequest request) {
-    // TODO(inventory-copies): authorize operator, validate ownership and register a USABLE copy
-    // through a domain factory. Enforce branch-wide unique asset codes; translate duplicates to
-    // 409.
-    // TODO(inventory-contract): resolve assetCode maxLength=80 versus storage/domain width=64
-    // in OpenAPI and, if widening storage, a new migration; regenerate bindings after contract
-    // edits.
-    throw new UnsupportedOperationException("Rental copy registration is not implemented yet");
+    branches.requireOperator(branchId);
+    if (catalog.activeGame(gameId).isEmpty()) throw missing();
+    offerings.lockById(new BranchGameId(branchId, gameId)).orElseThrow(InventoryService::missing);
+    var copy =
+        com.chanakanlabs.theparlor.inventory.internal.domain.RentalCopy.register(
+            branchId, gameId, request.getAssetCode());
+    try {
+      copies.saveAndFlush(copy);
+    } catch (DataIntegrityViolationException ex) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Asset code already exists at this branch", ex);
+    }
+    return new RentalCopy(
+        copy.getId(),
+        branchId,
+        gameId,
+        copy.getAssetCode(),
+        RentalCopyOperationalStatus.USABLE,
+        RentalCopyState.AVAILABLE);
   }
 
   @Transactional

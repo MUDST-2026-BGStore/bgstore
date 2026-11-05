@@ -1,0 +1,54 @@
+# One public gateway for the single node; a second LoadBalancer would compete
+# for host ports 80/443. Envoy Gateway and cert-manager are bootstrapped by Ansible.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: gateway
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: eg
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: public
+  namespace: gateway
+spec:
+  gatewayClassName: eg
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      allowedRoutes:
+        namespaces: { from: All }
+    - name: theparlor
+      hostname: theparlor.43.210.113.14.sslip.io
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs: [{ name: theparlor-tls }]
+      allowedRoutes:
+        namespaces: { from: All }
+    - name: keycloak
+      hostname: auth.43.210.113.14.sslip.io
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs: [{ name: keycloak-tls }]
+      allowedRoutes:
+        namespaces: { from: All }
+    - name: argocd
+      hostname: argocd.43.210.113.14.sslip.io
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs: [{ name: argocd-tls }]
+      allowedRoutes:
+        namespaces: { from: All }

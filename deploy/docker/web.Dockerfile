@@ -4,6 +4,7 @@ WORKDIR /workspace
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/package.json
 COPY apps/web-e2e/package.json apps/web-e2e/package.json
+COPY tools/backend-tools/package.json tools/backend-tools/package.json
 COPY libs/web/ libs/web/
 RUN pnpm install --frozen-lockfile
 COPY . .

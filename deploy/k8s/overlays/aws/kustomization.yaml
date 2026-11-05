@@ -1,0 +1,25 @@
+# Publish ARM64 images to these names and replace dev with the immutable image
+# tag you published before syncing. Private GHCR packages need imagePullSecrets.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: theparlor-dev
+resources:
+  - ../../base
+  - ../../base/postgres
+  - ../../base/valkey
+  - namespace.yaml
+  - routes.yaml
+  - mailpit.yaml
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: theparlor
+      theparlor.io/env: dev
+patches:
+  - path: config.yaml
+images:
+  - name: ghcr.io/theparlor/theparlor-api
+    newName: 416604074663.dkr.ecr.ap-southeast-7.amazonaws.com/theparlor/api
+    newTag: rehearsal-20261105-r1
+  - name: ghcr.io/theparlor/theparlor-web
+    newName: 416604074663.dkr.ecr.ap-southeast-7.amazonaws.com/theparlor/web
+    newTag: rehearsal-20261105-r1
