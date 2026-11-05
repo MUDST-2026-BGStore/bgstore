@@ -255,8 +255,12 @@ def main():
         tag = os.environ.get("IMAGE_TAG")
         if not tag:
             raise SystemExit("Set IMAGE_TAG to the immutable deployment tag.")
+        env = dict(os.environ, NX_DAEMON="false", NX_ISOLATE_PLUGINS="false", VITE_API_BASE_URL="")
         for app in ["api", "web"]:
+            run(["pnpm", "nx", "run", f"{app}:build", "--output-style=stream"], cwd=ROOT.parent.parent, env=env)
+            artifacts = f"apps/{app}/build/libs" if app == "api" else "apps/web/dist"
             run(["docker", "buildx", "build", "--platform", "linux/arm64", "--load", "--progress=plain",
+                 "--target", "artifacts-runtime", "--build-context", f"artifacts={artifacts}",
                  "--file", f"deploy/docker/{app}.Dockerfile",
                  "--tag", f"theparlor-{app}:{tag}", "."], cwd=ROOT.parent.parent)
     elif args.command == "publish-images":
