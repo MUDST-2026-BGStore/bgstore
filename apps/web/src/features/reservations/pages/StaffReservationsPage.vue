@@ -18,6 +18,8 @@ import {
 import FoodMenuPicker from '../components/FoodMenuPicker.vue';
 import type { FoodOrderItem } from '../types';
 import { calculatePreOrderDiscount } from '../data/payment';
+import TableBillModal from '../components/TableBillModal.vue';
+import { useCustomerReservationsStore } from '../data/reservations-store';
 
 const queryClient = useQueryClient();
 
@@ -77,6 +79,32 @@ function formatInterval(startsAt: string, endsAt: string): string {
 // Staff Actions: Check-in, Cancel, No-Show
 const actionInProgress = ref<string | null>(null);
 const actionError = ref<string>('');
+const reservationsStore = useCustomerReservationsStore();
+const staffBillReservation = ref<any>(null);
+
+function openStaffBill(res: any) {
+  const found = reservationsStore.reservations.value.find((r) => r.id === res.id);
+  if (found) {
+    staffBillReservation.value = found;
+  } else {
+    staffBillReservation.value = {
+      id: res.id,
+      branchId: selectedBranchId.value,
+      branchName: selectedBranch.value?.name ?? 'Siam',
+      tableId: res.tableId,
+      tableLabel: `Table ${res.tableId}`,
+      startsAt: res.startsAt,
+      endsAt: res.endsAt,
+      checkedInAt: res.checkedInAt || res.startsAt,
+      partySize: res.partySize,
+      status: res.status,
+      customerName: getCustomerName(res.customer),
+      customerPhone: getCustomerPhone(res.customer) || undefined,
+      hourlyRate: 200,
+      inPlayOrders: [],
+    };
+  }
+}
 
 // Check In Mutation
 const checkInMutation = useMutation({
@@ -96,6 +124,7 @@ async function handleCheckIn(res: Reservation) {
   actionError.value = '';
   actionInProgress.value = res.id;
   try {
+    reservationsStore.checkInReservation(res.id);
     await checkInMutation.mutateAsync(res.id);
   } finally {
     actionInProgress.value = null;
@@ -273,6 +302,28 @@ function getCustomerEmail(c: any): string {
   return c?.email || '';
 }
 
+function formatStatus(status: string): string {
+  switch (status) {
+    case 'CONFIRMED':
+      return 'Confirmed';
+    case 'CHECKED_IN':
+      return 'Checked In';
+    case 'COMPLETED':
+      return 'Completed';
+    case 'CANCELLED':
+      return 'Cancelled';
+    case 'NO_SHOW':
+      return 'No-Show';
+    case 'PENDING':
+      return 'Pending';
+    default:
+      return status
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+}
+
 </script>
 
 <template>
@@ -372,7 +423,7 @@ function getCustomerEmail(c: any): string {
               <!-- Status Badge -->
               <td>
                 <span class="status-pill" :class="`status-${res.status.toLowerCase()}`">
-                  {{ res.status }}
+                  {{ formatStatus(res.status) }}
                 </span>
                 <span v-if="res.checkedInAt" class="checkin-time">
                   In: {{ new Date(res.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
@@ -392,10 +443,10 @@ function getCustomerEmail(c: any): string {
                 <div class="customer-cell">
                   <span class="cust-name">{{ getCustomerName(res.customer) }}</span>
                   <span v-if="getCustomerPhone(res.customer)" class="cust-phone">
-                    📞 {{ getCustomerPhone(res.customer) }}
+                    <span class="gold-bullet">◆</span> {{ getCustomerPhone(res.customer) }}
                   </span>
                   <span v-if="getCustomerEmail(res.customer)" class="cust-email">
-                    ✉️ {{ getCustomerEmail(res.customer) }}
+                    {{ getCustomerEmail(res.customer) }}
                   </span>
                 </div>
               </td>
@@ -444,16 +495,34 @@ function getCustomerEmail(c: any): string {
                     No-Show
                   </button>
 
-                  <!-- In-Progress active tag -->
-                  <span v-if="res.status === 'CHECKED_IN'" class="playing-tag">
-                    🎲 Currently Playing
-                  </span>
+                  <!-- In-Progress active tag & Staff Check Bill Button -->
+                  <div v-if="res.status === 'CHECKED_IN'" class="playing-action-wrap">
+                    <span class="playing-tag">
+                      <span class="gold-bullet">◆</span> Currently Playing
+                    </span>
+                    <button
+                      type="button"
+                      class="action-btn bill-btn"
+                      @click="openStaffBill(res)"
+                    >
+                      Check Bill
+                    </button>
+                  </div>
                 </div>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+
+      <!-- Staff Table Bill & In-Play Orders Modal -->
+      <TableBillModal
+        v-if="staffBillReservation"
+        :reservation="staffBillReservation"
+        :is-staff="true"
+        @close="staffBillReservation = null"
+        @settled="staffBillReservation = null; queryClient.invalidateQueries({ queryKey: ['listBranchReservations'] })"
+      />
 
       <!-- Action Reason Modal (Cancel / No Show) -->
       <div v-if="modalAction" class="modal-backdrop" @click.self="modalAction = null">
@@ -581,7 +650,7 @@ function getCustomerEmail(c: any): string {
             <div class="walkin-food-section">
               <details class="food-details">
                 <summary class="food-summary-btn">
-                  🍔 Pre-Order Refreshments (10% Discount Applied)
+                  + Pre-Order Refreshments (10% Discount Applied)
                 </summary>
                 <div class="picker-wrap">
                   <FoodMenuPicker v-model="walkInFood" />
@@ -805,11 +874,11 @@ function getCustomerEmail(c: any): string {
 
 .status-pill {
   display: inline-block;
-  padding: 3px 8px;
+  padding: 3px 10px;
   border-radius: 12px;
-  font-size: 11px;
-  font-weight: 800;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: none;
 }
 
 .status-confirmed {
@@ -1179,4 +1248,25 @@ function getCustomerEmail(c: any): string {
   color: #ffffff;
   border: none;
 }
+
+.playing-action-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.action-btn.bill-btn {
+  background: #142b20;
+  color: #ffd98a;
+  border: 1px solid #c6ad7a;
+  font-weight: 800;
+  padding: 4px 10px;
+}
+
+.action-btn.bill-btn:hover {
+  background: #1e3f2f;
+  transform: translateY(-1px);
+}
+
 </style>

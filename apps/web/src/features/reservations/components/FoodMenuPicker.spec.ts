@@ -14,7 +14,7 @@ describe('FoodMenuPicker Component', () => {
 
     expect(wrapper.text()).toContain('Pre-Order Food & Drinks (10% Discount)');
     expect(wrapper.text()).toContain('All Items');
-    expect(wrapper.text()).toContain('Drinks & Coffee');
+    expect(wrapper.text()).toContain('Drinks & Soda');
   });
 
   it('filters items when category tab is selected', async () => {
@@ -29,8 +29,8 @@ describe('FoodMenuPicker Component', () => {
     await beveragesBtn?.trigger('click');
 
     const cardNames = wrapper.findAll('.item-name').map((el) => el.text());
-    expect(cardNames).toContain('Slow-Drip Cold Brew');
-    expect(cardNames).not.toContain('Truffle Parmesan Fries');
+    expect(cardNames).toContain('Coca-Cola Original (Can 325ml)');
+    expect(cardNames).not.toContain("Lay's Classic Rock Salt (Big Bag 73g)");
   });
 
   it('emits updated order list when adding and incrementing items', async () => {

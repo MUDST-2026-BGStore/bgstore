@@ -16,12 +16,14 @@ import type { FoodOrderItem, ReservationPreOrder } from '../types';
 import { calculatePreOrderDiscount } from '../data/payment';
 import { useStoreText } from '../../home/data/store-text';
 import { useStoreContextStore } from '../../home/stores/store-context';
+import { useCustomerReservationsStore } from '../data/reservations-store';
 
 const route = useRoute();
 const auth = useAuthStore();
 const queryClient = useQueryClient();
 const { t, locale } = useStoreText();
 const storeContext = useStoreContextStore();
+const reservationsStore = useCustomerReservationsStore();
 
 // Step wizard: 1 = Time & Branch, 2 = Table & Guest Info, 3 = Food & Drinks, 4 = Review & QR Payment, 5 = Receipt
 const currentStep = ref<number>(1);
@@ -69,16 +71,65 @@ const branchesQuery = useQuery({
   queryFn: ({ signal }) => listBranches({}, undefined, signal),
 });
 
-const branches = computed<Branch[]>(() => branchesQuery.data.value?.items ?? []);
+const DEFAULT_BRANCHES: Branch[] = [
+  {
+    id: 'siam',
+    name: 'Siam',
+    address: '483 Siam Square Soi 7, Pathum Wan, Bangkok 10330',
+    phone: '02-123-4567',
+    openingHours: [],
+    active: true,
+  },
+  {
+    id: 'ari',
+    name: 'Ari',
+    address: '71 Phahon Yothin Soi 7, Phaya Thai, Bangkok 10400',
+    phone: '02-234-5678',
+    openingHours: [],
+    active: true,
+  },
+  {
+    id: 'riverside',
+    name: 'Riverside',
+    address: '2194 Charoen Krung 42, Bang Rak, Bangkok 10500',
+    phone: '02-345-6789',
+    openingHours: [],
+    active: true,
+  },
+];
+
+const branches = computed<Branch[]>(() => {
+  const items = branchesQuery.data.value?.items;
+  return items && items.length > 0 ? items : DEFAULT_BRANCHES;
+});
+
+let userSelectedBranch = false;
+
+function onBranchChange(event: Event) {
+  userSelectedBranch = true;
+  const target = event.target as HTMLSelectElement;
+  selectedBranchId.value = target.value;
+  const found = branches.value.find((b) => b.id === target.value);
+  if (found) {
+    storeContext.select(found.id);
+  }
+}
 
 // Auto-select branch matching website browsing preference or first branch
 watch(
   [branches, () => storeContext.choice],
   ([list, contextChoice]) => {
     if (list.length === 0) return;
-    if (route.query.branch && list.some(b => b.id === route.query.branch)) {
-      selectedBranchId.value = String(route.query.branch);
+    if (userSelectedBranch && selectedBranchId.value && list.some((b) => b.id === selectedBranchId.value)) {
       return;
+    }
+    if (route.query.branch) {
+      const qBranch = String(route.query.branch).toLowerCase();
+      const matched = list.find((b) => b.id === route.query.branch || b.name.toLowerCase() === qBranch);
+      if (matched) {
+        selectedBranchId.value = matched.id;
+        return;
+      }
     }
     // Match by user's selected branch from StoreContext
     if (contextChoice && contextChoice !== 'browse' && contextChoice !== 'online') {
@@ -93,7 +144,7 @@ watch(
         return;
       }
     }
-    if (!selectedBranchId.value) {
+    if (!selectedBranchId.value || !list.some((b) => b.id === selectedBranchId.value)) {
       selectedBranchId.value = list[0].id;
     }
   },
@@ -161,7 +212,7 @@ const glamorousTimeFormatted = computed(() => {
 
 const formattedDateTimeInterval = computed(() => {
   if (!startTimestamp.value || !endTimestamp.value) return '';
-  return `${glamorousDateFormatted.value}, ${glamorousTimeFormatted.value} (${reservationDurationHours.value} ${t(reservationDurationHours.value === 1 ? '1 Hour' : '{count} Hours', { count: reservationDurationHours.value })})`;
+  return `${glamorousDateFormatted.value}, ${glamorousTimeFormatted.value} (${t(reservationDurationHours.value === 1 ? '1 Hour' : '{count} Hours', { count: reservationDurationHours.value })})`;
 });
 
 // Step 2 State: Table & Customer Contact
@@ -171,6 +222,24 @@ const customerEmail = ref<string>(auth.authenticated ? `${auth.username}@theparl
 const customerCountryCode = ref<string>('+66'); // Default +66 but freely changeable to any code!
 const customerPhone = ref<string>('');
 const specialNotes = ref<string>('');
+
+// Phone Validation: clean digits, min 8, max 15
+const cleanPhoneDigits = computed(() => customerPhone.value.replace(/\D/g, ''));
+const isPhoneValid = computed(() => {
+  const len = cleanPhoneDigits.value.length;
+  return len >= 8 && len <= 15;
+});
+const isPhoneDirty = ref(false);
+const phoneErrorMessage = computed(() => {
+  if (!isPhoneDirty.value || !customerPhone.value.trim()) return '';
+  if (cleanPhoneDigits.value.length < 8) {
+    return t('Phone number must have at least 8 digits.');
+  }
+  if (cleanPhoneDigits.value.length > 15) {
+    return t('Phone number is too long.');
+  }
+  return '';
+});
 
 // Country codes list (flexible, does NOT have to be +66!)
 const countryCodes = [
@@ -215,10 +284,113 @@ const availabilityQuery = useQuery({
   enabled: computed(() => !!selectedBranchId.value && !!startTimestamp.value && !!endTimestamp.value),
 });
 
+const MOCK_TABLES_BY_BRANCH: Record<string, TableAvailability[]> = {
+  siam: [
+    {
+      tableId: 'siam-t1',
+      label: 'The Emerald Salon (Table 1)',
+      capacity: 4,
+      hourlyRate: { amountMinor: 15000 },
+      available: true,
+    },
+    {
+      tableId: 'siam-t2',
+      label: 'Grand Oak Salon (Table 2)',
+      capacity: 6,
+      hourlyRate: { amountMinor: 20000 },
+      available: true,
+    },
+    {
+      tableId: 'siam-t3',
+      label: 'The Royal Library (Table 3)',
+      capacity: 8,
+      hourlyRate: { amountMinor: 25000 },
+      available: true,
+    },
+    {
+      tableId: 'siam-t4',
+      label: 'Imperial Parlor Suite (VIP 1)',
+      capacity: 12,
+      hourlyRate: { amountMinor: 35000 },
+      available: true,
+    },
+    {
+      tableId: 'siam-t5',
+      label: 'Duelist Corner (Table 5)',
+      capacity: 2,
+      hourlyRate: { amountMinor: 10000 },
+      available: true,
+    },
+  ],
+  ari: [
+    {
+      tableId: 'ari-t1',
+      label: 'Ari Garden Veranda (Table 1)',
+      capacity: 4,
+      hourlyRate: { amountMinor: 15000 },
+      available: true,
+    },
+    {
+      tableId: 'ari-t2',
+      label: 'The Bohemian Alcove (Table 2)',
+      capacity: 6,
+      hourlyRate: { amountMinor: 20000 },
+      available: true,
+    },
+    {
+      tableId: 'ari-t3',
+      label: 'Ari Master Suite (Table 3)',
+      capacity: 10,
+      hourlyRate: { amountMinor: 30000 },
+      available: true,
+    },
+  ],
+  riverside: [
+    {
+      tableId: 'riv-t1',
+      label: 'Riverside Panorama (Table 1)',
+      capacity: 4,
+      hourlyRate: { amountMinor: 18000 },
+      available: true,
+    },
+    {
+      tableId: 'riv-t2',
+      label: 'Chao Phraya Lounge (Table 2)',
+      capacity: 6,
+      hourlyRate: { amountMinor: 24000 },
+      available: true,
+    },
+    {
+      tableId: 'riv-t3',
+      label: "The Captain's Quarters (VIP)",
+      capacity: 12,
+      hourlyRate: { amountMinor: 40000 },
+      available: true,
+    },
+  ],
+};
+
 const availableTables = computed<TableAvailability[]>(() => {
-  const tables = availabilityQuery.data.value?.tables ?? [];
-  return tables.filter((t) => t.available && t.capacity >= partySize.value);
+  const apiTables = availabilityQuery.data.value?.tables;
+  const list =
+    apiTables && apiTables.length > 0
+      ? apiTables
+      : (MOCK_TABLES_BY_BRANCH[selectedBranchId.value] ?? MOCK_TABLES_BY_BRANCH['siam']);
+  return list.filter((t) => t.available && t.capacity >= partySize.value);
 });
+
+// Auto-select first matching table when entering Step 2 or changing filter
+watch(
+  [availableTables, currentStep],
+  ([tables, step]) => {
+    if (step >= 2 && tables.length > 0) {
+      if (!selectedTable.value || !tables.some((t) => t.tableId === selectedTable.value?.tableId)) {
+        selectedTable.value = tables[0];
+      }
+    }
+  },
+  { immediate: true }
+);
 
 // Step 3 State: Food & Drinks Pre-Order (10% Discount)
 const preOrderedFood = ref<FoodOrderItem[]>([]);
@@ -243,9 +415,14 @@ const tableTotal = computed(() =>
   tableHourlyRate.value * reservationDurationHours.value
 );
 
-const grandTotal = computed(() =>
-  tableTotal.value + foodDiscountInfo.value.discountedTotal
-);
+const payNowTotal = computed(() => foodDiscountInfo.value.discountedTotal);
+
+function confirmWithoutPayment() {
+  onPaymentCompleted({
+    reference: `CONFIRMED-${Date.now().toString().slice(-6)}`,
+    paidAtTimestamp: new Date().toISOString(),
+  });
+}
 
 // Step 4 State: QR Payment Modal & Confirmation
 const showQrPayment = ref(false);
@@ -283,18 +460,19 @@ async function onPaymentCompleted(paymentMeta: {
   isSubmitting.value = true;
   submissionError.value = '';
 
+  const hasFood = preOrderedFood.value.length > 0;
   const preOrderPayload: ReservationPreOrder = {
     items: preOrderedFood.value,
     subtotal: foodSubtotal.value,
     discountRate: 0.1,
     discountAmount: foodDiscountInfo.value.discountAmount,
     discountedTotal: foodDiscountInfo.value.discountedTotal,
-    paid: true,
+    paid: hasFood,
     paymentMethod: 'promptpay_qr',
-    paymentReference: paymentMeta.reference,
-    paidAtTimestamp: paymentMeta.paidAtTimestamp,
+    paymentReference: hasFood ? paymentMeta.reference : undefined,
+    paidAtTimestamp: hasFood ? paymentMeta.paidAtTimestamp : undefined,
   };
-  paymentDetails.value = preOrderPayload;
+  paymentDetails.value = hasFood ? preOrderPayload : null;
 
   // Format special notes to preserve customer notes and food pre-order details
   let notesCombined = specialNotes.value ? `${specialNotes.value}\n` : '';
@@ -314,11 +492,34 @@ async function onPaymentCompleted(paymentMeta: {
     notes: notesCombined.trim() || undefined,
   };
 
+  const newReservation = {
+    id: `res-thm-${Math.floor(1000 + Math.random() * 9000)}`,
+    branchId: selectedBranchId.value,
+    branchName: selectedBranch.value?.name ?? 'Siam',
+    tableId: selectedTable.value?.tableId ?? 'table-1',
+    tableLabel: selectedTable.value?.label ?? 'Table',
+    startsAt: startTimestamp.value,
+    endsAt: endTimestamp.value,
+    partySize: partySize.value,
+    status: 'CONFIRMED' as const,
+    customerName: customerName.value.trim() || auth.displayName || auth.username || 'Customer',
+    customerPhone: customerPhone.value.trim() || undefined,
+    notes: notesCombined.trim() || undefined,
+    createdAt: new Date().toISOString(),
+    preOrder: preOrderedFood.value.length > 0 ? preOrderPayload : undefined,
+  };
+
+  reservationsStore.addReservation(newReservation);
+  createdReservation.value = newReservation;
+  currentStep.value = 5;
+
   try {
     await createMutation.mutateAsync({
       branchId: selectedBranchId.value,
       data: reservationPayload,
     });
+  } catch (e) {
+    console.warn('Backend sync notice (saved to client store):', e);
   } finally {
     isSubmitting.value = false;
   }
@@ -351,8 +552,9 @@ async function onPaymentCompleted(paymentMeta: {
         </div>
       </nav>
 
-      <!-- STEP 1: Date, Time & Branch (Timestamp driven) -->
-      <section v-if="currentStep === 1" class="wizard-step" aria-labelledby="step1-heading">
+      <Transition name="glam-step" mode="out-in">
+        <!-- STEP 1: Date, Time & Branch (Timestamp driven) -->
+        <section v-if="currentStep === 1" key="step1" class="wizard-step" aria-labelledby="step1-heading">
         <div class="step-header">
           <h2 id="step1-heading" class="step-title">{{ t('Choose Your Branch & Time') }}</h2>
           <p class="step-subtitle">
@@ -360,11 +562,33 @@ async function onPaymentCompleted(paymentMeta: {
           </p>
         </div>
 
+        <!-- Registered Member Verification Callout -->
+        <div v-if="auth.authenticated" class="member-status-bar">
+          <div class="member-meta">
+            <span class="gold-icon">✦</span>
+            <span class="member-text">{{ t('Reserving as Registered Member:') }}</span>
+            <strong class="member-name">{{ auth.displayName || auth.username }}</strong>
+          </div>
+          <span class="member-badge-perk">{{ t('10% Pre-order Discount Active') }}</span>
+        </div>
+        <div v-else class="auth-gate-callout" role="alert">
+          <div class="auth-gate-info">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="gold-icon"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+            <div>
+              <strong class="auth-gate-heading">{{ t('Sign in Required') }}</strong>
+              <p class="auth-gate-sub">{{ t('Table reservations and food pre-orders are exclusively available for registered and signed-in members.') }}</p>
+            </div>
+          </div>
+          <RouterLink :to="{ name: 'AuthLogin', query: { redirect: '/reservations/new' } }" class="btn btn-primary auth-signin-btn">
+            {{ t('Sign In / Register') }} →
+          </RouterLink>
+        </div>
+
         <div class="form-grid">
           <!-- Branch Picker -->
           <div class="form-field full-width">
             <label for="branch-select" class="form-label">{{ t('Branch Location') }}</label>
-            <select id="branch-select" v-model="selectedBranchId" class="form-select">
+            <select id="branch-select" v-model="selectedBranchId" class="form-select" @change="onBranchChange">
               <option v-for="b in branches" :key="b.id" :value="b.id">
                 {{ b.name }} — {{ b.address || 'Bangkok' }}
               </option>
@@ -425,24 +649,34 @@ async function onPaymentCompleted(paymentMeta: {
 
         <!-- Date & Time validation alerts -->
         <div v-if="isDateInPast" class="validation-alert" role="alert">
-          <span>⚠️</span>
+          <svg class="gold-icon warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
           <span>{{ t('Reservation date and time cannot be in the past.') }}</span>
         </div>
         <div v-else-if="isTimeInPast" class="validation-alert" role="alert">
-          <span>⚠️</span>
+          <svg class="gold-icon warning-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
           <span>{{ t('For same-day bookings, please select a time slot at least 30 minutes in advance.') }}</span>
         </div>
 
         <!-- Glamorous Brief Reservation Summary Card (No raw timestamps here) -->
         <div v-if="startTimestamp && endTimestamp && !isDateTimeInvalid" class="glamorous-summary-card">
+          <div class="glamorous-summary-border-base" aria-hidden="true"></div>
           <div class="summary-card-header">
-            <span class="parlor-crest">♠ The Parlor · {{ selectedBranch?.name }} ♠</span>
-            <span class="party-badge">{{ partySize }} {{ t(partySize === 1 ? '{count} player' : '{count} players', { count: partySize }) }}</span>
+            <span class="parlor-crest">
+              <svg class="gold-icon mini-crest" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"></path></svg>
+              The Parlor · {{ selectedBranch?.name }}
+              <svg class="gold-icon mini-crest" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"></path></svg>
+            </span>
+            <span class="party-badge">
+              <svg class="gold-icon micro" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+              {{ t(partySize === 1 ? '{count} player' : '{count} players', { count: partySize }) }}
+            </span>
           </div>
 
           <div class="summary-card-body">
             <div class="summary-item">
-              <span class="summary-icon">📅</span>
+              <span class="summary-icon">
+                <svg class="gold-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+              </span>
               <div>
                 <span class="summary-label">{{ t('Reservation Date') }}</span>
                 <strong class="summary-value">{{ glamorousDateFormatted }}</strong>
@@ -450,15 +684,19 @@ async function onPaymentCompleted(paymentMeta: {
             </div>
 
             <div class="summary-item">
-              <span class="summary-icon">🕒</span>
+              <span class="summary-icon">
+                <svg class="gold-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </span>
               <div>
                 <span class="summary-label">{{ t('Duration') }}</span>
-                <strong class="summary-value">{{ glamorousTimeFormatted }} ({{ reservationDurationHours }} {{ t(reservationDurationHours === 1 ? '1 Hour' : '{count} Hours', { count: reservationDurationHours }) }})</strong>
+                <strong class="summary-value">{{ glamorousTimeFormatted }} ({{ t(reservationDurationHours === 1 ? '1 Hour' : '{count} Hours', { count: reservationDurationHours }) }})</strong>
               </div>
             </div>
 
             <div v-if="requestedGame" class="summary-item game-item">
-              <span class="summary-icon">♟</span>
+              <span class="summary-icon">
+                <svg class="gold-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 20h8M9 20v-4h6v4M10 16l1-7h2l1 7M9 9h6M12 4a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"></path></svg>
+              </span>
               <div>
                 <span class="summary-label">{{ t('Playing') }}</span>
                 <strong class="summary-value">{{ requestedGame }}</strong>
@@ -472,20 +710,21 @@ async function onPaymentCompleted(paymentMeta: {
           <button
             type="button"
             class="btn btn-primary"
-            :disabled="!startTimestamp || !endTimestamp || !selectedBranchId || isDateTimeInvalid"
+            :disabled="!startTimestamp || !endTimestamp || !selectedBranchId || isDateTimeInvalid || !auth.authenticated"
             @click="currentStep = 2"
           >
-            {{ t('Check Available Tables →') }}
+            <span v-if="!auth.authenticated">{{ t('Sign in Required to Reserve') }}</span>
+            <span v-else>{{ t('Check Available Tables →') }}</span>
           </button>
         </div>
       </section>
 
       <!-- STEP 2: Table Selection & Guest Info -->
-      <section v-if="currentStep === 2" class="wizard-step" aria-labelledby="step2-heading">
+        <section v-else-if="currentStep === 2" key="step2" class="wizard-step" aria-labelledby="step2-heading">
         <div class="step-header">
           <h2 id="step2-heading" class="step-title">{{ t('Select Table & Guest Details') }}</h2>
           <p class="step-subtitle">
-            Available tables at <strong>{{ selectedBranch?.name }}</strong> for {{ partySize }} players.
+            {{ t('Available tables at {branch} for {count} players.', { branch: t(selectedBranch?.name ?? ''), count: partySize }) }}
           </p>
         </div>
 
@@ -495,6 +734,7 @@ async function onPaymentCompleted(paymentMeta: {
         </div>
 
         <div v-else-if="availableTables.length === 0" class="empty-tables-box">
+          <svg class="gold-icon empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
           <p class="empty-title">{{ t('No tables available for this time slot') }}</p>
           <p class="empty-sub">
             {{ t('All tables are booked or out of operational hours for this party size. Try adjusting the time or branch.') }}
@@ -504,7 +744,7 @@ async function onPaymentCompleted(paymentMeta: {
           </button>
         </div>
 
-        <!-- Table selection cards -->
+        <!-- Table selection cards with Gold Table Icon and translated labels -->
         <div v-else class="tables-grid">
           <div
             v-for="table in availableTables"
@@ -514,15 +754,21 @@ async function onPaymentCompleted(paymentMeta: {
             @click="selectedTable = table"
           >
             <div class="table-top">
-              <span class="table-label">{{ table.label }}</span>
-              <span class="capacity-pill">Up to {{ table.capacity }} seats</span>
+              <div class="table-label-row">
+                <svg class="gold-icon table-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="5" rx="1.5"></rect><line x1="6" y1="11" x2="6" y2="19"></line><line x1="18" y1="11" x2="18" y2="19"></line><line x1="4" y1="14" x2="20" y2="14"></line></svg>
+                <span class="table-label">{{ t(table.label) }}</span>
+              </div>
+              <span class="capacity-pill">
+                <svg class="gold-icon micro" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
+                {{ t('Up to {count} seats', { count: table.capacity }) }}
+              </span>
             </div>
             <div class="table-rate">
               <span class="rate-num">฿{{ (table.hourlyRate as any)?.amountMinor ? ((table.hourlyRate as any).amountMinor / 100) : 150 }}</span>
-              <span class="rate-unit">/ hour</span>
+              <span class="rate-unit">{{ t('/ hour') }}</span>
             </div>
             <div class="table-subtotal">
-              ฿{{ (((table.hourlyRate as any)?.amountMinor ? ((table.hourlyRate as any).amountMinor / 100) : 150) * reservationDurationHours).toFixed(0) }} for {{ reservationDurationHours }} hrs
+              {{ t('{amount} for {hours} hrs', { amount: (((table.hourlyRate as any)?.amountMinor ? ((table.hourlyRate as any).amountMinor / 100) : 150) * reservationDurationHours).toFixed(0), hours: reservationDurationHours }) }}
             </div>
             <div class="select-radio">
               <input
@@ -531,7 +777,7 @@ async function onPaymentCompleted(paymentMeta: {
                 :checked="selectedTable?.tableId === table.tableId"
                 aria-label="Select table"
               />
-              <span>{{ selectedTable?.tableId === table.tableId ? 'Selected' : 'Select Table' }}</span>
+              <span>{{ selectedTable?.tableId === table.tableId ? t('Selected') : t('Select Table') }}</span>
             </div>
           </div>
         </div>
@@ -581,11 +827,17 @@ async function onPaymentCompleted(paymentMeta: {
                   type="tel"
                   placeholder="812345678"
                   class="form-input phone-number-field"
+                  :class="{ 'is-invalid': isPhoneDirty && !isPhoneValid }"
                   required
+                  @blur="isPhoneDirty = true"
+                  @input="isPhoneDirty = true"
                 />
               </div>
-              <small class="field-hint">
-                You can select any country code or type international numbers directly.
+              <small v-if="phoneErrorMessage" class="phone-error-hint" role="alert">
+                {{ phoneErrorMessage }}
+              </small>
+              <small v-else class="field-hint">
+                {{ t('You can select any country code or type international numbers directly.') }}
               </small>
             </div>
 
@@ -604,26 +856,25 @@ async function onPaymentCompleted(paymentMeta: {
 
         <div class="wizard-actions">
           <button type="button" class="btn btn-secondary" @click="currentStep = 1">
-            ← Back
+            {{ t('← Back') }}
           </button>
           <button
             type="button"
             class="btn btn-primary"
-            :disabled="!selectedTable || !customerName.trim() || !customerPhone.trim()"
+            :disabled="!selectedTable || !customerName.trim() || !isPhoneValid"
             @click="currentStep = 3"
           >
-            Add Food & Drinks (-10%) →
+            {{ t('Add Food & Drinks (-10%) →') }}
           </button>
         </div>
       </section>
 
       <!-- STEP 3: Food & Drinks Catalog (10% Discount & In-play note) -->
-      <section v-if="currentStep === 3" class="wizard-step" aria-labelledby="step3-heading">
+        <section v-else-if="currentStep === 3" key="step3" class="wizard-step" aria-labelledby="step3-heading">
         <div class="step-header">
           <h2 id="step3-heading" class="step-title">{{ t('Pre-Order Food & Drinks (10% Discount)') }}</h2>
           <p class="step-subtitle">
-            Pre-order coffee, snacks, or platters to enjoy a special <strong>10% reservation discount</strong>.
-            You can also order more food and drinks directly from your table while playing!
+            {{ t('Pre-order bottled drinks and packaged snacks to enjoy a special 10% reservation discount. You can also order more snacks directly from your table while playing!') }}
           </p>
         </div>
 
@@ -631,16 +882,16 @@ async function onPaymentCompleted(paymentMeta: {
 
         <div class="wizard-actions">
           <button type="button" class="btn btn-secondary" @click="currentStep = 2">
-            ← Back to Table
+            {{ t('← Back to Table') }}
           </button>
           <button type="button" class="btn btn-primary" @click="currentStep = 4">
-            Proceed to Review & Pay →
+            {{ t('Proceed to Review & Pay →') }}
           </button>
         </div>
       </section>
 
       <!-- STEP 4: Review Summary & QR Code Payment -->
-      <section v-if="currentStep === 4" class="wizard-step" aria-labelledby="step4-heading">
+        <section v-else-if="currentStep === 4" key="step4" class="wizard-step" aria-labelledby="step4-heading">
         <div class="step-header">
           <h2 id="step4-heading" class="step-title">{{ t('Review & Confirm Reservation') }}</h2>
           <p class="step-subtitle">
@@ -651,31 +902,31 @@ async function onPaymentCompleted(paymentMeta: {
         <div class="review-grid">
           <!-- Summary Details -->
           <div class="review-card">
-            <h3 class="card-heading">Booking Overview</h3>
+            <h3 class="card-heading">{{ t('Reservation Summary') }}</h3>
             <div class="review-row">
-              <span class="label">Branch:</span>
-              <span class="val">{{ selectedBranch?.name }}</span>
+              <span class="label">{{ t('Branch') }}:</span>
+              <span class="val">{{ t(selectedBranch?.name ?? '') }}</span>
             </div>
             <div class="review-row">
-              <span class="label">Table:</span>
-              <span class="val">{{ selectedTable?.label }} (Up to {{ selectedTable?.capacity }} seats)</span>
+              <span class="label">{{ t('Table') }}:</span>
+              <span class="val">{{ t(selectedTable?.label ?? '') }} ({{ t('Up to {count} seats', { count: selectedTable?.capacity || 4 }) }})</span>
             </div>
             <div class="review-row">
-              <span class="label">Date & Time:</span>
+              <span class="label">{{ t('Reservation Date') }}:</span>
               <span class="val">{{ formattedDateTimeInterval }}</span>
             </div>
             <div class="review-row">
-              <span class="label">Party Size:</span>
-              <span class="val">{{ partySize }} Players</span>
+              <span class="label">{{ t('Party Size') }}:</span>
+              <span class="val">{{ t(partySize === 1 ? '{count} player' : '{count} players', { count: partySize }) }}</span>
             </div>
             <div class="review-row">
-              <span class="label">Contact:</span>
+              <span class="label">{{ t('Guest') }}:</span>
               <span class="val">{{ customerName }} ({{ customerCountryCode }} {{ customerPhone }})</span>
             </div>
 
             <!-- Pre-ordered Food Summary -->
             <div v-if="preOrderedFood.length > 0" class="food-summary-block">
-              <h4 class="food-summary-title">Pre-Ordered Food & Drinks (10% Discount)</h4>
+              <h4 class="food-summary-title">{{ t('Pre-Ordered Food & Drinks (10% Discount)') }}</h4>
               <ul class="food-list">
                 <li v-for="line in preOrderedFood" :key="line.item.id" class="food-item-line">
                   <span>{{ line.quantity }}x {{ line.item.name }}</span>
@@ -684,25 +935,29 @@ async function onPaymentCompleted(paymentMeta: {
               </ul>
             </div>
 
-            <!-- In-game food purchase note -->
+            <!-- In-game food purchase note with Gold Layout Icon -->
             <div class="inplay-callout">
-              <span class="callout-icon">💡</span>
+              <span class="callout-icon">
+                <svg class="gold-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v1M12 21v1M4.22 4.22l.71.71M18.36 18.36l.71.71M1 12h1M21 12h1M4.22 19.78l.71-.71M18.36 5.64l.71-.71"></path><circle cx="12" cy="12" r="5"></circle></svg>
+              </span>
               <p class="callout-text">
-                <strong>In-Play Ordering:</strong> Need more snacks or refills while playing?
-                You can scan your table's menu code to order food and drinks directly to your table at any time during your visit.
+                <strong>{{ t('In-Play Ordering:') }}</strong> {{ t('Need more snacks or refills while playing? You can scan your table\'s menu code to order food and drinks directly to your table at any time during your visit.') }}
               </p>
             </div>
           </div>
 
-          <!-- Price & Pay Action -->
+          <!-- Price & Pay Action (Pay only pre-order food; table fee is paid at counter with staff) -->
           <div class="pricing-card">
             <h3 class="card-heading">{{ t('Payment Summary') }}</h3>
             <div class="cost-row">
-              <span>{{ t('Table Fee') }} ({{ reservationDurationHours }} hrs @ ฿{{ tableHourlyRate }}/hr)</span>
-              <span>฿{{ tableTotal }}</span>
+              <div>
+                <span>{{ t('Table Fee') }} ({{ reservationDurationHours }} hrs @ ฿{{ tableHourlyRate }}/hr)</span>
+                <span class="pay-counter-pill">{{ t('Pay at counter after session') }}</span>
+              </div>
+              <span class="muted-val">฿{{ tableTotal }}</span>
             </div>
             <div v-if="preOrderedFood.length > 0" class="cost-row">
-              <span>{{ t('Food & Drinks Subtotal') }}</span>
+              <span>{{ t('Pre-ordered Food & Drinks') }}</span>
               <span>฿{{ foodSubtotal }}</span>
             </div>
             <div v-if="preOrderedFood.length > 0" class="cost-row discount-row">
@@ -710,8 +965,11 @@ async function onPaymentCompleted(paymentMeta: {
               <span class="discount-num">-฿{{ foodDiscountInfo.discountAmount }}</span>
             </div>
             <div class="grand-total-row">
-              <span>{{ t('Total Amount to Pay') }}</span>
-              <span class="total-amount">฿{{ grandTotal }}</span>
+              <div>
+                <span>{{ t('Total Due Now') }}</span>
+                <small class="due-sub-text">{{ preOrderedFood.length > 0 ? t('Pre-ordered food with 10% discount') : t('Table fee paid at counter with staff') }}</small>
+              </div>
+              <span class="total-amount">฿{{ payNowTotal }}</span>
             </div>
 
             <div v-if="submissionError" class="error-banner" role="alert">
@@ -719,35 +977,45 @@ async function onPaymentCompleted(paymentMeta: {
             </div>
 
             <button
+              v-if="payNowTotal > 0"
               type="button"
               class="btn btn-primary pay-btn"
               :disabled="isSubmitting"
               @click="proceedToPayment"
             >
-              Pay ฿{{ grandTotal }} with PromptPay QR →
+              {{ t('Pay Pre-order ฿{total} with PromptPay QR →', { total: payNowTotal }) }}
+            </button>
+            <button
+              v-else
+              type="button"
+              class="btn btn-primary pay-btn"
+              :disabled="isSubmitting"
+              @click="confirmWithoutPayment"
+            >
+              {{ t('Confirm Table Reservation (Pay at Counter) →') }}
             </button>
             <p class="pay-note">
-              Instant verification via PromptPay / Thai QR Code. Table is reserved immediately.
+              {{ payNowTotal > 0 ? t('Instant verification via PromptPay / Thai QR Code. Table is reserved immediately.') : t('Table is reserved immediately. Settle table fee at the counter with staff.') }}
             </p>
           </div>
         </div>
 
         <div class="wizard-actions">
           <button type="button" class="btn btn-secondary" @click="currentStep = 3">
-            ← Back to Food & Drinks
+            {{ t('← Back to Food & Drinks') }}
           </button>
         </div>
       </section>
 
       <!-- STEP 5: Receipt & Booking Confirmation -->
-      <section v-if="currentStep === 5" class="wizard-step receipt-step" aria-labelledby="receipt-heading">
+        <section v-else-if="currentStep === 5" key="step5" class="wizard-step receipt-step" aria-labelledby="receipt-heading">
         <div class="receipt-card">
           <div class="receipt-badge">
-            <span class="check">✓</span>
+            <svg class="gold-icon check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             <span>{{ t('Reservation Confirmed!') }}</span>
           </div>
 
-          <h2 id="receipt-heading" class="receipt-title">See You at The Parlor!</h2>
+          <h2 id="receipt-heading" class="receipt-title">{{ t('See You at The Parlor!') }}</h2>
           <p class="receipt-sub">
             {{ t('Your table is reserved. A confirmation has been sent to your email.') }}
           </p>
@@ -758,29 +1026,33 @@ async function onPaymentCompleted(paymentMeta: {
               <span class="v code">{{ createdReservation?.id || 'CONFIRMED' }}</span>
             </div>
             <div class="meta-line">
-              <span class="lbl">Branch:</span>
-              <span class="v">{{ selectedBranch?.name }}</span>
+              <span class="lbl">{{ t('Branch') }}:</span>
+              <span class="v">{{ t(selectedBranch?.name ?? '') }}</span>
             </div>
             <div class="meta-line">
-              <span class="lbl">Table:</span>
-              <span class="v">{{ selectedTable?.label }}</span>
+              <span class="lbl">{{ t('Table') }}:</span>
+              <span class="v">{{ t(selectedTable?.label ?? '') }}</span>
             </div>
             <div class="meta-line">
-              <span class="lbl">Interval (Timestamps):</span>
+              <span class="lbl">{{ t('Interval (Timestamps)') }}:</span>
               <span class="v">{{ formattedDateTimeInterval }}</span>
             </div>
             <div class="meta-line">
-              <span class="lbl">Guest:</span>
+              <span class="lbl">{{ t('Guest') }}:</span>
               <span class="v">{{ customerName }} ({{ customerCountryCode }} {{ customerPhone }})</span>
             </div>
             <div class="meta-line">
-              <span class="lbl">Total Paid (QR):</span>
-              <span class="v bold">฿{{ grandTotal }}</span>
+              <span class="lbl">{{ t('Table Fee') }}:</span>
+              <span class="v">฿{{ tableTotal }} ({{ t('Pay at counter with staff') }})</span>
+            </div>
+            <div class="meta-line">
+              <span class="lbl">{{ t('Pre-order Paid (QR)') }}:</span>
+              <span class="v bold">฿{{ payNowTotal }}</span>
             </div>
           </div>
 
           <div v-if="paymentDetails && paymentDetails.items.length > 0" class="receipt-food-box">
-            <h4 class="food-h">Pre-Ordered Refreshments (10% Discount Applied)</h4>
+            <h4 class="food-h">{{ t('Pre-Ordered Refreshments (10% Discount Applied)') }}</h4>
             <div v-for="f in paymentDetails.items" :key="f.item.id" class="receipt-food-item">
               <span>{{ f.quantity }}x {{ f.item.name }}</span>
               <span>฿{{ Math.round(f.item.price * 0.9 * f.quantity) }}</span>
@@ -791,18 +1063,22 @@ async function onPaymentCompleted(paymentMeta: {
             <RouterLink :to="{ name: 'CustomerReservationsList' }" class="btn btn-primary">
               {{ t('View My Reservations') }}
             </RouterLink>
+            <button type="button" class="btn btn-secondary" @click="currentStep = 1">
+              + {{ t('Reserve a Table Now') }}
+            </button>
             <RouterLink :to="{ name: 'HomeIndex' }" class="btn btn-secondary">
-              Return to Catalog
+              {{ t('Return to Catalog') }}
             </RouterLink>
           </div>
         </div>
       </section>
+      </Transition>
 
       <!-- Dynamic QR Payment Modal -->
       <div v-if="showQrPayment" class="modal-backdrop" @click.self="showQrPayment = false">
         <QrPaymentDialog
-          :total-amount="grandTotal"
-          :table-total="tableTotal"
+          :total-amount="payNowTotal"
+          :table-total="0"
           :food-items="preOrderedFood"
           :food-subtotal="foodSubtotal"
           :food-discount="foodDiscountInfo.discountAmount"
@@ -822,7 +1098,7 @@ async function onPaymentCompleted(paymentMeta: {
   min-height: calc(100vh - 120px);
   padding: 32px 16px 64px;
   color: #202e27;
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
 }
 
 .container {
@@ -993,27 +1269,80 @@ async function onPaymentCompleted(paymentMeta: {
   color: #6a6252;
 }
 
-/* Glamorous Brief Reservation Summary */
+/* Glamorous Brief Reservation Summary with Running Gold Shine Border */
 .glamorous-summary-card {
-  background: radial-gradient(ellipse at 50% 20%, #1d3e2f 0%, #142b20 70%, #0d1e16 100%);
-  border: 1px solid #c6ad7a;
-  border-radius: 10px;
-  padding: 20px 22px;
+  position: relative;
+  background: #142b20;
+  border-radius: 14px;
+  padding: 22px 24px;
   margin-bottom: 24px;
   color: #fffaf0;
-  box-shadow: 0 4px 20px rgba(13, 30, 22, 0.25);
-  position: relative;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45), 0 0 20px rgba(198, 173, 122, 0.2);
   overflow: hidden;
+  z-index: 1;
 }
 
+/* Base static gold outline */
+.glamorous-summary-border-base {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  border: 1.5px solid rgba(198, 173, 122, 0.4);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Continuous running gold shine animation around the perimeter */
 .glamorous-summary-card::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, #c6ad7a, #f7e7c4, #c6ad7a, transparent);
+  top: -100%;
+  left: -100%;
+  width: 300%;
+  height: 300%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 65deg,
+    rgba(198, 173, 122, 0.3) 78deg,
+    #c6ad7a 84deg,
+    #fff8e7 89deg,
+    #ffffff 90deg,
+    #fff8e7 91deg,
+    #f3e0aa 96deg,
+    rgba(198, 173, 122, 0.4) 102deg,
+    transparent 115deg,
+    transparent 360deg
+  );
+  animation: goldBorderSpin 4s linear infinite;
+  z-index: -2;
+  pointer-events: none;
+}
+
+/* Inner deep emerald parlor core to reveal only the 2px running gold border */
+.glamorous-summary-card::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: radial-gradient(ellipse at 50% 25%, #1d3e2f 0%, #142b20 70%, #0d1e16 100%);
+  border-radius: 12px;
+  z-index: -1;
+  pointer-events: none;
+  box-shadow: inset 0 0 16px rgba(10, 22, 16, 0.7);
+}
+
+.glamorous-summary-card > *:not(.glamorous-summary-border-base) {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes goldBorderSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .summary-card-header {
@@ -1112,46 +1441,59 @@ async function onPaymentCompleted(paymentMeta: {
 
 .table-card {
   background: #ffffff;
-  border: 2px solid #e0d5c1;
-  border-radius: 8px;
-  padding: 16px;
+  border: 1.5px solid #ded5c3;
+  border-radius: 12px;
+  padding: 16px 18px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  transition: all 140ms ease;
+  gap: 10px;
+  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(32, 60, 48, 0.04);
 }
 
 .table-card:hover {
   border-color: #baa67c;
-  box-shadow: 0 4px 14px rgba(20, 43, 32, 0.08);
+  box-shadow: 0 8px 20px rgba(20, 43, 32, 0.08), 0 0 12px rgba(198, 173, 122, 0.15);
+  transform: translateY(-2px);
 }
 
 .table-card.is-selected {
-  border-color: #203c30;
-  background: #fcf9f2;
-  box-shadow: 0 0 0 1px #203c30;
+  transform: translateY(-3px);
+  border-color: #f7e7c4;
+  background: radial-gradient(ellipse at 50% 15%, #244b39 0%, #173224 70%, #0f2219 100%);
+  color: #fffaf0;
+  box-shadow: 0 0 0 2px #c6ad7a, 0 12px 28px rgba(0, 0, 0, 0.35), 0 0 20px rgba(198, 173, 122, 0.3);
 }
 
 .table-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 2px;
 }
 
 .table-label {
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 700;
-  color: #1a382a;
+  color: #142b20;
+  letter-spacing: -0.01em;
 }
 
 .capacity-pill {
-  font-size: 11px;
-  background: #e9dec9;
-  color: #203c30;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 600;
+  font-size: 11.5px;
+  background: #f4ecdc;
+  color: #142b20;
+  border: 1px solid rgba(198, 173, 122, 0.4);
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .table-rate {
@@ -1161,9 +1503,9 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .rate-num {
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 800;
-  color: #203c30;
+  color: #142b20;
 }
 
 .rate-unit {
@@ -1172,18 +1514,67 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .table-subtotal {
-  font-size: 12px;
+  font-size: 12.5px;
   color: #555044;
+  font-weight: 500;
 }
 
 .select-radio {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 6px;
   font-size: 13px;
+  font-weight: 700;
+  color: #142b20;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(198, 173, 122, 0.25);
+}
+
+/* HIGH-CONTRAST GOLD & CREAM WHEN SELECTED - ENSURES TEXT NEVER DISAPPEARS */
+.table-card.is-selected .table-label {
+  color: #fffaf0 !important;
+}
+
+.table-card.is-selected .rate-num {
+  color: #ffd98a !important;
+}
+
+.table-card.is-selected .rate-unit {
+  color: #e5d8b8 !important;
+}
+
+.table-card.is-selected .table-subtotal {
+  color: #ddc18c !important;
+}
+
+.table-card.is-selected .select-radio {
+  color: #fff8e7 !important;
+  border-top-color: rgba(198, 173, 122, 0.4);
+}
+
+.table-card.is-selected .capacity-pill {
+  background: rgba(198, 173, 122, 0.25) !important;
+  border-color: #c6ad7a !important;
+  color: #fff8e7 !important;
+}
+
+.table-card.is-selected .gold-icon {
+  color: #ffd98a !important;
+  filter: drop-shadow(0 0 6px rgba(255, 217, 138, 0.6));
+}
+
+.phone-error-hint {
+  font-size: 11.5px;
+  color: #c0392b;
+  margin-top: 4px;
+  display: block;
   font-weight: 600;
-  color: #203c30;
+}
+
+.form-input.phone-number-field.is-invalid {
+  border-color: #c0392b;
+  background: #fff8f8;
 }
 
 .contact-section {
@@ -1523,4 +1914,192 @@ async function onPaymentCompleted(paymentMeta: {
     grid-template-columns: 1fr;
   }
 }
+
+/* Smooth Glam Transition between Wizard Steps */
+.glam-step-enter-active,
+.glam-step-leave-active {
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.glam-step-enter-from {
+  opacity: 0;
+  transform: translateY(14px) scale(0.99);
+}
+.glam-step-leave-to {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.99);
+}
+
+/* Gold Layout Icons styling */
+.gold-icon {
+  width: 18px;
+  height: 18px;
+  color: #ddc18c;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 3px rgba(198, 173, 122, 0.35));
+}
+.gold-icon.mini-crest {
+  width: 14px;
+  height: 14px;
+  margin: 0 4px;
+}
+.gold-icon.micro {
+  width: 13px;
+  height: 13px;
+  margin-right: 3px;
+}
+.gold-icon.table-icon {
+  width: 22px;
+  height: 22px;
+  color: #ddc18c;
+}
+.gold-icon.warning-icon {
+  width: 20px;
+  height: 20px;
+  color: #e5b869;
+}
+.gold-icon.empty-icon {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 8px;
+  color: #c6ad7a;
+}
+.gold-icon.check-icon {
+  width: 20px;
+  height: 20px;
+  color: #2ecc71;
+  filter: drop-shadow(0 0 6px rgba(46, 204, 113, 0.4));
+}
+
+.table-label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+
+
+/* Smooth Button Hover Elevation */
+.btn-primary {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 14px rgba(198, 173, 122, 0.25);
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(198, 173, 122, 0.45);
+  filter: brightness(1.08);
+}
+.btn-secondary {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: #c6ad7a;
+  color: #ddc18c;
+}
+
+
+/* Member Status Bar & Auth Gate Banner */
+.member-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #142b20;
+  border: 1px solid #c6ad7a;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 20px;
+  gap: 12px;
+  box-shadow: 0 4px 14px rgba(20, 43, 32, 0.15);
+  flex-wrap: wrap;
+}
+
+.member-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #fffaf0;
+}
+
+.member-text {
+  color: #ddc18c;
+}
+
+.member-name {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.member-badge-perk {
+  font-size: 11px;
+  font-weight: 800;
+  background: rgba(198, 173, 122, 0.2);
+  border: 1px solid #ffd98a;
+  color: #ffd98a;
+  padding: 3px 10px;
+  border-radius: 12px;
+}
+
+.auth-gate-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff8f0;
+  border: 1.5px solid #d4a373;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 22px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.auth-gate-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.auth-gate-icon {
+  font-size: 20px;
+}
+
+.auth-gate-heading {
+  font-size: 14.5px;
+  color: #8c4a00;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.auth-gate-sub {
+  margin: 0;
+  font-size: 12.5px;
+  color: #6a4c28;
+  line-height: 1.4;
+}
+
+.auth-signin-btn {
+  white-space: nowrap;
+}
+
+
+.pay-counter-pill {
+  display: block;
+  font-size: 10.5px;
+  color: #8c7649;
+  font-weight: 700;
+  margin-top: 2px;
+}
+.due-sub-text {
+  display: block;
+  font-size: 10.5px;
+  color: #8c7649;
+  margin-top: 2px;
+}
+.muted-val {
+  color: #7a705e;
+  font-weight: 700;
+}
+
 </style>

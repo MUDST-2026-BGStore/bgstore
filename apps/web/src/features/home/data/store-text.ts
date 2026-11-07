@@ -421,6 +421,7 @@ const thai: Record<string, string> = {
   'Past & Cancelled Bookings': 'ประวัติการจองที่ผ่านมา',
   'No active reservations': 'ไม่มีรายการจองที่กำลังจะมาถึง',
   'Cancel Reservation': 'ยกเลิกการจอง',
+  'Keep Reservation': 'เก็บการจองไว้',
   'Reason for cancellation': 'เหตุผลในการยกเลิก',
   'Confirm Cancellation': 'ยืนยันการยกเลิก',
   'Status': 'สถานะ',
@@ -430,6 +431,317 @@ const thai: Record<string, string> = {
   'CANCELLED': 'ยกเลิกแล้ว',
   'NO_SHOW': 'ไม่มาตามนัด',
   'PENDING': 'รอยืนยัน',
+  'popular':
+    'ยอดนิยม',
+  'Vegetarian':
+    'มังสวิรัติ',
+  'Vegan':
+    'วีแกน',
+  'Search food, beverages, snacks…':
+    'ค้นหาอาหาร, เครื่องดื่ม, ของว่าง…',
+  'Phone number must have at least 8 digits.':
+    'เบอร์โทรศัพท์ต้องมีอย่างน้อย 8 หลัก',
+  'Phone number is too long.':
+    'เบอร์โทรศัพท์ยาวเกินไป',
+  'The Emerald Salon (Table 1)':
+    'ดิ เอเมอรัลด์ ซาลอน (โต๊ะ 1)',
+  'Grand Oak Salon (Table 2)':
+    'แกรนด์ โอ๊ค ซาลอน (โต๊ะ 2)',
+  'The Royal Library (Table 3)':
+    'เดอะ รอยัล ไลบรารี (โต๊ะ 3)',
+  'Imperial Parlor Suite (VIP 1)':
+    'อิมพีเรียล พาร์เลอร์ สวีท (VIP 1)',
+  'Duelist Corner (Table 5)':
+    'ดูเอลิสต์ คอร์เนอร์ (โต๊ะ 5)',
+  'Ari Garden Veranda (Table 1)':
+    'อารีย์ การ์เดน เวอแรนดา (โต๊ะ 1)',
+  'The Bohemian Alcove (Table 2)':
+    'เดอะ โบฮีเมียน อัลโคฟ (โต๊ะ 2)',
+  'Ari Master Suite (Table 3)':
+    'อารีย์ มาสเตอร์ สวีท (โต๊ะ 3)',
+  'Riverside Panorama (Table 1)':
+    'ริเวอร์ไซด์ พาโนรามา (โต๊ะ 1)',
+  'Chao Phraya Lounge (Table 2)':
+    'เจ้าพระยา เลานจ์ (โต๊ะ 2)',
+  "The Captain's Quarters (VIP)":
+    'เดอะ แคปตัน ควอเตอร์ส (VIP)',
+  'In-Play Ordering:':
+    'สั่งอาหารขณะเล่น:',
+  "Need more snacks or refills while playing? You can scan your table's menu code to order food and drinks directly to your table at any time during your visit.":
+    'ต้องการของว่างหรือเครื่องดื่มเพิ่มขณะเล่น? สามารถสแกนสั่งจากโต๊ะได้ตลอดเวลา',
+
+  'All Items':
+    'ทั้งหมด',
+  'Drinks & Soda':
+    'เครื่องดื่มและน้ำอัดลม',
+  'Packaged Snacks & Chips':
+    'ขนมขบเคี้ยวและมันฝรั่งทอด',
+  'Drinks & Coffee':
+    'เครื่องดื่มและกาแฟ',
+  'Finger Food & Bites':
+    'ของทานเล่น',
+  'Sharing Platters':
+    'เซ็ตอาหารสำหรับกลุ่ม',
+  'Grilled Sandwiches':
+    'แซนด์วิชร้อน',
+  'Desserts':
+    'ของหวาน',
+  'Pre-ordered Refreshments ({count} items)':
+    'รายการอาหารสั่งล่วงหน้า ({count} รายการ)',
+  '10% OFF applied':
+    'หักส่วนลด 10% แล้ว',
+  'Generating Dynamic QR Code…':
+    'กำลังสร้าง QR Code สำหรับชำระเงิน…',
+  'Pre-Ordered Refreshments':
+    'รายการอาหารและเครื่องดื่มสั่งล่วงหน้า',
+  'Return to Home':
+    'กลับสู่หน้าหลัก',
+  'Select Your Table':
+    'เลือกโต๊ะที่นั่งของคุณ',
+  'Capacity: {count} players':
+    'ความจุ: สูงสุด {count} ท่าน',
+
+  'Select Table':
+    'เลือกโต๊ะ',
+  '{amount} for {hours} hrs':
+    '฿{amount} สำหรับ {hours} ชม.',
+  '← Back':
+    '← ย้อนกลับ',
+  'Add Food & Drinks (-10%) →':
+    'เลือกอาหารและเครื่องดื่ม (-10%) →',
+  '← Back to Table':
+    '← ย้อนกลับไปเลือกโต๊ะ',
+  'Proceed to Review & Pay →':
+    'ไปที่ตรวจสอบและชำระเงิน →',
+  '← Back to Food & Drinks':
+    '← ย้อนกลับไปเลือกอาหาร',
+  'Pay ฿{total} with PromptPay QR →':
+    'ชำระเงิน ฿{total} ด้วย PromptPay QR →',
+  'Instant verification via PromptPay / Thai QR Code. Table is reserved immediately.':
+    'ตรวจสอบการชำระเงินทันทีผ่าน PromptPay / Thai QR โต๊ะจะได้รับการยืนยันทันที',
+  'See You at The Parlor!':
+    'แล้วพบกันที่ The Parlor!',
+  'Return to Catalog':
+    'กลับสู่หน้ารายการเกม',
+  'Pre-order coffee, snacks, or platters to enjoy a special 10% reservation discount. You can also order more food and drinks directly from your table while playing!':
+    'สั่งเครื่องดื่ม ของว่าง หรือเซ็ตอาหารล่วงหน้าเพื่อรับส่วนลดพิเศษ 10% และยังสามารถสั่งเพิ่มที่โต๊ะขณะเล่นได้ตลอดเวลา!',
+  'Pre-order bottled drinks and packaged snacks to enjoy a special 10% reservation discount. You can also order more snacks directly from your table while playing!':
+    'สั่งเครื่องดื่มและขนมขบเคี้ยวล่วงหน้าพร้อมรับส่วนลด 10% คุณยังสามารถสั่งขนมและเครื่องดื่มเพิ่มจากโต๊ะขณะเล่นได้ตลอดเวลา',
+  'Confirm your table reservation details and complete the PromptPay QR transfer to lock in your booking.':
+    'ตรวจสอบรายละเอียดการจองโต๊ะและสแกน PromptPay QR เพื่อยืนยันการจองของคุณ',
+  'Verifying Bank Transfer…':
+    'กำลังตรวจสอบยอดโอน…',
+  'I Have Paid / Simulate Bank Transfer ✓':
+    'แจ้งโอนเงินเรียบร้อย / จำลองการชำระเงิน ✓',
+  'Payment Verified & Confirmed!':
+    'ยืนยันการชำระเงินเรียบร้อยแล้ว!',
+  'Back to Details':
+    'ย้อนกลับไปแก้ไขข้อมูล',
+  'Popular':
+    'ยอดนิยม',
+  '10% OFF':
+    'ลด 10%',
+  'Available tables at {branch} for {count} players.':
+    'โต๊ะว่างที่สาขา {branch} สำหรับ {count} ท่าน',
+  'Full Name':
+    'ชื่อ-นามสกุล',
+  'Email Address':
+    'อีเมล',
+  'Country Code':
+    'รหัสประเทศ',
+  'Phone Number':
+    'เบอร์โทรศัพท์',
+  'Special Requests or Notes (Optional)':
+    'ข้อความเพิ่มเติมหรือคำขอพิเศษ (ระบุหรือไม่ก็ได้)',
+  'e.g. Preferred specific game setup, birthday celebration, high-chair needed':
+    'เช่น ต้องการให้เซ็ตเกมล่วงหน้า ฉลองวันเกิด หรือต้องการเก้าอี้พิเศษ',
+  'Table':
+    'โต๊ะ',
+  'Interval (Timestamps)':
+    'ช่วงเวลาการจอง',
+  'Guest':
+    'ผู้จอง',
+  'Total Paid (QR)':
+    'ยอดชำระแล้ว (QR)',
+  'Pre-Ordered Refreshments (10% Discount Applied)':
+    'รายการอาหารและเครื่องดื่มสั่งล่วงหน้า (หักส่วนลด 10% แล้ว)',
+  'Table Details':
+    'รายละเอียดโต๊ะ',
+  'Cancel':
+    'ยกเลิก',
+  '{count} Hours':
+    '{count} ชั่วโมง',
+  'Manage your booked gaming tables and pre-ordered food & refreshments.':
+    'จัดการการจองโต๊ะเล่นเกมและรายการอาหารเครื่องดื่มที่สั่งล่วงหน้า',
+  'All Statuses':
+    'ทุกสถานะ',
+  'All Branches':
+    'ทุกสาขา',
+  'Cancellation Reason:':
+    'เหตุผลในการยกเลิก:',
+  'e.g. Schedule conflict':
+    'เช่น ติดธุระด่วน',
+  'Cancelling…':
+    'กำลังยกเลิก…',
+  'Please Sign In':
+    'กรุณาเข้าสู่ระบบ',
+  'Sign in to your Parlor account to view your reservations.':
+    'เข้าสู่ระบบ The Parlor เพื่อดูประวัติการจองของคุณ',
+  'Sign in Required':
+    'จำเป็นต้องเข้าสู่ระบบ',
+  'Table reservations and food pre-orders are exclusively available for registered and signed-in members.':
+    'การจองโต๊ะและสั่งอาหารล่วงหน้าเปิดให้บริการเฉพาะสมาชิกที่ลงทะเบียนและเข้าสู่ระบบเท่านั้น',
+  'Sign In / Register':
+    'เข้าสู่ระบบ / ลงทะเบียน',
+  'Reserving as Registered Member:':
+    'กำลังจองในฐานะสมาชิก:',
+  '10% Pre-order Discount Active':
+    'รับส่วนลดอาหาร 10% สำหรับสมาชิก',
+  'Registered Member':
+    'สมาชิกที่ลงทะเบียน',
+  'No Reservations Found':
+    'ไม่พบประวัติการจอง',
+  'You have no reservations matching this filter.':
+    'คุณไม่มีการจองที่ตรงกับตัวกรองนี้',
+  'Reserve a Table Now':
+    'จองโต๊ะตอนนี้',
+  'View Reservation History':
+    'ดูประวัติการจอง',
+  'Pre-ordered Refreshments (-10% Discount Applied)':
+    'รายการอาหารและเครื่องดื่มสั่งล่วงหน้า (รับส่วนลด 10%)',
+  'Pre-ordered Food & Drinks':
+    'อาหารและเครื่องดื่มสั่งล่วงหน้า',
+  'Pre-order Discount':
+    'ส่วนลดสั่งล่วงหน้า',
+  'Paid via PromptPay QR':
+    'ชำระแล้วผ่าน PromptPay QR',
+  'ISO Timestamps (System Record):':
+    'การประทับเวลา ISO (บันทึกระบบ):',
+  'Ref:':
+    'รหัส:',
+  'Booking Reference':
+    'รหัสการจอง',
+  'Reserved by':
+    'จองโดย',
+  'players':
+    'คน',
+  'Cancel Table Reservation?':
+    'ต้องการยกเลิกการจองโต๊ะหรือไม่?',
+  'Schedule conflict':
+    'ติดธุระด่วน',
+  'Change of plans':
+    'เปลี่ยนแผนการเดินทาง',
+  'Cancelled by customer':
+    'ยกเลิกโดยผู้จอง',
+  'Please sign in to proceed with your booking.':
+    'กรุณาเข้าสู่ระบบก่อนทำการจอง',
+  'Sign in Required to Reserve':
+    'จำเป็นต้องเข้าสู่ระบบเพื่อจอง',
+  'Active Playing Session':
+    'เซสชันเล่นเกมที่กำลังดำเนินอยู่',
+  'Currently Playing at':
+    'กำลังเล่นอยู่ที่',
+  'Playing for':
+    'เล่นมาแล้ว',
+  'Order Food & Drinks to Table':
+    'สั่งอาหารและเครื่องดื่มมาที่โต๊ะ',
+  'Items will be prepared immediately and served to your playing table.':
+    'รายการอาหารจะถูกเตรียมทันทีและนำมาเสิร์ฟที่โต๊ะของคุณ',
+  'Order Sent to Kitchen!':
+    'ส่งรายการอาหารไปยังครัวเรียบร้อย!',
+  'Your refreshments are being prepared and will be brought directly to your table.':
+    'เครื่องดื่มและของว่างกำลังจัดเตรียมและจะนำไปเสิร์ฟที่โต๊ะของคุณในไม่ช้า',
+  'Added to your Table Tab':
+    'บันทึกลงในบิลของโต๊ะเรียบร้อย',
+  'Current In-Play Order:':
+    'ยอดสั่งอาหารขณะเล่นรอบนี้:',
+  'Special instructions (e.g. Extra ice, serve in 15 mins…)':
+    'คำขอพิเศษ (เช่น ขอน้ำแข็งเพิ่ม, เสิร์ฟใน 15 นาที…)',
+  'Add to Table Tab (Pay at checkout)':
+    'รวมในบิลโต๊ะ (ชำระตอนเช็คบิลออกจากร้าน)',
+  'Staff will combine this with your table bill.':
+    'พนักงานจะรวมยอดนี้เข้ากับบิลรวมของโต๊ะ',
+  'Instant payment from your table.':
+    'ชำระเงินทันทีที่โต๊ะผ่านมือถือ',
+  'Send Order to Table (฿{total})':
+    'สั่งอาหารมาที่โต๊ะ (฿{total})',
+  'Live Table Bill & Tab':
+    'บิลรวมของโต๊ะแบบเรียลไทม์',
+  'Staff Bill Inspection':
+    'ตรวจสอบและเช็คบิลโต๊ะ (พนักงาน)',
+  'Table Session Bill':
+    'บิลค่าบริการและอาหารประจำโต๊ะ',
+  'Party of {count} players • Session Ref: {ref}':
+    'ผู้เล่น {count} ท่าน • รหัสเซสชัน: {ref}',
+  'Bill Settled & Session Closed!':
+    'เช็คบิลและปิดเซสชันเรียบร้อยแล้ว!',
+  'All table play fees and in-play food orders have been settled successfully. Thank you for playing at The Parlor!':
+    'ค่าบริการโต๊ะและรายการอาหารทั้งหมดได้รับการชำระเรียบร้อยแล้ว ขอขอบคุณที่มาใช้บริการ The Parlor!',
+  'Scan PromptPay QR to Pay Balance':
+    'สแกน PromptPay QR เพื่อชำระยอดคงค้าง',
+  'Amount Due':
+    'ยอดค้างชำระ',
+  '← Back to Bill':
+    '← ย้อนกลับไปดูบิล',
+  'I Have Paid / Simulate Transfer ✓':
+    'ชำระเงินเรียบร้อย / จำลองการโอน ✓',
+  'Table Play Session':
+    'ค่าบริการชั่วโมงการเล่นเกม',
+  'Play Duration:':
+    'ระยะเวลาการเล่น:',
+  'hr':
+    'ชม.',
+  'Pre-paid via PromptPay QR':
+    'ชำระล่วงหน้าแล้วผ่าน PromptPay QR',
+  'In-Play Table Orders':
+    'รายการสั่งอาหารระหว่างเล่น',
+  'No in-play food or drinks ordered yet. You can order snacks anytime while playing!':
+    'ยังไม่มีการสั่งอาหารระหว่างเล่น สามารถสั่งของว่างหรือเครื่องดื่มได้ตลอดเวลา!',
+  'Received':
+    'ได้รับออร์เดอร์แล้ว',
+  'Preparing':
+    'กำลังเตรียม',
+  'Served':
+    'เสิร์ฟแล้ว',
+  'Click to advance order status':
+    'คลิกเพื่อเปลี่ยนสถานะออร์เดอร์',
+  'On Tab':
+    'ลงบิลโต๊ะ',
+  'Paid (QR)':
+    'ชำระแล้ว (QR)',
+  'Total Session Bill (Play + Food):':
+    'ยอดรวมทั้งสิ้น (ค่าเล่น + อาหาร):',
+  'Already Paid (PromptPay QR):':
+    'ยอดที่ชำระแล้ว (PromptPay QR):',
+  'Outstanding Balance Due:':
+    'ยอดค้างชำระที่ต้องจ่าย:',
+  'All charges settled ✓':
+    'ชำระครบถ้วนแล้ว ✓',
+  'Includes hourly fee & on-tab refreshments':
+    'รวมค่าชั่วโมงและอาหารที่ลงบิลโต๊ะ',
+  'Settle Bill & Complete Session ✓':
+    'เช็คบิลและปิดเซสชันเล่นเกม ✓',
+  'Pay Balance ฿{amount} via PromptPay QR →':
+    'ชำระยอดค้าง ฿{amount} ผ่าน PromptPay QR →',
+  'Your bill is completely paid. Enjoy your games!':
+    'ชำระเงินครบถ้วนเรียบร้อยแล้ว ขอให้สนุกกับการเล่นเกม!',
+  'Check Bill & Orders':
+    'เช็คบิล & ตรวจสอบออร์เดอร์',
+  'Check Bill':
+    'เช็คบิล',
+  'Inspect Bill & Orders':
+    'ตรวจสอบบิลและออร์เดอร์',
+  'Live Table Bill':
+    'ดูบิลสดของโต๊ะ',
+  'Order Food to Table':
+    'สั่งอาหารมาที่โต๊ะ',
+  'Order to Table Now':
+    'สั่งอาหารมาที่โต๊ะตอนนี้',
+  'ACTIVE ON-GOING SESSION':
+    'เซสชันเล่นเกมที่กำลังดำเนินอยู่',
+  'Playing Now':
+    'กำลังเล่นอยู่',
+
 };
 export function useStoreText() {
   const { locale } = useLocale();

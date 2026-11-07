@@ -105,7 +105,14 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
     </template>
 
     <template #header-right>
-      <RouterLink :to="{ name: 'CustomerReservePage' }" class="header-reserve-btn">
+      <RouterLink
+        v-if="auth.authenticated"
+        to="/reservations"
+        class="header-history-btn"
+      >
+        {{ t('My Reservations') }}
+      </RouterLink>
+      <RouterLink to="/reservations/new" class="header-reserve-btn">
         {{ t('Reserve Table') }}
       </RouterLink>
       <StoreCartButton />
@@ -173,10 +180,6 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
             </div>
             <div class="account-options">
               <template v-if="auth.authenticated">
-                <RouterLink :to="{ name: 'CustomerReservationsList' }">
-                  {{ t('My Reservations') }}
-                  <span aria-hidden="true">↗</span>
-                </RouterLink>
                 <RouterLink :to="{ name: 'AuthProfile' }"
                   >{{ t('Your profile') }}
                   <span aria-hidden="true">↗</span></RouterLink
@@ -408,7 +411,27 @@ button:focus-visible {
     gap: 8px;
     justify-content: flex-end;
   }
-  .header-reserve-btn {
+  .header-history-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid rgba(198, 173, 122, 0.4);
+  color: #efe5d0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+.header-history-btn:hover {
+  background: rgba(198, 173, 122, 0.15);
+  border-color: #c6ad7a;
+  color: #ffffff;
+}
+.header-reserve-btn {
     padding: 6px 10px;
     font-size: 10.5px;
   }
@@ -465,16 +488,36 @@ button:focus-visible {
     transform: none;
   }
 }
-.header-reserve-btn {
+.header-history-btn {
   display: inline-flex;
   align-items: center;
   padding: 8px 12px;
+  background: transparent;
+  border: 1px solid rgba(198, 173, 122, 0.4);
+  color: #efe5d0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+.header-history-btn:hover {
+  background: rgba(198, 173, 122, 0.15);
+  border-color: #c6ad7a;
+  color: #ffffff;
+}
+.header-reserve-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
   background: #c6ad7a;
   color: #14281f;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
   border-radius: 4px;
   text-decoration: none;
   transition: all 140ms ease;
@@ -485,6 +528,10 @@ button:focus-visible {
   color: #0b1a13;
 }
 @media (max-width: 600px) {
+  .header-history-btn {
+    padding: 6px 8px;
+    font-size: 10px;
+  }
   .header-reserve-btn {
     padding: 6px 8px;
     font-size: 10px;

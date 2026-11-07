@@ -13,8 +13,23 @@ const emit = defineEmits<{
   'update:modelValue': [items: FoodOrderItem[]];
 }>();
 
-const { t } = useStoreText();
+const { t, locale } = useStoreText();
 const activeCategory = ref<string>('all');
+
+function localizedItemName(item: FoodMenuItem): string {
+  return locale.value === 'th-TH' && item.nameTh ? item.nameTh : item.name;
+}
+
+function localizedItemDesc(item: FoodMenuItem): string {
+  return locale.value === 'th-TH' && item.descriptionTh ? item.descriptionTh : item.description;
+}
+
+function localizedDietary(dietary?: string): string {
+  if (!dietary) return '';
+  if (dietary.toLowerCase() === 'vegetarian') return t('Vegetarian');
+  if (dietary.toLowerCase() === 'vegan') return t('Vegan');
+  return t(dietary);
+}
 const searchQuery = ref<string>('');
 
 const filteredItems = computed(() => {
@@ -63,7 +78,7 @@ const totalItemsCount = computed(() =>
     <!-- Header banner highlighting 10% discount -->
     <div class="discount-banner">
       <div class="discount-badge">
-        <span class="icon">✨</span>
+        <span class="icon"><svg class="gold-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"></path></svg></span>
         <span class="highlight">{{ t('Pre-Order Food & Drinks (10% Discount)') }}</span>
       </div>
       <p class="discount-copy">
@@ -91,7 +106,7 @@ const totalItemsCount = computed(() =>
         <input
           v-model="searchQuery"
           type="search"
-          :placeholder="t('Search games, designers, mechanics…')"
+          :placeholder="t('Search food, beverages, snacks…')"
           class="search-input"
           aria-label="Search menu items"
         />
@@ -107,19 +122,21 @@ const totalItemsCount = computed(() =>
         :class="{ 'has-qty': getQuantity(item.id) > 0 }"
       >
         <div class="card-header">
-          <div class="title-row">
-            <h4 class="item-name">{{ item.name }}</h4>
-            <span v-if="item.popular" class="popular-pill">Popular</span>
-            <span v-if="item.dietary" class="dietary-pill">{{ item.dietary }}</span>
+          <h4 class="item-name">{{ localizedItemName(item) }}</h4>
+          <div v-if="item.popular || item.dietary" class="item-tags-row">
+            <span v-if="item.popular" class="popular-pill">{{ t('popular') }}</span>
+            <span v-if="item.dietary" class="dietary-pill">{{ localizedDietary(item.dietary) }}</span>
           </div>
-          <p class="item-desc">{{ item.description }}</p>
+          <p class="item-desc">{{ localizedItemDesc(item) }}</p>
         </div>
 
         <div class="card-footer">
           <div class="price-stack">
-            <span class="discounted-price">฿{{ Math.round(item.price * 0.9) }}</span>
-            <span class="original-price">฿{{ item.price }}</span>
-            <span class="discount-tag">10% OFF</span>
+            <div class="price-row">
+              <span class="discounted-price">฿{{ Math.round(item.price * 0.9) }}</span>
+              <span class="original-price">฿{{ item.price }}</span>
+            </div>
+            <span class="discount-tag">{{ t('10% OFF') }}</span>
           </div>
 
           <!-- Quantity Stepper -->
@@ -162,7 +179,8 @@ const totalItemsCount = computed(() =>
           </div>
         </div>
         <p class="tray-footnote">
-          ☕ Pre-ordered items will be prepared fresh upon your table check-in.
+          <span class="gold-bullet">◆</span>
+          {{ t('Pre-ordered items will be prepared fresh upon your table check-in.') }}
         </p>
       </div>
     </div>
@@ -262,65 +280,76 @@ const totalItemsCount = computed(() =>
 
 .menu-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .menu-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .menu-card {
   background: #ffffff;
   border: 1px solid #e0d5c1;
-  border-radius: 8px;
-  padding: 16px;
+  border-radius: 10px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  transition: border-color 140ms ease, box-shadow 140ms ease;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .menu-card:hover {
   border-color: #c6ad7a;
-  box-shadow: 0 4px 12px rgba(20, 43, 32, 0.06);
+  box-shadow: 0 6px 18px rgba(20, 43, 32, 0.08), 0 0 12px rgba(198, 173, 122, 0.15);
+  transform: translateY(-2px);
 }
 
 .menu-card.has-qty {
   border-color: #203c30;
   background: #faf8f3;
+  box-shadow: 0 0 0 1px #203c30;
 }
 
 .card-header {
   margin-bottom: 12px;
 }
 
-.title-row {
+.item-name {
+  margin: 0 0 6px 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1b2f25;
+  line-height: 1.35;
+}
+
+.item-tags-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 6px;
-}
-
-.item-name {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-  color: #1b2f25;
+  margin-bottom: 8px;
 }
 
 .popular-pill {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: lowercase; /* explicitly lowercase as requested */
   background: #fde8cf;
   color: #8c4e0b;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
+  letter-spacing: 0.02em;
 }
 
 .dietary-pill {
-  font-size: 10px;
+  font-size: 10.5px;
+  font-weight: 600;
   background: #e2f0d9;
   color: #2e6022;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 4px;
 }
 
@@ -337,10 +366,18 @@ const totalItemsCount = computed(() =>
   justify-content: space-between;
   border-top: 1px solid #f0e9dc;
   padding-top: 12px;
-  margin-top: 6px;
+  margin-top: 8px;
+  gap: 8px;
 }
 
 .price-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.price-row {
   display: flex;
   align-items: baseline;
   gap: 6px;
@@ -348,7 +385,7 @@ const totalItemsCount = computed(() =>
 
 .discounted-price {
   font-size: 16px;
-  font-weight: 700;
+  font-weight: 800;
   color: #1a4231;
 }
 
@@ -359,12 +396,15 @@ const totalItemsCount = computed(() =>
 }
 
 .discount-tag {
+  display: inline-block;
+  align-self: flex-start;
   font-size: 10px;
   font-weight: 700;
   color: #b54708;
   background: #fef0c7;
-  padding: 2px 4px;
+  padding: 1px 5px;
   border-radius: 3px;
+  white-space: nowrap;
 }
 
 .stepper {
@@ -479,6 +519,16 @@ const totalItemsCount = computed(() =>
   .search-input {
     width: 100%;
   }
+}
+
+.gold-icon {
+  width: 18px;
+  height: 18px;
+  color: #ddc18c;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(198, 173, 122, 0.35));
 }
 </style>
 

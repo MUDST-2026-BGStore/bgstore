@@ -77,9 +77,9 @@ function confirmPayment() {
     <div class="qr-card">
       <div class="qr-header">
         <div class="logo-strip">
-          <span class="suit">♠</span>
+          <svg class="gold-icon mini-crest" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"></path></svg>
           <span class="brand-text">THE PARLOR</span>
-          <span class="suit">♣</span>
+          <svg class="gold-icon mini-crest" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"></path></svg>
         </div>
         <h3 id="qr-title" class="payment-title">{{ t('PromptPay QR Checkout') }}</h3>
         <p class="payment-subtitle">
@@ -95,8 +95,8 @@ function confirmPayment() {
         </div>
         <div v-if="foodItems.length > 0" class="line-row food-row">
           <span>
-            Food & Drinks Pre-Order ({{ foodItems.reduce((a, b) => a + b.quantity, 0) }} items)
-            <small class="discount-label">10% OFF applied</small>
+            {{ t('Pre-ordered Refreshments ({count} items)', { count: foodItems.reduce((a, b) => a + b.quantity, 0) }) }}
+            <small class="discount-label">{{ t('10% OFF applied') }}</small>
           </span>
           <div class="food-vals">
             <span class="strike">฿{{ foodSubtotal }}</span>
@@ -112,7 +112,7 @@ function confirmPayment() {
       <!-- QR Code Display -->
       <div class="qr-box">
         <div v-if="isGenerating" class="loading-state">
-          <span>Generating Dynamic QR Code…</span>
+          <span>{{ t('Generating Dynamic QR Code…') }}</span>
         </div>
         <div v-else-if="qrData" class="qr-image-wrapper">
           <img :src="qrData.dataUrl" alt="PromptPay QR Code for Payment" class="qr-img" />
@@ -134,13 +134,13 @@ function confirmPayment() {
           :disabled="isVerifying"
           @click="confirmPayment"
         >
-          <span v-if="isVerifying">Verifying Bank Transfer…</span>
-          <span v-else>I Have Paid / Simulate Bank Transfer ✓</span>
+          <span v-if="isVerifying">{{ t('Verifying Bank Transfer…') }}</span>
+          <span v-else>{{ t('I Have Paid / Simulate Bank Transfer ✓') }}</span>
         </button>
 
         <div v-else class="paid-success-banner">
-          <span class="check-icon">✓</span>
-          <span>Payment Verified & Confirmed!</span>
+          <svg class="gold-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <span>{{ t('Payment Verified & Confirmed!') }}</span>
         </div>
 
         <button
@@ -149,7 +149,7 @@ function confirmPayment() {
           class="cancel-btn"
           @click="emit('cancel')"
         >
-          Back to Details
+          {{ t('Back to Details') }}
         </button>
       </div>
     </div>
@@ -158,6 +158,7 @@ function confirmPayment() {
 
 <style scoped>
 .qr-payment-container {
+  animation: qrModalFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -165,6 +166,7 @@ function confirmPayment() {
 }
 
 .qr-card {
+  animation: qrCardSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   background: #ffffff;
   border: 1px solid #c6ad7a;
   border-radius: 12px;
@@ -378,6 +380,30 @@ function confirmPayment() {
 
 .cancel-btn:hover {
   background: #f7eee0;
+}
+
+@keyframes qrModalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes qrCardSlideUp {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.gold-icon {
+  width: 18px;
+  height: 18px;
+  color: #ddc18c;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(198, 173, 122, 0.35));
+}
+.gold-icon.mini-crest {
+  width: 14px;
+  height: 14px;
 }
 </style>
 

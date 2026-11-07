@@ -1,8 +1,10 @@
 export interface FoodMenuItem {
   id: string;
   name: string;
+  nameTh?: string;
   description: string;
-  category: 'beverages' | 'snacks' | 'platters' | 'sandwiches' | 'sweets';
+  descriptionTh?: string;
+  category: 'beverages' | 'snacks';
   price: number; // in THB
   dietary?: string;
   popular?: boolean;
