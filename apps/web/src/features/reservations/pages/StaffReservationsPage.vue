@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { RouterLink } from 'vue-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import {
   listBranches,
@@ -20,7 +19,9 @@ import { calculatePreOrderDiscount } from '../data/payment';
 import TableBillModal from '../components/TableBillModal.vue';
 import { useCustomerReservationsStore } from '../data/reservations-store';
 import { FOOD_MENU_ITEMS } from '../data/food-menu';
+import { useStoreText } from '../../home/data/store-text';
 
+const { t, locale } = useStoreText();
 const queryClient = useQueryClient();
 
 const selectedBranchId = ref<string>('');
@@ -127,13 +128,14 @@ const filteredHistoryReservations = computed(() => {
   return list;
 });
 
-// Format Timestamps
-function formatInterval(startsAt: string, endsAt: string): string {
-  if (!startsAt || !endsAt) return '';
-  const s = new Date(startsAt);
-  const e = new Date(endsAt);
-  const timeStr = `${s.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – ${e.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  return timeStr;
+function formatFriendlyDateTime(isoStr: string): string {
+  if (!isoStr) return '';
+  const d = new Date(isoStr);
+  return `${d.toLocaleDateString(locale.value === 'th-TH' ? 'th-TH' : 'en-US', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })} • ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
 function formatTime(iso: string): string {
@@ -149,10 +151,10 @@ function getElapsedMinutes(res: any): number {
 }
 
 function formatPlayedDuration(mins: number): string {
-  if (mins < 60) return `${mins}m`;
+  if (mins < 60) return `${mins} ${t('mins')}`;
   const h = Math.floor(mins / 60);
   const m = mins % 60;
-  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  return m > 0 ? `${h} ${t('hr')} ${m} ${t('mins')}` : `${h} ${t('Hours')}`;
 }
 
 function calculateCurrentPlayFee(res: any): number {
@@ -245,7 +247,7 @@ function submitStaffSnackOrder() {
   reservationsStore.addStaffSnackOrder(
     staffSnackReservation.value.id,
     staffSnackSelectedItems.value,
-    'Added by counter staff'
+    'Added by staff at counter'
   );
   staffSnackReservation.value = null;
 }
@@ -300,7 +302,6 @@ async function handleCheckIn(res: Reservation) {
   try {
     reservationsStore.checkInReservation(res.id);
     await checkInMutation.mutateAsync(res.id);
-    // Switch smoothly to the floor view so staff sees their active table
     activeTab.value = 'FLOOR';
   } finally {
     actionInProgress.value = null;
@@ -524,6 +525,24 @@ function getCustomerPhone(c: any): string {
 }
 
 function formatStatus(status: string): string {
+  if (locale.value === 'th-TH') {
+    switch (status) {
+      case 'CONFIRMED':
+        return 'ยืนยันแล้ว';
+      case 'CHECKED_IN':
+        return 'กำลังเล่นอยู่';
+      case 'COMPLETED':
+        return 'เสร็จสิ้น';
+      case 'CANCELLED':
+        return 'ยกเลิกแล้ว';
+      case 'NO_SHOW':
+        return 'ไม่มาตามนัด';
+      case 'PENDING':
+        return 'รอยืนยัน';
+      default:
+        return t(status);
+    }
+  }
   switch (status) {
     case 'CONFIRMED':
       return 'Confirmed';
@@ -538,314 +557,359 @@ function formatStatus(status: string): string {
     case 'PENDING':
       return 'Pending';
     default:
-      return status;
+      return status
+        .replace(/_/g, ' ')
+        .toLowerCase()
+        .replace(/\b\w/g, (c) => c.toUpperCase());
   }
 }
 </script>
 
 <template>
-  <main class="branch-console-page">
-    <div class="console-wrapper">
-      <!-- Top Brand & Branch Bar -->
-      <header class="console-header">
-        <div class="console-branding">
-          <div class="brand-pill">
-            <span class="gold-suit">♠</span>
-            <span class="brand-text">THE PARLOR</span>
-            <span class="console-role-tag">Staff Console</span>
+  <div class="staff-console-page">
+    <div class="container">
+      <!-- Page Header matching Customer Reservation styling -->
+      <header class="page-header">
+        <div class="header-titles">
+          <div class="header-eyebrow">
+            <span class="gold-sparkle">✦</span>
+            <span>THE PARLOR · BRANCH OPERATIONS CONSOLE</span>
           </div>
-          <h1 class="console-title">Branch Operations & Floor</h1>
-          <p class="console-subtitle">
-            Manage live table sessions, seat walk-in groups, add snack tabs, and check guest bills.
+          <h1 class="page-title">Branch Floor & Reservations</h1>
+          <p class="page-subtitle">
+            Manage live gaming sessions, seat walk-in guests, log refreshments, and check out bills.
           </p>
         </div>
 
-        <div class="console-top-controls">
-          <div class="branch-selector-pill">
-            <label for="branch-select" class="selector-icon">📍</label>
-            <select id="branch-select" v-model="selectedBranchId" class="branch-select-native">
+        <div class="header-controls">
+          <div class="branch-picker">
+            <label for="branch-selector" class="picker-label">{{ t('Branch') }}:</label>
+            <select id="branch-selector" v-model="selectedBranchId" class="branch-select-input">
               <option v-for="b in branches" :key="b.id" :value="b.id">
-                {{ b.name }} Branch ({{ b.address || 'Bangkok' }})
+                {{ b.name }} Branch
               </option>
             </select>
           </div>
 
           <button
             type="button"
-            class="walkin-hero-btn"
+            class="btn btn-primary add-res-btn"
             @click="showWalkInModal = true"
           >
-            <span class="btn-icon">+</span>
-            <span>Walk-in Table</span>
+            + Seat Walk-in Table
           </button>
         </div>
       </header>
 
-      <!-- Shift Metrics Ribbon -->
-      <section class="metrics-ribbon" aria-label="Shift overview">
-        <div
-          class="metric-chip"
-          :class="{ active: activeTab === 'FLOOR' }"
-          @click="activeTab = 'FLOOR'"
-        >
-          <div class="chip-dot dot-green"></div>
-          <div class="chip-content">
-            <span class="chip-val">{{ activeFloorReservations.length }}</span>
-            <span class="chip-lbl">Active Tables</span>
+      <!-- Operational View Switcher & Shift Metrics -->
+      <div class="filters-card">
+        <div class="filter-group">
+          <span class="filter-label">View:</span>
+          <div class="status-pills" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="activeTab === 'FLOOR'"
+              class="pill-btn"
+              :class="{ active: activeTab === 'FLOOR' }"
+              @click="activeTab = 'FLOOR'"
+            >
+              Active Tables & Floor
+              <span v-if="activeFloorReservations.length > 0" class="count-badge">
+                {{ activeFloorReservations.length }}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="activeTab === 'UPCOMING'"
+              class="pill-btn"
+              :class="{ active: activeTab === 'UPCOMING' }"
+              @click="activeTab = 'UPCOMING'"
+            >
+              Upcoming Bookings
+              <span v-if="upcomingReservations.length > 0" class="count-badge">
+                {{ upcomingReservations.length }}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              role="tab"
+              :aria-selected="activeTab === 'HISTORY'"
+              class="pill-btn"
+              :class="{ active: activeTab === 'HISTORY' }"
+              @click="activeTab = 'HISTORY'"
+            >
+              All Records & History
+            </button>
           </div>
         </div>
 
-        <div
-          class="metric-chip"
-          :class="{ active: activeTab === 'UPCOMING' }"
-          @click="activeTab = 'UPCOMING'"
-        >
-          <div class="chip-dot dot-amber"></div>
-          <div class="chip-content">
-            <span class="chip-val">{{ upcomingReservations.length }}</span>
-            <span class="chip-lbl">Upcoming Arrivals</span>
-          </div>
-        </div>
-
-        <div
-          class="metric-chip"
-          :class="{ active: activeTab === 'HISTORY' }"
-          @click="activeTab = 'HISTORY'"
-        >
-          <div class="chip-dot dot-slate"></div>
-          <div class="chip-content">
-            <span class="chip-val">{{ completedReservations.length }}</span>
-            <span class="chip-lbl">Completed Today</span>
-          </div>
-        </div>
-
-        <div class="metric-quick-links">
-          <RouterLink :to="{ name: 'WorkspaceManagement' }" class="quick-link">
-            ← Branch Hub
-          </RouterLink>
-          <span class="quick-sep">·</span>
-          <RouterLink :to="{ name: 'HomeIndex' }" class="quick-link">
-            Public Store
-          </RouterLink>
-        </div>
-      </section>
-
-      <!-- Main Navigation Tabs -->
-      <nav class="console-tabs" aria-label="Operational views">
-        <button
-          type="button"
-          class="tab-btn"
-          :class="{ active: activeTab === 'FLOOR' }"
-          @click="activeTab = 'FLOOR'"
-        >
-          <span class="tab-icon">🎲</span>
-          <span>Live Floor & Active Tables</span>
-          <span v-if="activeFloorReservations.length > 0" class="tab-badge">
-            {{ activeFloorReservations.length }}
+        <div class="shift-stats-box">
+          <span class="stat-item">
+            <strong>{{ activeFloorReservations.length }}</strong> Playing
           </span>
-        </button>
-
-        <button
-          type="button"
-          class="tab-btn"
-          :class="{ active: activeTab === 'UPCOMING' }"
-          @click="activeTab = 'UPCOMING'"
-        >
-          <span class="tab-icon">📅</span>
-          <span>Upcoming Bookings</span>
-          <span v-if="upcomingReservations.length > 0" class="tab-badge amber">
-            {{ upcomingReservations.length }}
+          <span class="stat-sep">·</span>
+          <span class="stat-item">
+            <strong>{{ upcomingReservations.length }}</strong> Booked
           </span>
-        </button>
-
-        <button
-          type="button"
-          class="tab-btn"
-          :class="{ active: activeTab === 'HISTORY' }"
-          @click="activeTab = 'HISTORY'"
-        >
-          <span class="tab-icon">📋</span>
-          <span>All Records & History</span>
-        </button>
-      </nav>
+          <span class="stat-sep">·</span>
+          <span class="stat-item">
+            <strong>{{ completedReservations.length }}</strong> Finished
+          </span>
+        </div>
+      </div>
 
       <!-- Error Alert -->
-      <div v-if="actionError" class="alert-banner" role="alert">
+      <div v-if="actionError" class="alert-box" role="alert">
         {{ actionError }}
       </div>
 
-      <!-- VIEW 1: LIVE FLOOR & ACTIVE TABLES -->
-      <section v-if="activeTab === 'FLOOR'" class="view-panel">
-        <div v-if="activeFloorReservations.length === 0" class="empty-state-card">
-          <div class="empty-illustration">🎲</div>
-          <h2 class="empty-title">All Tables Are Open</h2>
-          <p class="empty-desc">
-            No active gaming sessions running right now at {{ selectedBranch?.name || 'this branch' }}.
-            Ready to seat incoming guests or check in bookings!
+      <!-- VIEW 1: ACTIVE TABLES & LIVE FLOOR -->
+      <section v-if="activeTab === 'FLOOR'" class="content-section">
+        <div v-if="activeFloorReservations.length === 0" class="empty-reservations-box">
+          <div class="empty-icon-wrap">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="4" width="18" height="16" rx="2" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+              <line x1="9" y1="4" x2="9" y2="20" />
+            </svg>
+          </div>
+          <h3 class="empty-title">All Tables Are Open</h3>
+          <p class="empty-text">
+            No active gaming sessions currently running at {{ selectedBranch?.name || 'this branch' }}. Ready to seat walk-in guests or check in bookings!
           </p>
           <button
             type="button"
-            class="walkin-hero-btn"
+            class="btn btn-primary"
             @click="showWalkInModal = true"
           >
-            + Seat Walk-in Group Now
+            + Seat Walk-in Table
           </button>
         </div>
 
-        <div v-else class="floor-grid">
+        <div v-else class="reservations-grid">
           <article
             v-for="res in activeFloorReservations"
             :key="res.id"
-            class="table-card"
+            class="reservation-card status-checked_in"
           >
-            <!-- Card Header: Table Number & Client Badge -->
-            <header class="table-card-top">
-              <div class="table-id-group">
-                <span class="table-label">Table {{ res.tableId }}</span>
-                <span class="party-chip">👥 {{ res.partySize }} Players</span>
-              </div>
-              <span v-if="isWalkIn(res)" class="client-pill walkin">
-                ● Walk-in
-              </span>
-              <span v-else class="client-pill reserved">
-                ● Reserved
-              </span>
-            </header>
-
-            <!-- Play Timer & Elapsed Time -->
-            <div class="timer-box">
-              <div class="timer-main">
-                <span class="timer-icon">⏱️</span>
-                <span class="timer-val">{{ formatPlayedDuration(getElapsedMinutes(res)) }} played</span>
-              </div>
-              <span class="timer-sub">
-                Checked in at {{ formatTime(res.checkedInAt || res.startsAt) }}
-              </span>
-            </div>
-
-            <!-- Customer Details -->
-            <div class="guest-info-row">
-              <div class="guest-name">{{ getCustomerName(res.customer) }}</div>
-              <div v-if="getCustomerPhone(res.customer)" class="guest-phone">
-                📞 {{ getCustomerPhone(res.customer) }}
-              </div>
-            </div>
-
-            <!-- Running Snacks / Tab Preview -->
-            <div class="snack-tab-preview">
-              <div class="snack-tab-header">
-                <span class="snack-tab-title">🥤 Snacks & Drinks Tab</span>
-                <span v-if="getTableSnackSummary(res).total > 0" class="snack-tab-total">
-                  ฿{{ getTableSnackSummary(res).total }}
+            <!-- Header: Table, Client Type, Status -->
+            <div class="card-header">
+              <div class="branch-meta">
+                <span class="branch-name">
+                  <span class="gold-bullet">◆</span>
+                  Table {{ res.tableId }}
+                </span>
+                <span class="ref-badge">{{ res.partySize }} Players</span>
+                <span v-if="isWalkIn(res)" class="client-type-tag walkin">
+                  <span class="gold-bullet">◆</span> Walk-in Session
+                </span>
+                <span v-else class="client-type-tag reserved">
+                  <span class="gold-bullet">◆</span> Reserved Client
                 </span>
               </div>
+              <span class="status-badge badge-checked_in">
+                {{ formatStatus(res.status) }}
+              </span>
+            </div>
 
-              <div v-if="getTableSnackSummary(res).items.length > 0" class="snack-items-mini">
-                <span
-                  v-for="(it, idx) in getTableSnackSummary(res).items"
-                  :key="idx"
-                  class="snack-mini-chip"
+            <!-- Body: Play Time, Guest info, Snacks, Billing -->
+            <div class="card-body">
+              <!-- Live Played Timer Schedule Block -->
+              <div class="schedule-block">
+                <div class="date-main">
+                  <svg class="schedule-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  <span class="schedule-text">
+                    {{ formatPlayedDuration(getElapsedMinutes(res)) }} played
+                  </span>
+                  <span class="schedule-sub">
+                    (Checked in at {{ formatTime(res.checkedInAt || res.startsAt) }})
+                  </span>
+                </div>
+
+                <div class="iso-timestamps-box">
+                  <span class="iso-label">Hourly Table Fee:</span>
+                  <span class="fee-text">
+                    ฿{{ res.hourlyRate || 200 }}/hr · Current play charge: <strong>฿{{ calculateCurrentPlayFee(res) }}</strong>
+                  </span>
+                </div>
+              </div>
+
+              <!-- Guest details row -->
+              <div class="details-row">
+                <div class="detail-item">
+                  <span class="detail-lbl">Customer:</span>
+                  <span class="detail-val table-highlight">{{ getCustomerName(res.customer) }}</span>
+                </div>
+                <div v-if="getCustomerPhone(res.customer)" class="detail-item">
+                  <span class="detail-lbl">Phone:</span>
+                  <span class="detail-val">{{ getCustomerPhone(res.customer) }}</span>
+                </div>
+              </div>
+
+              <!-- Running Snack & Refreshment Tab -->
+              <div class="preorder-section">
+                <div class="preorder-header">
+                  <div class="preorder-title">
+                    <span class="gold-bullet">◆</span>
+                    <strong>Table Refreshment & Snack Tab</strong>
+                  </div>
+                  <span v-if="getTableSnackSummary(res).total > 0" class="discount-pill">
+                    Tab: ฿{{ getTableSnackSummary(res).total }}
+                  </span>
+                </div>
+
+                <div v-if="getTableSnackSummary(res).items.length > 0" class="preorder-items-list">
+                  <div
+                    v-for="(it, idx) in getTableSnackSummary(res).items"
+                    :key="idx"
+                    class="preorder-item-row"
+                  >
+                    <span class="item-name-qty">
+                      <span class="qty-badge">{{ it.quantity }}x</span>
+                      {{ it.name }}
+                    </span>
+                    <span class="item-calc-price">
+                      ฿{{ it.price * it.quantity }}
+                    </span>
+                  </div>
+                </div>
+                <p v-else class="no-snacks-text">
+                  No packaged refreshments added to this table tab yet.
+                </p>
+              </div>
+
+              <div v-if="res.notes" class="notes-box">
+                <span class="notes-tag">Notes:</span>
+                <p class="notes-text">{{ res.notes }}</p>
+              </div>
+            </div>
+
+            <!-- Card Footer: Operational Actions -->
+            <div class="card-footer">
+              <div class="inplay-live-actions">
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  @click="openStaffAddSnacks(res)"
                 >
-                  {{ it.quantity }}x {{ it.name }}
-                </span>
+                  + Add Snacks & Drinks
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  @click="openStaffBill(res)"
+                >
+                  Check Bill & Settle ✓
+                </button>
               </div>
-              <p v-else class="no-snacks-text">
-                No packaged snacks ordered yet.
-              </p>
             </div>
-
-            <!-- Estimated Table Fee -->
-            <div class="fee-estimate-row">
-              <span class="fee-lbl">Table Rate:</span>
-              <span class="fee-val">
-                ฿{{ res.hourlyRate || 200 }}/hr · <span class="play-fee">~฿{{ calculateCurrentPlayFee(res) }}</span>
-              </span>
-            </div>
-
-            <!-- Actions Footer -->
-            <footer class="table-card-footer">
-              <button
-                type="button"
-                class="btn-card-snack"
-                @click="openStaffAddSnacks(res)"
-              >
-                + Add Snacks
-              </button>
-              <button
-                type="button"
-                class="btn-card-bill"
-                @click="openStaffBill(res)"
-              >
-                Check Bill ✓
-              </button>
-            </footer>
           </article>
         </div>
       </section>
 
       <!-- VIEW 2: UPCOMING BOOKINGS -->
-      <section v-if="activeTab === 'UPCOMING'" class="view-panel">
-        <div v-if="upcomingReservations.length === 0" class="empty-state-card">
-          <div class="empty-illustration">📅</div>
-          <h2 class="empty-title">No Upcoming Reservations</h2>
-          <p class="empty-desc">
-            No further bookings scheduled for today at {{ selectedBranch?.name || 'this branch' }}.
+      <section v-if="activeTab === 'UPCOMING'" class="content-section">
+        <div v-if="upcomingReservations.length === 0" class="empty-reservations-box">
+          <div class="empty-icon-wrap">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </div>
+          <h3 class="empty-title">No Upcoming Reservations</h3>
+          <p class="empty-text">
+            No further reservations are scheduled for today at {{ selectedBranch?.name || 'this branch' }}.
           </p>
         </div>
 
-        <div v-else class="upcoming-list">
+        <div v-else class="reservations-grid">
           <article
             v-for="res in upcomingReservations"
             :key="res.id"
-            class="upcoming-card"
+            class="reservation-card status-confirmed"
           >
-            <div class="upcoming-time-col">
-              <span class="time-slot">{{ formatInterval(res.startsAt, res.endsAt) }}</span>
-              <span class="res-ref">Ref: {{ res.id }}</span>
-            </div>
-
-            <div class="upcoming-main-col">
-              <div class="upcoming-title-row">
-                <span class="tbl-badge">Table {{ res.tableId }}</span>
-                <span class="party-badge">👥 {{ res.partySize }} Guests</span>
-                <span class="client-pill reserved">Reserved Online</span>
-              </div>
-
-              <div class="guest-details">
-                <strong class="guest-name">{{ getCustomerName(res.customer) }}</strong>
-                <span v-if="getCustomerPhone(res.customer)" class="guest-phone">
-                  · {{ getCustomerPhone(res.customer) }}
+            <div class="card-header">
+              <div class="branch-meta">
+                <span class="branch-name">
+                  <span class="gold-bullet">◆</span>
+                  Table {{ res.tableId }}
+                </span>
+                <span class="ref-badge">Ref: {{ res.id }}</span>
+                <span class="client-type-tag reserved">
+                  <span class="gold-bullet">◆</span> Reserved Client
                 </span>
               </div>
+              <span class="status-badge badge-confirmed">
+                {{ formatStatus(res.status) }}
+              </span>
+            </div>
 
-              <div v-if="res.notes" class="upcoming-notes">
-                📝 {{ res.notes }}
+            <div class="card-body">
+              <div class="schedule-block">
+                <div class="date-main">
+                  <svg class="schedule-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  <span class="schedule-text">
+                    {{ formatFriendlyDateTime(res.startsAt) }} – {{ formatTime(res.endsAt) }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="details-row">
+                <div class="detail-item">
+                  <span class="detail-lbl">Customer:</span>
+                  <span class="detail-val table-highlight">{{ getCustomerName(res.customer) }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-lbl">Party Size:</span>
+                  <span class="detail-val">{{ res.partySize }} guests</span>
+                </div>
+                <div v-if="getCustomerPhone(res.customer)" class="detail-item">
+                  <span class="detail-lbl">Phone:</span>
+                  <span class="detail-val">{{ getCustomerPhone(res.customer) }}</span>
+                </div>
+              </div>
+
+              <div v-if="res.notes" class="notes-box">
+                <span class="notes-tag">Pre-order / Notes:</span>
+                <p class="notes-text">{{ res.notes }}</p>
               </div>
             </div>
 
-            <div class="upcoming-actions-col">
-              <button
-                type="button"
-                class="btn-checkin-hero"
-                :disabled="actionInProgress === res.id"
-                @click="handleCheckIn(res)"
-              >
-                Check In Guest ✓
-              </button>
-              <div class="secondary-actions">
+            <div class="card-footer">
+              <div class="inplay-live-actions">
                 <button
                   type="button"
-                  class="btn-subtle"
+                  class="btn btn-primary"
+                  :disabled="actionInProgress === res.id"
+                  @click="handleCheckIn(res)"
+                >
+                  Check In Guest ✓
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary"
                   @click="openReasonModal(res, 'CANCEL')"
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
-                  class="btn-subtle"
+                  class="btn btn-secondary"
                   @click="openReasonModal(res, 'NO_SHOW')"
                 >
-                  No-Show
+                  Mark No-Show
                 </button>
               </div>
             </div>
@@ -854,99 +918,106 @@ function formatStatus(status: string): string {
       </section>
 
       <!-- VIEW 3: ALL RECORDS & HISTORY -->
-      <section v-if="activeTab === 'HISTORY'" class="view-panel">
-        <div class="history-controls">
-          <div class="history-filter-pills">
+      <section v-if="activeTab === 'HISTORY'" class="content-section">
+        <div class="history-filter-bar">
+          <div class="status-pills">
             <button
               v-for="st in ['ALL', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED', 'NO_SHOW']"
               :key="st"
               type="button"
-              class="hist-pill"
+              class="pill-btn"
               :class="{ active: historyFilterStatus === st }"
               @click="historyFilterStatus = st"
             >
-              {{ st }}
+              {{ st === 'ALL' ? 'All Statuses' : formatStatus(st) }}
             </button>
           </div>
 
-          <div class="history-search">
-            <input
-              v-model="historySearchQuery"
-              type="search"
-              placeholder="Search guest or table..."
-              class="search-input"
-            />
-          </div>
+          <input
+            v-model="historySearchQuery"
+            type="search"
+            placeholder="Search by customer or table..."
+            class="branch-select-input search-input"
+          />
         </div>
 
-        <div v-if="filteredHistoryReservations.length === 0" class="empty-state-card small">
-          <p>No records match the selected status or query.</p>
+        <div v-if="filteredHistoryReservations.length === 0" class="empty-reservations-box">
+          <p class="empty-text">No records match the current status filter or query.</p>
         </div>
 
-        <div v-else class="history-table-card">
-          <table class="history-table">
-            <thead>
-              <tr>
-                <th>Time</th>
-                <th>Status</th>
-                <th>Table</th>
-                <th>Guest</th>
-                <th>Notes / Snacks</th>
-                <th class="th-actions">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="res in filteredHistoryReservations" :key="res.id">
-                <td>
-                  <span class="hist-time">{{ formatInterval(res.startsAt, res.endsAt) }}</span>
-                  <span class="hist-ref">#{{ res.id }}</span>
-                </td>
-                <td>
-                  <span class="status-chip" :class="`chip-${res.status.toLowerCase()}`">
-                    {{ formatStatus(res.status) }}
+        <div v-else class="reservations-grid">
+          <article
+            v-for="res in filteredHistoryReservations"
+            :key="res.id"
+            class="reservation-card"
+            :class="`status-${res.status.toLowerCase()}`"
+          >
+            <div class="card-header">
+              <div class="branch-meta">
+                <span class="branch-name">
+                  <span class="gold-bullet">◆</span>
+                  Table {{ res.tableId }}
+                </span>
+                <span class="ref-badge">Ref: {{ res.id }}</span>
+                <span v-if="isWalkIn(res)" class="client-type-tag walkin">Walk-in</span>
+                <span v-else class="client-type-tag reserved">Reserved</span>
+              </div>
+              <span class="status-badge" :class="`badge-${res.status.toLowerCase()}`">
+                {{ formatStatus(res.status) }}
+              </span>
+            </div>
+
+            <div class="card-body">
+              <div class="schedule-block">
+                <div class="date-main">
+                  <span class="schedule-text">
+                    {{ formatFriendlyDateTime(res.startsAt) }} – {{ formatTime(res.endsAt) }}
                   </span>
-                </td>
-                <td>
-                  <strong>Table {{ res.tableId }}</strong>
-                  <div class="hist-sub">{{ res.partySize }} guests</div>
-                </td>
-                <td>
-                  <div class="hist-guest-name">{{ getCustomerName(res.customer) }}</div>
-                  <div class="hist-sub">{{ getCustomerPhone(res.customer) }}</div>
-                </td>
-                <td>
-                  <span v-if="res.notes" class="hist-notes">{{ res.notes }}</span>
-                  <span v-else class="hist-sub">—</span>
-                </td>
-                <td class="td-actions">
-                  <button
-                    v-if="res.status === 'CHECKED_IN'"
-                    type="button"
-                    class="btn-table-action"
-                    @click="openStaffBill(res)"
-                  >
-                    Check Bill
-                  </button>
-                  <button
-                    v-else-if="res.status === 'CONFIRMED'"
-                    type="button"
-                    class="btn-table-action green"
-                    @click="handleCheckIn(res)"
-                  >
-                    Check In
-                  </button>
-                  <button
-                    v-else
-                    type="button"
-                    class="btn-table-action view"
-                    @click="openStaffBill(res)"
-                  >
-                    View Bill
-                  </button>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                </div>
+              </div>
+
+              <div class="details-row">
+                <div class="detail-item">
+                  <span class="detail-lbl">Customer:</span>
+                  <span class="detail-val">{{ getCustomerName(res.customer) }}</span>
+                </div>
+                <div class="detail-item">
+                  <span class="detail-lbl">Party:</span>
+                  <span class="detail-val">{{ res.partySize }} guests</span>
+                </div>
+                <div v-if="getCustomerPhone(res.customer)" class="detail-item">
+                  <span class="detail-lbl">Phone:</span>
+                  <span class="detail-val">{{ getCustomerPhone(res.customer) }}</span>
+                </div>
+              </div>
+
+              <div v-if="res.notes" class="notes-box">
+                <span class="notes-tag">Notes:</span>
+                <p class="notes-text">{{ res.notes }}</p>
+              </div>
+            </div>
+
+            <div class="card-footer">
+              <div class="inplay-live-actions">
+                <button
+                  v-if="res.status === 'CHECKED_IN'"
+                  type="button"
+                  class="btn btn-primary"
+                  @click="openStaffBill(res)"
+                >
+                  Check Bill & Settle ✓
+                </button>
+                <button
+                  v-else
+                  type="button"
+                  class="btn btn-secondary"
+                  @click="openStaffBill(res)"
+                >
+                  View Bill Summary
+                </button>
+              </div>
+            </div>
+          </article>
         </div>
       </section>
 
@@ -960,202 +1031,196 @@ function formatStatus(status: string): string {
       />
 
       <!-- Action Reason Modal (Cancel / No Show) -->
-      <div v-if="modalAction" class="modal-backdrop" @click.self="modalAction = null">
-        <div class="modal-card">
-          <h3 class="modal-title">
-            {{ modalAction === 'CANCEL' ? 'Cancel Reservation' : 'Mark as No-Show' }}
-          </h3>
-          <p class="modal-sub">
-            Update status for Reservation Ref <strong>{{ targetReservation?.id }}</strong> at
-            {{ selectedBranch?.name }}.
-          </p>
+      <Transition name="fade">
+        <div v-if="modalAction" class="modal-overlay" @click.self="modalAction = null">
+          <div class="modal-card">
+            <h3 class="modal-heading">
+              {{ modalAction === 'CANCEL' ? 'Cancel Reservation' : 'Mark as No-Show' }}
+            </h3>
+            <p class="modal-desc">
+              Update status for Reservation Ref <strong>{{ targetReservation?.id }}</strong> at
+              {{ selectedBranch?.name }}.
+            </p>
 
-          <div class="form-group">
-            <label for="action-reason" class="modal-label">Reason for record:</label>
-            <input
-              id="action-reason"
-              v-model="modalReason"
-              type="text"
-              class="modal-input"
-              required
-            />
-          </div>
-
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="modalAction = null">
-              Close
-            </button>
-            <button
-              type="button"
-              class="btn"
-              :class="modalAction === 'CANCEL' ? 'btn-danger' : 'btn-warning'"
-              :disabled="cancelMutation.isPending.value || noShowMutation.isPending.value"
-              @click="submitModalAction"
-            >
-              Confirm {{ modalAction === 'CANCEL' ? 'Cancellation' : 'No-Show' }}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Quick Walk-in Modal -->
-      <div v-if="showWalkInModal" class="modal-backdrop" @click.self="showWalkInModal = false">
-        <div class="walkin-modal">
-          <div class="walkin-header">
-            <div>
-              <div class="modal-eyebrow">
-                <span class="gold-suit">♠</span>
-                <span>QUICK WALK-IN SEATING</span>
-              </div>
-              <h2 class="walkin-title">Seat Walk-in Table</h2>
-            </div>
-            <button type="button" class="close-x" @click="showWalkInModal = false">✕</button>
-          </div>
-
-          <div class="walkin-body">
-            <!-- Table Selection -->
-            <div class="form-section">
-              <label class="form-label">1. Choose Table (at {{ selectedBranch?.name }}):</label>
-              <div v-if="walkInTables.length === 0" class="no-tables">
-                Checking table availability…
-              </div>
-              <div v-else class="tables-grid">
-                <button
-                  v-for="tbl in walkInTables"
-                  :key="tbl.tableId"
-                  type="button"
-                  class="tbl-select-card"
-                  :class="{ active: walkInSelectedTable?.tableId === tbl.tableId }"
-                  @click="walkInSelectedTable = tbl"
-                >
-                  <div class="tbl-card-name">{{ tbl.label }}</div>
-                  <div class="tbl-card-cap">Up to {{ tbl.capacity }} players</div>
-                  <div class="tbl-card-rate">
-                    ฿{{ (tbl.hourlyRate as any)?.amountMinor ? ((tbl.hourlyRate as any).amountMinor / 100) : 200 }}/hr
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <!-- Party Size & Duration -->
-            <div class="form-row-2">
-              <div class="form-field">
-                <label class="form-label">2. Players in Group:</label>
-                <div class="stepper-wrap">
-                  <button
-                    type="button"
-                    class="step-btn"
-                    :disabled="walkInPartySize <= 1"
-                    @click="walkInPartySize = Math.max(1, walkInPartySize - 1)"
-                  >
-                    -
-                  </button>
-                  <span class="step-val">{{ walkInPartySize }}</span>
-                  <button
-                    type="button"
-                    class="step-btn"
-                    @click="walkInPartySize++"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              <div class="form-field">
-                <label class="form-label">3. Expected Duration:</label>
-                <select v-model.number="walkInDuration" class="modal-select">
-                  <option :value="1">1 Hour</option>
-                  <option :value="2">2 Hours</option>
-                  <option :value="3">3 Hours</option>
-                  <option :value="4">4 Hours</option>
-                </select>
-              </div>
-            </div>
-
-            <!-- Optional Customer Info -->
-            <div class="form-section">
-              <label class="form-label">4. Guest Name (Optional):</label>
+            <div class="form-group">
+              <label for="action-reason" class="modal-label">Reason for record:</label>
               <input
-                v-model="walkInCustomerName"
+                id="action-reason"
+                v-model="modalReason"
                 type="text"
-                placeholder="Walk-in Guests"
                 class="modal-input"
+                required
               />
             </div>
 
-            <!-- Pre-order snacks -->
-            <div class="form-section">
-              <details class="food-details">
-                <summary class="food-summary-btn">
-                  + Pre-Order Refreshments (-10% Pre-order Discount)
-                </summary>
-                <div class="picker-wrap">
-                  <FoodMenuPicker v-model="walkInFood" />
-                </div>
-              </details>
+            <div class="modal-buttons">
+              <button type="button" class="btn btn-secondary" @click="modalAction = null">
+                Close
+              </button>
+              <button
+                type="button"
+                class="btn"
+                :class="modalAction === 'CANCEL' ? 'btn-danger' : 'btn-primary'"
+                :disabled="cancelMutation.isPending.value || noShowMutation.isPending.value"
+                @click="submitModalAction"
+              >
+                Confirm {{ modalAction === 'CANCEL' ? 'Cancellation' : 'No-Show' }}
+              </button>
             </div>
-
-            <div v-if="walkInError" class="alert-banner">{{ walkInError }}</div>
-          </div>
-
-          <div class="walkin-footer">
-            <button type="button" class="btn btn-secondary" @click="showWalkInModal = false">
-              Cancel
-            </button>
-            <button
-              type="button"
-              class="btn btn-primary"
-              :disabled="!walkInSelectedTable || staffCreateMutation.isPending.value"
-              @click="handleStaffBooking"
-            >
-              <span v-if="staffCreateMutation.isPending.value">Starting Table…</span>
-              <span v-else>Seat & Start Playing Now →</span>
-            </button>
           </div>
         </div>
-      </div>
+      </Transition>
+
+      <!-- Staff Walk-in Seating Modal -->
+      <Transition name="fade">
+        <div v-if="showWalkInModal" class="modal-overlay" @click.self="showWalkInModal = false">
+          <div class="modal-card walkin-card">
+            <div class="walkin-header">
+              <div class="header-eyebrow">
+                <span class="gold-sparkle">✦</span>
+                <span>QUICK WALK-IN SEATING</span>
+              </div>
+              <h3 class="modal-heading">Seat Walk-in Table</h3>
+            </div>
+
+            <div class="walkin-body">
+              <div class="form-section">
+                <label class="modal-label">Available Tables at {{ selectedBranch?.name }}:</label>
+                <div v-if="walkInTables.length === 0" class="no-tables">
+                  Loading table availability...
+                </div>
+                <div v-else class="tables-grid">
+                  <button
+                    v-for="tbl in walkInTables"
+                    :key="tbl.tableId"
+                    type="button"
+                    class="tbl-select-card"
+                    :class="{ active: walkInSelectedTable?.tableId === tbl.tableId }"
+                    @click="walkInSelectedTable = tbl"
+                  >
+                    <div class="tbl-name">{{ tbl.label }}</div>
+                    <div class="tbl-cap">Up to {{ tbl.capacity }} players</div>
+                    <div class="tbl-rate">
+                      ฿{{ (tbl.hourlyRate as any)?.amountMinor ? ((tbl.hourlyRate as any).amountMinor / 100) : 200 }}/hr
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              <div class="form-row-2">
+                <div class="form-field">
+                  <label class="modal-label">Players in Group:</label>
+                  <div class="stepper-wrap">
+                    <button
+                      type="button"
+                      class="step-btn"
+                      :disabled="walkInPartySize <= 1"
+                      @click="walkInPartySize = Math.max(1, walkInPartySize - 1)"
+                    >
+                      -
+                    </button>
+                    <span class="step-val">{{ walkInPartySize }}</span>
+                    <button
+                      type="button"
+                      class="step-btn"
+                      @click="walkInPartySize++"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                <div class="form-field">
+                  <label class="modal-label">Expected Duration:</label>
+                  <select v-model.number="walkInDuration" class="branch-select-input full-width">
+                    <option :value="1">1 Hour</option>
+                    <option :value="2">2 Hours</option>
+                    <option :value="3">3 Hours</option>
+                    <option :value="4">4 Hours</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-section">
+                <label class="modal-label">Guest Name (Optional):</label>
+                <input
+                  v-model="walkInCustomerName"
+                  type="text"
+                  placeholder="Walk-in Guests"
+                  class="modal-input"
+                />
+              </div>
+
+              <div class="form-section">
+                <details class="preorder-details">
+                  <summary class="details-summary">
+                    + Add Packaged Refreshments (-10% Pre-order Discount)
+                  </summary>
+                  <div class="picker-wrap">
+                    <FoodMenuPicker v-model="walkInFood" />
+                  </div>
+                </details>
+              </div>
+
+              <div v-if="walkInError" class="alert-box">{{ walkInError }}</div>
+            </div>
+
+            <div class="modal-buttons">
+              <button type="button" class="btn btn-secondary" @click="showWalkInModal = false">
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                :disabled="!walkInSelectedTable || staffCreateMutation.isPending.value"
+                @click="handleStaffBooking"
+              >
+                <span v-if="staffCreateMutation.isPending.value">Starting Table...</span>
+                <span v-else>Seat & Start Playing Now →</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
 
       <!-- Staff Quick Add Snacks Modal -->
-      <div v-if="staffSnackReservation" class="modal-backdrop" @click.self="staffSnackReservation = null">
-        <div class="modal-card snack-modal-card">
-          <div class="snack-modal-header">
-            <div>
-              <div class="snack-eyebrow">
-                <span class="gold-suit">♠</span>
-                <span>TABLE TAB / SNACK SERVICE</span>
+      <Transition name="fade">
+        <div v-if="staffSnackReservation" class="modal-overlay" @click.self="staffSnackReservation = null">
+          <div class="modal-card snack-card">
+            <div class="walkin-header">
+              <div class="header-eyebrow">
+                <span class="gold-sparkle">✦</span>
+                <span>TABLE TAB SERVICE</span>
               </div>
-              <h2 class="snack-modal-title">Add Snacks & Drinks to Table</h2>
-              <p class="snack-modal-sub">
+              <h3 class="modal-heading">Add Snacks & Drinks</h3>
+              <p class="modal-desc">
                 Table {{ staffSnackReservation.tableId }} · {{ getCustomerName(staffSnackReservation.customer) }}
               </p>
             </div>
-            <button type="button" class="close-x" @click="staffSnackReservation = null">✕</button>
-          </div>
 
-          <div class="snack-picker-body">
-            <div class="snack-items-list">
+            <div class="snack-list-body">
               <div
                 v-for="item in FOOD_MENU_ITEMS"
                 :key="item.id"
-                class="snack-row-item"
+                class="snack-row"
               >
-                <div class="snack-info">
+                <div class="snack-meta">
                   <span class="snack-name">{{ item.name }}</span>
                   <span class="snack-price">฿{{ item.price }}</span>
                 </div>
-                <div class="snack-stepper">
+                <div class="stepper-wrap compact">
                   <button
                     type="button"
-                    class="snack-step-btn"
+                    class="step-btn small"
                     :disabled="getStaffSnackQty(item.id) <= 0"
                     @click="adjustStaffSnackQty(item, -1)"
                   >
                     -
                   </button>
-                  <span class="snack-qty-num">{{ getStaffSnackQty(item.id) }}</span>
+                  <span class="step-val small">{{ getStaffSnackQty(item.id) }}</span>
                   <button
                     type="button"
-                    class="snack-step-btn plus"
+                    class="step-btn small"
                     @click="adjustStaffSnackQty(item, 1)"
                   >
                     +
@@ -1163,879 +1228,167 @@ function formatStatus(status: string): string {
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="snack-modal-footer">
-            <div class="snack-order-summary">
-              <span>Selected Total:</span>
-              <strong class="snack-total-val">฿{{ staffSnackSubtotal }}</strong>
-            </div>
-            <div class="snack-footer-actions">
-              <button type="button" class="btn btn-secondary" @click="staffSnackReservation = null">
-                Cancel
-              </button>
-              <button
-                type="button"
-                class="btn btn-primary"
-                :disabled="staffSnackSelectedItems.length === 0"
-                @click="submitStaffSnackOrder"
-              >
-                Add to Table Tab (฿{{ staffSnackSubtotal }})
-              </button>
+            <div class="snack-footer-row">
+              <div class="snack-total">
+                <span>Selected:</span>
+                <strong class="total-value">฿{{ staffSnackSubtotal }}</strong>
+              </div>
+              <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" @click="staffSnackReservation = null">
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-primary"
+                  :disabled="staffSnackSelectedItems.length === 0"
+                  @click="submitStaffSnackOrder"
+                >
+                  Add to Table Tab (฿{{ staffSnackSubtotal }})
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </Transition>
     </div>
-  </main>
+  </div>
 </template>
 
 <style scoped>
-.branch-console-page {
-  background: #fbf9f5;
-  min-height: calc(100vh - 80px);
-  padding: 24px 20px 60px;
-  color: #1a2f24;
-  font-family: Arial, Helvetica, sans-serif;
+.staff-console-page {
+  background: #fbf9f4;
+  min-height: calc(100vh - 120px);
+  padding: 36px 16px 80px;
+  color: #172b21;
+  font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
 }
 
-.console-wrapper {
-  max-width: 1240px;
+.container {
+  max-width: 960px;
   margin: 0 auto;
 }
 
-/* Header */
-.console-header {
+/* Page Header */
+.page-header {
   display: flex;
+  align-items: flex-end;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
+  margin-bottom: 28px;
+  border-bottom: 2px solid #c6ad7a;
+  padding-bottom: 20px;
   gap: 20px;
+  flex-wrap: wrap;
 }
 
-.brand-pill {
+.header-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #203c30;
-  background: #f0e9dc;
-  padding: 3px 10px;
-  border-radius: 12px;
-  margin-bottom: 8px;
-}
-
-.gold-suit {
-  color: #c99a4e;
-}
-
-.console-role-tag {
-  background: #203c30;
-  color: #fffaf0;
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-size: 10px;
-}
-
-.console-title {
-  margin: 0 0 6px;
-  font-size: 28px;
-  font-weight: 800;
-  color: #173224;
-}
-
-.console-subtitle {
-  margin: 0;
-  font-size: 14px;
-  color: #635a4b;
-}
-
-.console-top-controls {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.branch-selector-pill {
-  display: flex;
-  align-items: center;
-  background: #ffffff;
-  border: 1px solid #d5c8b2;
-  border-radius: 10px;
-  padding: 6px 14px;
-  box-shadow: 0 1px 4px rgba(20, 43, 32, 0.04);
-}
-
-.selector-icon {
-  margin-right: 6px;
-  font-size: 16px;
-}
-
-.branch-select-native {
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  font-weight: 700;
-  color: #203c30;
-  outline: none;
-  cursor: pointer;
-}
-
-.walkin-hero-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  background: #203c30;
-  color: #ffffff;
-  border: 1px solid #162a22;
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 3px 8px rgba(32, 60, 48, 0.2);
-  transition: all 120ms ease;
-}
-
-.walkin-hero-btn:hover {
-  background: #2c5242;
-  transform: translateY(-1px);
-}
-
-.btn-icon {
-  font-size: 18px;
-  line-height: 1;
-}
-
-/* Metrics Ribbon */
-.metrics-ribbon {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: #ffffff;
-  border: 1px solid #e5dcce;
-  border-radius: 14px;
-  padding: 12px 20px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-  box-shadow: 0 2px 8px rgba(20, 43, 32, 0.03);
-}
-
-.metric-chip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 6px 14px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: background 120ms ease;
-}
-
-.metric-chip:hover {
-  background: #f7f3eb;
-}
-
-.metric-chip.active {
-  background: #ede6d8;
-}
-
-.chip-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-}
-
-.dot-green {
-  background: #16a34a;
-  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
-}
-
-.dot-amber {
-  background: #d97706;
-  box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.2);
-}
-
-.dot-slate {
-  background: #64748b;
-}
-
-.chip-content {
-  display: flex;
-  flex-direction: column;
-}
-
-.chip-val {
-  font-size: 17px;
-  font-weight: 800;
-  color: #173224;
-  line-height: 1.1;
-}
-
-.chip-lbl {
-  font-size: 11px;
-  color: #6a6253;
-  font-weight: 600;
-}
-
-.metric-quick-links {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.quick-link {
-  color: #203c30;
-  text-decoration: none;
-}
-
-.quick-link:hover {
-  text-decoration: underline;
-}
-
-.quick-sep {
-  color: #b0a592;
-}
-
-/* Tabs */
-.console-tabs {
-  display: flex;
-  gap: 8px;
-  border-bottom: 2px solid #e6decb;
-  margin-bottom: 24px;
-}
-
-.tab-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  background: transparent;
-  border: none;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
-  font-size: 15px;
-  font-weight: 700;
-  color: #696051;
-  cursor: pointer;
-  transition: all 120ms ease;
-}
-
-.tab-btn:hover {
-  color: #203c30;
-}
-
-.tab-btn.active {
-  color: #203c30;
-  border-bottom-color: #203c30;
-}
-
-.tab-badge {
-  background: #203c30;
-  color: #ffffff;
-  font-size: 11px;
-  padding: 2px 7px;
-  border-radius: 12px;
-  font-weight: 800;
-}
-
-.tab-badge.amber {
-  background: #d97706;
-}
-
-/* Alerts */
-.alert-banner {
-  background: #fee2e2;
-  border: 1px solid #f87171;
-  color: #991b1b;
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  font-size: 13px;
-}
-
-/* Empty States */
-.empty-state-card {
-  background: #ffffff;
-  border: 1px dashed #d5c8b2;
-  border-radius: 16px;
-  padding: 60px 24px;
-  text-align: center;
-  max-width: 580px;
-  margin: 40px auto;
-}
-
-.empty-illustration {
-  font-size: 48px;
-  margin-bottom: 12px;
-}
-
-.empty-title {
-  font-size: 20px;
-  font-weight: 800;
-  color: #173224;
-  margin: 0 0 8px;
-}
-
-.empty-desc {
-  font-size: 14px;
-  color: #635b4c;
-  margin: 0 auto 20px;
-  line-height: 1.5;
-}
-
-/* Floor Grid */
-.floor-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 20px;
-}
-
-.table-card {
-  background: #ffffff;
-  border: 1px solid #ded6c8;
-  border-radius: 14px;
-  padding: 18px;
-  box-shadow: 0 3px 10px rgba(20, 43, 32, 0.04);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  border-top: 4px solid #16a34a;
-}
-
-.table-card-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.table-id-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.table-label {
-  font-size: 18px;
-  font-weight: 800;
-  color: #173224;
-}
-
-.party-chip {
-  background: #f2eee6;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 6px;
-  color: #4f4739;
-}
-
-.client-pill {
-  font-size: 11px;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 10px;
-}
-
-.client-pill.walkin {
-  background: #f3e8ff;
-  color: #7e22ce;
-  border: 1px solid #e9d5ff;
-}
-
-.client-pill.reserved {
-  background: #ecfdf5;
-  color: #047857;
-  border: 1px solid #a7f3d0;
-}
-
-/* Timer */
-.timer-box {
-  background: #f7faf7;
-  border: 1px solid #d4edd7;
-  border-radius: 8px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.timer-main {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 15px;
-  font-weight: 800;
-  color: #166534;
-}
-
-.timer-sub {
-  font-size: 11px;
-  color: #4b6352;
-}
-
-/* Guest */
-.guest-info-row {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.guest-name {
-  font-size: 15px;
-  font-weight: 700;
-  color: #203c30;
-}
-
-.guest-phone {
-  font-size: 12px;
-  color: #635a4a;
-}
-
-/* Snack Tab Preview */
-.snack-tab-preview {
-  background: #fffcf5;
-  border: 1px solid #eedfc9;
-  border-radius: 8px;
-  padding: 10px 12px;
-}
-
-.snack-tab-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  font-weight: 700;
-  color: #453b2d;
+  letter-spacing: 0.14em;
+  color: #8c7649;
   margin-bottom: 6px;
 }
 
-.snack-tab-total {
-  color: #b45309;
-  font-weight: 800;
-}
-
-.snack-items-mini {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.snack-mini-chip {
-  background: #fde8ca;
-  color: #854d0e;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 4px;
-}
-
-.no-snacks-text {
-  margin: 0;
-  font-size: 11px;
-  color: #8c8270;
-  font-style: italic;
-}
-
-/* Fee estimate */
-.fee-estimate-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  color: #6b6353;
-  padding-top: 4px;
-  border-top: 1px solid #f0eae0;
-}
-
-.fee-lbl {
-  font-weight: 600;
-}
-
-.fee-val {
-  font-weight: 700;
-  color: #203c30;
-}
-
-.play-fee {
-  color: #15803d;
-  font-weight: 800;
-}
-
-/* Footer buttons */
-.table-card-footer {
-  display: flex;
-  gap: 8px;
-  margin-top: auto;
-}
-
-.btn-card-snack {
-  flex: 1;
-  background: #f4efe4;
-  border: 1px solid #dcd2bf;
-  color: #3b3325;
-  font-size: 13px;
-  font-weight: 700;
-  padding: 9px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 120ms ease;
-}
-
-.btn-card-snack:hover {
-  background: #ede4d3;
-}
-
-.btn-card-bill {
-  flex: 1.3;
-  background: #203c30;
-  border: 1px solid #142820;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 800;
-  padding: 9px 14px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 120ms ease;
-}
-
-.btn-card-bill:hover {
-  background: #2b5040;
-}
-
-/* Upcoming View */
-.upcoming-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.upcoming-card {
-  background: #ffffff;
-  border: 1px solid #d5c8b2;
-  border-radius: 12px;
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  flex-wrap: wrap;
-  box-shadow: 0 2px 6px rgba(20, 43, 32, 0.03);
-}
-
-.upcoming-time-col {
-  display: flex;
-  flex-direction: column;
-  min-width: 140px;
-}
-
-.time-slot {
-  font-size: 16px;
-  font-weight: 800;
-  color: #203c30;
-}
-
-.res-ref {
-  font-size: 11px;
-  color: #8c8270;
-}
-
-.upcoming-main-col {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 240px;
-}
-
-.upcoming-title-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.tbl-badge {
-  font-size: 13px;
-  font-weight: 800;
-  color: #203c30;
-}
-
-.party-badge {
-  font-size: 12px;
-  color: #635b4c;
-  font-weight: 600;
-}
-
-.upcoming-notes {
-  font-size: 12px;
-  color: #b45309;
-  background: #fef3c7;
-  padding: 4px 8px;
-  border-radius: 4px;
-  display: inline-block;
-  margin-top: 4px;
-}
-
-.upcoming-actions-col {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-}
-
-.btn-checkin-hero {
-  background: #16a34a;
-  border: 1px solid #15803d;
-  color: #ffffff;
+.gold-sparkle {
+  color: #c6ad7a;
   font-size: 14px;
+}
+
+.page-title {
+  margin: 0 0 6px;
+  font-size: 30px;
   font-weight: 800;
-  padding: 9px 18px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 120ms ease;
+  color: #142b20;
+  letter-spacing: -0.02em;
 }
 
-.btn-checkin-hero:hover {
-  background: #15803d;
+.page-subtitle {
+  margin: 0;
+  font-size: 14.5px;
+  color: #554e42;
+  line-height: 1.5;
 }
 
-.secondary-actions {
+.header-controls {
   display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.branch-picker {
+  display: flex;
+  align-items: center;
   gap: 8px;
 }
 
-.btn-subtle {
-  background: transparent;
-  border: none;
-  font-size: 11px;
-  color: #7a705e;
-  cursor: pointer;
-  text-decoration: underline;
-}
-
-.btn-subtle:hover {
-  color: #dc2626;
-}
-
-/* History View */
-.history-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.history-filter-pills {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.hist-pill {
-  padding: 5px 12px;
-  border: 1px solid #d5c8b2;
-  background: #ffffff;
-  color: #554d3e;
-  border-radius: 14px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.hist-pill.active {
-  background: #203c30;
-  color: #ffffff;
-  border-color: #203c30;
-}
-
-.search-input {
-  padding: 7px 12px;
-  border: 1px solid #d5c8b2;
-  border-radius: 8px;
+.picker-label {
   font-size: 13px;
-  width: 220px;
+  font-weight: 700;
+  color: #142b20;
 }
 
-.history-table-card {
+.branch-select-input {
+  padding: 8px 12px;
+  border: 1px solid #dcd1be;
+  border-radius: 6px;
   background: #ffffff;
-  border: 1px solid #d5c8b2;
-  border-radius: 10px;
-  overflow-x: auto;
+  font-size: 13.5px;
+  color: #142b20;
+  font-weight: 700;
+  outline: none;
 }
 
-.history-table {
+.branch-select-input.full-width {
   width: 100%;
-  border-collapse: collapse;
-  text-align: left;
-  font-size: 13px;
 }
 
-.history-table th {
-  background: #f7f3ea;
-  padding: 10px 14px;
-  font-weight: 700;
-  color: #203c30;
-  border-bottom: 1px solid #dfd5c2;
+.add-res-btn {
+  white-space: nowrap;
 }
 
-.history-table td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #f0e9dc;
-}
-
-.hist-time {
-  font-weight: 700;
-  color: #203c30;
-  display: block;
-}
-
-.hist-ref {
-  font-size: 10px;
-  color: #8c8270;
-}
-
-.hist-sub {
-  font-size: 11px;
-  color: #7a705e;
-}
-
-.status-chip {
-  font-size: 11px;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 6px;
-}
-
-.chip-confirmed {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.chip-checked_in {
-  background: #dcfce7;
-  color: #166534;
-}
-
-.chip-completed {
-  background: #f1f5f9;
-  color: #475569;
-}
-
-.chip-cancelled {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-.chip-no_show {
-  background: #ffedd5;
-  color: #9a3412;
-}
-
-.btn-table-action {
-  padding: 5px 12px;
-  border: 1px solid #203c30;
-  background: #203c30;
-  color: #ffffff;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.btn-table-action.green {
-  background: #16a34a;
-  border-color: #15803d;
-}
-
-.btn-table-action.view {
-  background: transparent;
-  color: #203c30;
-  border-color: #c9bca6;
-}
-
-/* Modals */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(18, 36, 28, 0.65);
-  display: flex;
+/* Buttons */
+.btn {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 20px;
-  z-index: 1000;
-}
-
-.modal-card {
-  background: #ffffff;
-  border-radius: 14px;
-  padding: 24px;
-  max-width: 480px;
-  width: 100%;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
-}
-
-.modal-title {
-  margin: 0 0 6px;
-  font-size: 20px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13.5px;
   font-weight: 800;
-  color: #1a2f24;
-}
-
-.modal-sub {
-  margin: 0 0 16px;
-  font-size: 13px;
-  color: #6a6253;
-}
-
-.modal-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
-  color: #3b3427;
-  margin-bottom: 4px;
-}
-
-.modal-input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #d5c8b2;
-  border-radius: 6px;
-  font-size: 13px;
-  box-sizing: border-box;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.btn {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 700;
   cursor: pointer;
-}
-
-.btn-secondary {
-  background: #f2eee6;
-  border: 1px solid #d5c8b2;
-  color: #4b4436;
+  text-decoration: none;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-primary {
-  background: #203c30;
-  border: 1px solid #142820;
-  color: #ffffff;
+  background: #142b20;
+  border: 1px solid #c6ad7a;
+  color: #ffd98a;
+  box-shadow: 0 2px 8px rgba(20, 43, 32, 0.2);
+}
+
+.btn-primary:hover {
+  background: #1c3d2e;
+  border-color: #dfc18c;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #f7f3ea;
+  border: 1px solid #ded5c3;
+  color: #4b4435;
+}
+
+.btn-secondary:hover {
+  background: #ece4d2;
 }
 
 .btn-danger {
@@ -2044,75 +1397,553 @@ function formatStatus(status: string): string {
   color: #ffffff;
 }
 
-.btn-warning {
-  background: #ea580c;
-  border: 1px solid #c2410c;
-  color: #ffffff;
-}
-
-/* Walkin Modal */
-.walkin-modal {
-  background: #ffffff;
-  border-radius: 16px;
-  width: 100%;
-  max-width: 640px;
-  max-height: 90vh;
+/* Filter Card & Tabs */
+.filters-card {
   display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
-}
-
-.walkin-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 18px 24px;
-  border-bottom: 1px solid #eee4d1;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1px solid #ded5c3;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(32, 60, 48, 0.04);
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-.modal-eyebrow {
+.filter-group {
   display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.filter-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #142b20;
+}
+
+.status-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pill-btn {
+  background: #f7f3ea;
+  border: 1px solid #dcd1be;
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  color: #4b4435;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pill-btn:hover {
+  background: #eee4d1;
+  border-color: #baa67c;
+}
+
+.pill-btn.active {
+  background: #142b20;
+  border-color: #c6ad7a;
+  color: #ffd98a;
+  box-shadow: 0 2px 8px rgba(20, 43, 32, 0.25);
+}
+
+.count-badge {
+  background: #c6ad7a;
+  color: #142b20;
+  font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  color: #c99a4e;
-  margin-bottom: 2px;
+  padding: 1px 6px;
+  border-radius: 10px;
 }
 
-.walkin-title {
-  margin: 0;
-  font-size: 22px;
+.shift-stats-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #60594a;
+}
+
+.stat-item strong {
+  color: #142b20;
+}
+
+.stat-sep {
+  color: #c6ad7a;
+}
+
+/* Alert Box */
+.alert-box {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 13.5px;
+}
+
+/* Empty Box */
+.empty-reservations-box {
+  background: #ffffff;
+  border: 1.5px dashed #c6ad7a;
+  border-radius: 12px;
+  padding: 52px 20px;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.empty-icon-wrap {
+  color: #c6ad7a;
+  margin-bottom: 12px;
+}
+
+.empty-title {
+  margin: 0 0 8px;
+  font-size: 19px;
   font-weight: 800;
-  color: #173224;
+  color: #142b20;
 }
 
-.close-x {
-  background: transparent;
-  border: none;
-  font-size: 20px;
-  cursor: pointer;
-  color: #8c8270;
+.empty-text {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: #655e4e;
 }
 
-.walkin-body {
-  padding: 20px 24px;
-  overflow-y: auto;
+/* Reservations Grid & Cards */
+.reservations-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.reservation-card {
+  background: #ffffff;
+  border: 1.5px solid #ded5c3;
+  border-radius: 12px;
+  padding: 22px 24px;
+  box-shadow: 0 4px 16px rgba(20, 43, 32, 0.05);
   display: flex;
   flex-direction: column;
   gap: 16px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.form-label {
-  display: block;
-  font-size: 13px;
+.reservation-card:hover {
+  border-color: #c6ad7a;
+  box-shadow: 0 8px 24px rgba(20, 43, 32, 0.1), 0 0 12px rgba(198, 173, 122, 0.12);
+  transform: translateY(-2px);
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #f0e8db;
+  padding-bottom: 14px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.branch-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.branch-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: #142b20;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gold-bullet {
+  color: #c6ad7a;
+  font-size: 12px;
+}
+
+.ref-badge {
+  font-size: 11px;
+  color: #6a6252;
+  font-family: monospace;
+  background: #f4ecdc;
+  border: 1px solid #dcd1be;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.client-type-tag {
+  font-size: 11.5px;
   font-weight: 700;
-  color: #203c30;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.client-type-tag.walkin {
+  background: #f5f0fb;
+  border: 1px solid #dcd0f0;
+  color: #6932a8;
+}
+
+.client-type-tag.reserved {
+  background: #f0f7f2;
+  border: 1px solid #c8e6d2;
+  color: #145e31;
+}
+
+/* Status Badges */
+.status-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 14px;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.badge-confirmed {
+  background: #142b20;
+  color: #ffd98a;
+  border: 1px solid #c6ad7a;
+  box-shadow: 0 0 8px rgba(198, 173, 122, 0.3);
+}
+
+.badge-checked_in {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.badge-completed {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.badge-cancelled {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.badge-no_show {
+  background: #ffedd5;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Schedule Block */
+.schedule-block {
+  background: #fcfaf6;
+  border: 1px solid #ded5c3;
+  border-radius: 8px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.date-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.schedule-icon {
+  color: #c6ad7a;
+}
+
+.schedule-text {
+  font-size: 15px;
+  font-weight: 800;
+  color: #142b20;
+}
+
+.schedule-sub {
+  font-size: 12.5px;
+  color: #6a6252;
+}
+
+.iso-timestamps-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-top: 1px dashed #e5dccb;
+  padding-top: 6px;
+  margin-top: 2px;
+}
+
+.iso-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #7a705e;
+}
+
+.fee-text {
+  font-size: 12.5px;
+  color: #142b20;
+}
+
+/* Details Row */
+.details-row {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  padding: 0 4px;
+}
+
+.detail-item {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 13.5px;
+}
+
+.detail-lbl {
+  color: #6a6252;
+  font-weight: 600;
+}
+
+.detail-val {
+  font-weight: 700;
+  color: #142b20;
+}
+
+.table-highlight {
+  color: #142b20;
+  font-weight: 800;
+}
+
+/* Preorder Section */
+.preorder-section {
+  background: #fdfcf9;
+  border: 1px solid #e0d5c1;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.preorder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #f0e8dc;
+  padding-bottom: 8px;
+}
+
+.preorder-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #142b20;
+}
+
+.discount-pill {
+  font-size: 11px;
+  font-weight: 800;
+  background: #c6ad7a;
+  color: #142b20;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.preorder-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.preorder-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.item-name-qty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #172b21;
+}
+
+.qty-badge {
+  font-size: 11px;
+  font-weight: 800;
+  background: #142b20;
+  color: #ffd98a;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.item-calc-price {
+  font-weight: 700;
+  color: #142b20;
+}
+
+.no-snacks-text {
+  margin: 0;
+  font-size: 12px;
+  color: #8c8270;
+  font-style: italic;
+}
+
+.notes-box {
+  background: #fcf9f2;
+  border-left: 3px solid #c6ad7a;
+  padding: 10px 14px;
+  border-radius: 4px;
+}
+
+.notes-tag {
+  font-size: 11px;
+  font-weight: 800;
+  color: #8c7649;
+  display: block;
+  margin-bottom: 2px;
+}
+
+.notes-text {
+  margin: 0;
+  font-size: 13px;
+  color: #383226;
+}
+
+/* Card Footer */
+.card-footer {
+  border-top: 1px solid #f0e8db;
+  padding-top: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.inplay-live-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* History search bar */
+.history-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.search-input {
+  min-width: 240px;
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(18, 36, 28, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1000;
+}
+
+.modal-card {
+  background: #ffffff;
+  border: 1.5px solid #c6ad7a;
+  border-radius: 12px;
+  padding: 28px 24px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 0 12px 32px rgba(20, 43, 32, 0.2);
+}
+
+.walkin-card {
+  max-width: 620px;
+}
+
+.snack-card {
+  max-width: 500px;
+}
+
+.walkin-header {
+  margin-bottom: 16px;
+}
+
+.modal-heading {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 800;
+  color: #142b20;
+}
+
+.modal-desc {
+  margin: 0 0 16px;
+  font-size: 13.5px;
+  color: #60594a;
+}
+
+.modal-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #142b20;
   margin-bottom: 6px;
 }
 
+.modal-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #dcd1be;
+  border-radius: 6px;
+  font-size: 13.5px;
+  box-sizing: border-box;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+/* Walkin Table Selector Grid */
 .tables-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -2121,45 +1952,59 @@ function formatStatus(status: string): string {
 
 .tbl-select-card {
   background: #fbf9f4;
-  border: 2px solid #e2d8c7;
-  border-radius: 10px;
-  padding: 10px;
+  border: 1.5px solid #dcd1be;
+  border-radius: 8px;
+  padding: 10px 12px;
   text-align: left;
   cursor: pointer;
-  transition: all 120ms ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .tbl-select-card:hover {
   background: #f5eedf;
+  border-color: #baa67c;
 }
 
 .tbl-select-card.active {
-  background: #effaf2;
-  border-color: #16a34a;
+  background: #142b20;
+  border-color: #c6ad7a;
 }
 
-.tbl-card-name {
+.tbl-select-card.active .tbl-name {
+  color: #ffd98a;
+}
+
+.tbl-select-card.active .tbl-cap {
+  color: #e5dccb;
+}
+
+.tbl-select-card.active .tbl-rate {
+  color: #ffd98a;
+}
+
+.tbl-name {
   font-size: 14px;
   font-weight: 800;
-  color: #1a2f24;
+  color: #142b20;
 }
 
-.tbl-card-cap {
-  font-size: 11px;
-  color: #6a6253;
+.tbl-cap {
+  font-size: 11.5px;
+  color: #6a6252;
 }
 
-.tbl-card-rate {
+.tbl-rate {
   font-size: 12px;
   font-weight: 700;
-  color: #15803d;
-  margin-top: 4px;
+  color: #145e31;
+  margin-top: 2px;
 }
 
 .form-row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
+  margin: 16px 0;
 }
 
 .stepper-wrap {
@@ -2171,182 +2016,100 @@ function formatStatus(status: string): string {
 .step-btn {
   width: 36px;
   height: 36px;
-  border-radius: 8px;
-  border: 1px solid #d5c8b2;
-  background: #fdfaf5;
+  border-radius: 6px;
+  border: 1px solid #dcd1be;
+  background: #f7f3ea;
   font-size: 18px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.step-btn.small {
+  width: 28px;
+  height: 28px;
+  font-size: 14px;
 }
 
 .step-val {
   font-size: 16px;
   font-weight: 800;
-  color: #173224;
-  min-width: 24px;
+  color: #142b20;
+  min-width: 20px;
   text-align: center;
 }
 
-.modal-select {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #d5c8b2;
+.step-val.small {
+  font-size: 13.5px;
+}
+
+.preorder-details {
+  border: 1px dashed #dcd1be;
   border-radius: 8px;
-  font-size: 13px;
-  background: #ffffff;
-  color: #173224;
+  padding: 10px 14px;
+  background: #fcfaf6;
+  margin-top: 14px;
 }
 
-.walkin-footer {
-  padding: 16px 24px;
-  border-top: 1px solid #eee4d1;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  background: #faf7f2;
-}
-
-/* Snack Modal */
-.snack-modal-card {
-  max-width: 520px;
-}
-
-.snack-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-}
-
-.snack-eyebrow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 800;
-  color: #c99a4e;
-  letter-spacing: 0.06em;
-  margin-bottom: 2px;
-}
-
-.snack-modal-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 800;
-  color: #173224;
-}
-
-.snack-modal-sub {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: #635b4c;
-}
-
-.snack-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 340px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.snack-row-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  background: #faf7f2;
-  border-radius: 8px;
-  border: 1px solid #eee3d1;
-}
-
-.snack-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.snack-name {
+.details-summary {
   font-size: 13px;
   font-weight: 700;
-  color: #203c30;
-}
-
-.snack-price {
-  font-size: 12px;
-  color: #b45309;
-  font-weight: 800;
-}
-
-.snack-stepper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.snack-step-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  border: 1px solid #d5c8b2;
-  background: #ffffff;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.snack-step-btn.plus {
-  background: #203c30;
-  border-color: #203c30;
-  color: #ffffff;
-}
-
-.snack-qty-num {
-  font-size: 13px;
-  font-weight: 800;
-  min-width: 18px;
-  text-align: center;
-}
-
-.snack-modal-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 20px;
-  padding-top: 14px;
-  border-top: 1px solid #eee4d1;
-}
-
-.snack-order-summary {
-  font-size: 13px;
-  color: #4b4435;
-}
-
-.snack-total-val {
-  font-size: 18px;
-  color: #15803d;
-  margin-left: 6px;
-}
-
-.snack-footer-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.food-details {
-  border: 1px dashed #d5c8b2;
-  border-radius: 8px;
-  padding: 8px 12px;
-  background: #fffdf9;
-}
-
-.food-summary-btn {
-  font-size: 13px;
-  font-weight: 700;
-  color: #203c30;
+  color: #142b20;
   cursor: pointer;
 }
 
 .picker-wrap {
   margin-top: 12px;
+}
+
+/* Snack Modal List */
+.snack-list-body {
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.snack-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #fdfcf9;
+  border: 1px solid #eee4d3;
+  border-radius: 6px;
+}
+
+.snack-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #142b20;
+  display: block;
+}
+
+.snack-price {
+  font-size: 12px;
+  font-weight: 700;
+  color: #8c7649;
+}
+
+.snack-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #f0e8db;
+  padding-top: 14px;
+}
+
+.snack-total {
+  font-size: 13.5px;
+  color: #60594a;
+}
+
+.total-value {
+  color: #142b20;
+  font-size: 18px;
+  margin-left: 6px;
 }
 </style>
