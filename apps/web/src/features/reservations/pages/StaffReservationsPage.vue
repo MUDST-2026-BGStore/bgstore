@@ -30,9 +30,9 @@ type NavTab =
   | 'sessions'
   | 'bookings'
   | 'library'
+  | 'inventory'
   | 'staff-roster'
   | 'analytics'
-  | 'inventory'
   | 'settings'
   | 'policies';
 
@@ -59,9 +59,9 @@ const userRoleTitle = computed(() => {
   return 'Floor Staff';
 });
 
-// Guard tabs against non-permitted roles
+// Guard management & admin tabs (inventory/stock is accessible to all staff)
 watch(activeTab, (tab) => {
-  if (['staff-roster', 'analytics', 'inventory'].includes(tab) && !isManager.value) {
+  if (['staff-roster', 'analytics'].includes(tab) && !isManager.value) {
     activeTab.value = 'dashboard';
   }
   if (['settings', 'policies'].includes(tab) && !isAdmin.value) {
@@ -461,7 +461,9 @@ async function handleStaffWalkInSubmit() {
 }
 
 // ==========================================
-// FEATURE 1: ASSIGNED GAMES PER TABLE & MODAL
+// FEATURE 1: ASSIGNED GAMES PER TABLE & STRICT RULES
+// Rule 1: Only start session can be assigned game
+// Rule 2: Cannot assign game to assigned table
 // ==========================================
 const gameSearchQuery = ref('');
 const gameStatusFilter = ref<'ALL' | 'AVAILABLE' | 'IN_USE'>('ALL');
@@ -489,14 +491,46 @@ function getGameLocation(gameName: string): string | null {
   return null;
 }
 
+// Tables that have an active started session
+const activeStartedTables = computed(() => {
+  return branchFloorTables.filter((t) => getTableStatus(t).state === 'OCCUPIED');
+});
+
+// Tables eligible to receive a game:
+// 1. Must have a started session (state === 'OCCUPIED')
+// 2. Must not already have a game assigned (not an assigned table)
+const eligibleTablesForGame = computed(() => {
+  return activeStartedTables.value.filter(
+    (t) => getTableAssignedGames(t.id).length === 0
+  );
+});
+
 function openAssignGame(game: CatalogGame) {
   selectedGameToAssign.value = game;
   assignModalSearch.value = '';
+  // Default to first eligible table if available
+  const firstEligible = eligibleTablesForGame.value[0];
+  if (firstEligible) {
+    assignGameTargetTableId.value = firstEligible.id;
+  }
   showAssignGameModal.value = true;
 }
 
 function openAssignGameForTable(tableId: string | number) {
-  assignGameTargetTableId.value = String(tableId);
+  const idStr = String(tableId);
+  const tbl = branchFloorTables.find((t) => t.id === idStr);
+
+  // Rule 1 check: Only started sessions can be assigned game
+  if (!tbl || getTableStatus(tbl).state !== 'OCCUPIED') {
+    return;
+  }
+
+  // Rule 2 check: Cannot assign game to assigned table
+  if (getTableAssignedGames(idStr).length > 0) {
+    return;
+  }
+
+  assignGameTargetTableId.value = idStr;
   const firstAvail = games.find((g) => !getGameLocation(g.name)) || games[0];
   selectedGameToAssign.value = firstAvail || null;
   assignModalSearch.value = '';
@@ -506,15 +540,26 @@ function openAssignGameForTable(tableId: string | number) {
 function confirmAssignGame() {
   if (!selectedGameToAssign.value) return;
   const tId = assignGameTargetTableId.value;
-  // remove if assigned elsewhere first
-  returnGameFromAnyTable(selectedGameToAssign.value.name);
+  const tbl = branchFloorTables.find((t) => t.id === tId);
+
+  // Strict enforcement:
+  // 1. Only start session can be assigned game
+  if (!tbl || getTableStatus(tbl).state !== 'OCCUPIED') {
+    return;
+  }
+  // 2. Cannot assign game to assigned table
+  if (getTableAssignedGames(tId).length > 0) {
+    return;
+  }
+  // 3. Game must be available
+  if (getGameLocation(selectedGameToAssign.value.name)) {
+    return;
+  }
 
   if (!tableAssignedGames.value[tId]) {
     tableAssignedGames.value[tId] = [];
   }
-  if (!tableAssignedGames.value[tId].includes(selectedGameToAssign.value.name)) {
-    tableAssignedGames.value[tId].push(selectedGameToAssign.value.name);
-  }
+  tableAssignedGames.value[tId].push(selectedGameToAssign.value.name);
   showAssignGameModal.value = false;
 }
 
@@ -563,8 +608,27 @@ const assignableGamesList = computed(() => {
   });
 });
 
+// Check if currently selected target table in modal is valid
+const targetTableEligible = computed(() => {
+  const tbl = branchFloorTables.find((t) => t.id === assignGameTargetTableId.value);
+  if (!tbl) return false;
+  const isStarted = getTableStatus(tbl).state === 'OCCUPIED';
+  const hasGame = getTableAssignedGames(tbl.id).length > 0;
+  return isStarted && !hasGame;
+});
+
+const canConfirmAssign = computed(() => {
+  return (
+    !!selectedGameToAssign.value &&
+    !getGameLocation(selectedGameToAssign.value.name) &&
+    targetTableEligible.value
+  );
+});
+
 // ==========================================
 // FEATURE 2: FOOD & DRINK STOCK MANAGEMENT
+// Rule 3: Staff has + / - stock management;
+// Higher roles (Manager & Admin) can create new food/drink types.
 // ==========================================
 export interface FoodDrinkStockItem {
   id: string;
@@ -781,6 +845,7 @@ const outOfStockCount = computed(
   () => branchStockItems.value.filter((it) => it.currentStock === 0).length
 );
 
+// Staff Quick +/- Adjustment
 function adjustStockQty(item: FoodDrinkStockItem, delta: number) {
   item.currentStock = Math.max(0, item.currentStock + delta);
 }
@@ -804,6 +869,54 @@ function submitRestock() {
   restockTargetItem.value = null;
 }
 
+// Higher Role Exclusive: Add New Food/Drink Type
+const showAddFoodModal = ref(false);
+const newFoodForm = ref({
+  name: '',
+  nameTh: '',
+  category: 'beverages' as 'beverages' | 'snacks' | 'tea_coffee' | 'bakery_desserts',
+  price: 50,
+  costPrice: 25,
+  unit: 'cans',
+  initialStock: 24,
+  lowStockThreshold: 10,
+});
+
+function openAddFoodModal() {
+  newFoodForm.value = {
+    name: '',
+    nameTh: '',
+    category: 'beverages',
+    price: 50,
+    costPrice: 25,
+    unit: 'cans',
+    initialStock: 24,
+    lowStockThreshold: 10,
+  };
+  showAddFoodModal.value = true;
+}
+
+function submitAddNewFood() {
+  if (!newFoodForm.value.name.trim()) return;
+  const newId = `custom-${Date.now()}`;
+  branchStockItems.value.unshift({
+    id: newId,
+    name: newFoodForm.value.name.trim(),
+    nameTh: newFoodForm.value.nameTh.trim() || newFoodForm.value.name.trim(),
+    category: newFoodForm.value.category,
+    price: Number(newFoodForm.value.price) || 0,
+    costPrice: Number(newFoodForm.value.costPrice) || 0,
+    unit: newFoodForm.value.unit || 'units',
+    currentStock: Number(newFoodForm.value.initialStock) || 0,
+    lowStockThreshold: Number(newFoodForm.value.lowStockThreshold) || 10,
+  });
+  showAddFoodModal.value = false;
+}
+
+function removeStockItem(itemId: string) {
+  branchStockItems.value = branchStockItems.value.filter((i) => i.id !== itemId);
+}
+
 // Staff Snack Tab Ordering
 const staffSnackReservation = ref<any>(null);
 const staffSnackQuantities = ref<Record<string, number>>({});
@@ -820,7 +933,7 @@ function getStaffSnackQty(itemId: string): number {
 function adjustStaffSnackQty(item: FoodDrinkStockItem, delta: number) {
   const current = getStaffSnackQty(item.id);
   const next = Math.max(0, current + delta);
-  if (next > item.currentStock) return; // Prevent ordering more than current stock!
+  if (next > item.currentStock) return; // Prevent ordering more than current stock
   if (next === 0) {
     delete staffSnackQuantities.value[item.id];
   } else {
@@ -859,7 +972,7 @@ function submitStaffSnackOrder() {
   )
     return;
 
-  // Deduct inventory stock in real time!
+  // Deduct inventory stock in real time
   for (const it of staffSnackSelectedItems.value) {
     const stockItem = branchStockItems.value.find((s) => s.id === it.item.id);
     if (stockItem) {
@@ -1107,6 +1220,21 @@ const venuePolicies = ref({
           <span v-if="!isSidebarCollapsed">Game Library</span>
         </a>
 
+        <!-- Refreshments & Stock Management (Available to staff, manager & admin) -->
+        <a
+          href="#inventory"
+          class="nav-item"
+          :class="{ active: activeTab === 'inventory' }"
+          @click.prevent="activeTab = 'inventory'"
+        >
+          <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+            <line x1="12" y1="22.08" x2="12" y2="12"/>
+          </svg>
+          <span v-if="!isSidebarCollapsed">Refreshments & Stock</span>
+        </a>
+
         <!-- 2. Management (Manager & Admin only) -->
         <template v-if="isManager">
           <div v-if="!isSidebarCollapsed" class="nav-section-title mgmt-title">
@@ -1141,20 +1269,6 @@ const venuePolicies = ref({
               <line x1="6" y1="20" x2="6" y2="14"/>
             </svg>
             <span v-if="!isSidebarCollapsed">Revenue & Analytics</span>
-          </a>
-
-          <a
-            href="#inventory"
-            class="nav-item"
-            :class="{ active: activeTab === 'inventory' }"
-            @click.prevent="activeTab = 'inventory'"
-          >
-            <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-              <line x1="12" y1="22.08" x2="12" y2="12"/>
-            </svg>
-            <span v-if="!isSidebarCollapsed">Inventory & Stock</span>
           </a>
         </template>
 
@@ -1302,7 +1416,7 @@ const venuePolicies = ref({
               {{ allReservations.length }} bookings tonight — first arrival {{ formatTime(upcomingReservations[0]?.startsAt) || '7:30 PM' }}, largest party of {{ Math.max(...branchFloorTables.map(t => t.seats)) }}, {{ needsYouItems.length }} item{{ needsYouItems.length === 1 ? '' : 's' }} need attention.
             </p>
 
-            <!-- Hero Action Buttons Bar (New booking REMOVED as requested) -->
+            <!-- Hero Action Buttons Bar -->
             <div class="hero-actions-bar">
               <button
                 type="button"
@@ -1469,49 +1583,22 @@ const venuePolicies = ref({
                       <span class="table-seats-lbl">{{ table.seats }} seats · ฿{{ table.rate }}/hr</span>
                     </div>
 
-                    <!-- Assigned Games Row on Tile -->
-                    <div v-if="getTableAssignedGames(table.id).length > 0" class="tile-assigned-games-box">
-                      <span class="assigned-label">🎲 Games playing:</span>
-                      <div class="assigned-chips-wrap">
-                        <span v-for="g in getTableAssignedGames(table.id)" :key="g" class="game-chip-capsule">
-                          {{ g }}
-                          <button
-                            type="button"
-                            class="btn-chip-unassign"
-                            title="Return to shelf"
-                            @click.stop="unassignGameFromTable(table.id, g)"
-                          >
-                            ✕
-                          </button>
-                        </span>
-                      </div>
-                    </div>
-
-                    <!-- FREE TABLE -->
+                    <!-- FREE TABLE: NO game assignment allowed -->
                     <template v-if="getTableStatus(table).state === 'FREE'">
                       <div class="tile-status-row">
                         <span class="state-badge badge-free">FREE</span>
                       </div>
                       <p class="tile-helper">Available rest of shift</p>
-                      <div class="tile-actions-row">
-                        <button
-                          type="button"
-                          class="tile-action-link"
-                          @click="openWalkInForTable(table)"
-                        >
-                          + Seat walk-in →
-                        </button>
-                        <button
-                          type="button"
-                          class="btn-tile-assign-game"
-                          @click.stop="openAssignGameForTable(table.id)"
-                        >
-                          + Assign Game
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        class="tile-action-link"
+                        @click="openWalkInForTable(table)"
+                      >
+                        + Seat walk-in here →
+                      </button>
                     </template>
 
-                    <!-- OCCUPIED TABLE -->
+                    <!-- OCCUPIED TABLE: Session started -->
                     <template v-else-if="getTableStatus(table).state === 'OCCUPIED'">
                       <div class="tile-status-row">
                         <span class="state-badge badge-occupied">PLAYING</span>
@@ -1525,6 +1612,24 @@ const venuePolicies = ref({
                       <div class="tile-sub-info">
                         Tab: ฿{{ calculateCurrentPlayFee(getTableStatus(table).reservation) }}
                       </div>
+
+                      <!-- Assigned Game Chip (If assigned, cannot assign another game) -->
+                      <div v-if="getTableAssignedGames(table.id).length > 0" class="tile-assigned-games-box">
+                        <div class="assigned-chips-wrap">
+                          <span class="game-chip-capsule">
+                            🎲 {{ getTableAssignedGames(table.id)[0] }}
+                            <button
+                              type="button"
+                              class="btn-chip-unassign"
+                              title="Return game to shelf"
+                              @click.stop="unassignGameFromTable(table.id, getTableAssignedGames(table.id)[0])"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        </div>
+                      </div>
+
                       <div class="tile-actions-row">
                         <button
                           type="button"
@@ -1533,13 +1638,17 @@ const venuePolicies = ref({
                         >
                           + Food/Drinks
                         </button>
+
+                        <!-- Only show + Assign Game if table has no game yet! -->
                         <button
+                          v-if="getTableAssignedGames(table.id).length === 0"
                           type="button"
                           class="tile-btn-assign"
                           @click.stop="openAssignGameForTable(table.id)"
                         >
-                          + Game
+                          + Assign Game
                         </button>
+
                         <button
                           type="button"
                           class="tile-btn-gold"
@@ -1550,7 +1659,7 @@ const venuePolicies = ref({
                       </div>
                     </template>
 
-                    <!-- RESERVED TABLE -->
+                    <!-- RESERVED TABLE: NO game assignment allowed until started -->
                     <template v-else-if="getTableStatus(table).state === 'RESERVED'">
                       <div class="tile-status-row">
                         <span class="state-badge badge-reserved">RESERVED</span>
@@ -1561,22 +1670,13 @@ const venuePolicies = ref({
                       <p class="tile-due-time">
                         Due at {{ formatTime(getTableStatus(table).reservation?.startsAt) }}
                       </p>
-                      <div class="tile-actions-row">
-                        <button
-                          type="button"
-                          class="tile-action-link"
-                          @click="handleCheckIn(getTableStatus(table).reservation)"
-                        >
-                          Check-in & Seat →
-                        </button>
-                        <button
-                          type="button"
-                          class="btn-tile-assign-game"
-                          @click.stop="openAssignGameForTable(table.id)"
-                        >
-                          + Assign Game
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        class="tile-action-link"
+                        @click="handleCheckIn(getTableStatus(table).reservation)"
+                      >
+                        Check-in & Seat →
+                      </button>
                     </template>
                   </article>
                 </div>
@@ -1683,46 +1783,18 @@ const venuePolicies = ref({
                   <span class="table-seats-lbl">{{ table.seats }} Seats · ฿{{ table.rate }}/hr</span>
                 </div>
 
-                <!-- Assigned Games for This Table -->
-                <div class="tile-assigned-games-box" style="margin: 8px 0;">
-                  <div class="assigned-header-row">
-                    <span class="assigned-label">🎲 Assigned Games:</span>
-                    <button
-                      type="button"
-                      class="btn-tile-assign-game small"
-                      @click.stop="openAssignGameForTable(table.id)"
-                    >
-                      + Assign Game
-                    </button>
-                  </div>
-                  <div v-if="getTableAssignedGames(table.id).length > 0" class="assigned-chips-wrap">
-                    <span v-for="g in getTableAssignedGames(table.id)" :key="g" class="game-chip-capsule">
-                      {{ g }}
-                      <button
-                        type="button"
-                        class="btn-chip-unassign"
-                        title="Return to shelf"
-                        @click.stop="unassignGameFromTable(table.id, g)"
-                      >
-                        ✕
-                      </button>
-                    </span>
-                  </div>
-                  <div v-else class="no-game-text">
-                    No game currently assigned
-                  </div>
-                </div>
-
+                <!-- FREE TABLE: NO game assignment -->
                 <template v-if="getTableStatus(table).state === 'FREE'">
                   <div class="tile-status-row">
                     <span class="state-badge badge-free">FREE</span>
                   </div>
-                  <p class="tile-helper">Ready for walk-ins or scheduled bookings.</p>
+                  <p class="tile-helper">Ready for walk-ins or scheduled bookings. Games can be assigned after seating.</p>
                   <button type="button" class="btn-primary-parlor small full" @click="openWalkInForTable(table)">
                     + Seat Walk-in at Table {{ table.number }}
                   </button>
                 </template>
 
+                <!-- OCCUPIED TABLE: Session started -->
                 <template v-else-if="getTableStatus(table).state === 'OCCUPIED'">
                   <div class="tile-status-row">
                     <span class="state-badge badge-occupied">IN PLAY</span>
@@ -1732,6 +1804,39 @@ const venuePolicies = ref({
                   <p class="tile-sub-info">
                     Party of {{ getTableStatus(table).reservation?.partySize }} · Current Tab: ฿{{ calculateCurrentPlayFee(getTableStatus(table).reservation) }}
                   </p>
+
+                  <!-- Assigned Game Box on Occupied Table -->
+                  <div class="tile-assigned-games-box" style="margin: 8px 0;">
+                    <div class="assigned-header-row">
+                      <span class="assigned-label">🎲 Assigned Game:</span>
+                      <!-- Only show + Assign Game if table has no game yet -->
+                      <button
+                        v-if="getTableAssignedGames(table.id).length === 0"
+                        type="button"
+                        class="btn-tile-assign-game small"
+                        @click.stop="openAssignGameForTable(table.id)"
+                      >
+                        + Assign Game
+                      </button>
+                    </div>
+                    <div v-if="getTableAssignedGames(table.id).length > 0" class="assigned-chips-wrap">
+                      <span class="game-chip-capsule">
+                        {{ getTableAssignedGames(table.id)[0] }}
+                        <button
+                          type="button"
+                          class="btn-chip-unassign"
+                          title="Return game to shelf"
+                          @click.stop="unassignGameFromTable(table.id, getTableAssignedGames(table.id)[0])"
+                        >
+                          ✕ Return
+                        </button>
+                      </span>
+                    </div>
+                    <div v-else class="no-game-text">
+                      No game assigned yet · Click "+ Assign Game"
+                    </div>
+                  </div>
+
                   <div class="tile-actions-row">
                     <button type="button" class="tile-btn-small" @click="openAddSnacks(getTableStatus(table).reservation)">
                       + Food/Drinks
@@ -1742,6 +1847,7 @@ const venuePolicies = ref({
                   </div>
                 </template>
 
+                <!-- RESERVED TABLE: NO game assignment -->
                 <template v-else-if="getTableStatus(table).state === 'RESERVED'">
                   <div class="tile-status-row">
                     <span class="state-badge badge-reserved">RESERVED</span>
@@ -1787,7 +1893,7 @@ const venuePolicies = ref({
                   <tr>
                     <th>Table</th>
                     <th>Customer</th>
-                    <th>Assigned Games</th>
+                    <th>Assigned Game</th>
                     <th>Checked-In</th>
                     <th>Time Played</th>
                     <th>Hourly Rate</th>
@@ -1806,25 +1912,28 @@ const venuePolicies = ref({
                     </td>
                     <td>
                       <div class="session-games-cell">
+                        <!-- If table already has game: show chip with return button -->
                         <div v-if="getTableAssignedGames(res.tableId).length > 0" class="session-chips-wrap">
-                          <span v-for="g in getTableAssignedGames(res.tableId)" :key="g" class="game-chip-capsule">
-                            {{ g }}
+                          <span class="game-chip-capsule">
+                            🎲 {{ getTableAssignedGames(res.tableId)[0] }}
                             <button
                               type="button"
                               class="btn-chip-unassign"
                               title="Return to shelf"
-                              @click.stop="unassignGameFromTable(res.tableId, g)"
+                              @click.stop="unassignGameFromTable(res.tableId, getTableAssignedGames(res.tableId)[0])"
                             >
                               ✕
                             </button>
                           </span>
                         </div>
+                        <!-- If table has NO game: show + Assign Game button -->
                         <button
+                          v-else
                           type="button"
                           class="btn-assign-mini"
                           @click="openAssignGameForTable(res.tableId)"
                         >
-                          + Game
+                          + Assign Game
                         </button>
                       </div>
                     </td>
@@ -2028,96 +2137,40 @@ const venuePolicies = ref({
         </template>
 
         <!-- ========================================== -->
-        <!-- VIEW 6: STAFF & SHIFTS (Manager & Admin)   -->
+        <!-- VIEW 6: FOOD & DRINK STOCK MANAGEMENT      -->
+        <!-- Rule 3: Staff has +/- stock management;    -->
+        <!-- Higher roles (Manager/Admin) can add types -->
         <!-- ========================================== -->
-        <template v-else-if="activeTab === 'staff-roster' && isManager">
-          <section class="console-block">
-            <div class="view-header-row">
-              <div>
-                <div class="view-eyebrow">✦ BRANCH ROSTER & TEAM</div>
-                <h1 class="view-title">Staff & Shift Attendance</h1>
-                <p class="view-subtitle">Active shift supervision, table zone allocations, and roster management.</p>
-              </div>
-              <span class="role-pill-gold">Branch Manager Access</span>
-            </div>
-
-            <div class="staff-roster-grid">
-              <article v-for="staff in branchStaffRoster" :key="staff.id" class="staff-member-card">
-                <div class="staff-card-header">
-                  <div class="staff-avatar-circle">
-                    {{ staff.name.slice(0, 2).toUpperCase() }}
-                  </div>
-                  <div>
-                    <h3 class="staff-name">{{ staff.name }}</h3>
-                    <span class="staff-role-badge">{{ staff.role }}</span>
-                  </div>
-                </div>
-                <div class="staff-card-body">
-                  <p><strong>Shift:</strong> {{ staff.shift }}</p>
-                  <p><strong>Assigned Zone:</strong> {{ staff.assignedZone }}</p>
-                  <div class="duty-status-row">
-                    <span class="pulse-green"></span>
-                    <span class="duty-lbl">On Duty · Clocked in</span>
-                  </div>
-                </div>
-              </article>
-            </div>
-          </section>
-        </template>
-
-        <!-- ========================================== -->
-        <!-- VIEW 7: REVENUE & ANALYTICS (Manager+)     -->
-        <!-- ========================================== -->
-        <template v-else-if="activeTab === 'analytics' && isManager">
-          <section class="console-block">
-            <div class="view-header-row">
-              <div>
-                <div class="view-eyebrow">✦ FINANCIAL & OCCUPANCY TELEMETRY</div>
-                <h1 class="view-title">Revenue & Branch Analytics</h1>
-                <p class="view-subtitle">Today's real-time financial gross, hourly table time, and refreshments sales.</p>
-              </div>
-              <span class="role-pill-gold">Managerial Insights</span>
-            </div>
-
-            <div class="analytics-ribbon-grid">
-              <div class="analytics-card">
-                <span class="analytics-label">TODAY'S GROSS REVENUE</span>
-                <div class="analytics-value">฿{{ todayTotalGross }}</div>
-                <span class="analytics-sub">Table time + Counter refreshments</span>
-              </div>
-              <div class="analytics-card">
-                <span class="analytics-label">TABLE PLAYTIME FEES</span>
-                <div class="analytics-value">฿{{ totalTableFeesToday }}</div>
-                <span class="analytics-sub">Based on actual elapsed playtime</span>
-              </div>
-              <div class="analytics-card">
-                <span class="analytics-label">F&B REFRESHMENTS</span>
-                <div class="analytics-value">฿{{ todayFoodDrinkRevenue }}</div>
-                <span class="analytics-sub">Snacks & drinks tabs</span>
-              </div>
-              <div class="analytics-card">
-                <span class="analytics-label">PEAK UTILIZATION</span>
-                <div class="analytics-value">{{ Math.round((occupiedTablesCount / branchFloorTables.length) * 100) }}%</div>
-                <span class="analytics-sub">{{ occupiedTablesCount }} of {{ branchFloorTables.length }} tables playing</span>
-              </div>
-            </div>
-          </section>
-        </template>
-
-        <!-- ========================================== -->
-        <!-- VIEW 8: FOOD & DRINK STOCK MANAGEMENT      -->
-        <!-- ========================================== -->
-        <template v-else-if="activeTab === 'inventory' && isManager">
+        <template v-else-if="activeTab === 'inventory'">
           <section class="console-block">
             <div class="view-header-row">
               <div>
                 <div class="view-eyebrow">✦ KITCHEN & BEVERAGE INVENTORY CONTROL</div>
                 <h1 class="view-title">Food & Drink Stock Management</h1>
-                <p class="view-subtitle">Live pantry stock monitoring, reorder alerts, profit margins, and supplier batch restocks.</p>
+                <p class="view-subtitle">
+                  <span v-if="isManager">Manager Access · Full stock control, menu item creation, profit margins, and supplier batch restocks.</span>
+                  <span v-else>Floor Staff Stock Access · Daily pantry counts and stock intake adjustments.</span>
+                </p>
               </div>
-              <button type="button" class="btn-primary-parlor" @click="openRestockModal(branchStockItems[0])">
-                + Restock Delivery Batch
-              </button>
+
+              <!-- Higher Role Action: Add New Food/Drink Type -->
+              <div class="header-mgmt-actions">
+                <button
+                  v-if="isManager"
+                  type="button"
+                  class="btn-primary-parlor"
+                  @click="openAddFoodModal"
+                >
+                  ✦ Add New Food / Drink Item
+                </button>
+                <button
+                  type="button"
+                  class="btn-secondary-parlor"
+                  @click="openRestockModal(branchStockItems[0])"
+                >
+                  + Restock Delivery Batch
+                </button>
+              </div>
             </div>
 
             <!-- Stock Metrics Ribbon -->
@@ -2212,9 +2265,11 @@ const venuePolicies = ref({
                     <th>Category</th>
                     <th>Current Quantity</th>
                     <th>Stock Status</th>
-                    <th>Cost · Retail (Margin)</th>
-                    <th>Quick Adjust</th>
-                    <th>Restock Action</th>
+                    <th>Retail Price</th>
+                    <th v-if="isManager">Cost & Margin</th>
+                    <th>Stock Stepper (+ / -)</th>
+                    <th>Restock Delivery</th>
+                    <th v-if="isManager">Catalog Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2255,8 +2310,11 @@ const venuePolicies = ref({
                       </span>
                     </td>
                     <td>
+                      <strong class="price-val">฿{{ item.price }}</strong>
+                    </td>
+                    <td v-if="isManager">
                       <div class="margin-cell">
-                        <span>Cost: ฿{{ item.costPrice }} · Price: ฿{{ item.price }}</span>
+                        <span>Cost: ฿{{ item.costPrice }}</span>
                         <strong class="margin-pill">
                           {{ Math.round(((item.price - item.costPrice) / item.price) * 100) }}% margin
                         </strong>
@@ -2267,14 +2325,17 @@ const venuePolicies = ref({
                         <button
                           type="button"
                           class="step-btn small"
+                          title="Decrease stock (-1)"
                           :disabled="item.currentStock <= 0"
                           @click="adjustStockQty(item, -1)"
                         >
                           -
                         </button>
+                        <span class="step-val small">{{ item.currentStock }}</span>
                         <button
                           type="button"
                           class="step-btn small"
+                          title="Increase stock (+1)"
                           @click="adjustStockQty(item, 1)"
                         >
                           +
@@ -2299,9 +2360,96 @@ const venuePolicies = ref({
                         </button>
                       </div>
                     </td>
+                    <td v-if="isManager">
+                      <button
+                        type="button"
+                        class="btn-delete-sku"
+                        title="Remove SKU from branch catalog"
+                        @click="removeStockItem(item.id)"
+                      >
+                        🗑 Remove
+                      </button>
+                    </td>
                   </tr>
                 </tbody>
               </table>
+            </div>
+          </section>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW 7: STAFF & SHIFTS (Manager & Admin)   -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'staff-roster' && isManager">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ BRANCH ROSTER & TEAM</div>
+                <h1 class="view-title">Staff & Shift Attendance</h1>
+                <p class="view-subtitle">Active shift supervision, table zone allocations, and roster management.</p>
+              </div>
+              <span class="role-pill-gold">Branch Manager Access</span>
+            </div>
+
+            <div class="staff-roster-grid">
+              <article v-for="staff in branchStaffRoster" :key="staff.id" class="staff-member-card">
+                <div class="staff-card-header">
+                  <div class="staff-avatar-circle">
+                    {{ staff.name.slice(0, 2).toUpperCase() }}
+                  </div>
+                  <div>
+                    <h3 class="staff-name">{{ staff.name }}</h3>
+                    <span class="staff-role-badge">{{ staff.role }}</span>
+                  </div>
+                </div>
+                <div class="staff-card-body">
+                  <p><strong>Shift:</strong> {{ staff.shift }}</p>
+                  <p><strong>Assigned Zone:</strong> {{ staff.assignedZone }}</p>
+                  <div class="duty-status-row">
+                    <span class="pulse-green"></span>
+                    <span class="duty-lbl">On Duty · Clocked in</span>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW 8: REVENUE & ANALYTICS (Manager+)     -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'analytics' && isManager">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ FINANCIAL & OCCUPANCY TELEMETRY</div>
+                <h1 class="view-title">Revenue & Branch Analytics</h1>
+                <p class="view-subtitle">Today's real-time financial gross, hourly table time, and refreshments sales.</p>
+              </div>
+              <span class="role-pill-gold">Managerial Insights</span>
+            </div>
+
+            <div class="analytics-ribbon-grid">
+              <div class="analytics-card">
+                <span class="analytics-label">TODAY'S GROSS REVENUE</span>
+                <div class="analytics-value">฿{{ todayTotalGross }}</div>
+                <span class="analytics-sub">Table time + Counter refreshments</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">TABLE PLAYTIME FEES</span>
+                <div class="analytics-value">฿{{ totalTableFeesToday }}</div>
+                <span class="analytics-sub">Based on actual elapsed playtime</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">F&B REFRESHMENTS</span>
+                <div class="analytics-value">฿{{ todayFoodDrinkRevenue }}</div>
+                <span class="analytics-sub">Snacks & drinks tabs</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">PEAK UTILIZATION</span>
+                <div class="analytics-value">{{ Math.round((occupiedTablesCount / branchFloorTables.length) * 100) }}%</div>
+                <span class="analytics-sub">{{ occupiedTablesCount }} of {{ branchFloorTables.length }} tables playing</span>
+              </div>
             </div>
           </section>
         </template>
@@ -2398,7 +2546,7 @@ const venuePolicies = ref({
         </template>
       </main>
 
-      <!-- Assign Game to Table Modal -->
+      <!-- Assign Game to Table Modal (Enforces: 1. Only started session can receive game; 2. Cannot assign to already assigned table) -->
       <div v-if="showAssignGameModal" class="modal-backdrop" @click.self="showAssignGameModal = false">
         <div class="modal-card">
           <div class="walkin-header">
@@ -2406,27 +2554,47 @@ const venuePolicies = ref({
               <div class="eyebrow-sub">TABLE GAME SERVICE</div>
               <h3 class="modal-title">Assign Game to Table</h3>
               <p class="modal-sub">
-                Select a game from the shelf and assign it to an active table.
+                Rule: Only tables with an active started session can receive a game, and each table can only hold one game at a time.
               </p>
             </div>
             <button type="button" class="close-x" @click="showAssignGameModal = false">✕</button>
           </div>
 
           <div class="modal-form-body">
+            <!-- Alert if no tables are currently eligible -->
+            <div v-if="eligibleTablesForGame.length === 0" class="rule-warning-box">
+              <span class="gold-bullet">⚠️</span>
+              <span>
+                No tables eligible right now. Games can only be assigned to tables with an <strong>active started session</strong> that do not already have an assigned game.
+              </span>
+            </div>
+
             <!-- 1. Choose Target Table -->
             <div class="form-section">
-              <label class="modal-label">Select Target Table:</label>
+              <label class="modal-label">Select Active Playing Table:</label>
               <div class="tables-choice-grid">
                 <button
                   v-for="t in branchFloorTables"
                   :key="t.id"
                   type="button"
                   class="tbl-choice-pill"
-                  :class="{ active: assignGameTargetTableId === t.id }"
+                  :class="{
+                    active: assignGameTargetTableId === t.id,
+                    disabled: getTableStatus(t).state !== 'OCCUPIED' || getTableAssignedGames(t.id).length > 0
+                  }"
+                  :disabled="getTableStatus(t).state !== 'OCCUPIED' || getTableAssignedGames(t.id).length > 0"
                   @click="assignGameTargetTableId = t.id"
                 >
                   <strong>Table {{ t.number }}</strong>
-                  <span>({{ t.seats }}p · {{ getTableStatus(t).state }})</span>
+                  <span v-if="getTableStatus(t).state !== 'OCCUPIED'" class="pill-reason">
+                    (Not Playing)
+                  </span>
+                  <span v-else-if="getTableAssignedGames(t.id).length > 0" class="pill-reason has-game">
+                    (Has {{ getTableAssignedGames(t.id)[0] }})
+                  </span>
+                  <span v-else class="pill-reason ready">
+                    (Ready for game)
+                  </span>
                 </button>
               </div>
             </div>
@@ -2453,7 +2621,7 @@ const venuePolicies = ref({
                     selected: selectedGameToAssign?.id === g.id,
                     'in-use': !!getGameLocation(g.name)
                   }"
-                  @click="selectedGameToAssign = g"
+                  @click="!getGameLocation(g.name) && (selectedGameToAssign = g)"
                 >
                   <div class="game-choice-info">
                     <strong class="game-choice-name">{{ g.name }}</strong>
@@ -2481,10 +2649,131 @@ const venuePolicies = ref({
             <button
               type="button"
               class="btn-primary-parlor"
-              :disabled="!selectedGameToAssign"
+              :disabled="!canConfirmAssign"
               @click="confirmAssignGame"
             >
               Assign {{ selectedGameToAssign?.name || 'Game' }} to Table {{ assignGameTargetTableId }} →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Higher Role Modal: Add New Food / Drink Type (Manager & Admin only) -->
+      <div v-if="showAddFoodModal && isManager" class="modal-backdrop" @click.self="showAddFoodModal = false">
+        <div class="modal-card">
+          <div class="walkin-header">
+            <div>
+              <div class="eyebrow-sub">MANAGER CATALOG CONFIGURATION</div>
+              <h3 class="modal-title">Add New Food / Drink Item</h3>
+              <p class="modal-sub">
+                Define a new refreshment item, retail price, cost margins, and initial stock.
+              </p>
+            </div>
+            <button type="button" class="close-x" @click="showAddFoodModal = false">✕</button>
+          </div>
+
+          <div class="modal-form-body">
+            <div class="form-group">
+              <label class="modal-label">Item Name (English):</label>
+              <input
+                v-model="newFoodForm.name"
+                type="text"
+                placeholder="e.g. Yuzu Sparkling Cold Brew"
+                class="modal-input"
+                required
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="modal-label">Item Name (Thai):</label>
+              <input
+                v-model="newFoodForm.nameTh"
+                type="text"
+                placeholder="e.g. โคลด์บรูว์ยูสุโซดา"
+                class="modal-input"
+              />
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="modal-label">Category:</label>
+                <select v-model="newFoodForm.category" class="modal-select">
+                  <option value="beverages">🥤 Beverages</option>
+                  <option value="snacks">🍿 Snacks & Fries</option>
+                  <option value="tea_coffee">☕ Tea & Coffee</option>
+                  <option value="bakery_desserts">🥐 Bakery & Desserts</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="modal-label">Serving Unit:</label>
+                <select v-model="newFoodForm.unit" class="modal-select">
+                  <option value="cans">cans (กระป๋อง)</option>
+                  <option value="bottles">bottles (ขวด)</option>
+                  <option value="cups">cups (แก้ว)</option>
+                  <option value="portions">portions (ที่/จาน)</option>
+                  <option value="pieces">pieces (ชิ้น)</option>
+                  <option value="bags">bags (ซอง)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="modal-label">Selling Price (฿):</label>
+                <input
+                  v-model.number="newFoodForm.price"
+                  type="number"
+                  min="0"
+                  class="modal-input"
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="modal-label">Cost Price (฿):</label>
+                <input
+                  v-model.number="newFoodForm.costPrice"
+                  type="number"
+                  min="0"
+                  class="modal-input"
+                />
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="modal-label">Initial Stock Quantity:</label>
+                <input
+                  v-model.number="newFoodForm.initialStock"
+                  type="number"
+                  min="0"
+                  class="modal-input"
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="modal-label">Low Stock Threshold:</label>
+                <input
+                  v-model.number="newFoodForm.lowStockThreshold"
+                  type="number"
+                  min="1"
+                  class="modal-input"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary-parlor" @click="showAddFoodModal = false">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-primary-parlor"
+              :disabled="!newFoodForm.name.trim()"
+              @click="submitAddNewFood"
+            >
+              Add Item to Menu & Stock →
             </button>
           </div>
         </div>
@@ -3612,7 +3901,7 @@ const venuePolicies = ref({
   color: #60594a;
 }
 
-/* Assigned Games Chips on Tables */
+/* Assigned Game Chips on Tables */
 .tile-assigned-games-box {
   background: #fbf6ec;
   border: 1px solid #c6ad7a;
@@ -3956,6 +4245,13 @@ const venuePolicies = ref({
   color: #554e42;
 }
 
+.header-mgmt-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .role-pill-gold {
   background: #fbf6ec;
   border: 1.5px solid #c6ad7a;
@@ -4199,6 +4495,20 @@ const venuePolicies = ref({
 }
 
 /* Modal Games List for Assignment */
+.rule-warning-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #92400e;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
 .modal-games-list {
   max-height: 200px;
   overflow-y: auto;
@@ -4224,7 +4534,8 @@ const venuePolicies = ref({
 }
 
 .modal-game-choice-row.in-use {
-  opacity: 0.8;
+  opacity: 0.55;
+  cursor: not-allowed;
   border-color: #fca5a5;
   background: #fff5f5;
 }
@@ -4259,6 +4570,29 @@ const venuePolicies = ref({
 .mini-status-tag.unavail {
   background: #fee2e2;
   color: #991b1b;
+}
+
+/* Table choice pill states in Assign Modal */
+.tbl-choice-pill.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.pill-reason {
+  font-size: 9.5px;
+  margin-top: 2px;
+}
+
+.pill-reason.has-game {
+  color: #b45309;
+  font-weight: 700;
+}
+
+.pill-reason.ready {
+  color: #15803d;
+  font-weight: 700;
 }
 
 /* ========================================================= */
@@ -4412,6 +4746,11 @@ const venuePolicies = ref({
 .stock-status-tag.low { background: #fef3c7; color: #92400e; }
 .stock-status-tag.out { background: #fee2e2; color: #991b1b; }
 
+.price-val {
+  color: #142b20;
+  font-size: 14px;
+}
+
 .margin-cell {
   display: flex;
   flex-direction: column;
@@ -4449,6 +4788,21 @@ const venuePolicies = ref({
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
+}
+
+.btn-delete-sku {
+  background: transparent;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  border-radius: 6px;
+  padding: 3px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn-delete-sku:hover {
+  background: #fef2f2;
 }
 
 .stock-current-preview, .new-stock-preview {
