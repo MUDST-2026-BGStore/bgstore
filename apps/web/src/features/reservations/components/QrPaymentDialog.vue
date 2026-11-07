@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { generateReservationQrCode, type PromptPayQrDetails } from '../data/payment';
 import type { FoodOrderItem } from '../types';
+import { useStoreText } from '../../home/data/store-text';
 
 const props = defineProps<{
   totalAmount: number;
@@ -18,6 +19,7 @@ const emit = defineEmits<{
   cancel: [];
 }>();
 
+const { t } = useStoreText();
 const qrData = ref<PromptPayQrDetails | null>(null);
 const isGenerating = ref(true);
 const isVerifying = ref(false);
@@ -79,16 +81,16 @@ function confirmPayment() {
           <span class="brand-text">THE PARLOR</span>
           <span class="suit">♣</span>
         </div>
-        <h3 id="qr-title" class="payment-title">PromptPay QR Payment</h3>
+        <h3 id="qr-title" class="payment-title">{{ t('PromptPay QR Checkout') }}</h3>
         <p class="payment-subtitle">
-          Scan with any mobile banking app to complete your booking & 10% food pre-order discount.
+          {{ t('Scan to pay with any Thai Mobile Banking app') }}
         </p>
       </div>
 
       <!-- Payment Breakdown -->
       <div class="bill-breakdown">
         <div class="line-row">
-          <span>Table Reservation (Session)</span>
+          <span>{{ t('Table Fee') }}</span>
           <span class="val">฿{{ tableTotal }}</span>
         </div>
         <div v-if="foodItems.length > 0" class="line-row food-row">
@@ -102,7 +104,7 @@ function confirmPayment() {
           </div>
         </div>
         <div class="total-row">
-          <span>Total Due</span>
+          <span>{{ t('Total Amount to Pay') }}</span>
           <span class="grand-total">฿{{ totalAmount }}</span>
         </div>
       </div>
@@ -117,7 +119,7 @@ function confirmPayment() {
           <div class="qr-meta">
             <div class="ref-pill">Ref: {{ qrData.reference }}</div>
             <div class="timer-pill" :class="{ 'is-expiring': secondsLeft < 180 }">
-              Expires in: {{ formattedTime }}
+              {{ t('Payment window expires in') }}: {{ formattedTime }}
             </div>
           </div>
         </div>

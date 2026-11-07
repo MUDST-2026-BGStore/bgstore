@@ -106,7 +106,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
 
     <template #header-right>
       <RouterLink :to="{ name: 'CustomerReservePage' }" class="header-reserve-btn">
-        Reserve Table
+        {{ t('Reserve Table') }}
       </RouterLink>
       <StoreCartButton />
       <div
@@ -174,7 +174,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
             <div class="account-options">
               <template v-if="auth.authenticated">
                 <RouterLink :to="{ name: 'CustomerReservationsList' }">
-                  My Reservations
+                  {{ t('My Reservations') }}
                   <span aria-hidden="true">↗</span>
                 </RouterLink>
                 <RouterLink :to="{ name: 'AuthProfile' }"
@@ -397,6 +397,25 @@ button:focus-visible {
 .account-menu-leave-to {
   opacity: 0;
   transform: translateY(-5px) scale(0.985);
+}
+@media (max-width: 1024px) {
+  .customer-shell :deep(> div.relative > header) {
+    grid-template-columns: auto 1fr auto;
+    padding: 10px 18px;
+    gap: 12px;
+  }
+  .customer-shell :deep(> div.relative > header > :nth-child(3)) {
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .header-reserve-btn {
+    padding: 6px 10px;
+    font-size: 10.5px;
+  }
+  .account-trigger {
+    padding: 8px 10px;
+    gap: 6px;
+  }
 }
 @media (max-width: 700px) {
   .catalog-shell :deep(> div.relative > header + div) {

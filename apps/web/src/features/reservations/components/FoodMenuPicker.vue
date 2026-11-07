@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { FOOD_MENU_ITEMS, FOOD_CATEGORIES } from '../data/food-menu';
 import type { FoodMenuItem, FoodOrderItem } from '../types';
 import { calculatePreOrderDiscount } from '../data/payment';
+import { useStoreText } from '../../home/data/store-text';
 
 const props = defineProps<{
   modelValue: FoodOrderItem[];
@@ -12,6 +13,7 @@ const emit = defineEmits<{
   'update:modelValue': [items: FoodOrderItem[]];
 }>();
 
+const { t } = useStoreText();
 const activeCategory = ref<string>('all');
 const searchQuery = ref<string>('');
 
@@ -62,11 +64,11 @@ const totalItemsCount = computed(() =>
     <div class="discount-banner">
       <div class="discount-badge">
         <span class="icon">✨</span>
-        <span class="highlight">10% Off Pre-Orders</span>
+        <span class="highlight">{{ t('Pre-Order Food & Drinks (10% Discount)') }}</span>
       </div>
       <p class="discount-copy">
-        Add food & drinks to your table booking now and receive an instant <strong>10% discount</strong>!
-        Extra items can also be ordered at your table while playing.
+        {{ t('Enjoy an exclusive 10% discount on all food & beverages when pre-ordering with your table reservation.') }}
+        {{ t('You can also order extra food and drinks while playing at your table in the future!') }}
       </p>
     </div>
 
@@ -81,7 +83,7 @@ const totalItemsCount = computed(() =>
           :class="{ 'is-active': activeCategory === cat.id }"
           @click="activeCategory = cat.id"
         >
-          {{ cat.label }}
+          {{ t(cat.label) }}
         </button>
       </div>
 
@@ -89,7 +91,7 @@ const totalItemsCount = computed(() =>
         <input
           v-model="searchQuery"
           type="search"
-          placeholder="Search snacks, coffee, platters…"
+          :placeholder="t('Search games, designers, mechanics…')"
           class="search-input"
           aria-label="Search menu items"
         />
@@ -140,7 +142,7 @@ const totalItemsCount = computed(() =>
               :aria-label="`Add ${item.name}`"
               @click="updateQuantity(item, 1)"
             >
-              <span v-if="getQuantity(item.id) === 0">+ Add</span>
+              <span v-if="getQuantity(item.id) === 0">+ {{ t('Add to pre-order') }}</span>
               <span v-else>+</span>
             </button>
           </div>
@@ -152,7 +154,7 @@ const totalItemsCount = computed(() =>
     <div v-if="totalItemsCount > 0" class="preorder-tray">
       <div class="tray-content">
         <div class="tray-info">
-          <span class="count-badge">{{ totalItemsCount }} items selected</span>
+          <span class="count-badge">{{ totalItemsCount }} {{ t('Pre-order items') }}</span>
           <div class="price-breakdown">
             <span class="orig-strike">฿{{ originalSubtotal }}</span>
             <span class="discounted-sum">฿{{ discountSummary.discountedTotal }}</span>

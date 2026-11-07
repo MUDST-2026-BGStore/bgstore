@@ -12,7 +12,7 @@ describe('FoodMenuPicker Component', () => {
       },
     });
 
-    expect(wrapper.text()).toContain('10% Off Pre-Orders');
+    expect(wrapper.text()).toContain('Pre-Order Food & Drinks (10% Discount)');
     expect(wrapper.text()).toContain('All Items');
     expect(wrapper.text()).toContain('Drinks & Coffee');
   });
@@ -50,6 +50,7 @@ describe('FoodMenuPicker Component', () => {
     expect(emitted).toBeTruthy();
     const updatedList = emitted![0][0] as FoodOrderItem[];
     expect(updatedList.length).toBe(1);
+    expect(updatedList[0].item.id).toBe(initialItem.id);
     expect(updatedList[0].quantity).toBe(1);
   });
 });

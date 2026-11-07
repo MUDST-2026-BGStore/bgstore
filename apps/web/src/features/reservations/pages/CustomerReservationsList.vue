@@ -10,9 +10,11 @@ import {
   type Branch,
 } from '@theparlor/api-client';
 import { useAuthStore } from '../../../shared/stores/auth';
+import { useStoreText } from '../../home/data/store-text';
 
 const auth = useAuthStore();
 const queryClient = useQueryClient();
+const { t } = useStoreText();
 
 const selectedStatusFilter = ref<string>('ALL');
 const cancellingReservation = ref<Reservation | null>(null);
@@ -104,19 +106,19 @@ async function confirmCancel() {
     <div class="container">
       <div class="page-header">
         <div>
-          <h1 class="page-title">My Table Reservations</h1>
+          <h1 class="page-title">{{ t('My Reservations') }}</h1>
           <p class="page-subtitle">
-            Manage your booked gaming tables and pre-ordered food & refreshments.
+            {{ t('Manage your booked gaming tables and pre-ordered food & refreshments.') }}
           </p>
         </div>
         <RouterLink :to="{ name: 'CustomerReservePage' }" class="btn btn-primary">
-          + Book a Table
+          + {{ t('Reserve Table') }}
         </RouterLink>
       </div>
 
       <!-- Filter Bar -->
       <div class="filters-bar">
-        <span class="filter-label">Filter Status:</span>
+        <span class="filter-label">{{ t('Status') }}:</span>
         <div class="status-pills">
           <button
             v-for="st in ['ALL', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED']"
@@ -126,7 +128,7 @@ async function confirmCancel() {
             :class="{ active: selectedStatusFilter === st }"
             @click="selectedStatusFilter = st"
           >
-            {{ st === 'ALL' ? 'All Bookings' : st }}
+            {{ st === 'ALL' ? t('All categories') : t(st) }}
           </button>
         </div>
       </div>
@@ -166,15 +168,21 @@ async function confirmCancel() {
               <span class="res-id">Ref: {{ res.id }}</span>
             </div>
             <span class="status-badge" :class="`badge-${res.status.toLowerCase()}`">
-              {{ res.status }}
+              {{ t(res.status) }}
             </span>
           </div>
 
           <div class="res-body">
             <div class="body-row">
-              <span class="row-label">Time Interval:</span>
-              <span class="row-val">
+              <span class="row-label">{{ t('When & Where') }}:</span>
+              <span class="row-val font-semibold">
                 {{ formatTimestamp(res.startsAt) }} – {{ formatTimestamp(res.endsAt) }}
+              </span>
+            </div>
+            <div class="body-row timestamp-history-row">
+              <span class="row-label">ISO Timestamps:</span>
+              <span class="row-val history-timestamps">
+                <code>{{ res.startsAt }}</code> &nbsp;→&nbsp; <code>{{ res.endsAt }}</code>
               </span>
             </div>
             <div class="body-row">
@@ -234,7 +242,7 @@ async function confirmCancel() {
               class="btn btn-secondary"
               @click="cancellingReservation = null"
             >
-              Keep Reservation
+              {{ t('Cancel') }}
             </button>
             <button
               type="button"
@@ -243,7 +251,7 @@ async function confirmCancel() {
               @click="confirmCancel"
             >
               <span v-if="cancelMutation.isPending.value">Cancelling…</span>
-              <span v-else>Confirm Cancellation</span>
+              <span v-else>{{ t('Confirm Cancellation') }}</span>
             </button>
           </div>
         </div>
@@ -600,5 +608,20 @@ async function confirmCancel() {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
+}
+
+.timestamp-history-row {
+  margin-top: 4px;
+}
+.history-timestamps {
+  font-size: 11px;
+  color: #655d4c;
+}
+.history-timestamps code {
+  background: #f4ecdc;
+  padding: 2px 5px;
+  border-radius: 3px;
+  border: 1px solid #dcd1be;
+  font-family: monospace;
 }
 </style>

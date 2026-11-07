@@ -14,10 +14,14 @@ import FoodMenuPicker from '../components/FoodMenuPicker.vue';
 import QrPaymentDialog from '../components/QrPaymentDialog.vue';
 import type { FoodOrderItem, ReservationPreOrder } from '../types';
 import { calculatePreOrderDiscount } from '../data/payment';
+import { useStoreText } from '../../home/data/store-text';
+import { useStoreContextStore } from '../../home/stores/store-context';
 
 const route = useRoute();
 const auth = useAuthStore();
 const queryClient = useQueryClient();
+const { t, locale } = useStoreText();
+const storeContext = useStoreContextStore();
 
 // Step wizard: 1 = Time & Branch, 2 = Table & Guest Info, 3 = Food & Drinks, 4 = Review & QR Payment, 5 = Receipt
 const currentStep = ref<number>(1);
@@ -29,14 +33,33 @@ const reservationStartTime = ref<string>('14:00');
 const reservationDurationHours = ref<number>(2);
 const partySize = ref<number>(4);
 
+const requestedGame = ref<string>('');
+
+// Local today date string (YYYY-MM-DD)
+const todayDateString = computed(() => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+});
+
 // Initialize default date to tomorrow
 onMounted(() => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  reservationDate.value = tomorrow.toISOString().split('T')[0];
+  const y = tomorrow.getFullYear();
+  const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
+  const d = String(tomorrow.getDate()).padStart(2, '0');
+  reservationDate.value = `${y}-${m}-${d}`;
 
-  if (typeof route.query.branch === 'string') {
+  if (typeof route.query.branch === 'string' && route.query.branch) {
     selectedBranchId.value = route.query.branch;
+  }
+
+  if (typeof route.query.game === 'string' && route.query.game) {
+    requestedGame.value = route.query.game;
+    specialNotes.value = t('Requesting {game} from the rental library', { game: route.query.game });
   }
 });
 
@@ -48,12 +71,34 @@ const branchesQuery = useQuery({
 
 const branches = computed<Branch[]>(() => branchesQuery.data.value?.items ?? []);
 
-// Auto-select first branch if none selected
-watch(branches, (list) => {
-  if (list.length > 0 && !selectedBranchId.value) {
-    selectedBranchId.value = list[0].id;
-  }
-});
+// Auto-select branch matching website browsing preference or first branch
+watch(
+  [branches, () => storeContext.choice],
+  ([list, contextChoice]) => {
+    if (list.length === 0) return;
+    if (route.query.branch && list.some(b => b.id === route.query.branch)) {
+      selectedBranchId.value = String(route.query.branch);
+      return;
+    }
+    // Match by user's selected branch from StoreContext
+    if (contextChoice && contextChoice !== 'browse' && contextChoice !== 'online') {
+      const matched = list.find(
+        (b) =>
+          b.name.toLowerCase() === contextChoice.toLowerCase() ||
+          b.id === contextChoice ||
+          (storeContext.branch && b.name.toLowerCase() === storeContext.branch.name.toLowerCase())
+      );
+      if (matched) {
+        selectedBranchId.value = matched.id;
+        return;
+      }
+    }
+    if (!selectedBranchId.value) {
+      selectedBranchId.value = list[0].id;
+    }
+  },
+  { immediate: true }
+);
 
 const selectedBranch = computed(() =>
   branches.value.find((b) => b.id === selectedBranchId.value)
@@ -73,18 +118,50 @@ const endTimestamp = computed(() => {
   return dt.toISOString();
 });
 
-const formattedDateTimeInterval = computed(() => {
-  if (!startTimestamp.value || !endTimestamp.value) return '';
-  const start = new Date(startTimestamp.value);
-  const end = new Date(endTimestamp.value);
-  const dateStr = start.toLocaleDateString(undefined, {
-    weekday: 'short',
-    month: 'short',
+// Date and Time Validation: Cannot reserve before current date/time
+const isDateInPast = computed(() => {
+  if (!reservationDate.value) return false;
+  return reservationDate.value < todayDateString.value;
+});
+
+const isTimeInPast = computed(() => {
+  if (!reservationDate.value || !reservationStartTime.value) return false;
+  if (reservationDate.value > todayDateString.value) return false;
+  if (reservationDate.value < todayDateString.value) return true;
+  // If reserving for today, start time must be at least 30 minutes in advance
+  const [hrs, mins] = reservationStartTime.value.split(':').map(Number);
+  const selectedMinutes = hrs * 60 + mins;
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  return selectedMinutes < nowMinutes + 30;
+});
+
+const isDateTimeInvalid = computed(() => isDateInPast.value || isTimeInPast.value);
+
+// Glamorous human-friendly date and time (no raw timestamps in brief summary)
+const glamorousDateFormatted = computed(() => {
+  if (!reservationDate.value) return '';
+  const [y, m, d] = reservationDate.value.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.toLocaleDateString(locale.value === 'th-TH' ? 'th-TH' : 'en-US', {
+    weekday: 'long',
     day: 'numeric',
+    month: 'long',
     year: 'numeric',
   });
-  const timeStr = `${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  return `${dateStr}, ${timeStr} (${reservationDurationHours.value} hrs)`;
+});
+
+const glamorousTimeFormatted = computed(() => {
+  if (!reservationStartTime.value) return '';
+  const [hrs, mins] = reservationStartTime.value.split(':').map(Number);
+  const endHrs = hrs + reservationDurationHours.value;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(hrs)}:${pad(mins)} – ${pad(endHrs)}:${pad(mins)}`;
+});
+
+const formattedDateTimeInterval = computed(() => {
+  if (!startTimestamp.value || !endTimestamp.value) return '';
+  return `${glamorousDateFormatted.value}, ${glamorousTimeFormatted.value} (${reservationDurationHours.value} ${t(reservationDurationHours.value === 1 ? '1 Hour' : '{count} Hours', { count: reservationDurationHours.value })})`;
 });
 
 // Step 2 State: Table & Customer Contact
@@ -155,12 +232,12 @@ const foodDiscountInfo = computed(() =>
 );
 
 // Table Pricing Calculation
-function getTableHourlyRateNumber(table: TableAvailability | null): number {
-  if (!table || !table.hourlyRate) return 150;
-  return table.hourlyRate.amountMinor ? table.hourlyRate.amountMinor / 100 : 150;
-}
-
-const tableHourlyRate = computed(() => getTableHourlyRateNumber(selectedTable.value));
+const tableHourlyRate = computed(() => {
+  if (!selectedTable.value) return 150; // fallback default
+  const rate = selectedTable.value.hourlyRate;
+  if (!rate) return 150;
+  return 'amountMinor' in rate ? Number(rate.amountMinor) / 100 : 150;
+});
 
 const tableTotal = computed(() =>
   tableHourlyRate.value * reservationDurationHours.value
@@ -255,38 +332,38 @@ async function onPaymentCompleted(paymentMeta: {
       <nav class="stepper-nav" aria-label="Reservation Progress">
         <div class="step-indicator" :class="{ active: currentStep === 1, completed: currentStep > 1 }">
           <span class="step-num">1</span>
-          <span class="step-text">When & Where</span>
+          <span class="step-text">{{ t('When & Where') }}</span>
         </div>
         <div class="step-divider" />
         <div class="step-indicator" :class="{ active: currentStep === 2, completed: currentStep > 2 }">
           <span class="step-num">2</span>
-          <span class="step-text">Table & Info</span>
+          <span class="step-text">{{ t('Table & Info') }}</span>
         </div>
         <div class="step-divider" />
         <div class="step-indicator" :class="{ active: currentStep === 3, completed: currentStep > 3 }">
           <span class="step-num">3</span>
-          <span class="step-text">Food & Drinks (-10%)</span>
+          <span class="step-text">{{ t('Food & Drinks (-10%)') }}</span>
         </div>
         <div class="step-divider" />
         <div class="step-indicator" :class="{ active: currentStep === 4, completed: currentStep > 4 }">
           <span class="step-num">4</span>
-          <span class="step-text">Review & Pay</span>
+          <span class="step-text">{{ t('Review & Pay') }}</span>
         </div>
       </nav>
 
       <!-- STEP 1: Date, Time & Branch (Timestamp driven) -->
       <section v-if="currentStep === 1" class="wizard-step" aria-labelledby="step1-heading">
         <div class="step-header">
-          <h2 id="step1-heading" class="step-title">Choose Your Branch & Time</h2>
+          <h2 id="step1-heading" class="step-title">{{ t('Choose Your Branch & Time') }}</h2>
           <p class="step-subtitle">
-            Select your preferred branch location, date, and time slot. Exact timestamps are verified in real time.
+            {{ t('Select your preferred branch location, date, and time slot.') }}
           </p>
         </div>
 
         <div class="form-grid">
           <!-- Branch Picker -->
           <div class="form-field full-width">
-            <label for="branch-select" class="form-label">Branch Location</label>
+            <label for="branch-select" class="form-label">{{ t('Branch Location') }}</label>
             <select id="branch-select" v-model="selectedBranchId" class="form-select">
               <option v-for="b in branches" :key="b.id" :value="b.id">
                 {{ b.name }} — {{ b.address || 'Bangkok' }}
@@ -296,10 +373,11 @@ async function onPaymentCompleted(paymentMeta: {
 
           <!-- Date Picker -->
           <div class="form-field">
-            <label for="res-date" class="form-label">Reservation Date</label>
+            <label for="res-date" class="form-label">{{ t('Reservation Date') }}</label>
             <input
               id="res-date"
               v-model="reservationDate"
+              :min="todayDateString"
               type="date"
               class="form-input"
               required
@@ -308,7 +386,7 @@ async function onPaymentCompleted(paymentMeta: {
 
           <!-- Start Time -->
           <div class="form-field">
-            <label for="res-time" class="form-label">Start Time</label>
+            <label for="res-time" class="form-label">{{ t('Start Time') }}</label>
             <input
               id="res-time"
               v-model="reservationStartTime"
@@ -320,19 +398,19 @@ async function onPaymentCompleted(paymentMeta: {
 
           <!-- Duration -->
           <div class="form-field">
-            <label for="res-duration" class="form-label">Duration</label>
+            <label for="res-duration" class="form-label">{{ t('Duration') }}</label>
             <select id="res-duration" v-model.number="reservationDurationHours" class="form-select">
-              <option :value="1">1 Hour</option>
-              <option :value="2">2 Hours (Recommended)</option>
-              <option :value="3">3 Hours</option>
-              <option :value="4">4 Hours (Half Day)</option>
-              <option :value="6">6 Hours (Full Session)</option>
+              <option :value="1">{{ t('1 Hour') }}</option>
+              <option :value="2">{{ t('2 Hours (Recommended)') }}</option>
+              <option :value="3">{{ t('3 Hours') }}</option>
+              <option :value="4">{{ t('4 Hours (Half Day)') }}</option>
+              <option :value="6">{{ t('6 Hours (Full Session)') }}</option>
             </select>
           </div>
 
           <!-- Party Size -->
           <div class="form-field">
-            <label for="res-party" class="form-label">Party Size</label>
+            <label for="res-party" class="form-label">{{ t('Party Size') }}</label>
             <input
               id="res-party"
               v-model.number="partySize"
@@ -345,27 +423,59 @@ async function onPaymentCompleted(paymentMeta: {
           </div>
         </div>
 
-        <!-- Timestamp preview card -->
-        <div v-if="startTimestamp && endTimestamp" class="timestamp-summary">
-          <div class="time-main">
-            <span class="clock-icon">🕒</span>
-            <span class="interval-text">{{ formattedDateTimeInterval }}</span>
+        <!-- Date & Time validation alerts -->
+        <div v-if="isDateInPast" class="validation-alert" role="alert">
+          <span>⚠️</span>
+          <span>{{ t('Reservation date and time cannot be in the past.') }}</span>
+        </div>
+        <div v-else-if="isTimeInPast" class="validation-alert" role="alert">
+          <span>⚠️</span>
+          <span>{{ t('For same-day bookings, please select a time slot at least 30 minutes in advance.') }}</span>
+        </div>
+
+        <!-- Glamorous Brief Reservation Summary Card (No raw timestamps here) -->
+        <div v-if="startTimestamp && endTimestamp && !isDateTimeInvalid" class="glamorous-summary-card">
+          <div class="summary-card-header">
+            <span class="parlor-crest">♠ The Parlor · {{ selectedBranch?.name }} ♠</span>
+            <span class="party-badge">{{ partySize }} {{ t(partySize === 1 ? '{count} player' : '{count} players', { count: partySize }) }}</span>
           </div>
-          <div class="timestamp-codes">
-            <code>Starts: {{ startTimestamp }}</code>
-            <code>Ends: {{ endTimestamp }}</code>
+
+          <div class="summary-card-body">
+            <div class="summary-item">
+              <span class="summary-icon">📅</span>
+              <div>
+                <span class="summary-label">{{ t('Reservation Date') }}</span>
+                <strong class="summary-value">{{ glamorousDateFormatted }}</strong>
+              </div>
+            </div>
+
+            <div class="summary-item">
+              <span class="summary-icon">🕒</span>
+              <div>
+                <span class="summary-label">{{ t('Duration') }}</span>
+                <strong class="summary-value">{{ glamorousTimeFormatted }} ({{ reservationDurationHours }} {{ t(reservationDurationHours === 1 ? '1 Hour' : '{count} Hours', { count: reservationDurationHours }) }})</strong>
+              </div>
+            </div>
+
+            <div v-if="requestedGame" class="summary-item game-item">
+              <span class="summary-icon">♟</span>
+              <div>
+                <span class="summary-label">{{ t('Playing') }}</span>
+                <strong class="summary-value">{{ requestedGame }}</strong>
+              </div>
+            </div>
           </div>
         </div>
 
         <div class="wizard-actions">
-          <RouterLink :to="{ name: 'HomeIndex' }" class="btn btn-secondary">Cancel</RouterLink>
+          <RouterLink :to="{ name: 'HomeIndex' }" class="btn btn-secondary">{{ t('Cancel') }}</RouterLink>
           <button
             type="button"
             class="btn btn-primary"
-            :disabled="!startTimestamp || !endTimestamp || !selectedBranchId"
+            :disabled="!startTimestamp || !endTimestamp || !selectedBranchId || isDateTimeInvalid"
             @click="currentStep = 2"
           >
-            Check Available Tables →
+            {{ t('Check Available Tables →') }}
           </button>
         </div>
       </section>
@@ -373,7 +483,7 @@ async function onPaymentCompleted(paymentMeta: {
       <!-- STEP 2: Table Selection & Guest Info -->
       <section v-if="currentStep === 2" class="wizard-step" aria-labelledby="step2-heading">
         <div class="step-header">
-          <h2 id="step2-heading" class="step-title">Select Table & Guest Details</h2>
+          <h2 id="step2-heading" class="step-title">{{ t('Select Table & Guest Details') }}</h2>
           <p class="step-subtitle">
             Available tables at <strong>{{ selectedBranch?.name }}</strong> for {{ partySize }} players.
           </p>
@@ -385,12 +495,12 @@ async function onPaymentCompleted(paymentMeta: {
         </div>
 
         <div v-else-if="availableTables.length === 0" class="empty-tables-box">
-          <p class="empty-title">No tables available for this time slot</p>
+          <p class="empty-title">{{ t('No tables available for this time slot') }}</p>
           <p class="empty-sub">
-            All tables are booked or out of operational hours for this party size. Try adjusting the time or branch.
+            {{ t('All tables are booked or out of operational hours for this party size. Try adjusting the time or branch.') }}
           </p>
           <button type="button" class="btn btn-secondary" @click="currentStep = 1">
-            ← Change Time or Branch
+            {{ t('← Change Time or Branch') }}
           </button>
         </div>
 
@@ -408,11 +518,11 @@ async function onPaymentCompleted(paymentMeta: {
               <span class="capacity-pill">Up to {{ table.capacity }} seats</span>
             </div>
             <div class="table-rate">
-              <span class="rate-num">฿{{ getTableHourlyRateNumber(table) }}</span>
+              <span class="rate-num">฿{{ (table.hourlyRate as any)?.amountMinor ? ((table.hourlyRate as any).amountMinor / 100) : 150 }}</span>
               <span class="rate-unit">/ hour</span>
             </div>
             <div class="table-subtotal">
-              ฿{{ getTableHourlyRateNumber(table) * reservationDurationHours }} for {{ reservationDurationHours }} hrs
+              ฿{{ (((table.hourlyRate as any)?.amountMinor ? ((table.hourlyRate as any).amountMinor / 100) : 150) * reservationDurationHours).toFixed(0) }} for {{ reservationDurationHours }} hrs
             </div>
             <div class="select-radio">
               <input
@@ -428,10 +538,10 @@ async function onPaymentCompleted(paymentMeta: {
 
         <!-- Contact Information (With international phone support) -->
         <div class="contact-section">
-          <h3 class="section-title">Guest Contact Information</h3>
+          <h3 class="section-title">{{ t('Guest Contact Information') }}</h3>
           <div class="form-grid">
             <div class="form-field">
-              <label for="cust-name" class="form-label">Full Name</label>
+              <label for="cust-name" class="form-label">{{ t('Full Name') }}</label>
               <input
                 id="cust-name"
                 v-model="customerName"
@@ -443,7 +553,7 @@ async function onPaymentCompleted(paymentMeta: {
             </div>
 
             <div class="form-field">
-              <label for="cust-email" class="form-label">Email Address</label>
+              <label for="cust-email" class="form-label">{{ t('Email Address') }}</label>
               <input
                 id="cust-email"
                 v-model="customerEmail"
@@ -457,7 +567,7 @@ async function onPaymentCompleted(paymentMeta: {
             <!-- International Phone: Flexible country code + number -->
             <div class="form-field full-width">
               <label for="cust-phone" class="form-label">
-                Phone Number (International numbers supported)
+                {{ t('Phone Number') }}
               </label>
               <div class="phone-input-group">
                 <select v-model="customerCountryCode" class="country-code-select" aria-label="Country Code">
@@ -480,7 +590,7 @@ async function onPaymentCompleted(paymentMeta: {
             </div>
 
             <div class="form-field full-width">
-              <label for="cust-notes" class="form-label">Special Requests (Optional)</label>
+              <label for="cust-notes" class="form-label">{{ t('Special Requests or Board Game Preferences (Optional)') }}</label>
               <textarea
                 id="cust-notes"
                 v-model="specialNotes"
@@ -510,7 +620,7 @@ async function onPaymentCompleted(paymentMeta: {
       <!-- STEP 3: Food & Drinks Catalog (10% Discount & In-play note) -->
       <section v-if="currentStep === 3" class="wizard-step" aria-labelledby="step3-heading">
         <div class="step-header">
-          <h2 id="step3-heading" class="step-title">Pre-Order Food & Drinks</h2>
+          <h2 id="step3-heading" class="step-title">{{ t('Pre-Order Food & Drinks (10% Discount)') }}</h2>
           <p class="step-subtitle">
             Pre-order coffee, snacks, or platters to enjoy a special <strong>10% reservation discount</strong>.
             You can also order more food and drinks directly from your table while playing!
@@ -532,7 +642,7 @@ async function onPaymentCompleted(paymentMeta: {
       <!-- STEP 4: Review Summary & QR Code Payment -->
       <section v-if="currentStep === 4" class="wizard-step" aria-labelledby="step4-heading">
         <div class="step-header">
-          <h2 id="step4-heading" class="step-title">Review & Complete Booking</h2>
+          <h2 id="step4-heading" class="step-title">{{ t('Review & Confirm Reservation') }}</h2>
           <p class="step-subtitle">
             Confirm your table reservation details and complete the PromptPay QR transfer to lock in your booking.
           </p>
@@ -586,21 +696,21 @@ async function onPaymentCompleted(paymentMeta: {
 
           <!-- Price & Pay Action -->
           <div class="pricing-card">
-            <h3 class="card-heading">Payment Summary</h3>
+            <h3 class="card-heading">{{ t('Payment Summary') }}</h3>
             <div class="cost-row">
-              <span>Table Fee ({{ reservationDurationHours }} hrs @ ฿{{ tableHourlyRate }}/hr)</span>
+              <span>{{ t('Table Fee') }} ({{ reservationDurationHours }} hrs @ ฿{{ tableHourlyRate }}/hr)</span>
               <span>฿{{ tableTotal }}</span>
             </div>
             <div v-if="preOrderedFood.length > 0" class="cost-row">
-              <span>Food & Drinks Subtotal</span>
+              <span>{{ t('Food & Drinks Subtotal') }}</span>
               <span>฿{{ foodSubtotal }}</span>
             </div>
             <div v-if="preOrderedFood.length > 0" class="cost-row discount-row">
-              <span>Pre-Order Discount (10% OFF)</span>
+              <span>{{ t('Pre-Order Discount (-10%)') }}</span>
               <span class="discount-num">-฿{{ foodDiscountInfo.discountAmount }}</span>
             </div>
             <div class="grand-total-row">
-              <span>Total Amount Due</span>
+              <span>{{ t('Total Amount to Pay') }}</span>
               <span class="total-amount">฿{{ grandTotal }}</span>
             </div>
 
@@ -634,17 +744,17 @@ async function onPaymentCompleted(paymentMeta: {
         <div class="receipt-card">
           <div class="receipt-badge">
             <span class="check">✓</span>
-            <span>RESERVATION CONFIRMED</span>
+            <span>{{ t('Reservation Confirmed!') }}</span>
           </div>
 
           <h2 id="receipt-heading" class="receipt-title">See You at The Parlor!</h2>
           <p class="receipt-sub">
-            Your table and pre-ordered food & drinks have been successfully booked and paid.
+            {{ t('Your table is reserved. A confirmation has been sent to your email.') }}
           </p>
 
           <div class="receipt-meta-box">
             <div class="meta-line">
-              <span class="lbl">Reservation Reference:</span>
+              <span class="lbl">{{ t('Reservation Reference') }}:</span>
               <span class="v code">{{ createdReservation?.id || 'CONFIRMED' }}</span>
             </div>
             <div class="meta-line">
@@ -679,7 +789,7 @@ async function onPaymentCompleted(paymentMeta: {
 
           <div class="receipt-actions">
             <RouterLink :to="{ name: 'CustomerReservationsList' }" class="btn btn-primary">
-              View My Reservations
+              {{ t('View My Reservations') }}
             </RouterLink>
             <RouterLink :to="{ name: 'HomeIndex' }" class="btn btn-secondary">
               Return to Catalog
@@ -883,40 +993,113 @@ async function onPaymentCompleted(paymentMeta: {
   color: #6a6252;
 }
 
-/* Timestamp summary */
-.timestamp-summary {
-  background: #f4ecdc;
+/* Glamorous Brief Reservation Summary */
+.glamorous-summary-card {
+  background: radial-gradient(ellipse at 50% 20%, #1d3e2f 0%, #142b20 70%, #0d1e16 100%);
   border: 1px solid #c6ad7a;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  border-radius: 10px;
+  padding: 20px 22px;
+  margin-bottom: 24px;
+  color: #fffaf0;
+  box-shadow: 0 4px 20px rgba(13, 30, 22, 0.25);
+  position: relative;
+  overflow: hidden;
 }
 
-.time-main {
+.glamorous-summary-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #c6ad7a, #f7e7c4, #c6ad7a, transparent);
+}
+
+.summary-card-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 15px;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(198, 173, 122, 0.3);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.parlor-crest {
+  font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+  font-size: 13px;
   font-weight: 700;
-  color: #1a382a;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ddc18c;
 }
 
-.timestamp-codes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
+.party-badge {
+  background: rgba(198, 173, 122, 0.2);
+  border: 1px solid #c6ad7a;
+  color: #fff3dc;
   font-size: 11px;
-  color: #554d3d;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
-.timestamp-codes code {
-  background: #ffffff;
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid #d5c8b2;
+.summary-card-body {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.summary-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.summary-icon {
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.summary-label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #baa785;
+  margin-bottom: 3px;
+}
+
+.summary-value {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.4;
+}
+
+.game-item {
+  grid-column: 1 / -1;
+  background: rgba(198, 173, 122, 0.12);
+  border: 1px dashed rgba(198, 173, 122, 0.5);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.validation-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff3f0;
+  border: 1px solid #d45b45;
+  color: #9c2715;
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 18px;
 }
 
 /* Tables grid */

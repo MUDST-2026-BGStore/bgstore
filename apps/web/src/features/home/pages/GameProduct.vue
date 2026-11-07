@@ -415,4 +415,52 @@ select:focus-visible {
     }
   }
 }
+
+.reserve-action-card {
+  margin: 22px 0;
+  padding: 18px 20px;
+  background: #fffaf1;
+  border: 1px solid #c6ad7a;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.action-card-text strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a3325;
+}
+.action-card-text p {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #556358;
+}
+.reserve-game-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #203c30;
+  color: #fff3dc;
+  font-weight: 700;
+  font-size: 13.5px;
+  letter-spacing: 0.04em;
+  padding: 12px 22px;
+  border-radius: 4px;
+  border: 1px solid #c6ad7a;
+  text-decoration: none;
+  transition: all 140ms ease;
+  box-shadow: 0 2px 8px rgba(18, 38, 28, 0.12);
+}
+.reserve-game-btn:hover {
+  background: #14281f;
+  border-color: #dfc999;
+  transform: translateY(-1px);
+}
+.btn-icon {
+  font-size: 16px;
+  color: #c6ad7a;
+}
 </style>

@@ -14,7 +14,6 @@ import {
   type Reservation,
   type ReservationStatus,
   type TableAvailability,
-  type CustomerReference,
 } from '@theparlor/api-client';
 import FoodMenuPicker from '../components/FoodMenuPicker.vue';
 import type { FoodOrderItem } from '../types';
@@ -73,29 +72,6 @@ function formatInterval(startsAt: string, endsAt: string): string {
   });
   const timeStr = `${s.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – ${e.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   return `${dateStr}, ${timeStr}`;
-}
-
-// Customer display resolver
-function getCustomerInfo(customer: CustomerReference | undefined) {
-  if (!customer) return { name: 'Customer', phone: '', email: '' };
-  if ('displayName' in customer) {
-    return {
-      name: customer.displayName,
-      phone: customer.phone || '',
-      email: '',
-    };
-  }
-  return {
-    name: `Member (${customer.subject.slice(0, 8)}…)`,
-    phone: '',
-    email: '',
-  };
-}
-
-// Table rate resolver
-function getTableRate(table: TableAvailability | null): number {
-  if (!table || !table.hourlyRate) return 150;
-  return table.hourlyRate.amountMinor ? table.hourlyRate.amountMinor / 100 : 150;
 }
 
 // Staff Actions: Check-in, Cancel, No-Show
@@ -269,14 +245,14 @@ async function handleStaffBooking() {
   }
 
   const payload = {
-    source: 'WALK_IN' as const,
+    source: 'WALK_IN',
     tableId: walkInSelectedTable.value.tableId,
     startsAt: walkInStartTimestamp.value,
     endsAt: walkInEndTimestamp.value,
     partySize: walkInPartySize.value,
     customer: {
-      kind: 'GUEST' as const,
-      displayName: walkInCustomerName.value || 'Walk-in Guest',
+      type: 'GUEST',
+      name: walkInCustomerName.value || 'Walk-in Guest',
       phone: `${walkInCountryCode.value} ${walkInPhone.value}`.trim() || undefined,
     },
     games: [],
@@ -285,6 +261,18 @@ async function handleStaffBooking() {
 
   await staffCreateMutation.mutateAsync(payload);
 }
+
+function getCustomerName(c: any): string {
+  if (!c) return 'Customer';
+  return c.displayName || c.name || c.subject || 'Customer';
+}
+function getCustomerPhone(c: any): string {
+  return c?.phone || '';
+}
+function getCustomerEmail(c: any): string {
+  return c?.email || '';
+}
+
 </script>
 
 <template>
@@ -402,12 +390,12 @@ async function handleStaffBooking() {
               <!-- Customer Details (International phone support) -->
               <td>
                 <div class="customer-cell">
-                  <span class="cust-name">{{ getCustomerInfo(res.customer).name }}</span>
-                  <span v-if="getCustomerInfo(res.customer).phone" class="cust-phone">
-                    📞 {{ getCustomerInfo(res.customer).phone }}
+                  <span class="cust-name">{{ getCustomerName(res.customer) }}</span>
+                  <span v-if="getCustomerPhone(res.customer)" class="cust-phone">
+                    📞 {{ getCustomerPhone(res.customer) }}
                   </span>
-                  <span v-if="getCustomerInfo(res.customer).email" class="cust-email">
-                    ✉️ {{ getCustomerInfo(res.customer).email }}
+                  <span v-if="getCustomerEmail(res.customer)" class="cust-email">
+                    ✉️ {{ getCustomerEmail(res.customer) }}
                   </span>
                 </div>
               </td>
@@ -584,7 +572,7 @@ async function handleStaffBooking() {
                   :class="{ active: walkInSelectedTable?.tableId === tbl.tableId }"
                   @click="walkInSelectedTable = tbl"
                 >
-                  {{ tbl.label }} (Capacity {{ tbl.capacity }}) — ฿{{ getTableRate(tbl) }}/hr
+                  {{ tbl.label }} (Capacity {{ tbl.capacity }}) — ฿{{ (tbl.hourlyRate as any)?.amountMinor ? ((tbl.hourlyRate as any).amountMinor / 100) : 150 }}/hr
                 </button>
               </div>
             </div>
