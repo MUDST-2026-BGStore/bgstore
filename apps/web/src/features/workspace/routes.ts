@@ -19,6 +19,10 @@ export const workspaceRoutes: RouteRecordRaw[] = [
     redirect: '/workspace/reservations',
   },
   {
+    path: '/management/reservations',
+    redirect: '/workspace/reservations',
+  },
+  {
     path: '/management',
     name: 'WorkspaceManagement',
     meta: { roles: ['admin', 'manager'] },
