@@ -14,7 +14,6 @@ import {
 } from '@theparlor/api-client';
 import TableBillModal from '../components/TableBillModal.vue';
 import { useCustomerReservationsStore } from '../data/reservations-store';
-import { FOOD_MENU_ITEMS } from '../data/food-menu';
 import { games, type CatalogGame } from '../../home/data/catalog';
 import { useAuthStore } from '../../../shared/stores/auth';
 
@@ -461,6 +460,350 @@ async function handleStaffWalkInSubmit() {
   showWalkInModal.value = false;
 }
 
+// ==========================================
+// FEATURE 1: ASSIGNED GAMES PER TABLE & MODAL
+// ==========================================
+const gameSearchQuery = ref('');
+const gameStatusFilter = ref<'ALL' | 'AVAILABLE' | 'IN_USE'>('ALL');
+const selectedGameToAssign = ref<CatalogGame | null>(null);
+const assignGameTargetTableId = ref('1');
+const showAssignGameModal = ref(false);
+const assignModalSearch = ref('');
+
+// Table assigned games tracking
+const tableAssignedGames = ref<Record<string, string[]>>({
+  '1': ['Azul'],
+  '2': ['Wingspan'],
+});
+
+function getTableAssignedGames(tableId: string | number): string[] {
+  return tableAssignedGames.value[String(tableId)] || [];
+}
+
+function getGameLocation(gameName: string): string | null {
+  for (const [tId, gList] of Object.entries(tableAssignedGames.value)) {
+    if (gList.some((g) => g.toLowerCase() === gameName.toLowerCase())) {
+      return `Table ${tId}`;
+    }
+  }
+  return null;
+}
+
+function openAssignGame(game: CatalogGame) {
+  selectedGameToAssign.value = game;
+  assignModalSearch.value = '';
+  showAssignGameModal.value = true;
+}
+
+function openAssignGameForTable(tableId: string | number) {
+  assignGameTargetTableId.value = String(tableId);
+  const firstAvail = games.find((g) => !getGameLocation(g.name)) || games[0];
+  selectedGameToAssign.value = firstAvail || null;
+  assignModalSearch.value = '';
+  showAssignGameModal.value = true;
+}
+
+function confirmAssignGame() {
+  if (!selectedGameToAssign.value) return;
+  const tId = assignGameTargetTableId.value;
+  // remove if assigned elsewhere first
+  returnGameFromAnyTable(selectedGameToAssign.value.name);
+
+  if (!tableAssignedGames.value[tId]) {
+    tableAssignedGames.value[tId] = [];
+  }
+  if (!tableAssignedGames.value[tId].includes(selectedGameToAssign.value.name)) {
+    tableAssignedGames.value[tId].push(selectedGameToAssign.value.name);
+  }
+  showAssignGameModal.value = false;
+}
+
+function unassignGameFromTable(tableId: string | number, gameName: string) {
+  const idStr = String(tableId);
+  if (tableAssignedGames.value[idStr]) {
+    tableAssignedGames.value[idStr] = tableAssignedGames.value[idStr].filter(
+      (g) => g.toLowerCase() !== gameName.toLowerCase()
+    );
+  }
+}
+
+function returnGameFromAnyTable(gameName: string) {
+  for (const tId of Object.keys(tableAssignedGames.value)) {
+    tableAssignedGames.value[tId] = tableAssignedGames.value[tId].filter(
+      (g) => g.toLowerCase() !== gameName.toLowerCase()
+    );
+  }
+}
+
+const filteredGames = computed(() => {
+  const q = gameSearchQuery.value.trim().toLowerCase();
+  return games.filter((g) => {
+    const isAssigned = !!getGameLocation(g.name);
+    if (gameStatusFilter.value === 'AVAILABLE' && isAssigned) return false;
+    if (gameStatusFilter.value === 'IN_USE' && !isAssigned) return false;
+
+    if (!q) return true;
+    return (
+      g.name.toLowerCase().includes(q) ||
+      g.designer.toLowerCase().includes(q) ||
+      g.categories.some((c) => c.toLowerCase().includes(q))
+    );
+  });
+});
+
+const assignableGamesList = computed(() => {
+  const q = assignModalSearch.value.trim().toLowerCase();
+  return games.filter((g) => {
+    if (!q) return true;
+    return (
+      g.name.toLowerCase().includes(q) ||
+      g.designer.toLowerCase().includes(q) ||
+      g.categories.some((c) => c.toLowerCase().includes(q))
+    );
+  });
+});
+
+// ==========================================
+// FEATURE 2: FOOD & DRINK STOCK MANAGEMENT
+// ==========================================
+export interface FoodDrinkStockItem {
+  id: string;
+  name: string;
+  nameTh: string;
+  category: 'beverages' | 'snacks' | 'tea_coffee' | 'bakery_desserts';
+  price: number;
+  costPrice: number;
+  unit: string;
+  currentStock: number;
+  lowStockThreshold: number;
+}
+
+const branchStockItems = ref<FoodDrinkStockItem[]>([
+  {
+    id: 'bev-coca-cola',
+    name: 'Coca-Cola Original (Can 325ml)',
+    nameTh: 'โคคา-โคล่า รสชาติต้นตำรับ (กระป๋อง)',
+    category: 'beverages',
+    price: 35,
+    costPrice: 18,
+    unit: 'cans',
+    currentStock: 48,
+    lowStockThreshold: 12,
+  },
+  {
+    id: 'bev-coke-zero',
+    name: 'Coca-Cola Zero Sugar (Can 325ml)',
+    nameTh: 'โค้กไม่มีน้ำตาล ซีโร่ (กระป๋อง)',
+    category: 'beverages',
+    price: 35,
+    costPrice: 18,
+    unit: 'cans',
+    currentStock: 36,
+    lowStockThreshold: 12,
+  },
+  {
+    id: 'bev-sprite',
+    name: 'Sprite Lemon-Lime (Can 325ml)',
+    nameTh: 'สไปรท์ เลมอน-ไลม์ (กระป๋อง)',
+    category: 'beverages',
+    price: 35,
+    costPrice: 18,
+    unit: 'cans',
+    currentStock: 24,
+    lowStockThreshold: 10,
+  },
+  {
+    id: 'bev-singha-soda',
+    name: 'Singha Soda Water (Bottle 325ml)',
+    nameTh: 'สิงห์โซดา (ขวดแก้ว)',
+    category: 'beverages',
+    price: 25,
+    costPrice: 12,
+    unit: 'bottles',
+    currentStock: 30,
+    lowStockThreshold: 10,
+  },
+  {
+    id: 'bev-oishi-lemon',
+    name: 'Oishi Honey Lemon Green Tea (Bottle 350ml)',
+    nameTh: 'ชาเขียวโออิชิ น้ำผึ้งมะนาว',
+    category: 'beverages',
+    price: 30,
+    costPrice: 16,
+    unit: 'bottles',
+    currentStock: 18,
+    lowStockThreshold: 8,
+  },
+  {
+    id: 'bev-lipton-tea',
+    name: 'Lipton Iced Lemon Tea (Can 325ml)',
+    nameTh: 'ชามะนาวลิปตัน (กระป๋อง)',
+    category: 'beverages',
+    price: 35,
+    costPrice: 18,
+    unit: 'cans',
+    currentStock: 5,
+    lowStockThreshold: 10,
+  },
+  {
+    id: 'snack-truffle-fries',
+    name: 'Truffle & Parmesan Hand-Cut Fries',
+    nameTh: 'เฟรนช์ฟรายส์ทรัฟเฟิลพาร์เมซาน',
+    category: 'snacks',
+    price: 120,
+    costPrice: 45,
+    unit: 'portions',
+    currentStock: 14,
+    lowStockThreshold: 8,
+  },
+  {
+    id: 'snack-churros',
+    name: 'Spanish Cinnamon Sugar Churros',
+    nameTh: 'ชูร์โรส ซินนามอน ดิปช็อกโกแลต',
+    category: 'snacks',
+    price: 95,
+    costPrice: 35,
+    unit: 'portions',
+    currentStock: 3,
+    lowStockThreshold: 8,
+  },
+  {
+    id: 'snack-popcorn-butter',
+    name: 'Movie-Style Warm Butter Popcorn',
+    nameTh: 'ป๊อปคอร์นเนยอุ่น สไตล์โรงหนัง',
+    category: 'snacks',
+    price: 65,
+    costPrice: 20,
+    unit: 'bags',
+    currentStock: 26,
+    lowStockThreshold: 10,
+  },
+  {
+    id: 'snack-crispy-calamari',
+    name: 'Salt & Pepper Crispy Baby Squid',
+    nameTh: 'หมึกกรอบพริกเกลือ',
+    category: 'snacks',
+    price: 140,
+    costPrice: 55,
+    unit: 'portions',
+    currentStock: 0,
+    lowStockThreshold: 6,
+  },
+  {
+    id: 'tc-thai-tea',
+    name: 'Hand-Brewed Traditional Thai Iced Tea',
+    nameTh: 'ชาไทยเย็นสูตรโบราณ',
+    category: 'tea_coffee',
+    price: 75,
+    costPrice: 25,
+    unit: 'cups',
+    currentStock: 32,
+    lowStockThreshold: 10,
+  },
+  {
+    id: 'tc-matcha-latte',
+    name: 'Ceremonial Uji Matcha Latte',
+    nameTh: 'อุจิมัทฉะลาเต้แท้เข้มข้น',
+    category: 'tea_coffee',
+    price: 95,
+    costPrice: 35,
+    unit: 'cups',
+    currentStock: 2,
+    lowStockThreshold: 10,
+  },
+  {
+    id: 'tc-iced-americano',
+    name: 'Cold Brew Single-Origin Americano',
+    nameTh: 'อเมริกาโน่โคลด์บรูว์',
+    category: 'tea_coffee',
+    price: 70,
+    costPrice: 20,
+    unit: 'cups',
+    currentStock: 40,
+    lowStockThreshold: 10,
+  },
+  {
+    id: 'bakery-butter-croissant',
+    name: 'French Pure Butter Croissant',
+    nameTh: 'ครัวซองต์เนยสดฝรั่งเศส',
+    category: 'bakery_desserts',
+    price: 80,
+    costPrice: 30,
+    unit: 'pieces',
+    currentStock: 8,
+    lowStockThreshold: 10,
+  },
+  {
+    id: 'bakery-choco-chip-cookie',
+    name: 'Sea Salt Dark Chocolate Cookie',
+    nameTh: 'คุกกี้ดาร์กช็อกโกแลต ซีซอลต์',
+    category: 'bakery_desserts',
+    price: 60,
+    costPrice: 22,
+    unit: 'pieces',
+    currentStock: 15,
+    lowStockThreshold: 8,
+  },
+]);
+
+const stockCategoryFilter = ref<string>('ALL');
+const stockStatusFilter = ref<string>('ALL');
+
+const filteredStockItems = computed(() => {
+  return branchStockItems.value.filter((item) => {
+    const matchesCat =
+      stockCategoryFilter.value === 'ALL' || item.category === stockCategoryFilter.value;
+    let matchesStatus = true;
+    if (stockStatusFilter.value === 'NEED_REORDER') {
+      matchesStatus = item.currentStock <= item.lowStockThreshold;
+    } else if (stockStatusFilter.value === 'OUT') {
+      matchesStatus = item.currentStock === 0;
+    } else if (stockStatusFilter.value === 'HEALTHY') {
+      matchesStatus = item.currentStock > item.lowStockThreshold;
+    }
+    return matchesCat && matchesStatus;
+  });
+});
+
+const totalStockUnits = computed(() =>
+  branchStockItems.value.reduce((s, it) => s + it.currentStock, 0)
+);
+const healthyStockCount = computed(
+  () => branchStockItems.value.filter((it) => it.currentStock > it.lowStockThreshold).length
+);
+const lowStockCount = computed(
+  () =>
+    branchStockItems.value.filter(
+      (it) => it.currentStock <= it.lowStockThreshold && it.currentStock > 0
+    ).length
+);
+const outOfStockCount = computed(
+  () => branchStockItems.value.filter((it) => it.currentStock === 0).length
+);
+
+function adjustStockQty(item: FoodDrinkStockItem, delta: number) {
+  item.currentStock = Math.max(0, item.currentStock + delta);
+}
+
+// Restock Modal
+const showRestockModal = ref(false);
+const restockTargetItem = ref<FoodDrinkStockItem | null>(null);
+const restockBatchQty = ref(12);
+
+function openRestockModal(item: FoodDrinkStockItem) {
+  restockTargetItem.value = item;
+  restockBatchQty.value = 12;
+  showRestockModal.value = true;
+}
+
+function submitRestock() {
+  if (restockTargetItem.value && restockBatchQty.value > 0) {
+    restockTargetItem.value.currentStock += restockBatchQty.value;
+  }
+  showRestockModal.value = false;
+  restockTargetItem.value = null;
+}
+
 // Staff Snack Tab Ordering
 const staffSnackReservation = ref<any>(null);
 const staffSnackQuantities = ref<Record<string, number>>({});
@@ -474,9 +817,10 @@ function getStaffSnackQty(itemId: string): number {
   return staffSnackQuantities.value[itemId] || 0;
 }
 
-function adjustStaffSnackQty(item: any, delta: number) {
+function adjustStaffSnackQty(item: FoodDrinkStockItem, delta: number) {
   const current = getStaffSnackQty(item.id);
   const next = Math.max(0, current + delta);
+  if (next > item.currentStock) return; // Prevent ordering more than current stock!
   if (next === 0) {
     delete staffSnackQuantities.value[item.id];
   } else {
@@ -488,7 +832,7 @@ const staffSnackSelectedItems = computed(() => {
   return Object.entries(staffSnackQuantities.value)
     .filter(([_, qty]) => qty > 0)
     .map(([id, qty]) => {
-      const item = FOOD_MENU_ITEMS.find((f) => f.id === id);
+      const item = branchStockItems.value.find((f) => f.id === id);
       return {
         item: {
           id,
@@ -514,6 +858,15 @@ function submitStaffSnackOrder() {
     staffSnackSelectedItems.value.length === 0
   )
     return;
+
+  // Deduct inventory stock in real time!
+  for (const it of staffSnackSelectedItems.value) {
+    const stockItem = branchStockItems.value.find((s) => s.id === it.item.id);
+    if (stockItem) {
+      stockItem.currentStock = Math.max(0, stockItem.currentStock - it.quantity);
+    }
+  }
+
   reservationsStore.addStaffSnackOrder(
     staffSnackReservation.value.id,
     staffSnackSelectedItems.value,
@@ -560,48 +913,7 @@ function refreshAll() {
 }
 
 // ==========================================
-// FEATURE 1: GAME LIBRARY & ASSIGNMENT
-// ==========================================
-const gameSearchQuery = ref('');
-const selectedGameToAssign = ref<CatalogGame | null>(null);
-const assignGameTargetTableId = ref('1');
-const showAssignGameModal = ref(false);
-
-const filteredGames = computed(() => {
-  const q = gameSearchQuery.value.trim().toLowerCase();
-  if (!q) return games;
-  return games.filter(
-    (g) =>
-      g.name.toLowerCase().includes(q) ||
-      g.designer.toLowerCase().includes(q) ||
-      g.categories.some((c) => c.toLowerCase().includes(q))
-  );
-});
-
-const tableAssignedGames = ref<Record<string, string[]>>({
-  '1': ['Azul'],
-  '2': ['Wingspan'],
-});
-
-function openAssignGame(game: CatalogGame) {
-  selectedGameToAssign.value = game;
-  showAssignGameModal.value = true;
-}
-
-function confirmAssignGame() {
-  if (!selectedGameToAssign.value) return;
-  const tId = assignGameTargetTableId.value;
-  if (!tableAssignedGames.value[tId]) {
-    tableAssignedGames.value[tId] = [];
-  }
-  if (!tableAssignedGames.value[tId].includes(selectedGameToAssign.value.name)) {
-    tableAssignedGames.value[tId].push(selectedGameToAssign.value.name);
-  }
-  showAssignGameModal.value = false;
-}
-
-// ==========================================
-// FEATURE 2: STAFF & SHIFTS (Manager+)
+// FEATURE 3: STAFF & SHIFTS (Manager+)
 // ==========================================
 interface StaffMember {
   id: string;
@@ -648,7 +960,7 @@ const branchStaffRoster = ref<StaffMember[]>([
 ]);
 
 // ==========================================
-// FEATURE 3: REVENUE & ANALYTICS (Manager+)
+// FEATURE 4: REVENUE & ANALYTICS (Manager+)
 // ==========================================
 const totalTableFeesToday = computed(() => {
   return activeFloorReservations.value.reduce(
@@ -660,26 +972,6 @@ const todayFoodDrinkRevenue = ref(2450);
 const todayTotalGross = computed(
   () => totalTableFeesToday.value + todayFoodDrinkRevenue.value
 );
-
-// ==========================================
-// FEATURE 4: INVENTORY & MENU (Manager+)
-// ==========================================
-const menuStockStatus = ref<Record<string, 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK'>>({
-  'thai-tea': 'IN_STOCK',
-  'truffle-fries': 'IN_STOCK',
-  'matcha-latte': 'IN_STOCK',
-  'churros': 'LOW_STOCK',
-  'iced-americano': 'IN_STOCK',
-  'popcorn-butter': 'IN_STOCK',
-  'cheese-toast': 'IN_STOCK',
-});
-
-function cycleStockStatus(itemId: string) {
-  const cur = menuStockStatus.value[itemId] || 'IN_STOCK';
-  if (cur === 'IN_STOCK') menuStockStatus.value[itemId] = 'LOW_STOCK';
-  else if (cur === 'LOW_STOCK') menuStockStatus.value[itemId] = 'OUT_OF_STOCK';
-  else menuStockStatus.value[itemId] = 'IN_STOCK';
-}
 
 // ==========================================
 // FEATURE 5: VENUE SETTINGS & POLICIES (Admin)
@@ -862,7 +1154,7 @@ const venuePolicies = ref({
               <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
               <line x1="12" y1="22.08" x2="12" y2="12"/>
             </svg>
-            <span v-if="!isSidebarCollapsed">Inventory & Menu</span>
+            <span v-if="!isSidebarCollapsed">Inventory & Stock</span>
           </a>
         </template>
 
@@ -930,7 +1222,7 @@ const venuePolicies = ref({
 
     <!-- Main Content Area -->
     <div class="gl-main-wrapper">
-      <!-- Top Header Navigation Bar (Deep Green & Gold Accent) -->
+      <!-- Top Header Navigation Bar -->
       <header class="gl-topbar">
         <div class="topbar-left">
           <div class="branch-selector-capsule">
@@ -983,7 +1275,7 @@ const venuePolicies = ref({
         </div>
       </header>
 
-      <!-- Main Operational Console Body (Green Background with Crisp White Floating Blocks) -->
+      <!-- Main Operational Console Body -->
       <main class="gl-content">
         <!-- ========================================== -->
         <!-- VIEW 1: DASHBOARD TAB                      -->
@@ -1010,7 +1302,7 @@ const venuePolicies = ref({
               {{ allReservations.length }} bookings tonight — first arrival {{ formatTime(upcomingReservations[0]?.startsAt) || '7:30 PM' }}, largest party of {{ Math.max(...branchFloorTables.map(t => t.seats)) }}, {{ needsYouItems.length }} item{{ needsYouItems.length === 1 ? '' : 's' }} need attention.
             </p>
 
-            <!-- Hero Action Buttons Bar -->
+            <!-- Hero Action Buttons Bar (New booking REMOVED as requested) -->
             <div class="hero-actions-bar">
               <button
                 type="button"
@@ -1024,20 +1316,6 @@ const venuePolicies = ref({
                   <line x1="23" y1="11" x2="17" y2="11"/>
                 </svg>
                 <span>Seat walk-in</span>
-              </button>
-
-              <button
-                type="button"
-                class="btn-secondary-parlor"
-                @click="openWalkInForTable()"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                  <line x1="16" y1="2" x2="16" y2="6"/>
-                  <line x1="8" y1="2" x2="8" y2="6"/>
-                  <line x1="3" y1="10" x2="21" y2="10"/>
-                </svg>
-                <span>New booking</span>
               </button>
 
               <button
@@ -1191,19 +1469,46 @@ const venuePolicies = ref({
                       <span class="table-seats-lbl">{{ table.seats }} seats · ฿{{ table.rate }}/hr</span>
                     </div>
 
+                    <!-- Assigned Games Row on Tile -->
+                    <div v-if="getTableAssignedGames(table.id).length > 0" class="tile-assigned-games-box">
+                      <span class="assigned-label">🎲 Games playing:</span>
+                      <div class="assigned-chips-wrap">
+                        <span v-for="g in getTableAssignedGames(table.id)" :key="g" class="game-chip-capsule">
+                          {{ g }}
+                          <button
+                            type="button"
+                            class="btn-chip-unassign"
+                            title="Return to shelf"
+                            @click.stop="unassignGameFromTable(table.id, g)"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      </div>
+                    </div>
+
                     <!-- FREE TABLE -->
                     <template v-if="getTableStatus(table).state === 'FREE'">
                       <div class="tile-status-row">
                         <span class="state-badge badge-free">FREE</span>
                       </div>
                       <p class="tile-helper">Available rest of shift</p>
-                      <button
-                        type="button"
-                        class="tile-action-link"
-                        @click="openWalkInForTable(table)"
-                      >
-                        + Seat walk-in here →
-                      </button>
+                      <div class="tile-actions-row">
+                        <button
+                          type="button"
+                          class="tile-action-link"
+                          @click="openWalkInForTable(table)"
+                        >
+                          + Seat walk-in →
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-tile-assign-game"
+                          @click.stop="openAssignGameForTable(table.id)"
+                        >
+                          + Assign Game
+                        </button>
+                      </div>
                     </template>
 
                     <!-- OCCUPIED TABLE -->
@@ -1230,6 +1535,13 @@ const venuePolicies = ref({
                         </button>
                         <button
                           type="button"
+                          class="tile-btn-assign"
+                          @click.stop="openAssignGameForTable(table.id)"
+                        >
+                          + Game
+                        </button>
+                        <button
+                          type="button"
                           class="tile-btn-gold"
                           @click="openCheckBill(getTableStatus(table).reservation)"
                         >
@@ -1249,13 +1561,22 @@ const venuePolicies = ref({
                       <p class="tile-due-time">
                         Due at {{ formatTime(getTableStatus(table).reservation?.startsAt) }}
                       </p>
-                      <button
-                        type="button"
-                        class="tile-action-link"
-                        @click="handleCheckIn(getTableStatus(table).reservation)"
-                      >
-                        Check-in & Seat →
-                      </button>
+                      <div class="tile-actions-row">
+                        <button
+                          type="button"
+                          class="tile-action-link"
+                          @click="handleCheckIn(getTableStatus(table).reservation)"
+                        >
+                          Check-in & Seat →
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-tile-assign-game"
+                          @click.stop="openAssignGameForTable(table.id)"
+                        >
+                          + Assign Game
+                        </button>
+                      </div>
                     </template>
                   </article>
                 </div>
@@ -1343,7 +1664,7 @@ const venuePolicies = ref({
               <div>
                 <div class="view-eyebrow">✦ REAL-TIME VENUE FLOOR PLAN</div>
                 <h1 class="view-title">Tables & Floor Management</h1>
-                <p class="view-subtitle">Live table occupancy, hourly rates, guest seating, and floor status.</p>
+                <p class="view-subtitle">Live table occupancy, assigned games, guest seating, and floor status.</p>
               </div>
               <button type="button" class="btn-primary-parlor" @click="openWalkInForTable()">
                 + Seat Walk-in Customer
@@ -1360,6 +1681,36 @@ const venuePolicies = ref({
                 <div class="tile-top-row">
                   <span class="table-num-lbl">Table {{ table.number }}</span>
                   <span class="table-seats-lbl">{{ table.seats }} Seats · ฿{{ table.rate }}/hr</span>
+                </div>
+
+                <!-- Assigned Games for This Table -->
+                <div class="tile-assigned-games-box" style="margin: 8px 0;">
+                  <div class="assigned-header-row">
+                    <span class="assigned-label">🎲 Assigned Games:</span>
+                    <button
+                      type="button"
+                      class="btn-tile-assign-game small"
+                      @click.stop="openAssignGameForTable(table.id)"
+                    >
+                      + Assign Game
+                    </button>
+                  </div>
+                  <div v-if="getTableAssignedGames(table.id).length > 0" class="assigned-chips-wrap">
+                    <span v-for="g in getTableAssignedGames(table.id)" :key="g" class="game-chip-capsule">
+                      {{ g }}
+                      <button
+                        type="button"
+                        class="btn-chip-unassign"
+                        title="Return to shelf"
+                        @click.stop="unassignGameFromTable(table.id, g)"
+                      >
+                        ✕
+                      </button>
+                    </span>
+                  </div>
+                  <div v-else class="no-game-text">
+                    No game currently assigned
+                  </div>
                 </div>
 
                 <template v-if="getTableStatus(table).state === 'FREE'">
@@ -1383,7 +1734,7 @@ const venuePolicies = ref({
                   </p>
                   <div class="tile-actions-row">
                     <button type="button" class="tile-btn-small" @click="openAddSnacks(getTableStatus(table).reservation)">
-                      + Add Refreshments
+                      + Food/Drinks
                     </button>
                     <button type="button" class="tile-btn-gold" @click="openCheckBill(getTableStatus(table).reservation)">
                       Check Bill & Settle
@@ -1417,7 +1768,7 @@ const venuePolicies = ref({
               <div>
                 <div class="view-eyebrow">✦ IN-PLAY TABLE MONITORING</div>
                 <h1 class="view-title">Active Play Sessions & Tabs</h1>
-                <p class="view-subtitle">Monitor played time, add refreshments, and settle bills with automatic late arrival recomputation.</p>
+                <p class="view-subtitle">Monitor played time, assigned games, refreshments, and settle bills with automatic late arrival recomputation.</p>
               </div>
               <button type="button" class="btn-primary-parlor" @click="openWalkInForTable()">
                 + Start Walk-in Session
@@ -1436,7 +1787,7 @@ const venuePolicies = ref({
                   <tr>
                     <th>Table</th>
                     <th>Customer</th>
-                    <th>Type</th>
+                    <th>Assigned Games</th>
                     <th>Checked-In</th>
                     <th>Time Played</th>
                     <th>Hourly Rate</th>
@@ -1454,9 +1805,28 @@ const venuePolicies = ref({
                       <span class="party-muted">({{ res.partySize }}p)</span>
                     </td>
                     <td>
-                      <span class="client-type-pill" :class="res.clientType === 'WALK_IN' ? 'walkin' : 'reserved'">
-                        {{ res.clientType === 'WALK_IN' ? 'Walk-in' : 'Online Booking' }}
-                      </span>
+                      <div class="session-games-cell">
+                        <div v-if="getTableAssignedGames(res.tableId).length > 0" class="session-chips-wrap">
+                          <span v-for="g in getTableAssignedGames(res.tableId)" :key="g" class="game-chip-capsule">
+                            {{ g }}
+                            <button
+                              type="button"
+                              class="btn-chip-unassign"
+                              title="Return to shelf"
+                              @click.stop="unassignGameFromTable(res.tableId, g)"
+                            >
+                              ✕
+                            </button>
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          class="btn-assign-mini"
+                          @click="openAssignGameForTable(res.tableId)"
+                        >
+                          + Game
+                        </button>
+                      </div>
                     </td>
                     <td>{{ formatTime(res.checkedInAt || res.startsAt) }}</td>
                     <td>
@@ -1496,9 +1866,6 @@ const venuePolicies = ref({
                 <h1 class="view-title">Bookings & Reservations Timeline</h1>
                 <p class="view-subtitle">Automatic 15-minute no-show policy releases tables to walk-ins if customers do not arrive.</p>
               </div>
-              <button type="button" class="btn-primary-parlor" @click="openWalkInForTable()">
-                + New Booking
-              </button>
             </div>
 
             <div class="bookings-list-wrap">
@@ -1562,28 +1929,70 @@ const venuePolicies = ref({
         </template>
 
         <!-- ========================================== -->
-        <!-- VIEW 5: GAME LIBRARY & ASSIGNMENT TAB      -->
+        <!-- VIEW 5: GAME LIBRARY & AVAILABILITY        -->
         <!-- ========================================== -->
         <template v-else-if="activeTab === 'library'">
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ THE PARLOR COLLECTION</div>
+                <div class="view-eyebrow">✦ THE PARLOR COLLECTION & SHELF INVENTORY</div>
                 <h1 class="view-title">Board Game Library</h1>
-                <p class="view-subtitle">Explore branch games and quickly assign copies to playing tables.</p>
+                <p class="view-subtitle">Check game availability in real time, see which table is currently playing, and assign to tables.</p>
               </div>
               <div class="search-games-input-wrap">
                 <input
                   v-model="gameSearchQuery"
                   type="search"
-                  placeholder="Filter games by name, genre..."
+                  placeholder="Filter games by name, designer, genre..."
                   class="parlor-input"
                 />
               </div>
             </div>
 
+            <!-- Game Availability Filter Pills -->
+            <div class="library-filter-ribbon">
+              <button
+                type="button"
+                class="filter-pill"
+                :class="{ active: gameStatusFilter === 'ALL' }"
+                @click="gameStatusFilter = 'ALL'"
+              >
+                All Games ({{ games.length }})
+              </button>
+              <button
+                type="button"
+                class="filter-pill avail"
+                :class="{ active: gameStatusFilter === 'AVAILABLE' }"
+                @click="gameStatusFilter = 'AVAILABLE'"
+              >
+                🟢 Available on Shelf ({{ games.filter(g => !getGameLocation(g.name)).length }})
+              </button>
+              <button
+                type="button"
+                class="filter-pill in-use"
+                :class="{ active: gameStatusFilter === 'IN_USE' }"
+                @click="gameStatusFilter = 'IN_USE'"
+              >
+                🔴 In Use at Tables ({{ games.filter(g => !!getGameLocation(g.name)).length }})
+              </button>
+            </div>
+
             <div class="games-library-grid">
               <article v-for="game in filteredGames" :key="game.id" class="game-catalog-card">
+                <!-- Game Status Banner (Available vs Unavailable) -->
+                <div
+                  class="game-status-strip"
+                  :class="getGameLocation(game.name) ? 'unavail' : 'avail'"
+                >
+                  <span class="status-dot"></span>
+                  <span v-if="getGameLocation(game.name)" class="status-strip-text">
+                    UNAVAILABLE · In use at {{ getGameLocation(game.name) }}
+                  </span>
+                  <span v-else class="status-strip-text">
+                    AVAILABLE · Ready on shelf
+                  </span>
+                </div>
+
                 <div class="game-card-header">
                   <h3 class="game-name">{{ game.name }}</h3>
                   <span class="game-difficulty-pill">{{ game.difficulty }}</span>
@@ -1594,8 +2003,22 @@ const venuePolicies = ref({
                   <span>⏱ {{ game.playMinutes[0] }}–{{ game.playMinutes[1] }} min</span>
                 </div>
                 <p class="game-desc">{{ game.description }}</p>
+
                 <div class="game-card-footer">
-                  <button type="button" class="btn-primary-parlor small full" @click="openAssignGame(game)">
+                  <button
+                    v-if="getGameLocation(game.name)"
+                    type="button"
+                    class="btn-return-shelf full"
+                    @click="returnGameFromAnyTable(game.name)"
+                  >
+                    Return to Shelf ↩ (From {{ getGameLocation(game.name) }})
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    class="btn-primary-parlor small full"
+                    @click="openAssignGame(game)"
+                  >
                     ✦ Assign to Playing Table →
                   </button>
                 </div>
@@ -1682,54 +2105,199 @@ const venuePolicies = ref({
         </template>
 
         <!-- ========================================== -->
-        <!-- VIEW 8: INVENTORY & MENU (Manager+)        -->
+        <!-- VIEW 8: FOOD & DRINK STOCK MANAGEMENT      -->
         <!-- ========================================== -->
         <template v-else-if="activeTab === 'inventory' && isManager">
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ REFRESHMENTS & GAME STOCK</div>
-                <h1 class="view-title">Inventory & Kitchen Stock</h1>
-                <p class="view-subtitle">Toggle item availability and monitor stock levels in real time.</p>
+                <div class="view-eyebrow">✦ KITCHEN & BEVERAGE INVENTORY CONTROL</div>
+                <h1 class="view-title">Food & Drink Stock Management</h1>
+                <p class="view-subtitle">Live pantry stock monitoring, reorder alerts, profit margins, and supplier batch restocks.</p>
               </div>
-              <span class="role-pill-gold">Manager Access</span>
+              <button type="button" class="btn-primary-parlor" @click="openRestockModal(branchStockItems[0])">
+                + Restock Delivery Batch
+              </button>
             </div>
 
+            <!-- Stock Metrics Ribbon -->
+            <div class="stock-stats-ribbon">
+              <div class="stock-stat-box">
+                <span class="stat-lbl">TOTAL UNITS IN STOCK</span>
+                <div class="stat-num">{{ totalStockUnits }}</div>
+                <span class="stat-sub">{{ branchStockItems.length }} tracked menu items</span>
+              </div>
+              <div class="stock-stat-box">
+                <span class="stat-lbl">HEALTHY STOCK</span>
+                <div class="stat-num text-green">{{ healthyStockCount }}</div>
+                <span class="stat-sub">Sufficient pantry levels</span>
+              </div>
+              <div class="stock-stat-box">
+                <span class="stat-lbl">LOW STOCK ALERT</span>
+                <div class="stat-num text-amber">{{ lowStockCount }}</div>
+                <span class="stat-sub">Below threshold, reorder soon</span>
+              </div>
+              <div class="stock-stat-box">
+                <span class="stat-lbl">OUT OF STOCK</span>
+                <div class="stat-num text-red">{{ outOfStockCount }}</div>
+                <span class="stat-sub">Requires supplier delivery</span>
+              </div>
+            </div>
+
+            <!-- Category & Status Filters -->
+            <div class="stock-filter-bar">
+              <div class="filter-group">
+                <span class="filter-lbl">Category:</span>
+                <button
+                  type="button"
+                  class="pill-tab"
+                  :class="{ active: stockCategoryFilter === 'ALL' }"
+                  @click="stockCategoryFilter = 'ALL'"
+                >
+                  All ({{ branchStockItems.length }})
+                </button>
+                <button
+                  type="button"
+                  class="pill-tab"
+                  :class="{ active: stockCategoryFilter === 'beverages' }"
+                  @click="stockCategoryFilter = 'beverages'"
+                >
+                  🥤 Beverages
+                </button>
+                <button
+                  type="button"
+                  class="pill-tab"
+                  :class="{ active: stockCategoryFilter === 'snacks' }"
+                  @click="stockCategoryFilter = 'snacks'"
+                >
+                  🍿 Snacks & Fries
+                </button>
+                <button
+                  type="button"
+                  class="pill-tab"
+                  :class="{ active: stockCategoryFilter === 'tea_coffee' }"
+                  @click="stockCategoryFilter = 'tea_coffee'"
+                >
+                  ☕ Tea & Coffee
+                </button>
+                <button
+                  type="button"
+                  class="pill-tab"
+                  :class="{ active: stockCategoryFilter === 'bakery_desserts' }"
+                  @click="stockCategoryFilter = 'bakery_desserts'"
+                >
+                  🥐 Bakery
+                </button>
+              </div>
+
+              <div class="filter-group">
+                <span class="filter-lbl">Alerts:</span>
+                <button
+                  type="button"
+                  class="pill-tab alert"
+                  :class="{ active: stockStatusFilter === 'NEED_REORDER' }"
+                  @click="stockStatusFilter = stockStatusFilter === 'NEED_REORDER' ? 'ALL' : 'NEED_REORDER'"
+                >
+                  ⚠️ Needs Reorder ({{ lowStockCount + outOfStockCount }})
+                </button>
+              </div>
+            </div>
+
+            <!-- Stock Table -->
             <div class="inventory-table-wrap">
-              <table class="parlor-table">
+              <table class="parlor-table stock-table">
                 <thead>
                   <tr>
-                    <th>Item</th>
+                    <th>Item & SKU</th>
                     <th>Category</th>
-                    <th>Price</th>
+                    <th>Current Quantity</th>
                     <th>Stock Status</th>
-                    <th>Actions</th>
+                    <th>Cost · Retail (Margin)</th>
+                    <th>Quick Adjust</th>
+                    <th>Restock Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="item in FOOD_MENU_ITEMS" :key="item.id">
+                  <tr v-for="item in filteredStockItems" :key="item.id">
                     <td>
-                      <strong>{{ item.name }}</strong>
-                      <div class="item-th-sub">{{ item.nameTh }}</div>
+                      <div class="stock-item-info">
+                        <strong>{{ item.name }}</strong>
+                        <div class="item-th-sub">{{ item.nameTh }}</div>
+                      </div>
                     </td>
-                    <td>{{ item.category }}</td>
-                    <td>฿{{ item.price }}</td>
+                    <td>
+                      <span class="category-tag">{{ item.category.replace('_', ' ') }}</span>
+                    </td>
+                    <td>
+                      <div class="stock-qty-badge" :class="{ empty: item.currentStock === 0, low: item.currentStock <= item.lowStockThreshold && item.currentStock > 0 }">
+                        <strong class="qty-big">{{ item.currentStock }}</strong>
+                        <span class="qty-unit">{{ item.unit }}</span>
+                      </div>
+                    </td>
                     <td>
                       <span
-                        class="stock-badge"
-                        :class="menuStockStatus[item.id] || 'IN_STOCK'"
+                        v-if="item.currentStock === 0"
+                        class="stock-status-tag out"
                       >
-                        {{ (menuStockStatus[item.id] || 'IN_STOCK').replace('_', ' ') }}
+                        ● Out of Stock
+                      </span>
+                      <span
+                        v-else-if="item.currentStock <= item.lowStockThreshold"
+                        class="stock-status-tag low"
+                      >
+                        ● Low Stock (&le;{{ item.lowStockThreshold }})
+                      </span>
+                      <span
+                        v-else
+                        class="stock-status-tag healthy"
+                      >
+                        ● In Stock
                       </span>
                     </td>
                     <td>
-                      <button
-                        type="button"
-                        class="btn-secondary-parlor small"
-                        @click="cycleStockStatus(item.id)"
-                      >
-                        Cycle Status ⇄
-                      </button>
+                      <div class="margin-cell">
+                        <span>Cost: ฿{{ item.costPrice }} · Price: ฿{{ item.price }}</span>
+                        <strong class="margin-pill">
+                          {{ Math.round(((item.price - item.costPrice) / item.price) * 100) }}% margin
+                        </strong>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="stepper-wrap compact">
+                        <button
+                          type="button"
+                          class="step-btn small"
+                          :disabled="item.currentStock <= 0"
+                          @click="adjustStockQty(item, -1)"
+                        >
+                          -
+                        </button>
+                        <button
+                          type="button"
+                          class="step-btn small"
+                          @click="adjustStockQty(item, 1)"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="restock-actions-cell">
+                        <button
+                          type="button"
+                          class="btn-batch-restock"
+                          @click="adjustStockQty(item, 12)"
+                        >
+                          +12 Pack
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-custom-restock"
+                          @click="openRestockModal(item)"
+                        >
+                          Custom…
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 </tbody>
@@ -1831,32 +2399,78 @@ const venuePolicies = ref({
       </main>
 
       <!-- Assign Game to Table Modal -->
-      <div v-if="showAssignGameModal && selectedGameToAssign" class="modal-backdrop" @click.self="showAssignGameModal = false">
+      <div v-if="showAssignGameModal" class="modal-backdrop" @click.self="showAssignGameModal = false">
         <div class="modal-card">
           <div class="walkin-header">
             <div>
-              <div class="eyebrow-sub">TABLE SERVICE</div>
+              <div class="eyebrow-sub">TABLE GAME SERVICE</div>
               <h3 class="modal-title">Assign Game to Table</h3>
               <p class="modal-sub">
-                Deliver <strong>{{ selectedGameToAssign.name }}</strong> to active players.
+                Select a game from the shelf and assign it to an active table.
               </p>
             </div>
             <button type="button" class="close-x" @click="showAssignGameModal = false">✕</button>
           </div>
 
-          <div class="modal-body-pad">
-            <label class="modal-label">Choose Active Table:</label>
-            <div class="tables-choice-grid">
-              <button
-                v-for="t in branchFloorTables"
-                :key="t.id"
-                type="button"
-                class="tbl-choice-pill"
-                :class="{ active: assignGameTargetTableId === t.id }"
-                @click="assignGameTargetTableId = t.id"
-              >
-                Table {{ t.number }} ({{ t.seats }}p)
-              </button>
+          <div class="modal-form-body">
+            <!-- 1. Choose Target Table -->
+            <div class="form-section">
+              <label class="modal-label">Select Target Table:</label>
+              <div class="tables-choice-grid">
+                <button
+                  v-for="t in branchFloorTables"
+                  :key="t.id"
+                  type="button"
+                  class="tbl-choice-pill"
+                  :class="{ active: assignGameTargetTableId === t.id }"
+                  @click="assignGameTargetTableId = t.id"
+                >
+                  <strong>Table {{ t.number }}</strong>
+                  <span>({{ t.seats }}p · {{ getTableStatus(t).state }})</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. Choose Game from Library -->
+            <div class="form-section" style="margin-top: 14px;">
+              <label class="modal-label">Choose Game to Deliver:</label>
+              <div class="search-games-input-wrap" style="margin-bottom: 8px;">
+                <input
+                  v-model="assignModalSearch"
+                  type="search"
+                  placeholder="Filter available games..."
+                  class="parlor-input"
+                  style="width: 100%; font-size: 12px; padding: 6px 10px;"
+                />
+              </div>
+
+              <div class="modal-games-list">
+                <div
+                  v-for="g in assignableGamesList"
+                  :key="g.id"
+                  class="modal-game-choice-row"
+                  :class="{
+                    selected: selectedGameToAssign?.id === g.id,
+                    'in-use': !!getGameLocation(g.name)
+                  }"
+                  @click="selectedGameToAssign = g"
+                >
+                  <div class="game-choice-info">
+                    <strong class="game-choice-name">{{ g.name }}</strong>
+                    <span class="game-choice-sub">
+                      👥 {{ g.players[0] }}-{{ g.players[1] }}p · ⏱ {{ g.playMinutes[0] }}-{{ g.playMinutes[1] }}m
+                    </span>
+                  </div>
+                  <div class="game-choice-status">
+                    <span
+                      class="mini-status-tag"
+                      :class="getGameLocation(g.name) ? 'unavail' : 'avail'"
+                    >
+                      {{ getGameLocation(g.name) ? `In use (${getGameLocation(g.name)})` : 'Available on shelf' }}
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1864,8 +2478,85 @@ const venuePolicies = ref({
             <button type="button" class="btn-secondary-parlor" @click="showAssignGameModal = false">
               Cancel
             </button>
-            <button type="button" class="btn-primary-parlor" @click="confirmAssignGame">
-              Assign to Table {{ assignGameTargetTableId }} →
+            <button
+              type="button"
+              class="btn-primary-parlor"
+              :disabled="!selectedGameToAssign"
+              @click="confirmAssignGame"
+            >
+              Assign {{ selectedGameToAssign?.name || 'Game' }} to Table {{ assignGameTargetTableId }} →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Batch Restock Modal -->
+      <div v-if="showRestockModal && restockTargetItem" class="modal-backdrop" @click.self="showRestockModal = false">
+        <div class="modal-card">
+          <div class="walkin-header">
+            <div>
+              <div class="eyebrow-sub">PANTRY INTAKE</div>
+              <h3 class="modal-title">Restock Inventory Batch</h3>
+              <p class="modal-sub">
+                Add incoming shipment to <strong>{{ restockTargetItem.name }}</strong>.
+              </p>
+            </div>
+            <button type="button" class="close-x" @click="showRestockModal = false">✕</button>
+          </div>
+
+          <div class="modal-form-body">
+            <div class="stock-current-preview">
+              <span>Current Stock on Hand:</span>
+              <strong>{{ restockTargetItem.currentStock }} {{ restockTargetItem.unit }}</strong>
+            </div>
+
+            <div class="form-group" style="margin-top: 14px;">
+              <label class="modal-label">Quantity Received (+{{ restockTargetItem.unit }}):</label>
+              <div class="stepper-wrap">
+                <button
+                  type="button"
+                  class="step-btn"
+                  :disabled="restockBatchQty <= 1"
+                  @click="restockBatchQty = Math.max(1, restockBatchQty - 6)"
+                >
+                  -6
+                </button>
+                <input
+                  v-model.number="restockBatchQty"
+                  type="number"
+                  min="1"
+                  class="modal-input"
+                  style="width: 100px; text-align: center; font-weight: 800;"
+                />
+                <button
+                  type="button"
+                  class="step-btn"
+                  @click="restockBatchQty += 6"
+                >
+                  +6
+                </button>
+                <button
+                  type="button"
+                  class="btn-secondary-parlor small"
+                  @click="restockBatchQty += 12"
+                >
+                  +12 Case
+                </button>
+              </div>
+            </div>
+
+            <div class="new-stock-preview">
+              <span>New Stock after Restock:</span>
+              <strong class="text-green">{{ restockTargetItem.currentStock + restockBatchQty }} {{ restockTargetItem.unit }}</strong>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary-parlor" @click="showRestockModal = false">
+              Cancel
+            </button>
+            <button type="button" class="btn-primary-parlor" @click="submitRestock">
+              Confirm Intake (+{{ restockBatchQty }} {{ restockTargetItem.unit }}) →
             </button>
           </div>
         </div>
@@ -2033,13 +2724,19 @@ const venuePolicies = ref({
 
           <div class="snack-list-body">
             <div
-              v-for="item in FOOD_MENU_ITEMS"
+              v-for="item in branchStockItems"
               :key="item.id"
               class="snack-row"
+              :class="{ 'out-of-stock-row': item.currentStock <= 0 }"
             >
               <div class="snack-info">
                 <span class="snack-name">{{ item.name }}</span>
-                <span class="snack-price">฿{{ item.price }}</span>
+                <span class="snack-price">
+                  ฿{{ item.price }} ·
+                  <span :class="item.currentStock > 0 ? 'stock-ok' : 'stock-out'">
+                    {{ item.currentStock > 0 ? `${item.currentStock} in stock` : 'Out of stock' }}
+                  </span>
+                </span>
               </div>
               <div class="stepper-wrap compact">
                 <button
@@ -2054,6 +2751,7 @@ const venuePolicies = ref({
                 <button
                   type="button"
                   class="step-btn small"
+                  :disabled="getStaffSnackQty(item.id) >= item.currentStock"
                   @click="adjustStaffSnackQty(item, 1)"
                 >
                   +
@@ -2097,14 +2795,12 @@ const venuePolicies = ref({
 .gl-admin-layout {
   display: flex;
   min-height: 100vh;
-  background-color: #142b20; /* Deep Parlor Green background */
+  background-color: #142b20;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   color: #142b20;
 }
 
-/* --------------------------------------------------------- */
-/* SIDEBAR (Dark Obsidian Green with Champagne Gold Accents) */
-/* --------------------------------------------------------- */
+/* SIDEBAR */
 .gl-sidebar {
   width: 220px;
   background: #0d1e16;
@@ -2315,9 +3011,7 @@ const venuePolicies = ref({
   border-color: #c6ad7a;
 }
 
-/* --------------------------------------------------------- */
-/* MAIN CONTENT WRAPPER & TOPBAR                             */
-/* --------------------------------------------------------- */
+/* MAIN CONTENT WRAPPER & TOPBAR */
 .gl-main-wrapper {
   flex: 1;
   display: flex;
@@ -2460,9 +3154,7 @@ const venuePolicies = ref({
   justify-content: center;
 }
 
-/* --------------------------------------------------------- */
-/* MAIN CONTENT BLOCKS (White on Green Background)           */
-/* --------------------------------------------------------- */
+/* MAIN CONTENT BLOCKS */
 .gl-content {
   padding: 24px 28px 60px;
   display: flex;
@@ -2471,7 +3163,6 @@ const venuePolicies = ref({
   max-width: 1340px;
 }
 
-/* Distinct white floating block on green backdrop */
 .console-block {
   background: #ffffff;
   border: 1.5px solid #c6ad7a;
@@ -2480,7 +3171,7 @@ const venuePolicies = ref({
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
 }
 
-/* Service Hero Block */
+/* Hero Block */
 .hero-block {
   display: flex;
   flex-direction: column;
@@ -2550,7 +3241,6 @@ const venuePolicies = ref({
   color: #554e42;
 }
 
-/* Hero Actions Bar */
 .hero-actions-bar {
   display: flex;
   align-items: center;
@@ -2811,7 +3501,7 @@ const venuePolicies = ref({
   background: #f4ecdc;
 }
 
-/* Two-Column Lower Split (Floor Plan & Coming Up) */
+/* Two-Column Lower Split */
 .two-column-service-row {
   display: grid;
   grid-template-columns: 1.35fr 1fr;
@@ -2922,6 +3612,89 @@ const venuePolicies = ref({
   color: #60594a;
 }
 
+/* Assigned Games Chips on Tables */
+.tile-assigned-games-box {
+  background: #fbf6ec;
+  border: 1px solid #c6ad7a;
+  border-radius: 8px;
+  padding: 6px 8px;
+  margin: 4px 0;
+}
+
+.assigned-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.assigned-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #8c7649;
+  display: block;
+}
+
+.assigned-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.game-chip-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #142b20;
+  color: #ffd98a;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 12px;
+}
+
+.btn-chip-unassign {
+  background: transparent;
+  border: none;
+  color: #ffd98a;
+  cursor: pointer;
+  font-size: 10px;
+  padding: 0;
+  margin-left: 2px;
+  opacity: 0.8;
+}
+
+.btn-chip-unassign:hover {
+  opacity: 1;
+  color: #ef4444;
+}
+
+.btn-tile-assign-game {
+  background: #ffffff;
+  border: 1px solid #c6ad7a;
+  color: #142b20;
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.btn-tile-assign-game:hover {
+  background: #fbf6ec;
+}
+
+.btn-tile-assign-game.small {
+  padding: 1px 6px;
+  font-size: 10px;
+}
+
+.no-game-text {
+  font-size: 11px;
+  color: #8c7649;
+  font-style: italic;
+}
+
 .tile-status-row {
   display: flex;
   align-items: center;
@@ -3005,10 +3778,10 @@ const venuePolicies = ref({
   display: flex;
   gap: 6px;
   margin-top: 4px;
+  flex-wrap: wrap;
 }
 
 .tile-btn-small {
-  flex: 1;
   background: #ffffff;
   border: 1px solid #c6ad7a;
   color: #142b20;
@@ -3016,6 +3789,17 @@ const venuePolicies = ref({
   padding: 4px 6px;
   font-size: 11px;
   font-weight: 600;
+  cursor: pointer;
+}
+
+.tile-btn-assign {
+  background: #fbf6ec;
+  border: 1px solid #c6ad7a;
+  color: #142b20;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  font-weight: 700;
   cursor: pointer;
 }
 
@@ -3138,9 +3922,7 @@ const venuePolicies = ref({
   padding: 0 4px;
 }
 
-/* --------------------------------------------------------- */
-/* GENERIC VIEW HEADERS & TABLES                             */
-/* --------------------------------------------------------- */
+/* GENERIC VIEW HEADERS & TABLES */
 .view-header-row {
   display: flex;
   justify-content: space-between;
@@ -3222,21 +4004,28 @@ const venuePolicies = ref({
   font-size: 12px;
 }
 
-.client-type-pill {
-  font-size: 11px;
+.session-games-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.session-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.btn-assign-mini {
+  background: #fbf6ec;
+  border: 1px solid #c6ad7a;
+  color: #142b20;
+  font-size: 10.5px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 10px;
-}
-
-.client-type-pill.walkin {
-  background: #fef3c7;
-  color: #92400e;
-}
-
-.client-type-pill.reserved {
-  background: #e0f2fe;
-  color: #0369a1;
+  cursor: pointer;
 }
 
 .time-elapsed-badge {
@@ -3272,12 +4061,33 @@ const venuePolicies = ref({
 .status-tag.cancelled { background: #fee2e2; color: #991b1b; }
 .status-tag.no_show { background: #fee2e2; color: #991b1b; }
 
-/* Game Library Grid */
+/* Game Library Ribbon & Cards */
+.library-filter-ribbon {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filter-pill {
+  background: #ffffff;
+  border: 1.5px solid #c6ad7a;
+  color: #142b20;
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-pill.active {
+  background: #142b20;
+  color: #ffd98a;
+}
+
 .games-library-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
-  margin-top: 16px;
 }
 
 .game-catalog-card {
@@ -3288,6 +4098,54 @@ const venuePolicies = ref({
   flex-direction: column;
   gap: 6px;
   background: #ffffff;
+  position: relative;
+}
+
+/* Game Status Strip (Available / Unavailable) */
+.game-status-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.game-status-strip.avail {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #16a34a;
+}
+
+.game-status-strip.unavail {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #dc2626;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.btn-return-shelf {
+  background: #fef2f2;
+  border: 1.5px solid #dc2626;
+  color: #991b1b;
+  border-radius: 16px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  width: 100%;
+}
+
+.btn-return-shelf:hover {
+  background: #fee2e2;
 }
 
 .game-card-header {
@@ -3338,6 +4196,275 @@ const venuePolicies = ref({
 
 .game-card-footer {
   margin-top: 8px;
+}
+
+/* Modal Games List for Assignment */
+.modal-games-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.modal-game-choice-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1.5px solid #e6dfd3;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #ffffff;
+}
+
+.modal-game-choice-row.selected {
+  border-color: #c6ad7a;
+  background: #fbf6ec;
+}
+
+.modal-game-choice-row.in-use {
+  opacity: 0.8;
+  border-color: #fca5a5;
+  background: #fff5f5;
+}
+
+.game-choice-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.game-choice-name {
+  font-size: 13px;
+  color: #142b20;
+}
+
+.game-choice-sub {
+  font-size: 11px;
+  color: #60594a;
+}
+
+.mini-status-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.mini-status-tag.avail {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.mini-status-tag.unavail {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ========================================================= */
+/* FOOD & DRINK STOCK MANAGEMENT STYLES                      */
+/* ========================================================= */
+.stock-stats-ribbon {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.stock-stat-box {
+  background: #fdfcf9;
+  border: 1.5px solid #e6dfd3;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.stat-lbl {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #8c7649;
+}
+
+.stat-num {
+  font-size: 28px;
+  font-weight: 800;
+  color: #142b20;
+  line-height: 1.1;
+  margin: 6px 0 2px;
+}
+
+.stat-num.text-green { color: #15803d; }
+.stat-num.text-amber { color: #b45309; }
+.stat-num.text-red { color: #b91c1c; }
+
+.stat-sub {
+  font-size: 12px;
+  color: #60594a;
+}
+
+.stock-filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: #fbf9f4;
+  border-radius: 10px;
+  border: 1px solid #e6dfd3;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-lbl {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #8c7649;
+}
+
+.pill-tab {
+  background: #ffffff;
+  border: 1px solid #c6ad7a;
+  color: #142b20;
+  border-radius: 14px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pill-tab.active {
+  background: #142b20;
+  color: #ffd98a;
+}
+
+.pill-tab.alert.active {
+  background: #b45309;
+  color: #ffffff;
+  border-color: #92400e;
+}
+
+.stock-table td {
+  padding: 12px 14px;
+  vertical-align: middle;
+}
+
+.stock-item-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.category-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+  background: #f4ecdc;
+  color: #142b20;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.stock-qty-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  background: #f0fdf4;
+  border: 1.5px solid #16a34a;
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
+.stock-qty-badge.low {
+  background: #fefce8;
+  border-color: #ca8a04;
+}
+
+.stock-qty-badge.empty {
+  background: #fef2f2;
+  border-color: #dc2626;
+}
+
+.qty-big {
+  font-size: 16px;
+  color: #142b20;
+}
+
+.qty-unit {
+  font-size: 11px;
+  color: #60594a;
+}
+
+.stock-status-tag {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+
+.stock-status-tag.healthy { background: #dcfce7; color: #15803d; }
+.stock-status-tag.low { background: #fef3c7; color: #92400e; }
+.stock-status-tag.out { background: #fee2e2; color: #991b1b; }
+
+.margin-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11.5px;
+}
+
+.margin-pill {
+  color: #15803d;
+  font-size: 11px;
+}
+
+.restock-actions-cell {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-batch-restock {
+  background: #142b20;
+  color: #ffd98a;
+  border: 1px solid #c6ad7a;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-custom-restock {
+  background: #ffffff;
+  border: 1px solid #c6ad7a;
+  color: #142b20;
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.stock-current-preview, .new-stock-preview {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: #fbf9f4;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #142b20;
+}
+
+.new-stock-preview {
+  margin-top: 10px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
 }
 
 /* Staff Roster Grid */
@@ -3449,18 +4576,6 @@ const venuePolicies = ref({
   color: #60594a;
 }
 
-/* Stock status badges */
-.stock-badge {
-  font-size: 11px;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 10px;
-}
-
-.stock-badge.IN_STOCK { background: #dcfce7; color: #15803d; }
-.stock-badge.LOW_STOCK { background: #fef3c7; color: #92400e; }
-.stock-badge.OUT_OF_STOCK { background: #fee2e2; color: #991b1b; }
-
 /* Policies Cards */
 .policies-cards-list {
   display: flex;
@@ -3506,9 +4621,7 @@ const venuePolicies = ref({
   white-space: nowrap;
 }
 
-/* --------------------------------------------------------- */
-/* MODALS (Green & Gold Themed)                              */
-/* --------------------------------------------------------- */
+/* MODALS */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -3683,6 +4796,11 @@ const venuePolicies = ref({
   border-radius: 8px;
 }
 
+.snack-row.out-of-stock-row {
+  opacity: 0.55;
+  background: #fef2f2;
+}
+
 .snack-info {
   display: flex;
   flex-direction: column;
@@ -3697,6 +4815,17 @@ const venuePolicies = ref({
 .snack-price {
   font-size: 11.5px;
   color: #8c7649;
+}
+
+.stock-ok {
+  color: #15803d;
+  font-size: 11px;
+}
+
+.stock-out {
+  color: #dc2626;
+  font-weight: 700;
+  font-size: 11px;
 }
 
 .snack-modal-footer {
