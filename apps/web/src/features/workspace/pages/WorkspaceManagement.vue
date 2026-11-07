@@ -11,6 +11,9 @@ import { RouterLink } from 'vue-router';
       This is the manager landing page. Branch operations will be implemented
       through server-authorized modules.
     </p>
-    <RouterLink :to="{ name: 'WorkspaceIndex' }">Open workspace</RouterLink>
+    <div style="display: flex; gap: 16px; margin-top: 16px;">
+      <RouterLink :to="{ name: 'StaffReservationsPage' }" style="font-weight: bold; color: #203c30;">→ Manage Branch Reservations</RouterLink>
+      <RouterLink :to="{ name: 'WorkspaceIndex' }">Open workspace</RouterLink>
+    </div>
   </main>
 </template>

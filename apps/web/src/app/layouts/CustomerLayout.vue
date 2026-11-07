@@ -105,6 +105,9 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
     </template>
 
     <template #header-right>
+      <RouterLink :to="{ name: 'CustomerReservePage' }" class="header-reserve-btn">
+        Reserve Table
+      </RouterLink>
       <StoreCartButton />
       <div
         ref="accountRoot"
@@ -170,6 +173,10 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
             </div>
             <div class="account-options">
               <template v-if="auth.authenticated">
+                <RouterLink :to="{ name: 'CustomerReservationsList' }">
+                  My Reservations
+                  <span aria-hidden="true">↗</span>
+                </RouterLink>
                 <RouterLink :to="{ name: 'AuthProfile' }"
                   >{{ t('Your profile') }}
                   <span aria-hidden="true">↗</span></RouterLink
@@ -437,6 +444,31 @@ button:focus-visible {
   .account-menu-enter-from,
   .account-menu-leave-to {
     transform: none;
+  }
+}
+.header-reserve-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: #c6ad7a;
+  color: #14281f;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+.header-reserve-btn:hover {
+  background: #e0d0ac;
+  color: #0b1a13;
+}
+@media (max-width: 600px) {
+  .header-reserve-btn {
+    padding: 6px 8px;
+    font-size: 10px;
   }
 }
 </style>

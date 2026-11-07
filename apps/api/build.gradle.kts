@@ -75,6 +75,7 @@ tasks.withType<Test> {
 
 
 val workspaceDirectory = rootDir.resolve("../..")
+val isWindows = org.apache.tools.ant.taskdefs.condition.Os.isFamily(org.apache.tools.ant.taskdefs.condition.Os.FAMILY_WINDOWS)
 val suppliedContract = providers.gradleProperty("openApiSpec")
 val bundledContract = workspaceDirectory.resolve("dist/openapi/theparlor.openapi.yaml")
 val contract = suppliedContract.getOrElse(bundledContract.absolutePath)
@@ -82,7 +83,7 @@ val bundleOpenApi = tasks.register<Exec>("bundleOpenApi") {
     description = "Bundle the split OpenAPI sources for validation and code generation"
     workingDir(workspaceDirectory)
     // Let the shell resolve pnpm from this invocation's PATH, including with an existing daemon.
-    commandLine("sh", "-c", "pnpm bundle:contract")
+    if (isWindows) commandLine("cmd", "/c", "pnpm bundle:contract") else commandLine("sh", "-c", "pnpm bundle:contract")
     inputs.dir(workspaceDirectory.resolve("openapi")).withPathSensitivity(PathSensitivity.RELATIVE)
     inputs.files("../../redocly.yaml", "../../.redocly.lint-ignore.yaml", "../../package.json", "../../pnpm-lock.yaml")
         .withPathSensitivity(PathSensitivity.RELATIVE)
@@ -115,7 +116,7 @@ tasks.register<Exec>("generateWebClient") {
     if (!suppliedContract.isPresent) dependsOn(bundleOpenApi)
     description = "Generate API operations and Vue Query composables with Orval"
     workingDir(workspaceDirectory)
-    commandLine("pnpm", "exec", "orval")
+    if (isWindows) commandLine("cmd", "/c", "pnpm exec orval") else commandLine("pnpm", "exec", "orval")
     environment("THEPARLOR_OPENAPI_SPEC", contract)
     inputs.file(contract)
     inputs.files("../../orval.config.ts", "../../package.json", "../../pnpm-lock.yaml",

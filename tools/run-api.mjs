@@ -1,10 +1,16 @@
 import { spawn } from 'node:child_process';
 process.loadEnvFile('.env');
 const env = process.env;
+const isWin = process.platform === 'win32';
+const cmd = isWin ? 'cmd.exe' : './gradlew';
+const args = isWin
+  ? ['/c', 'gradlew.bat', '--console=plain', 'bootRun', '--args=--spring.profiles.active=dev']
+  : ['--console=plain', 'bootRun', '--args=--spring.profiles.active=dev'];
+
 const child = spawn(
-  './gradlew',
+  cmd,
   // Keep Gradle's progress redraws out of Nx's task output; Spring colors its logs.
-  ['--console=plain', 'bootRun', '--args=--spring.profiles.active=dev'],
+  args,
   {
     cwd: 'apps/api',
     stdio: 'inherit',

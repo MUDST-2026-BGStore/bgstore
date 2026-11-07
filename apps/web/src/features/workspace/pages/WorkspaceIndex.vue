@@ -38,6 +38,7 @@ function checkApiHealth() {
 
     <nav aria-label="Workspace">
       <RouterLink :to="{ name: 'HomeIndex' }">Public home</RouterLink> ·
+      <RouterLink :to="{ name: 'StaffReservationsPage' }">Reservation Operations</RouterLink> ·
       <RouterLink :to="{ name: 'AuthProfile' }">Your profile</RouterLink>
     </nav>
     <section>
@@ -75,6 +76,12 @@ function checkApiHealth() {
         <BButton variant="secondary" @click="checkApiHealth()">
           Refresh
         </BButton>
+      </BCard>
+      <BCard title="Operations & Reservations">
+        <p>Manage branch table bookings, customer check-in, and pre-ordered refreshments.</p>
+        <RouterLink :to="{ name: 'StaffReservationsPage' }">
+          <BButton variant="primary">Open Reservation Operations →</BButton>
+        </RouterLink>
       </BCard>
     </section>
   </main>
