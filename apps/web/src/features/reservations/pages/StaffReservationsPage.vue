@@ -15,20 +15,67 @@ import {
 import TableBillModal from '../components/TableBillModal.vue';
 import { useCustomerReservationsStore } from '../data/reservations-store';
 import { FOOD_MENU_ITEMS } from '../data/food-menu';
+import { games, type CatalogGame } from '../../home/data/catalog';
 import { useAuthStore } from '../../../shared/stores/auth';
 
 const queryClient = useQueryClient();
 const auth = useAuthStore();
 const reservationsStore = useCustomerReservationsStore();
 
-// Sidebar state
+// Sidebar state & Role resolution
 const isSidebarCollapsed = ref(false);
-const activeSidebarItem = ref<'dashboard' | 'floor' | 'sessions' | 'history'>('dashboard');
+
+type NavTab =
+  | 'dashboard'
+  | 'floor'
+  | 'sessions'
+  | 'bookings'
+  | 'library'
+  | 'staff-roster'
+  | 'analytics'
+  | 'inventory'
+  | 'settings'
+  | 'policies';
+
+const activeTab = ref<NavTab>('dashboard');
+
+// Role hierarchy
+const userRoles = computed(() => auth.roles || []);
+const isAdmin = computed(
+  () => userRoles.value.includes('admin') || userRoles.value.includes('developer')
+);
+const isManager = computed(
+  () => isAdmin.value || userRoles.value.includes('manager')
+);
+
+const roleBadgeLabel = computed(() => {
+  if (isAdmin.value) return 'ADMIN CONSOLE';
+  if (userRoles.value.includes('manager')) return 'MANAGER CONSOLE';
+  return 'STAFF CONSOLE';
+});
+
+const userRoleTitle = computed(() => {
+  if (isAdmin.value) return 'Administrator';
+  if (userRoles.value.includes('manager')) return 'Branch Manager';
+  return 'Floor Staff';
+});
+
+// Guard tabs against non-permitted roles
+watch(activeTab, (tab) => {
+  if (['staff-roster', 'analytics', 'inventory'].includes(tab) && !isManager.value) {
+    activeTab.value = 'dashboard';
+  }
+  if (['settings', 'policies'].includes(tab) && !isAdmin.value) {
+    activeTab.value = 'dashboard';
+  }
+});
 
 // Branch & Search
 const selectedBranchId = ref<string>('');
 const searchQuery = ref<string>('');
-const currentTimeStr = ref(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+const currentTimeStr = ref(
+  new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+);
 
 // Time of day greeting
 const greeting = computed(() => {
@@ -59,12 +106,7 @@ const selectedBranch = computed(() =>
 const reservationsQuery = useQuery({
   queryKey: ['listBranchReservations', selectedBranchId],
   queryFn: ({ signal }) =>
-    listBranchReservations(
-      selectedBranchId.value,
-      {},
-      undefined,
-      signal
-    ),
+    listBranchReservations(selectedBranchId.value, {}, undefined, signal),
   enabled: computed(() => !!selectedBranchId.value),
 });
 
@@ -72,7 +114,8 @@ const reservationsQuery = useQuery({
 const autoNoShowMutation = useMutation({
   mutationFn: async ({ resId }: { resId: string }) => {
     return markReservationNoShow(selectedBranchId.value, resId, {
-      reason: 'Automatic No-Show: Customer did not arrive within 15 minutes of reservation start time.',
+      reason:
+        'Automatic No-Show: Customer did not arrive within 15 minutes of reservation start time.',
     });
   },
   onSuccess: () => {
@@ -90,7 +133,9 @@ const allReservations = computed<any[]>(() => {
         return {
           ...r,
           status: 'NO_SHOW',
-          notes: r.notes ? `${r.notes}\n[System]: Auto-marked No-Show after 15 min.` : '[System]: Auto-marked No-Show after 15 min.',
+          notes: r.notes
+            ? `${r.notes}\n[System]: Auto-marked No-Show after 15 min.`
+            : '[System]: Auto-marked No-Show after 15 min.',
         };
       }
     }
@@ -146,7 +191,9 @@ const activeFloorReservations = computed(() => {
 });
 
 const upcomingReservations = computed(() => {
-  return allReservations.value.filter((r) => r.status === 'CONFIRMED' || r.status === 'PENDING');
+  return allReservations.value.filter(
+    (r) => r.status === 'CONFIRMED' || r.status === 'PENDING'
+  );
 });
 
 // Tables Floor Plan Roster
@@ -167,10 +214,13 @@ const branchFloorTables: FloorTable[] = [
 ];
 
 function getTableStatus(table: FloorTable) {
-  // Check if occupied right now
   const occupied = activeFloorReservations.value.find((r) => {
     const tId = String(r.tableId || '');
-    return tId === table.id || tId.endsWith(`-${table.id}`) || tId.includes(`Table ${table.number}`);
+    return (
+      tId === table.id ||
+      tId.endsWith(`-${table.id}`) ||
+      tId.includes(`Table ${table.number}`)
+    );
   });
   if (occupied) {
     return {
@@ -179,10 +229,13 @@ function getTableStatus(table: FloorTable) {
     };
   }
 
-  // Check if reserved upcoming
   const reserved = upcomingReservations.value.find((r) => {
     const tId = String(r.tableId || '');
-    return tId === table.id || tId.endsWith(`-${table.id}`) || tId.includes(`Table ${table.number}`);
+    return (
+      tId === table.id ||
+      tId.endsWith(`-${table.id}`) ||
+      tId.includes(`Table ${table.number}`)
+    );
   });
   if (reserved) {
     return {
@@ -198,7 +251,8 @@ function getTableStatus(table: FloorTable) {
 }
 
 const occupiedTablesCount = computed(() => {
-  return branchFloorTables.filter((t) => getTableStatus(t).state === 'OCCUPIED').length;
+  return branchFloorTables.filter((t) => getTableStatus(t).state === 'OCCUPIED')
+    .length;
 });
 
 const freeTablesCount = computed(() => {
@@ -208,7 +262,6 @@ const freeTablesCount = computed(() => {
 // "Needs You Now" alerts (Most urgent first)
 const needsYouItems = computed(() => {
   const alerts: any[] = [];
-  // 1. Long playing sessions without snacks
   for (const r of activeFloorReservations.value) {
     const elapsed = getElapsedMinutes(r);
     alerts.push({
@@ -220,7 +273,6 @@ const needsYouItems = computed(() => {
     });
   }
 
-  // 2. Upcoming arrivals due soon or late
   for (const r of upcomingReservations.value) {
     const startMs = new Date(r.startsAt).getTime();
     const diffMins = Math.round((Date.now() - startMs) / 60000);
@@ -366,9 +418,13 @@ const staffCreateMutation = useMutation({
 
 async function handleStaffWalkInSubmit() {
   walkInError.value = '';
-  const matchedTable = branchFloorTables.find((t) => t.id === walkInTableId.value) || branchFloorTables[0];
+  const matchedTable =
+    branchFloorTables.find((t) => t.id === walkInTableId.value) ||
+    branchFloorTables[0];
   const startsAtIso = new Date().toISOString();
-  const endsAtIso = new Date(Date.now() + walkInDuration.value * 3600000).toISOString();
+  const endsAtIso = new Date(
+    Date.now() + walkInDuration.value * 3600000
+  ).toISOString();
 
   reservationsStore.startWalkInSession({
     branchId: selectedBranchId.value,
@@ -453,7 +509,11 @@ const staffSnackSubtotal = computed(() => {
 });
 
 function submitStaffSnackOrder() {
-  if (!staffSnackReservation.value || staffSnackSelectedItems.value.length === 0) return;
+  if (
+    !staffSnackReservation.value ||
+    staffSnackSelectedItems.value.length === 0
+  )
+    return;
   reservationsStore.addStaffSnackOrder(
     staffSnackReservation.value.id,
     staffSnackSelectedItems.value,
@@ -466,7 +526,9 @@ function submitStaffSnackOrder() {
 const staffBillReservation = ref<any>(null);
 
 function openCheckBill(res: any) {
-  const found = reservationsStore.reservations.value.find((r) => r.id === res.id);
+  const found = reservationsStore.reservations.value.find(
+    (r) => r.id === res.id
+  );
   if (found) {
     staffBillReservation.value = found;
   } else {
@@ -490,28 +552,178 @@ function openCheckBill(res: any) {
 }
 
 function refreshAll() {
-  currentTimeStr.value = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  currentTimeStr.value = new Date().toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
   void queryClient.invalidateQueries({ queryKey: ['listBranchReservations'] });
 }
+
+// ==========================================
+// FEATURE 1: GAME LIBRARY & ASSIGNMENT
+// ==========================================
+const gameSearchQuery = ref('');
+const selectedGameToAssign = ref<CatalogGame | null>(null);
+const assignGameTargetTableId = ref('1');
+const showAssignGameModal = ref(false);
+
+const filteredGames = computed(() => {
+  const q = gameSearchQuery.value.trim().toLowerCase();
+  if (!q) return games;
+  return games.filter(
+    (g) =>
+      g.name.toLowerCase().includes(q) ||
+      g.designer.toLowerCase().includes(q) ||
+      g.categories.some((c) => c.toLowerCase().includes(q))
+  );
+});
+
+const tableAssignedGames = ref<Record<string, string[]>>({
+  '1': ['Azul'],
+  '2': ['Wingspan'],
+});
+
+function openAssignGame(game: CatalogGame) {
+  selectedGameToAssign.value = game;
+  showAssignGameModal.value = true;
+}
+
+function confirmAssignGame() {
+  if (!selectedGameToAssign.value) return;
+  const tId = assignGameTargetTableId.value;
+  if (!tableAssignedGames.value[tId]) {
+    tableAssignedGames.value[tId] = [];
+  }
+  if (!tableAssignedGames.value[tId].includes(selectedGameToAssign.value.name)) {
+    tableAssignedGames.value[tId].push(selectedGameToAssign.value.name);
+  }
+  showAssignGameModal.value = false;
+}
+
+// ==========================================
+// FEATURE 2: STAFF & SHIFTS (Manager+)
+// ==========================================
+interface StaffMember {
+  id: string;
+  name: string;
+  role: 'Floor Lead' | 'Game Master' | 'Counter & POS' | 'Branch Manager';
+  shift: string;
+  status: 'ON_DUTY' | 'ON_BREAK' | 'OFF_DUTY';
+  assignedZone: string;
+}
+
+const branchStaffRoster = ref<StaffMember[]>([
+  {
+    id: 's1',
+    name: 'Krit Somchai',
+    role: 'Floor Lead',
+    shift: 'Evening (16:00 - 23:00)',
+    status: 'ON_DUTY',
+    assignedZone: 'Tables 1 - 3',
+  },
+  {
+    id: 's2',
+    name: 'Aom Pornpawee',
+    role: 'Game Master',
+    shift: 'Evening (16:00 - 23:00)',
+    status: 'ON_DUTY',
+    assignedZone: 'Tables 4 - 6 & Recommendations',
+  },
+  {
+    id: 's3',
+    name: 'Natt Worapat',
+    role: 'Counter & POS',
+    shift: 'Evening (16:00 - 23:00)',
+    status: 'ON_DUTY',
+    assignedZone: 'Counter, Bar & Bill Settlement',
+  },
+  {
+    id: 's4',
+    name: 'Thana Meechai',
+    role: 'Branch Manager',
+    shift: 'Full Day (10:00 - 20:00)',
+    status: 'ON_DUTY',
+    assignedZone: 'Branch Operations & Supervision',
+  },
+]);
+
+// ==========================================
+// FEATURE 3: REVENUE & ANALYTICS (Manager+)
+// ==========================================
+const totalTableFeesToday = computed(() => {
+  return activeFloorReservations.value.reduce(
+    (sum, r) => sum + calculateCurrentPlayFee(r),
+    0
+  );
+});
+const todayFoodDrinkRevenue = ref(2450);
+const todayTotalGross = computed(
+  () => totalTableFeesToday.value + todayFoodDrinkRevenue.value
+);
+
+// ==========================================
+// FEATURE 4: INVENTORY & MENU (Manager+)
+// ==========================================
+const menuStockStatus = ref<Record<string, 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK'>>({
+  'thai-tea': 'IN_STOCK',
+  'truffle-fries': 'IN_STOCK',
+  'matcha-latte': 'IN_STOCK',
+  'churros': 'LOW_STOCK',
+  'iced-americano': 'IN_STOCK',
+  'popcorn-butter': 'IN_STOCK',
+  'cheese-toast': 'IN_STOCK',
+});
+
+function cycleStockStatus(itemId: string) {
+  const cur = menuStockStatus.value[itemId] || 'IN_STOCK';
+  if (cur === 'IN_STOCK') menuStockStatus.value[itemId] = 'LOW_STOCK';
+  else if (cur === 'LOW_STOCK') menuStockStatus.value[itemId] = 'OUT_OF_STOCK';
+  else menuStockStatus.value[itemId] = 'IN_STOCK';
+}
+
+// ==========================================
+// FEATURE 5: VENUE SETTINGS & POLICIES (Admin)
+// ==========================================
+const venueSettings = ref({
+  branchName: 'The Parlor · Siam Paragon',
+  address: '991 Rama I Rd, Pathum Wan, Bangkok 10330',
+  phone: '+66 2 123 4567',
+  openTime: '10:00',
+  closeTime: '23:00',
+  totalTables: 20,
+  peakHourSurcharge: false,
+});
+
+const venuePolicies = ref({
+  noShowReleaseMinutes: 15,
+  autoReleaseEnabled: true,
+  playedTimeRecomputation: true,
+  baseHourlyRate2Seats: 150,
+  baseHourlyRate4Seats: 200,
+  baseHourlyRate6Seats: 300,
+  depositRequired: true,
+  depositAmount: 100,
+});
 </script>
 
 <template>
   <div class="gl-admin-layout">
     <!-- Left Navigation Sidebar -->
     <aside class="gl-sidebar" :class="{ collapsed: isSidebarCollapsed }">
+      <!-- Brand & Role Indicator -->
       <div class="gl-sidebar-brand">
         <div class="brand-dice-icon">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
-            <rect x="2" y="2" width="20" height="20" rx="5" fill="#111827"/>
-            <circle cx="7" cy="7" r="1.8" fill="#ffffff"/>
-            <circle cx="17" cy="7" r="1.8" fill="#ffffff"/>
-            <circle cx="12" cy="12" r="1.8" fill="#ffffff"/>
-            <circle cx="7" cy="17" r="1.8" fill="#ffffff"/>
-            <circle cx="17" cy="17" r="1.8" fill="#ffffff"/>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="2" width="20" height="20" rx="5" fill="#142b20" stroke="#c6ad7a" stroke-width="1.5"/>
+            <circle cx="7" cy="7" r="1.8" fill="#ffd98a"/>
+            <circle cx="17" cy="7" r="1.8" fill="#ffd98a"/>
+            <circle cx="12" cy="12" r="1.8" fill="#ffd98a"/>
+            <circle cx="7" cy="17" r="1.8" fill="#ffd98a"/>
+            <circle cx="17" cy="17" r="1.8" fill="#ffd98a"/>
           </svg>
         </div>
         <div v-if="!isSidebarCollapsed" class="brand-text-col">
-          <span class="brand-sub">ADMIN CONSOLE</span>
+          <span class="brand-sub">✦ {{ roleBadgeLabel }}</span>
           <span class="brand-name">The Parlor</span>
         </div>
       </div>
@@ -524,12 +736,18 @@ function refreshAll() {
         <span>{{ isSidebarCollapsed ? '»' : '« Collapse' }}</span>
       </button>
 
-      <!-- Nav Menu Items -->
+      <!-- Nav Menu Items Divided by Operational Scope & Roles -->
       <nav class="sidebar-nav">
+        <!-- 1. Operations (Staff, Manager, Admin) -->
+        <div v-if="!isSidebarCollapsed" class="nav-section-title">
+          <span>OPERATIONS</span>
+        </div>
+
         <a
           href="#dashboard"
-          class="nav-item active"
-          @click.prevent="activeSidebarItem = 'dashboard'"
+          class="nav-item"
+          :class="{ active: activeTab === 'dashboard' }"
+          @click.prevent="activeTab = 'dashboard'"
         >
           <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7"/>
@@ -543,37 +761,147 @@ function refreshAll() {
         <a
           href="#floor"
           class="nav-item"
-          :class="{ active: activeSidebarItem === 'floor' }"
-          @click.prevent="activeSidebarItem = 'floor'"
+          :class="{ active: activeTab === 'floor' }"
+          @click.prevent="activeTab = 'floor'"
         >
           <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 3h18v18H3z"/>
             <path d="M3 9h18M9 21V9"/>
           </svg>
-          <span v-if="!isSidebarCollapsed">Tables & Floor Plan</span>
+          <span v-if="!isSidebarCollapsed">Tables & Floor</span>
         </a>
 
         <a
           href="#sessions"
           class="nav-item"
-          :class="{ active: activeSidebarItem === 'sessions' }"
-          @click.prevent="activeSidebarItem = 'sessions'"
+          :class="{ active: activeTab === 'sessions' }"
+          @click.prevent="activeTab = 'sessions'"
         >
           <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="10"/>
             <polyline points="12 6 12 12 16 14"/>
           </svg>
           <span v-if="!isSidebarCollapsed">Live Sessions</span>
+          <span v-if="!isSidebarCollapsed && activeFloorReservations.length > 0" class="nav-badge-gold">
+            {{ activeFloorReservations.length }}
+          </span>
         </a>
 
-        <RouterLink :to="{ name: 'WorkspaceManagement' }" class="nav-item">
+        <a
+          href="#bookings"
+          class="nav-item"
+          :class="{ active: activeTab === 'bookings' }"
+          @click.prevent="activeTab = 'bookings'"
+        >
           <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
-          <span v-if="!isSidebarCollapsed">Branch Hub</span>
-        </RouterLink>
+          <span v-if="!isSidebarCollapsed">Bookings & Timeline</span>
+        </a>
 
+        <a
+          href="#library"
+          class="nav-item"
+          :class="{ active: activeTab === 'library' }"
+          @click.prevent="activeTab = 'library'"
+        >
+          <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+          </svg>
+          <span v-if="!isSidebarCollapsed">Game Library</span>
+        </a>
+
+        <!-- 2. Management (Manager & Admin only) -->
+        <template v-if="isManager">
+          <div v-if="!isSidebarCollapsed" class="nav-section-title mgmt-title">
+            <span>MANAGEMENT</span>
+            <span class="role-pill-tiny">Manager+</span>
+          </div>
+
+          <a
+            href="#staff-roster"
+            class="nav-item"
+            :class="{ active: activeTab === 'staff-roster' }"
+            @click.prevent="activeTab = 'staff-roster'"
+          >
+            <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <span v-if="!isSidebarCollapsed">Staff & Shifts</span>
+          </a>
+
+          <a
+            href="#analytics"
+            class="nav-item"
+            :class="{ active: activeTab === 'analytics' }"
+            @click.prevent="activeTab = 'analytics'"
+          >
+            <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="20" x2="18" y2="10"/>
+              <line x1="12" y1="20" x2="12" y2="4"/>
+              <line x1="6" y1="20" x2="6" y2="14"/>
+            </svg>
+            <span v-if="!isSidebarCollapsed">Revenue & Analytics</span>
+          </a>
+
+          <a
+            href="#inventory"
+            class="nav-item"
+            :class="{ active: activeTab === 'inventory' }"
+            @click.prevent="activeTab = 'inventory'"
+          >
+            <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+              <line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+            <span v-if="!isSidebarCollapsed">Inventory & Menu</span>
+          </a>
+        </template>
+
+        <!-- 3. Administration (Admin only) -->
+        <template v-if="isAdmin">
+          <div v-if="!isSidebarCollapsed" class="nav-section-title admin-title">
+            <span>ADMINISTRATION</span>
+            <span class="role-pill-tiny admin">Admin</span>
+          </div>
+
+          <a
+            href="#settings"
+            class="nav-item"
+            :class="{ active: activeTab === 'settings' }"
+            @click.prevent="activeTab = 'settings'"
+          >
+            <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            </svg>
+            <span v-if="!isSidebarCollapsed">Venue Settings</span>
+          </a>
+
+          <a
+            href="#policies"
+            class="nav-item"
+            :class="{ active: activeTab === 'policies' }"
+            @click.prevent="activeTab = 'policies'"
+          >
+            <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            </svg>
+            <span v-if="!isSidebarCollapsed">Venue Policies</span>
+          </a>
+        </template>
+
+        <div class="nav-divider"></div>
+
+        <!-- Global Utilities -->
         <RouterLink :to="{ name: 'HomeIndex' }" class="nav-item">
           <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
@@ -583,23 +911,41 @@ function refreshAll() {
         </RouterLink>
       </nav>
 
+      <!-- Sidebar User Footer -->
       <div v-if="!isSidebarCollapsed" class="sidebar-footer">
-        <span class="help-lbl">Need help?</span>
-        <a href="mailto:support@theparlor.com" class="help-link">support@theparlor.com</a>
+        <div class="user-profile-row">
+          <div class="user-avatar-gold">
+            {{ (auth.username || 'Staff').slice(0, 2).toUpperCase() }}
+          </div>
+          <div class="user-info-text">
+            <strong class="user-name">{{ auth.username || 'Staff Member' }}</strong>
+            <span class="user-role-label">{{ userRoleTitle }}</span>
+          </div>
+        </div>
+        <button type="button" class="btn-signout" @click="auth.logout()">
+          Sign Out
+        </button>
       </div>
     </aside>
 
     <!-- Main Content Area -->
     <div class="gl-main-wrapper">
-      <!-- Top Header Navigation Bar -->
+      <!-- Top Header Navigation Bar (Deep Green & Gold Accent) -->
       <header class="gl-topbar">
-        <div class="branch-selector-capsule">
-          <span class="pin-icon">✦</span>
-          <select v-model="selectedBranchId" class="branch-select">
-            <option v-for="b in branches" :key="b.id" :value="b.id">
-              The Parlor · {{ b.name }} Branch
-            </option>
-          </select>
+        <div class="topbar-left">
+          <div class="branch-selector-capsule">
+            <span class="pin-icon">✦</span>
+            <select v-model="selectedBranchId" class="branch-select">
+              <option v-for="b in branches" :key="b.id" :value="b.id">
+                The Parlor · {{ b.name }} Branch
+              </option>
+            </select>
+          </div>
+
+          <div class="console-role-pill">
+            <span class="pulse-indicator"></span>
+            <span>Central {{ userRoleTitle }} Hub</span>
+          </div>
         </div>
 
         <div class="topbar-search">
@@ -610,335 +956,920 @@ function refreshAll() {
           <input
             v-model="searchQuery"
             type="search"
-            placeholder="Search games or bookings..."
+            placeholder="Search games, guests, or tables..."
             class="topbar-search-input"
           />
         </div>
 
         <div class="topbar-actions">
-          <button type="button" class="icon-circle-btn" title="Notifications">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          <button type="button" class="icon-circle-btn" title="Refresh Live Data" @click="refreshAll">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6"/>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
             </svg>
           </button>
 
-          <RouterLink :to="{ name: 'HomeIndex' }" class="icon-circle-btn" title="View Store">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <RouterLink :to="{ name: 'HomeIndex' }" class="icon-circle-btn" title="View Customer Storefront">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
               <line x1="8" y1="21" x2="16" y2="21"/>
               <line x1="12" y1="17" x2="12" y2="21"/>
             </svg>
           </RouterLink>
 
-          <div class="user-avatar-badge" title="Logged in as Staff">
+          <div class="topbar-avatar" :title="userRoleTitle">
             {{ (auth.username || 'Staff').slice(0, 2).toUpperCase() }}
           </div>
         </div>
       </header>
 
-      <!-- Dashboard Service Screen Content -->
+      <!-- Main Operational Console Body (Green Background with Crisp White Floating Blocks) -->
       <main class="gl-content">
-        <!-- Service Greeting Section -->
-        <section class="service-hero">
-          <div class="eyebrow-row">
-            <span class="hero-eyebrow">
-              TONIGHT AT THE PARLOR · {{ selectedBranch?.name.toUpperCase() || 'SIAM' }}
-            </span>
-          </div>
+        <!-- ========================================== -->
+        <!-- VIEW 1: DASHBOARD TAB                      -->
+        <!-- ========================================== -->
+        <template v-if="activeTab === 'dashboard'">
+          <!-- Block 1: Service Greeting Hero -->
+          <section class="console-block hero-block">
+            <div class="eyebrow-row">
+              <span class="gold-sparkle">✦</span>
+              <span class="hero-eyebrow">
+                TONIGHT AT THE PARLOR · {{ selectedBranch?.name.toUpperCase() || 'SIAM' }} BRANCH
+              </span>
+            </div>
 
-          <div class="title-row">
-            <h1 class="hero-title">{{ greeting }}</h1>
-            <span class="live-pill">
-              <span class="live-pulse"></span>
-              Bookings: Live
-            </span>
-          </div>
+            <div class="title-row">
+              <h1 class="hero-title">{{ greeting }}</h1>
+              <span class="live-pill">
+                <span class="live-pulse"></span>
+                Bookings: Live
+              </span>
+            </div>
 
-          <p class="hero-subtitle">
-            {{ allReservations.length }} bookings tonight — first arrival {{ formatTime(upcomingReservations[0]?.startsAt) || '7:30 PM' }}, largest party of {{ Math.max(...branchFloorTables.map(t => t.seats)) }}, {{ needsYouItems.length }} item{{ needsYouItems.length === 1 ? '' : 's' }} need attention.
-          </p>
+            <p class="hero-subtitle">
+              {{ allReservations.length }} bookings tonight — first arrival {{ formatTime(upcomingReservations[0]?.startsAt) || '7:30 PM' }}, largest party of {{ Math.max(...branchFloorTables.map(t => t.seats)) }}, {{ needsYouItems.length }} item{{ needsYouItems.length === 1 ? '' : 's' }} need attention.
+            </p>
 
-          <!-- Hero Action Buttons Bar -->
-          <div class="hero-actions-bar">
-            <button
-              type="button"
-              class="btn-seat-walkin"
-              @click="openWalkInForTable()"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="8.5" cy="7" r="4"/>
-                <line x1="20" y1="8" x2="20" y2="14"/>
-                <line x1="23" y1="11" x2="17" y2="11"/>
-              </svg>
-              <span>Seat walk-in</span>
-            </button>
-
-            <button
-              type="button"
-              class="btn-hero-pill"
-              @click="openWalkInForTable()"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              <span>New booking</span>
-            </button>
-
-            <div class="actions-right">
-              <span class="updated-time">Updated at {{ currentTimeStr }}</span>
+            <!-- Hero Action Buttons Bar -->
+            <div class="hero-actions-bar">
               <button
                 type="button"
-                class="btn-refresh"
-                @click="refreshAll"
+                class="btn-primary-parlor"
+                @click="openWalkInForTable()"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M23 4v6h-6"/>
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                  <circle cx="8.5" cy="7" r="4"/>
+                  <line x1="20" y1="8" x2="20" y2="14"/>
+                  <line x1="23" y1="11" x2="17" y2="11"/>
                 </svg>
-                <span>Refresh</span>
+                <span>Seat walk-in</span>
+              </button>
+
+              <button
+                type="button"
+                class="btn-secondary-parlor"
+                @click="openWalkInForTable()"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                  <line x1="16" y1="2" x2="16" y2="6"/>
+                  <line x1="8" y1="2" x2="8" y2="6"/>
+                  <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span>New booking</span>
+              </button>
+
+              <button
+                type="button"
+                class="btn-secondary-parlor"
+                @click="activeTab = 'library'"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                </svg>
+                <span>Assign game</span>
+              </button>
+
+              <div class="actions-right">
+                <span class="updated-time">Updated at {{ currentTimeStr }}</span>
+                <button
+                  type="button"
+                  class="btn-refresh-parlor"
+                  @click="refreshAll"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M23 4v6h-6"/>
+                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                  </svg>
+                  <span>Refresh</span>
+                </button>
+              </div>
+            </div>
+          </section>
+
+          <!-- Block 2: 4-Column Metric Ribbon Block -->
+          <section class="console-block numbers-card-ribbon">
+            <div class="num-col">
+              <span class="col-label">TONIGHT</span>
+              <div class="col-value">{{ allReservations.length }}</div>
+              <div class="col-sub">party · {{ allReservations.reduce((s, r) => s + (r.partySize || 2), 0) }} guests</div>
+            </div>
+
+            <div class="num-col">
+              <span class="col-label">TABLES IN USE</span>
+              <div class="col-value">{{ occupiedTablesCount }} / {{ branchFloorTables.length }}</div>
+              <div class="segmented-progress">
+                <span
+                  v-for="(_, i) in branchFloorTables"
+                  :key="i"
+                  class="progress-seg"
+                  :class="{ active: i < occupiedTablesCount }"
+                ></span>
+              </div>
+              <div class="col-sub">{{ freeTablesCount }} free now</div>
+            </div>
+
+            <div class="num-col">
+              <span class="col-label">ARRIVING</span>
+              <div class="col-value">{{ upcomingReservations.length }}</div>
+              <div class="col-sub">in the next hour</div>
+            </div>
+
+            <div class="num-col">
+              <span class="col-label">ACTIVE TABS</span>
+              <div class="col-value">{{ activeFloorReservations.length }}</div>
+              <div class="col-sub">running refreshments on tab</div>
+            </div>
+          </section>
+
+          <!-- Block 3: Needs You Now Queue -->
+          <section v-if="needsYouItems.length > 0" class="console-block needs-you-card">
+            <div class="needs-you-header">
+              <div class="needs-you-title">
+                <span class="gold-bullet">◆</span>
+                <span>Needs you now</span>
+                <span class="needs-count-pill">{{ needsYouItems.length }}</span>
+              </div>
+              <span class="most-urgent">Most urgent first</span>
+            </div>
+
+            <div class="needs-items-list">
+              <div
+                v-for="alert in needsYouItems"
+                :key="alert.id"
+                class="needs-item-row"
+              >
+                <div class="needs-item-left">
+                  <div class="alert-icon-square">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"/>
+                      <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <strong class="needs-item-title">{{ alert.title }}</strong>
+                    <p class="needs-item-sub">{{ alert.subtitle }}</p>
+                  </div>
+                </div>
+
+                <div class="needs-item-actions">
+                  <button
+                    v-if="alert.type === 'IN_PLAY'"
+                    type="button"
+                    class="btn-gold-pill"
+                    @click="openAddSnacks(alert.reservation)"
+                  >
+                    + Add Refreshments
+                  </button>
+
+                  <button
+                    v-if="alert.type === 'IN_PLAY'"
+                    type="button"
+                    class="btn-primary-parlor small"
+                    @click="openCheckBill(alert.reservation)"
+                  >
+                    Check Bill →
+                  </button>
+
+                  <button
+                    v-if="alert.type === 'LATE'"
+                    type="button"
+                    class="btn-primary-parlor small"
+                    @click="handleCheckIn(alert.reservation)"
+                  >
+                    Check-in Guest
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Block 4: Two-Column Lower Section: Floor Plan & Coming Up -->
+          <div class="two-column-service-row">
+            <!-- Left Column: Floor Plan -->
+            <div class="column-left">
+              <section class="console-block">
+                <div class="section-card-header">
+                  <div class="header-left">
+                    <h2 class="section-title">Floor</h2>
+                    <span class="live-tag">✦ Live</span>
+                  </div>
+                  <span class="usage-text">{{ occupiedTablesCount }} of {{ branchFloorTables.length }} in use</span>
+                </div>
+
+                <div class="floor-tables-grid">
+                  <article
+                    v-for="table in branchFloorTables"
+                    :key="table.id"
+                    class="floor-table-tile"
+                    :class="getTableStatus(table).state.toLowerCase()"
+                  >
+                    <div class="tile-top-row">
+                      <span class="table-num-lbl">{{ table.number }}</span>
+                      <span class="table-seats-lbl">{{ table.seats }} seats · ฿{{ table.rate }}/hr</span>
+                    </div>
+
+                    <!-- FREE TABLE -->
+                    <template v-if="getTableStatus(table).state === 'FREE'">
+                      <div class="tile-status-row">
+                        <span class="state-badge badge-free">FREE</span>
+                      </div>
+                      <p class="tile-helper">Available rest of shift</p>
+                      <button
+                        type="button"
+                        class="tile-action-link"
+                        @click="openWalkInForTable(table)"
+                      >
+                        + Seat walk-in here →
+                      </button>
+                    </template>
+
+                    <!-- OCCUPIED TABLE -->
+                    <template v-else-if="getTableStatus(table).state === 'OCCUPIED'">
+                      <div class="tile-status-row">
+                        <span class="state-badge badge-occupied">PLAYING</span>
+                        <span class="tile-time-pill">
+                          {{ getElapsedMinutes(getTableStatus(table).reservation) }}m
+                        </span>
+                      </div>
+                      <p class="tile-guest-name">
+                        {{ getCustomerName(getTableStatus(table).reservation?.customer) }}
+                      </p>
+                      <div class="tile-sub-info">
+                        Tab: ฿{{ calculateCurrentPlayFee(getTableStatus(table).reservation) }}
+                      </div>
+                      <div class="tile-actions-row">
+                        <button
+                          type="button"
+                          class="tile-btn-small"
+                          @click="openAddSnacks(getTableStatus(table).reservation)"
+                        >
+                          + Food/Drinks
+                        </button>
+                        <button
+                          type="button"
+                          class="tile-btn-gold"
+                          @click="openCheckBill(getTableStatus(table).reservation)"
+                        >
+                          Bill
+                        </button>
+                      </div>
+                    </template>
+
+                    <!-- RESERVED TABLE -->
+                    <template v-else-if="getTableStatus(table).state === 'RESERVED'">
+                      <div class="tile-status-row">
+                        <span class="state-badge badge-reserved">RESERVED</span>
+                      </div>
+                      <p class="tile-guest-name">
+                        {{ getCustomerName(getTableStatus(table).reservation?.customer) }}
+                      </p>
+                      <p class="tile-due-time">
+                        Due at {{ formatTime(getTableStatus(table).reservation?.startsAt) }}
+                      </p>
+                      <button
+                        type="button"
+                        class="tile-action-link"
+                        @click="handleCheckIn(getTableStatus(table).reservation)"
+                      >
+                        Check-in & Seat →
+                      </button>
+                    </template>
+                  </article>
+                </div>
+              </section>
+            </div>
+
+            <!-- Right Column: Coming Up Timeline -->
+            <div class="column-right">
+              <section class="console-block">
+                <div class="section-card-header">
+                  <div class="header-left">
+                    <h2 class="section-title">Coming up</h2>
+                    <span class="timeline-span">Next 2 hours</span>
+                  </div>
+                  <span class="count-bubble">{{ upcomingReservations.length }}</span>
+                </div>
+
+                <div class="policy-rule-banner">
+                  <span class="gold-bullet">◆</span>
+                  <span>15-Minute Auto No-Show: Tables auto-release if customer is >15m late.</span>
+                </div>
+
+                <div v-if="upcomingReservations.length === 0" class="empty-timeline">
+                  <p>No arrivals scheduled in next 2 hours.</p>
+                </div>
+
+                <div v-else class="timeline-cards-list">
+                  <article
+                    v-for="res in upcomingReservations"
+                    :key="res.id"
+                    class="timeline-card"
+                  >
+                    <div class="timeline-time-col">
+                      <span class="time-bold">{{ formatTime(res.startsAt) }}</span>
+                    </div>
+
+                    <div class="timeline-card-content">
+                      <div class="timeline-card-top">
+                        <strong class="timeline-guest-name">
+                          {{ getCustomerName(res.customer) }}
+                        </strong>
+                        <span class="party-tag">· {{ res.partySize }} guests</span>
+                        <span class="table-tag">Table {{ res.tableId }}</span>
+                      </div>
+
+                      <div class="timeline-actions">
+                        <button
+                          type="button"
+                          class="btn-parlor-pill"
+                          :disabled="actionInProgress === res.id"
+                          @click="handleCheckIn(res)"
+                        >
+                          ✦ Arrived
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-primary-parlor small"
+                          :disabled="actionInProgress === res.id"
+                          @click="handleCheckIn(res)"
+                        >
+                          Seat Table →
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-cancel-link"
+                          @click="openCancel(res)"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                </div>
+              </section>
+            </div>
+          </div>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW 2: FULL FLOOR & TABLES TAB            -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'floor'">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ REAL-TIME VENUE FLOOR PLAN</div>
+                <h1 class="view-title">Tables & Floor Management</h1>
+                <p class="view-subtitle">Live table occupancy, hourly rates, guest seating, and floor status.</p>
+              </div>
+              <button type="button" class="btn-primary-parlor" @click="openWalkInForTable()">
+                + Seat Walk-in Customer
+              </button>
+            </div>
+
+            <div class="floor-tables-grid expanded">
+              <article
+                v-for="table in branchFloorTables"
+                :key="table.id"
+                class="floor-table-tile big"
+                :class="getTableStatus(table).state.toLowerCase()"
+              >
+                <div class="tile-top-row">
+                  <span class="table-num-lbl">Table {{ table.number }}</span>
+                  <span class="table-seats-lbl">{{ table.seats }} Seats · ฿{{ table.rate }}/hr</span>
+                </div>
+
+                <template v-if="getTableStatus(table).state === 'FREE'">
+                  <div class="tile-status-row">
+                    <span class="state-badge badge-free">FREE</span>
+                  </div>
+                  <p class="tile-helper">Ready for walk-ins or scheduled bookings.</p>
+                  <button type="button" class="btn-primary-parlor small full" @click="openWalkInForTable(table)">
+                    + Seat Walk-in at Table {{ table.number }}
+                  </button>
+                </template>
+
+                <template v-else-if="getTableStatus(table).state === 'OCCUPIED'">
+                  <div class="tile-status-row">
+                    <span class="state-badge badge-occupied">IN PLAY</span>
+                    <span class="tile-time-pill">{{ getElapsedMinutes(getTableStatus(table).reservation) }} mins played</span>
+                  </div>
+                  <h3 class="guest-name-large">{{ getCustomerName(getTableStatus(table).reservation?.customer) }}</h3>
+                  <p class="tile-sub-info">
+                    Party of {{ getTableStatus(table).reservation?.partySize }} · Current Tab: ฿{{ calculateCurrentPlayFee(getTableStatus(table).reservation) }}
+                  </p>
+                  <div class="tile-actions-row">
+                    <button type="button" class="tile-btn-small" @click="openAddSnacks(getTableStatus(table).reservation)">
+                      + Add Refreshments
+                    </button>
+                    <button type="button" class="tile-btn-gold" @click="openCheckBill(getTableStatus(table).reservation)">
+                      Check Bill & Settle
+                    </button>
+                  </div>
+                </template>
+
+                <template v-else-if="getTableStatus(table).state === 'RESERVED'">
+                  <div class="tile-status-row">
+                    <span class="state-badge badge-reserved">RESERVED</span>
+                  </div>
+                  <h3 class="guest-name-large">{{ getCustomerName(getTableStatus(table).reservation?.customer) }}</h3>
+                  <p class="tile-due-time">
+                    Due at {{ formatTime(getTableStatus(table).reservation?.startsAt) }}
+                  </p>
+                  <button type="button" class="btn-primary-parlor small full" @click="handleCheckIn(getTableStatus(table).reservation)">
+                    Check-in & Seat Table →
+                  </button>
+                </template>
+              </article>
+            </div>
+          </section>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW 3: LIVE SESSIONS & BILLING TAB        -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'sessions'">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ IN-PLAY TABLE MONITORING</div>
+                <h1 class="view-title">Active Play Sessions & Tabs</h1>
+                <p class="view-subtitle">Monitor played time, add refreshments, and settle bills with automatic late arrival recomputation.</p>
+              </div>
+              <button type="button" class="btn-primary-parlor" @click="openWalkInForTable()">
+                + Start Walk-in Session
+              </button>
+            </div>
+
+            <div v-if="activeFloorReservations.length === 0" class="empty-state-box">
+              <div class="empty-icon">☕</div>
+              <h3>No Active Play Sessions</h3>
+              <p>There are no tables currently playing. Seat a walk-in guest or check in a reserved booking.</p>
+            </div>
+
+            <div v-else class="sessions-table-wrap">
+              <table class="parlor-table">
+                <thead>
+                  <tr>
+                    <th>Table</th>
+                    <th>Customer</th>
+                    <th>Type</th>
+                    <th>Checked-In</th>
+                    <th>Time Played</th>
+                    <th>Hourly Rate</th>
+                    <th>Table Fee</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="res in activeFloorReservations" :key="res.id">
+                    <td>
+                      <span class="table-badge">Table {{ res.tableId }}</span>
+                    </td>
+                    <td>
+                      <strong>{{ getCustomerName(res.customer) }}</strong>
+                      <span class="party-muted">({{ res.partySize }}p)</span>
+                    </td>
+                    <td>
+                      <span class="client-type-pill" :class="res.clientType === 'WALK_IN' ? 'walkin' : 'reserved'">
+                        {{ res.clientType === 'WALK_IN' ? 'Walk-in' : 'Online Booking' }}
+                      </span>
+                    </td>
+                    <td>{{ formatTime(res.checkedInAt || res.startsAt) }}</td>
+                    <td>
+                      <span class="time-elapsed-badge">
+                        {{ getElapsedMinutes(res) }} mins
+                      </span>
+                    </td>
+                    <td>฿{{ res.hourlyRate || 200 }}/hr</td>
+                    <td>
+                      <strong class="fee-text">฿{{ calculateCurrentPlayFee(res) }}</strong>
+                    </td>
+                    <td>
+                      <div class="actions-cell">
+                        <button type="button" class="btn-secondary-parlor small" @click="openAddSnacks(res)">
+                          + Tab
+                        </button>
+                        <button type="button" class="btn-primary-parlor small" @click="openCheckBill(res)">
+                          Check Bill
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW 4: BOOKINGS & TIMELINE TAB            -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'bookings'">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ SHIFT SCHEDULE</div>
+                <h1 class="view-title">Bookings & Reservations Timeline</h1>
+                <p class="view-subtitle">Automatic 15-minute no-show policy releases tables to walk-ins if customers do not arrive.</p>
+              </div>
+              <button type="button" class="btn-primary-parlor" @click="openWalkInForTable()">
+                + New Booking
+              </button>
+            </div>
+
+            <div class="bookings-list-wrap">
+              <table class="parlor-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Table</th>
+                    <th>Guest</th>
+                    <th>Party</th>
+                    <th>Status</th>
+                    <th>Contact</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="res in allReservations" :key="res.id">
+                    <td><strong>{{ formatTime(res.startsAt) }}</strong></td>
+                    <td>Table {{ res.tableId }}</td>
+                    <td>{{ getCustomerName(res.customer) }}</td>
+                    <td>{{ res.partySize }} guests</td>
+                    <td>
+                      <span class="status-tag" :class="res.status.toLowerCase()">
+                        {{ res.status }}
+                      </span>
+                    </td>
+                    <td>{{ getCustomerPhone(res.customer) || '—' }}</td>
+                    <td>
+                      <div class="actions-cell">
+                        <button
+                          v-if="res.status === 'CONFIRMED'"
+                          type="button"
+                          class="btn-primary-parlor small"
+                          @click="handleCheckIn(res)"
+                        >
+                          Check In
+                        </button>
+                        <button
+                          v-if="res.status === 'CHECKED_IN'"
+                          type="button"
+                          class="btn-secondary-parlor small"
+                          @click="openCheckBill(res)"
+                        >
+                          Check Bill
+                        </button>
+                        <button
+                          v-if="res.status === 'CONFIRMED'"
+                          type="button"
+                          class="btn-cancel-link"
+                          @click="openCancel(res)"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW 5: GAME LIBRARY & ASSIGNMENT TAB      -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'library'">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ THE PARLOR COLLECTION</div>
+                <h1 class="view-title">Board Game Library</h1>
+                <p class="view-subtitle">Explore branch games and quickly assign copies to playing tables.</p>
+              </div>
+              <div class="search-games-input-wrap">
+                <input
+                  v-model="gameSearchQuery"
+                  type="search"
+                  placeholder="Filter games by name, genre..."
+                  class="parlor-input"
+                />
+              </div>
+            </div>
+
+            <div class="games-library-grid">
+              <article v-for="game in filteredGames" :key="game.id" class="game-catalog-card">
+                <div class="game-card-header">
+                  <h3 class="game-name">{{ game.name }}</h3>
+                  <span class="game-difficulty-pill">{{ game.difficulty }}</span>
+                </div>
+                <p class="game-designer">Designed by {{ game.designer }}</p>
+                <div class="game-meta-row">
+                  <span>👥 {{ game.players[0] }}–{{ game.players[1] }} Players</span>
+                  <span>⏱ {{ game.playMinutes[0] }}–{{ game.playMinutes[1] }} min</span>
+                </div>
+                <p class="game-desc">{{ game.description }}</p>
+                <div class="game-card-footer">
+                  <button type="button" class="btn-primary-parlor small full" @click="openAssignGame(game)">
+                    ✦ Assign to Playing Table →
+                  </button>
+                </div>
+              </article>
+            </div>
+          </section>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW 6: STAFF & SHIFTS (Manager & Admin)   -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'staff-roster' && isManager">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ BRANCH ROSTER & TEAM</div>
+                <h1 class="view-title">Staff & Shift Attendance</h1>
+                <p class="view-subtitle">Active shift supervision, table zone allocations, and roster management.</p>
+              </div>
+              <span class="role-pill-gold">Branch Manager Access</span>
+            </div>
+
+            <div class="staff-roster-grid">
+              <article v-for="staff in branchStaffRoster" :key="staff.id" class="staff-member-card">
+                <div class="staff-card-header">
+                  <div class="staff-avatar-circle">
+                    {{ staff.name.slice(0, 2).toUpperCase() }}
+                  </div>
+                  <div>
+                    <h3 class="staff-name">{{ staff.name }}</h3>
+                    <span class="staff-role-badge">{{ staff.role }}</span>
+                  </div>
+                </div>
+                <div class="staff-card-body">
+                  <p><strong>Shift:</strong> {{ staff.shift }}</p>
+                  <p><strong>Assigned Zone:</strong> {{ staff.assignedZone }}</p>
+                  <div class="duty-status-row">
+                    <span class="pulse-green"></span>
+                    <span class="duty-lbl">On Duty · Clocked in</span>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW 7: REVENUE & ANALYTICS (Manager+)     -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'analytics' && isManager">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ FINANCIAL & OCCUPANCY TELEMETRY</div>
+                <h1 class="view-title">Revenue & Branch Analytics</h1>
+                <p class="view-subtitle">Today's real-time financial gross, hourly table time, and refreshments sales.</p>
+              </div>
+              <span class="role-pill-gold">Managerial Insights</span>
+            </div>
+
+            <div class="analytics-ribbon-grid">
+              <div class="analytics-card">
+                <span class="analytics-label">TODAY'S GROSS REVENUE</span>
+                <div class="analytics-value">฿{{ todayTotalGross }}</div>
+                <span class="analytics-sub">Table time + Counter refreshments</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">TABLE PLAYTIME FEES</span>
+                <div class="analytics-value">฿{{ totalTableFeesToday }}</div>
+                <span class="analytics-sub">Based on actual elapsed playtime</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">F&B REFRESHMENTS</span>
+                <div class="analytics-value">฿{{ todayFoodDrinkRevenue }}</div>
+                <span class="analytics-sub">Snacks & drinks tabs</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">PEAK UTILIZATION</span>
+                <div class="analytics-value">{{ Math.round((occupiedTablesCount / branchFloorTables.length) * 100) }}%</div>
+                <span class="analytics-sub">{{ occupiedTablesCount }} of {{ branchFloorTables.length }} tables playing</span>
+              </div>
+            </div>
+          </section>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW 8: INVENTORY & MENU (Manager+)        -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'inventory' && isManager">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ REFRESHMENTS & GAME STOCK</div>
+                <h1 class="view-title">Inventory & Kitchen Stock</h1>
+                <p class="view-subtitle">Toggle item availability and monitor stock levels in real time.</p>
+              </div>
+              <span class="role-pill-gold">Manager Access</span>
+            </div>
+
+            <div class="inventory-table-wrap">
+              <table class="parlor-table">
+                <thead>
+                  <tr>
+                    <th>Item</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Stock Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="item in FOOD_MENU_ITEMS" :key="item.id">
+                    <td>
+                      <strong>{{ item.name }}</strong>
+                      <div class="item-th-sub">{{ item.nameTh }}</div>
+                    </td>
+                    <td>{{ item.category }}</td>
+                    <td>฿{{ item.price }}</td>
+                    <td>
+                      <span
+                        class="stock-badge"
+                        :class="menuStockStatus[item.id] || 'IN_STOCK'"
+                      >
+                        {{ (menuStockStatus[item.id] || 'IN_STOCK').replace('_', ' ') }}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        class="btn-secondary-parlor small"
+                        @click="cycleStockStatus(item.id)"
+                      >
+                        Cycle Status ⇄
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW 9: VENUE SETTINGS (Admin only)        -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'settings' && isAdmin">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ SYSTEM CONFIGURATION</div>
+                <h1 class="view-title">Venue Settings</h1>
+                <p class="view-subtitle">Manage branch identity, operating hours, and capacity limits.</p>
+              </div>
+              <span class="role-pill-gold admin">Super Admin Only</span>
+            </div>
+
+            <div class="settings-form-grid">
+              <div class="form-group">
+                <label class="parlor-label">Branch Name:</label>
+                <input v-model="venueSettings.branchName" type="text" class="parlor-input" />
+              </div>
+              <div class="form-group">
+                <label class="parlor-label">Physical Address:</label>
+                <input v-model="venueSettings.address" type="text" class="parlor-input" />
+              </div>
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label class="parlor-label">Opening Time:</label>
+                  <input v-model="venueSettings.openTime" type="time" class="parlor-input" />
+                </div>
+                <div class="form-group">
+                  <label class="parlor-label">Closing Time:</label>
+                  <input v-model="venueSettings.closeTime" type="time" class="parlor-input" />
+                </div>
+              </div>
+            </div>
+          </section>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW 10: VENUE POLICIES (Admin only)       -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'policies' && isAdmin">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ GOVERNANCE & RULES</div>
+                <h1 class="view-title">Venue Operational Policies</h1>
+                <p class="view-subtitle">Configure 15-minute automatic no-show table releases, played-time recalculation, and hourly rates.</p>
+              </div>
+              <span class="role-pill-gold admin">Super Admin Only</span>
+            </div>
+
+            <div class="policies-cards-list">
+              <article class="policy-card">
+                <div class="policy-card-top">
+                  <div>
+                    <h3 class="policy-card-title">Automatic {{ venuePolicies.noShowReleaseMinutes }}-Minute No-Show Release</h3>
+                    <p class="policy-card-desc">
+                      When a customer reservation starts and they do not arrive within {{ venuePolicies.noShowReleaseMinutes }} minutes, the system automatically transitions their status to NO_SHOW and releases their table for walk-ins.
+                    </p>
+                  </div>
+                  <span class="policy-active-tag">Active & Enforced</span>
+                </div>
+              </article>
+
+              <article class="policy-card">
+                <div class="policy-card-top">
+                  <div>
+                    <h3 class="policy-card-title">Dynamic Played-Time Recomputation</h3>
+                    <p class="policy-card-desc">
+                      If customers arrive late, table play fee is dynamically computed based strictly on actual elapsed time from check-in to settlement at the counter (e.g. booked 9-10 at ฿{{ venuePolicies.baseHourlyRate6Seats }}/hr, arrived 9:15 -> played 45 min -> billed ฿225).
+                    </p>
+                  </div>
+                  <span class="policy-active-tag">Active & Enforced</span>
+                </div>
+              </article>
+
+              <article class="policy-card">
+                <div class="policy-card-top">
+                  <div>
+                    <h3 class="policy-card-title">Standard Table Hourly Rates</h3>
+                    <p class="policy-card-desc">
+                      2-Seater Table: ฿{{ venuePolicies.baseHourlyRate2Seats }}/hr · 4-Seater Table: ฿{{ venuePolicies.baseHourlyRate4Seats }}/hr · 6-Seater Table: ฿{{ venuePolicies.baseHourlyRate6Seats }}/hr.
+                    </p>
+                  </div>
+                  <span class="policy-active-tag">Default Matrix</span>
+                </div>
+              </article>
+            </div>
+          </section>
+        </template>
+      </main>
+
+      <!-- Assign Game to Table Modal -->
+      <div v-if="showAssignGameModal && selectedGameToAssign" class="modal-backdrop" @click.self="showAssignGameModal = false">
+        <div class="modal-card">
+          <div class="walkin-header">
+            <div>
+              <div class="eyebrow-sub">TABLE SERVICE</div>
+              <h3 class="modal-title">Assign Game to Table</h3>
+              <p class="modal-sub">
+                Deliver <strong>{{ selectedGameToAssign.name }}</strong> to active players.
+              </p>
+            </div>
+            <button type="button" class="close-x" @click="showAssignGameModal = false">✕</button>
+          </div>
+
+          <div class="modal-body-pad">
+            <label class="modal-label">Choose Active Table:</label>
+            <div class="tables-choice-grid">
+              <button
+                v-for="t in branchFloorTables"
+                :key="t.id"
+                type="button"
+                class="tbl-choice-pill"
+                :class="{ active: assignGameTargetTableId === t.id }"
+                @click="assignGameTargetTableId = t.id"
+              >
+                Table {{ t.number }} ({{ t.seats }}p)
               </button>
             </div>
           </div>
-        </section>
 
-        <!-- Numbers Metric Ribbon (4 Column Card) -->
-        <section class="numbers-card-ribbon">
-          <div class="num-col">
-            <span class="col-label">TONIGHT</span>
-            <div class="col-value">{{ allReservations.length }}</div>
-            <div class="col-sub">party · {{ allReservations.reduce((s, r) => s + (r.partySize || 2), 0) }} guests</div>
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary-parlor" @click="showAssignGameModal = false">
+              Cancel
+            </button>
+            <button type="button" class="btn-primary-parlor" @click="confirmAssignGame">
+              Assign to Table {{ assignGameTargetTableId }} →
+            </button>
           </div>
-
-          <div class="num-col">
-            <span class="col-label">TABLES IN USE</span>
-            <div class="col-value">{{ occupiedTablesCount }} / {{ branchFloorTables.length }}</div>
-            <div class="segmented-progress">
-              <span
-                v-for="(_, i) in branchFloorTables"
-                :key="i"
-                class="progress-seg"
-                :class="{ active: i < occupiedTablesCount }"
-              ></span>
-            </div>
-            <div class="col-sub">{{ freeTablesCount }} free now</div>
-          </div>
-
-          <div class="num-col">
-            <span class="col-label">ARRIVING</span>
-            <div class="col-value">{{ upcomingReservations.length }}</div>
-            <div class="col-sub">in the next hour</div>
-          </div>
-
-          <div class="num-col">
-            <span class="col-label">ACTIVE TABS</span>
-            <div class="col-value">{{ activeFloorReservations.length }}</div>
-            <div class="col-sub">running refreshments on tab</div>
-          </div>
-        </section>
-
-        <!-- Needs You Now Alert Section -->
-        <section v-if="needsYouItems.length > 0" class="needs-you-section">
-          <div class="needs-you-header">
-            <div class="needs-you-title">
-              <span>Needs you now</span>
-              <span class="needs-count-pill">{{ needsYouItems.length }}</span>
-            </div>
-            <span class="most-urgent">Most urgent first</span>
-          </div>
-
-          <div class="needs-you-card">
-            <div
-              v-for="item in needsYouItems"
-              :key="item.id"
-              class="needs-item-row"
-            >
-              <div class="needs-item-left">
-                <div class="needs-icon-circle">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <line x1="12" y1="16" x2="12.01" y2="16"/>
-                  </svg>
-                </div>
-                <div>
-                  <div class="needs-item-title">{{ item.title }}</div>
-                  <div class="needs-item-sub">{{ item.subtitle }}</div>
-                </div>
-              </div>
-
-              <div class="needs-item-actions">
-                <button
-                  type="button"
-                  class="btn-action-dark"
-                  @click="openAddSnacks(item.reservation)"
-                >
-                  + Add Snacks
-                </button>
-                <button
-                  type="button"
-                  class="btn-action-light"
-                  @click="openCheckBill(item.reservation)"
-                >
-                  Check Bill
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- Lower Two-Column Section: Floor Plan Grid (Left) & Coming Up Timeline (Right) -->
-        <div class="service-lower-grid">
-          <!-- Left Column: Floor · Live -->
-          <section class="floor-section">
-            <div class="section-top-row">
-              <div class="section-title">
-                <span>Floor</span>
-                <span class="live-dot-green">● Live</span>
-              </div>
-              <span class="occupancy-stat">{{ occupiedTablesCount }} of {{ branchFloorTables.length }} in use</span>
-            </div>
-
-            <div class="floor-tables-grid">
-              <div
-                v-for="table in branchFloorTables"
-                :key="table.id"
-                class="floor-table-tile"
-                :class="getTableStatus(table).state.toLowerCase()"
-              >
-                <div class="tile-header">
-                  <span class="table-num">{{ table.number }}</span>
-                  <span class="table-seats">{{ table.seats }} seats</span>
-                </div>
-
-                <!-- STATE 1: FREE -->
-                <template v-if="getTableStatus(table).state === 'FREE'">
-                  <div class="tile-status-tag free">FREE</div>
-                  <div class="tile-timing">Rest of night</div>
-                  <button
-                    type="button"
-                    class="btn-seat-here"
-                    @click="openWalkInForTable(table)"
-                  >
-                    Seat here →
-                  </button>
-                </template>
-
-                <!-- STATE 2: OCCUPIED (IN USE) -->
-                <template v-else-if="getTableStatus(table).state === 'OCCUPIED'">
-                  <div class="tile-status-tag occupied">OCCUPIED</div>
-                  <div class="tile-guest-name">
-                    {{ getCustomerName(getTableStatus(table).reservation?.customer) }}
-                  </div>
-                  <div class="tile-timing">
-                    {{ getElapsedMinutes(getTableStatus(table).reservation) }}m played · ฿{{ calculateCurrentPlayFee(getTableStatus(table).reservation) }}
-                  </div>
-                  <div class="tile-actions-row">
-                    <button
-                      type="button"
-                      class="btn-tile-sm"
-                      @click="openAddSnacks(getTableStatus(table).reservation)"
-                    >
-                      + Snacks
-                    </button>
-                    <button
-                      type="button"
-                      class="btn-tile-sm primary"
-                      @click="openCheckBill(getTableStatus(table).reservation)"
-                    >
-                      Bill
-                    </button>
-                  </div>
-                </template>
-
-                <!-- STATE 3: RESERVED UPCOMING -->
-                <template v-else>
-                  <div class="tile-status-tag reserved">RESERVED</div>
-                  <div class="tile-guest-name">
-                    {{ getCustomerName(getTableStatus(table).reservation?.customer) }}
-                  </div>
-                  <div class="tile-timing">
-                    Due {{ formatTime(getTableStatus(table).reservation?.startsAt) }}
-                  </div>
-                  <button
-                    type="button"
-                    class="btn-seat-here arrive-btn"
-                    @click="handleCheckIn(getTableStatus(table).reservation)"
-                  >
-                    Check In ✓
-                  </button>
-                </template>
-              </div>
-            </div>
-          </section>
-
-          <!-- Right Column: Coming up · Next 2 hours -->
-          <section class="coming-up-section">
-            <div class="section-top-row">
-              <div class="section-title">
-                <span>Coming up</span>
-                <span class="time-window">Next 2 hours</span>
-                <span class="count-tag">{{ upcomingReservations.length }} party</span>
-              </div>
-              <div class="policy-note">Auto No-Show if 15m late</div>
-            </div>
-
-            <div v-if="upcomingReservations.length === 0" class="empty-coming-up">
-              <p>No upcoming arrivals scheduled in the next 2 hours.</p>
-            </div>
-
-            <div v-else class="upcoming-cards-stack">
-              <div
-                v-for="res in upcomingReservations"
-                :key="res.id"
-                class="coming-card"
-              >
-                <div class="coming-card-header">
-                  <span class="arrival-time">{{ formatTime(res.startsAt) }}</span>
-                  <div class="customer-info-line">
-                    <strong class="cust-title">{{ getCustomerName(res.customer) }}</strong>
-                    <span class="cust-meta">· {{ res.partySize }} guests · Table {{ res.tableId }}</span>
-                  </div>
-                </div>
-
-                <div v-if="res.notes" class="coming-notes-pill">
-                  📝 {{ res.notes }}
-                </div>
-
-                <div class="coming-card-actions">
-                  <button
-                    type="button"
-                    class="btn-arrived"
-                    :disabled="actionInProgress === res.id"
-                    @click="handleCheckIn(res)"
-                  >
-                    ✓ Arrived
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-seat-dark"
-                    :disabled="actionInProgress === res.id"
-                    @click="handleCheckIn(res)"
-                  >
-                    Seat Table
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-cancel-link"
-                    @click="openCancel(res)"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
-      </main>
+      </div>
 
       <!-- Staff Table Bill & Settlement Modal -->
       <TableBillModal
@@ -969,12 +1900,12 @@ function refreshAll() {
           </div>
 
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="showCancelModal = false">
+            <button type="button" class="btn-secondary-parlor" @click="showCancelModal = false">
               Keep Booking
             </button>
             <button
               type="button"
-              class="btn btn-danger"
+              class="btn-primary-parlor"
               :disabled="cancelMutation.isPending.value"
               @click="submitCancel"
             >
@@ -984,18 +1915,21 @@ function refreshAll() {
         </div>
       </div>
 
-      <!-- Quick Walk-in Seating Modal (INSTANT - NO PRE-ORDER SNACKS) -->
+      <!-- Quick Fast Walk-in Modal (Instant Seating - NO pre-order snacks!) -->
       <div v-if="showWalkInModal" class="modal-backdrop" @click.self="showWalkInModal = false">
-        <div class="modal-card walkin-card">
+        <div class="modal-card">
           <div class="walkin-header">
             <div>
-              <div class="eyebrow-sub">SERVICE COUNTER SEATING</div>
-              <h3 class="modal-title">Seat Walk-in Table</h3>
+              <div class="eyebrow-sub">FAST COUNTER SEATING</div>
+              <h3 class="modal-title">Seat Walk-in Guests</h3>
+              <p class="modal-sub">
+                Select table and seat immediately. Refreshments can be added on table tab anytime.
+              </p>
             </div>
             <button type="button" class="close-x" @click="showWalkInModal = false">✕</button>
           </div>
 
-          <div class="walkin-body">
+          <div class="modal-form-body">
             <!-- Table Selection -->
             <div class="form-section">
               <label class="modal-label">Select Table:</label>
@@ -1067,12 +2001,12 @@ function refreshAll() {
           </div>
 
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" @click="showWalkInModal = false">
+            <button type="button" class="btn-secondary-parlor" @click="showWalkInModal = false">
               Cancel
             </button>
             <button
               type="button"
-              class="btn btn-seat-confirm"
+              class="btn-primary-parlor"
               :disabled="staffCreateMutation.isPending.value"
               @click="handleStaffWalkInSubmit"
             >
@@ -1134,12 +2068,12 @@ function refreshAll() {
               <strong class="total-val">฿{{ staffSnackSubtotal }}</strong>
             </div>
             <div class="modal-buttons">
-              <button type="button" class="btn btn-secondary" @click="staffSnackReservation = null">
+              <button type="button" class="btn-secondary-parlor" @click="staffSnackReservation = null">
                 Cancel
               </button>
               <button
                 type="button"
-                class="btn btn-primary"
+                class="btn-primary-parlor"
                 :disabled="staffSnackSelectedItems.length === 0"
                 @click="submitStaffSnackOrder"
               >
@@ -1154,20 +2088,27 @@ function refreshAll() {
 </template>
 
 <style scoped>
-/* Full Page Layout inspired by GameLedger */
+/* ========================================================= */
+/* THE PARLOR CENTRAL MANAGEMENT CONSOLE STYLES              */
+/* Palette: Deep Forest Green (#142b20), Champagne Gold      */
+/* (#c6ad7a / #ffd98a), and Crisp White (#ffffff) blocks    */
+/* ========================================================= */
+
 .gl-admin-layout {
   display: flex;
   min-height: 100vh;
-  background: #f4f5f7;
+  background-color: #142b20; /* Deep Parlor Green background */
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  color: #111827;
+  color: #142b20;
 }
 
-/* Sidebar */
+/* --------------------------------------------------------- */
+/* SIDEBAR (Dark Obsidian Green with Champagne Gold Accents) */
+/* --------------------------------------------------------- */
 .gl-sidebar {
-  width: 210px;
-  background: #ffffff;
-  border-right: 1px solid #e5e7eb;
+  width: 220px;
+  background: #0d1e16;
+  border-right: 1.5px solid #234635;
   display: flex;
   flex-direction: column;
   padding: 18px 12px;
@@ -1176,14 +2117,14 @@ function refreshAll() {
 }
 
 .gl-sidebar.collapsed {
-  width: 64px;
+  width: 66px;
 }
 
 .gl-sidebar-brand {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
   padding: 0 4px;
 }
 
@@ -1202,35 +2143,64 @@ function refreshAll() {
   font-size: 9.5px;
   font-weight: 800;
   letter-spacing: 0.1em;
-  color: #6b7280;
+  color: #c6ad7a;
 }
 
 .brand-name {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
-  color: #111827;
+  color: #ffffff;
+  letter-spacing: -0.01em;
 }
 
 .sidebar-collapse-btn {
   background: transparent;
   border: none;
   font-size: 11px;
-  color: #6b7280;
+  color: #c6ad7a;
   text-align: left;
   padding: 4px 6px;
   margin-bottom: 16px;
   cursor: pointer;
+  transition: color 0.12s ease;
 }
 
 .sidebar-collapse-btn:hover {
-  color: #111827;
+  color: #ffd98a;
 }
 
 .sidebar-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
   flex: 1;
+  overflow-y: auto;
+}
+
+.nav-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 10px 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #c6ad7a;
+}
+
+.role-pill-tiny {
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 10px;
+  background: #1e3a2b;
+  color: #ffd98a;
+  border: 1px solid #c6ad7a;
+}
+
+.role-pill-tiny.admin {
+  background: #3b2a1a;
+  color: #ffd98a;
+  border-color: #ffd98a;
 }
 
 .nav-item {
@@ -1241,45 +2211,113 @@ function refreshAll() {
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #4b5563;
+  color: #d1c7b7;
   text-decoration: none;
   transition: all 0.12s ease;
+  position: relative;
 }
 
 .nav-item:hover {
-  background: #f3f4f6;
-  color: #111827;
+  background: #1b3829;
+  color: #ffffff;
 }
 
 .nav-item.active {
-  background: #fff7ed;
-  color: #ea580c;
+  background: #234635;
+  color: #ffd98a;
   font-weight: 700;
+  border-left: 3px solid #c6ad7a;
 }
 
 .nav-icon {
   flex-shrink: 0;
 }
 
+.nav-badge-gold {
+  margin-left: auto;
+  background: #c6ad7a;
+  color: #142b20;
+  font-size: 10.5px;
+  font-weight: 800;
+  border-radius: 10px;
+  padding: 1px 6px;
+}
+
+.nav-divider {
+  height: 1px;
+  background: #234635;
+  margin: 10px 0;
+}
+
 .sidebar-footer {
-  border-top: 1px solid #f3f4f6;
-  padding-top: 12px;
+  border-top: 1.5px solid #234635;
+  padding-top: 14px;
   display: flex;
   flex-direction: column;
+  gap: 10px;
+}
+
+.user-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar-gold {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #142b20;
+  color: #ffd98a;
+  border: 1.5px solid #c6ad7a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.user-info-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.user-name {
+  font-size: 12.5px;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-role-label {
+  font-size: 10.5px;
+  color: #c6ad7a;
+}
+
+.btn-signout {
+  background: transparent;
+  border: 1px solid #365b45;
+  color: #d1c7b7;
+  border-radius: 6px;
+  padding: 5px 8px;
   font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.12s ease;
 }
 
-.help-lbl {
-  color: #9ca3af;
+.btn-signout:hover {
+  background: #1e3a2b;
+  color: #ffd98a;
+  border-color: #c6ad7a;
 }
 
-.help-link {
-  color: #4b5563;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-/* Main Content Wrapper */
+/* --------------------------------------------------------- */
+/* MAIN CONTENT WRAPPER & TOPBAR                             */
+/* --------------------------------------------------------- */
 .gl-main-wrapper {
   flex: 1;
   display: flex;
@@ -1287,31 +2325,36 @@ function refreshAll() {
   min-width: 0;
 }
 
-/* Topbar */
 .gl-topbar {
   height: 60px;
-  background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 0 24px;
+  background: #142b20;
+  border-bottom: 1.5px solid #284c37;
+  padding: 0 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
 }
 
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .branch-selector-capsule {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #fef3c7;
-  border: 1px solid #fde68a;
+  background: #1b3829;
+  border: 1px solid #c6ad7a;
   border-radius: 20px;
   padding: 4px 12px;
 }
 
 .pin-icon {
   font-size: 11px;
-  color: #d97706;
+  color: #ffd98a;
 }
 
 .branch-select {
@@ -1319,32 +2362,62 @@ function refreshAll() {
   background: transparent;
   font-size: 12.5px;
   font-weight: 700;
-  color: #92400e;
+  color: #ffd98a;
   outline: none;
   cursor: pointer;
+}
+
+.branch-select option {
+  background: #142b20;
+  color: #ffffff;
+}
+
+.console-role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #0d1e16;
+  border: 1px solid #335942;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #c6ad7a;
+}
+
+.pulse-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
 }
 
 .topbar-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: #0e1e16;
+  border: 1px solid #284c37;
   border-radius: 20px;
   padding: 6px 14px;
   width: 320px;
 }
 
 .search-icon {
-  color: #9ca3af;
+  color: #c6ad7a;
 }
 
 .topbar-search-input {
   border: none;
   background: transparent;
   font-size: 13px;
+  color: #ffffff;
   outline: none;
   width: 100%;
+}
+
+.topbar-search-input::placeholder {
+  color: #7b8c82;
 }
 
 .topbar-actions {
@@ -1357,27 +2430,29 @@ function refreshAll() {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
+  border: 1px solid #335942;
+  background: #1b3829;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #4b5563;
+  color: #ffd98a;
   cursor: pointer;
   text-decoration: none;
+  transition: all 0.12s ease;
 }
 
 .icon-circle-btn:hover {
-  background: #f9fafb;
-  color: #111827;
+  background: #234635;
+  border-color: #c6ad7a;
 }
 
-.user-avatar-badge {
+.topbar-avatar {
   width: 34px;
   height: 34px;
   border-radius: 8px;
-  background: #ea580c;
-  color: #ffffff;
+  background: #142b20;
+  border: 1.5px solid #c6ad7a;
+  color: #ffd98a;
   font-size: 12px;
   font-weight: 800;
   display: flex;
@@ -1385,27 +2460,54 @@ function refreshAll() {
   justify-content: center;
 }
 
-/* Service Content Area */
+/* --------------------------------------------------------- */
+/* MAIN CONTENT BLOCKS (White on Green Background)           */
+/* --------------------------------------------------------- */
 .gl-content {
   padding: 24px 28px 60px;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 1320px;
+  max-width: 1340px;
 }
 
-/* Service Hero Greeting */
-.service-hero {
+/* Distinct white floating block on green backdrop */
+.console-block {
+  background: #ffffff;
+  border: 1.5px solid #c6ad7a;
+  border-radius: 16px;
+  padding: 24px 26px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+/* Service Hero Block */
+.hero-block {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+}
+
+.eyebrow-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gold-sparkle {
+  color: #c6ad7a;
+  font-size: 14px;
+}
+
+.gold-bullet {
+  color: #c6ad7a;
+  font-size: 12px;
 }
 
 .hero-eyebrow {
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #6b7280;
+  letter-spacing: 0.1em;
+  color: #8c7649;
 }
 
 .title-row {
@@ -1419,15 +2521,16 @@ function refreshAll() {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 32px;
   font-weight: 700;
-  color: #111827;
+  color: #142b20;
 }
 
 .live-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #eef2ff;
-  color: #4338ca;
+  background: #eef7f2;
+  color: #142b20;
+  border: 1px solid #a7d3bc;
   font-size: 11px;
   font-weight: 700;
   padding: 3px 10px;
@@ -1438,13 +2541,13 @@ function refreshAll() {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #4f46e5;
+  background: #10b981;
 }
 
 .hero-subtitle {
-  margin: 0;
-  font-size: 13.5px;
-  color: #6b7280;
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: #554e42;
 }
 
 /* Hero Actions Bar */
@@ -1452,46 +2555,64 @@ function refreshAll() {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 12px;
   flex-wrap: wrap;
+  padding-top: 10px;
+  border-top: 1px solid #f0e9df;
 }
 
-.btn-seat-walkin {
+.btn-primary-parlor {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #ea580c;
-  color: #ffffff;
-  border: 1px solid #c2410c;
+  background: #142b20;
+  color: #ffd98a;
+  border: 1.5px solid #c6ad7a;
   border-radius: 20px;
-  padding: 7px 18px;
+  padding: 8px 20px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 2px 5px rgba(234, 88, 12, 0.25);
+  box-shadow: 0 3px 8px rgba(20, 43, 32, 0.25);
   transition: all 0.12s ease;
 }
 
-.btn-seat-walkin:hover {
-  background: #c2410c;
+.btn-primary-parlor:hover {
+  background: #1b3829;
+  border-color: #ffd98a;
 }
 
-.btn-hero-pill {
+.btn-primary-parlor.small {
+  padding: 5px 14px;
+  font-size: 12px;
+}
+
+.btn-primary-parlor.full {
+  width: 100%;
+  justify-content: center;
+}
+
+.btn-secondary-parlor {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   background: #ffffff;
-  border: 1px solid #d1d5db;
-  color: #374151;
+  border: 1.5px solid #c6ad7a;
+  color: #142b20;
   border-radius: 20px;
-  padding: 7px 16px;
+  padding: 8px 18px;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.12s ease;
 }
 
-.btn-hero-pill:hover {
-  background: #f9fafb;
+.btn-secondary-parlor:hover {
+  background: #fbf6ec;
+}
+
+.btn-secondary-parlor.small {
+  padding: 5px 12px;
+  font-size: 12px;
 }
 
 .actions-right {
@@ -1503,16 +2624,16 @@ function refreshAll() {
 
 .updated-time {
   font-size: 12px;
-  color: #9ca3af;
+  color: #8c7649;
 }
 
-.btn-refresh {
+.btn-refresh-parlor {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   background: #ffffff;
-  border: 1px solid #d1d5db;
-  color: #4b5563;
+  border: 1px solid #c6ad7a;
+  color: #142b20;
   border-radius: 20px;
   padding: 5px 12px;
   font-size: 12px;
@@ -1520,26 +2641,22 @@ function refreshAll() {
   cursor: pointer;
 }
 
-.btn-refresh:hover {
-  background: #f3f4f6;
+.btn-refresh-parlor:hover {
+  background: #fbf6ec;
 }
 
-/* Metric Ribbon */
+/* 4-Column Metric Ribbon Block */
 .numbers-card-ribbon {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 16px 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  padding: 18px 24px;
 }
 
 .num-col {
   display: flex;
   flex-direction: column;
   padding: 0 16px;
-  border-right: 1px solid #f3f4f6;
+  border-right: 1px solid #f0e9df;
 }
 
 .num-col:last-child {
@@ -1549,15 +2666,15 @@ function refreshAll() {
 .col-label {
   font-size: 10.5px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #6b7280;
+  letter-spacing: 0.1em;
+  color: #8c7649;
   margin-bottom: 2px;
 }
 
 .col-value {
-  font-size: 26px;
+  font-size: 28px;
   font-weight: 800;
-  color: #111827;
+  color: #142b20;
   line-height: 1.1;
 }
 
@@ -1568,26 +2685,26 @@ function refreshAll() {
 }
 
 .progress-seg {
-  height: 4px;
+  height: 5px;
   flex: 1;
-  background: #e5e7eb;
+  background: #e6dfd3;
   border-radius: 2px;
 }
 
 .progress-seg.active {
-  background: #0d9488;
+  background: #142b20;
 }
 
 .col-sub {
-  font-size: 11.5px;
-  color: #6b7280;
+  font-size: 12px;
+  color: #554e42;
 }
 
-/* Needs You Now Section */
-.needs-you-section {
+/* Needs You Now Queue */
+.needs-you-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 14px;
 }
 
 .needs-you-header {
@@ -1601,17 +2718,18 @@ function refreshAll() {
   align-items: center;
   gap: 8px;
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 18px;
+  font-size: 19px;
   font-weight: 700;
-  color: #111827;
+  color: #142b20;
 }
 
 .needs-count-pill {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: #ea580c;
-  color: #ffffff;
+  background: #142b20;
+  color: #ffd98a;
+  border: 1px solid #c6ad7a;
   font-size: 11px;
   font-weight: 800;
   display: flex;
@@ -1622,18 +2740,13 @@ function refreshAll() {
 
 .most-urgent {
   font-size: 11.5px;
-  color: #9ca3af;
+  color: #8c7649;
 }
 
-.needs-you-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 12px 18px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+.needs-items-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .needs-item-row {
@@ -1641,7 +2754,10 @@ function refreshAll() {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  flex-wrap: wrap;
+  padding: 12px 16px;
+  border: 1.5px solid #e6dfd3;
+  border-radius: 12px;
+  background: #fdfcf9;
 }
 
 .needs-item-left {
@@ -1650,374 +2766,773 @@ function refreshAll() {
   gap: 12px;
 }
 
-.needs-icon-circle {
-  width: 32px;
-  height: 32px;
+.alert-icon-square {
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
-  background: #fff7ed;
-  color: #ea580c;
+  background: #fbf6ec;
+  border: 1px solid #c6ad7a;
+  color: #8c7649;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .needs-item-title {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
-  color: #111827;
+  color: #142b20;
 }
 
 .needs-item-sub {
-  font-size: 12px;
-  color: #6b7280;
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: #60594a;
 }
 
 .needs-item-actions {
   display: flex;
-  gap: 8px;
-}
-
-.btn-action-dark {
-  background: #111827;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-action-light {
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  color: #374151;
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* Lower Two-Column Section */
-.service-lower-grid {
-  display: grid;
-  grid-template-columns: 1.35fr 1fr;
-  gap: 20px;
-}
-
-/* Floor Plan Grid Section */
-.floor-section {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.section-top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.section-title {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 19px;
-  font-weight: 700;
-  color: #111827;
-}
-
-.live-dot-green {
-  font-family: sans-serif;
-  font-size: 11px;
-  font-weight: 700;
-  color: #0d9488;
-}
-
-.occupancy-stat {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.floor-tables-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-.floor-table-tile {
-  background: #ffffff;
-  border-radius: 10px;
-  padding: 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-height: 120px;
-}
-
-.floor-table-tile.free {
-  border: 1.5px solid #0d9488;
-}
-
-.floor-table-tile.occupied {
-  border: 1.5px solid #d1d5db;
-  background: #fafafa;
-}
-
-.floor-table-tile.reserved {
-  border: 1.5px dashed #9ca3af;
-  background: #ffffff;
-}
-
-.tile-header {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.table-num {
-  font-size: 15px;
-  font-weight: 800;
-  color: #111827;
-}
-
-.table-seats {
-  font-size: 11px;
-  color: #6b7280;
-}
-
-.tile-status-tag {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-}
-
-.tile-status-tag.free {
-  color: #0d9488;
-}
-
-.tile-status-tag.occupied {
-  color: #374151;
-}
-
-.tile-status-tag.reserved {
-  color: #6b7280;
-}
-
-.tile-guest-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #111827;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tile-timing {
-  font-size: 11.5px;
-  color: #6b7280;
-}
-
-.btn-seat-here {
-  margin-top: auto;
-  background: transparent;
-  border: none;
-  color: #0d9488;
-  font-size: 11.5px;
-  font-weight: 700;
-  text-align: left;
-  padding: 0;
-  cursor: pointer;
-}
-
-.btn-seat-here.arrive-btn {
-  color: #4f46e5;
-}
-
-.tile-actions-row {
-  margin-top: auto;
-  display: flex;
-  gap: 6px;
-}
-
-.btn-tile-sm {
-  flex: 1;
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 6px;
-  cursor: pointer;
-}
-
-.btn-tile-sm.primary {
-  background: #111827;
-  color: #ffffff;
-  border-color: #111827;
-}
-
-/* Coming Up Timeline Section */
-.coming-up-section {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.time-window {
-  font-size: 12px;
-  font-family: sans-serif;
-  color: #6b7280;
-  font-weight: 500;
-}
-
-.count-tag {
-  background: #f3f4f6;
-  font-family: sans-serif;
-  font-size: 11px;
-  padding: 1px 7px;
-  border-radius: 10px;
-  font-weight: 600;
-  color: #4b5563;
-}
-
-.policy-note {
-  font-size: 11px;
-  color: #dc2626;
-  font-weight: 600;
-}
-
-.empty-coming-up {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 30px 16px;
-  text-align: center;
-  font-size: 13px;
-  color: #6b7280;
-}
-
-.upcoming-cards-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.coming-card {
-  background: #fffbeb;
-  border: 1px solid #fef3c7;
-  border-radius: 12px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.coming-card-header {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.arrival-time {
-  font-size: 14.5px;
-  font-weight: 800;
-  color: #92400e;
-}
-
-.customer-info-line {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-}
-
-.cust-title {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #111827;
-}
-
-.cust-meta {
-  font-size: 12px;
-  color: #6b7280;
-}
-
-.coming-notes-pill {
-  font-size: 11.5px;
-  color: #92400e;
-  background: #fef3c7;
-  padding: 3px 8px;
-  border-radius: 6px;
-  width: fit-content;
-}
-
-.coming-card-actions {
-  display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
 }
 
-.btn-arrived {
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+.btn-gold-pill {
+  background: #fbf6ec;
+  border: 1.5px solid #c6ad7a;
+  color: #142b20;
+  border-radius: 18px;
   padding: 5px 12px;
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
-.btn-seat-dark {
-  background: #111827;
-  color: #ffffff;
-  border: none;
-  border-radius: 6px;
-  padding: 5px 14px;
+.btn-gold-pill:hover {
+  background: #f4ecdc;
+}
+
+/* Two-Column Lower Split (Floor Plan & Coming Up) */
+.two-column-service-row {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 20px;
+}
+
+.section-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1.5px solid #e6dfd3;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.section-title {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #142b20;
+}
+
+.live-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.usage-text, .timeline-span {
   font-size: 12px;
+  color: #60594a;
+}
+
+.count-bubble {
+  background: #142b20;
+  color: #ffd98a;
+  border: 1px solid #c6ad7a;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+/* Floor Grid */
+.floor-tables-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.floor-tables-grid.expanded {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.floor-table-tile {
+  border: 1.5px solid #e6dfd3;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #ffffff;
+  transition: all 0.12s ease;
+}
+
+.floor-table-tile.big {
+  padding: 18px;
+}
+
+.floor-table-tile.free {
+  border-color: #10b981;
+  background: #f0fdf4;
+}
+
+.floor-table-tile.occupied {
+  border-color: #c6ad7a;
+  background: #fffdfa;
+}
+
+.floor-table-tile.reserved {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.tile-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.table-num-lbl {
+  font-size: 15px;
+  font-weight: 800;
+  color: #142b20;
+}
+
+.table-seats-lbl {
+  font-size: 11.5px;
+  color: #60594a;
+}
+
+.tile-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+.state-badge {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.state-badge.badge-free {
+  background: #dcfce7;
+  color: #142b20;
+  border: 1px solid #16a34a;
+}
+
+.state-badge.badge-occupied {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #c6ad7a;
+}
+
+.state-badge.badge-reserved {
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+}
+
+.tile-time-pill {
+  font-size: 10px;
+  font-weight: 700;
+  background: #f4ecdc;
+  color: #142b20;
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.tile-guest-name, .guest-name-large {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #142b20;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.guest-name-large {
+  font-size: 16px;
+  margin: 4px 0 2px;
+}
+
+.tile-helper, .tile-sub-info, .tile-due-time {
+  margin: 0;
+  font-size: 11.5px;
+  color: #60594a;
+}
+
+.tile-due-time {
+  color: #475569;
+}
+
+.tile-action-link {
+  background: transparent;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #142b20;
+  cursor: pointer;
+  text-align: left;
+  padding: 4px 0 0;
+  text-decoration: underline;
+}
+
+.tile-actions-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.tile-btn-small {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #c6ad7a;
+  color: #142b20;
+  border-radius: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
   font-weight: 600;
+  cursor: pointer;
+}
+
+.tile-btn-gold {
+  background: #142b20;
+  border: 1px solid #c6ad7a;
+  color: #ffd98a;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Coming Up Timeline */
+.policy-rule-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fbf6ec;
+  border: 1px solid #c6ad7a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  color: #60594a;
+  margin-bottom: 12px;
+}
+
+.empty-timeline {
+  text-align: center;
+  padding: 28px 16px;
+  color: #8c7649;
+  font-size: 13px;
+}
+
+.timeline-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.timeline-card {
+  display: flex;
+  gap: 14px;
+  background: #fdfcf9;
+  border: 1.5px solid #e6dfd3;
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.timeline-time-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.time-bold {
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #142b20;
+}
+
+.timeline-card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.timeline-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.timeline-guest-name {
+  font-size: 13.5px;
+  color: #142b20;
+}
+
+.party-tag, .table-tag {
+  font-size: 12px;
+  color: #60594a;
+}
+
+.table-tag {
+  background: #f4ecdc;
+  color: #142b20;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.timeline-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-parlor-pill {
+  background: #ffffff;
+  border: 1px solid #c6ad7a;
+  color: #142b20;
+  border-radius: 14px;
+  padding: 3px 10px;
+  font-size: 11.5px;
+  font-weight: 700;
   cursor: pointer;
 }
 
 .btn-cancel-link {
   background: transparent;
   border: none;
-  color: #dc2626;
-  font-size: 11px;
+  font-size: 11.5px;
+  color: #991b1b;
   cursor: pointer;
   text-decoration: underline;
-  margin-left: auto;
+  padding: 0 4px;
 }
 
-/* Modals */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: rgba(17, 24, 39, 0.6);
+/* --------------------------------------------------------- */
+/* GENERIC VIEW HEADERS & TABLES                             */
+/* --------------------------------------------------------- */
+.view-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1.5px solid #e6dfd3;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.view-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #8c7649;
+  margin-bottom: 4px;
+}
+
+.view-title {
+  margin: 0 0 4px;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: #142b20;
+}
+
+.view-subtitle {
+  margin: 0;
+  font-size: 13.5px;
+  color: #554e42;
+}
+
+.role-pill-gold {
+  background: #fbf6ec;
+  border: 1.5px solid #c6ad7a;
+  color: #142b20;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.role-pill-gold.admin {
+  background: #142b20;
+  color: #ffd98a;
+}
+
+/* Parlor Table */
+.parlor-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+
+.parlor-table th {
+  text-align: left;
+  padding: 10px 14px;
+  background: #fbf9f4;
+  color: #8c7649;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  border-bottom: 1.5px solid #e6dfd3;
+}
+
+.parlor-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f0e9df;
+  color: #142b20;
+}
+
+.table-badge {
+  background: #f4ecdc;
+  color: #142b20;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.client-type-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.client-type-pill.walkin {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.client-type-pill.reserved {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.time-elapsed-badge {
+  background: #dcfce7;
+  color: #142b20;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+}
+
+.fee-text {
+  color: #142b20;
+  font-size: 14px;
+}
+
+.actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-tag {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.status-tag.confirmed { background: #dcfce7; color: #15803d; }
+.status-tag.checked_in { background: #fef3c7; color: #92400e; }
+.status-tag.completed { background: #f1f5f9; color: #475569; }
+.status-tag.cancelled { background: #fee2e2; color: #991b1b; }
+.status-tag.no_show { background: #fee2e2; color: #991b1b; }
+
+/* Game Library Grid */
+.games-library-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.game-catalog-card {
+  border: 1.5px solid #e6dfd3;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #ffffff;
+}
+
+.game-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.game-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 800;
+  color: #142b20;
+}
+
+.game-difficulty-pill {
+  font-size: 10px;
+  font-weight: 800;
+  background: #f4ecdc;
+  color: #142b20;
+  padding: 2px 6px;
+  border-radius: 6px;
+}
+
+.game-designer {
+  margin: 0;
+  font-size: 12px;
+  color: #60594a;
+}
+
+.game-meta-row {
+  display: flex;
+  gap: 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #142b20;
+  margin: 4px 0;
+}
+
+.game-desc {
+  margin: 0;
+  font-size: 12px;
+  color: #60594a;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.game-card-footer {
+  margin-top: 8px;
+}
+
+/* Staff Roster Grid */
+.staff-roster-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.staff-member-card {
+  border: 1.5px solid #e6dfd3;
+  border-radius: 12px;
+  padding: 16px;
+  background: #ffffff;
+}
+
+.staff-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.staff-avatar-circle {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #142b20;
+  color: #ffd98a;
+  border: 1.5px solid #c6ad7a;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  font-weight: 800;
+  font-size: 14px;
+}
+
+.staff-name {
+  margin: 0 0 2px;
+  font-size: 16px;
+  color: #142b20;
+}
+
+.staff-role-badge {
+  font-size: 11px;
+  font-weight: 700;
+  background: #f4ecdc;
+  color: #142b20;
+  padding: 1px 8px;
+  border-radius: 10px;
+}
+
+.staff-card-body p {
+  margin: 4px 0;
+  font-size: 13px;
+  color: #554e42;
+}
+
+.duty-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.pulse-green {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.duty-lbl {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #15803d;
+}
+
+/* Analytics Ribbon Grid */
+.analytics-ribbon-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.analytics-card {
+  border: 1.5px solid #e6dfd3;
+  border-radius: 12px;
+  padding: 18px;
+  background: #fdfcf9;
+}
+
+.analytics-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #8c7649;
+}
+
+.analytics-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #142b20;
+  margin: 6px 0 2px;
+}
+
+.analytics-sub {
+  font-size: 12px;
+  color: #60594a;
+}
+
+/* Stock status badges */
+.stock-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.stock-badge.IN_STOCK { background: #dcfce7; color: #15803d; }
+.stock-badge.LOW_STOCK { background: #fef3c7; color: #92400e; }
+.stock-badge.OUT_OF_STOCK { background: #fee2e2; color: #991b1b; }
+
+/* Policies Cards */
+.policies-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.policy-card {
+  border: 1.5px solid #e6dfd3;
+  border-radius: 12px;
+  padding: 18px;
+  background: #fdfcf9;
+}
+
+.policy-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.policy-card-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  color: #142b20;
+}
+
+.policy-card-desc {
+  margin: 0;
+  font-size: 13.5px;
+  color: #554e42;
+  line-height: 1.5;
+}
+
+.policy-active-tag {
+  background: #142b20;
+  color: #ffd98a;
+  border: 1px solid #c6ad7a;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------- */
+/* MODALS (Green & Gold Themed)                              */
+/* --------------------------------------------------------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(14, 30, 22, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   z-index: 1000;
+  padding: 16px;
 }
 
 .modal-card {
   background: #ffffff;
-  border-radius: 14px;
+  border: 2px solid #c6ad7a;
+  border-radius: 16px;
   padding: 24px;
-  max-width: 480px;
   width: 100%;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-}
-
-.walkin-card {
   max-width: 520px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
 }
 
-.snack-card {
-  max-width: 460px;
+.modal-card.snack-card {
+  max-width: 480px;
 }
 
 .walkin-header {
@@ -2025,229 +3540,187 @@ function refreshAll() {
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1.5px solid #e6dfd3;
 }
 
 .eyebrow-sub {
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #ea580c;
+  letter-spacing: 0.12em;
+  color: #8c7649;
 }
 
 .modal-title {
-  margin: 2px 0 0;
-  font-size: 19px;
-  font-weight: 800;
-  color: #111827;
+  margin: 2px 0 4px;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 20px;
+  color: #142b20;
 }
 
 .modal-sub {
-  margin: 4px 0 0;
+  margin: 0;
   font-size: 12.5px;
-  color: #6b7280;
+  color: #60594a;
 }
 
 .close-x {
   background: transparent;
   border: none;
   font-size: 18px;
+  color: #8c7649;
   cursor: pointer;
-  color: #9ca3af;
-}
-
-.modal-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
-  color: #374151;
-  margin-bottom: 6px;
 }
 
 .tables-choice-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 8px;
-  margin-bottom: 14px;
+  margin-top: 6px;
 }
 
 .tbl-choice-pill {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: #fbf9f4;
+  border: 1.5px solid #e6dfd3;
   border-radius: 8px;
-  padding: 8px;
-  text-align: center;
-  cursor: pointer;
+  padding: 8px 6px;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  font-size: 11px;
+  color: #142b20;
 }
 
 .tbl-choice-pill.active {
-  background: #fff7ed;
-  border-color: #ea580c;
-  color: #ea580c;
+  background: #142b20;
+  border-color: #c6ad7a;
+  color: #ffd98a;
 }
 
 .tbl-choice-pill.occupied {
-  opacity: 0.4;
-  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 12px;
 }
 
 .form-row-2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
-  margin-bottom: 12px;
 }
 
-.form-group {
-  margin-bottom: 12px;
+.modal-label, .parlor-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #142b20;
+}
+
+.modal-input, .modal-select, .parlor-input {
+  border: 1.5px solid #c6ad7a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13.5px;
+  background: #ffffff;
+  color: #142b20;
+  outline: none;
 }
 
 .stepper-wrap {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .step-btn {
   width: 32px;
   height: 32px;
+  border: 1.5px solid #c6ad7a;
+  background: #ffffff;
   border-radius: 6px;
-  border: 1px solid #d1d5db;
-  background: #f9fafb;
   font-size: 16px;
-  font-weight: 700;
   cursor: pointer;
-}
-
-.step-btn.small {
-  width: 26px;
-  height: 26px;
-  font-size: 13px;
+  color: #142b20;
 }
 
 .step-val {
   font-size: 14px;
   font-weight: 800;
-  min-width: 20px;
+  min-width: 24px;
   text-align: center;
-}
-
-.modal-select {
-  width: 100%;
-  padding: 7px 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 13px;
-  background: #ffffff;
-}
-
-.modal-input {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 13px;
-  box-sizing: border-box;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1.5px solid #e6dfd3;
 }
 
-.btn {
-  padding: 7px 16px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-secondary {
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  color: #374151;
-}
-
-.btn-primary {
-  background: #111827;
-  border: 1px solid #111827;
-  color: #ffffff;
-}
-
-.btn-danger {
-  background: #dc2626;
-  border: 1px solid #dc2626;
-  color: #ffffff;
-}
-
-.btn-seat-confirm {
-  background: #ea580c;
-  border: 1px solid #c2410c;
-  color: #ffffff;
-  font-weight: 700;
-}
-
-/* Snacks Modal List */
+/* Snack Modal Body */
 .snack-list-body {
   max-height: 280px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-bottom: 14px;
+  gap: 8px;
+  margin: 12px 0;
 }
 
 .snack-row {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
-  background: #f9fafb;
-  border-radius: 6px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid #e6dfd3;
+  border-radius: 8px;
+}
+
+.snack-info {
+  display: flex;
+  flex-direction: column;
 }
 
 .snack-name {
   font-size: 13px;
-  font-weight: 600;
-  display: block;
+  font-weight: 700;
+  color: #142b20;
 }
 
 .snack-price {
-  font-size: 12px;
-  color: #ea580c;
-  font-weight: 700;
+  font-size: 11.5px;
+  color: #8c7649;
 }
 
 .snack-modal-footer {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  border-top: 1px solid #f3f4f6;
+  align-items: center;
+  border-top: 1.5px solid #e6dfd3;
   padding-top: 12px;
+  margin-top: 12px;
 }
 
 .snack-total {
   font-size: 13px;
-  color: #4b5563;
+  color: #142b20;
 }
 
 .total-val {
-  font-size: 16px;
-  color: #111827;
+  font-size: 18px;
+  color: #142b20;
   margin-left: 6px;
 }
 
-.alert-banner {
-  background: #fee2e2;
-  border: 1px solid #fecaca;
-  color: #b91c1c;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  margin-top: 10px;
+.modal-buttons {
+  display: flex;
+  gap: 8px;
 }
 </style>
