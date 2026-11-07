@@ -105,6 +105,16 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
     </template>
 
     <template #header-right>
+      <RouterLink
+        v-if="auth.authenticated"
+        to="/reservations"
+        class="header-history-btn"
+      >
+        {{ t('My Reservations') }}
+      </RouterLink>
+      <RouterLink to="/reservations/new" class="header-reserve-btn">
+        {{ t('Reserve Table') }}
+      </RouterLink>
       <StoreCartButton />
       <div
         ref="accountRoot"
@@ -391,6 +401,45 @@ button:focus-visible {
   opacity: 0;
   transform: translateY(-5px) scale(0.985);
 }
+@media (max-width: 1024px) {
+  .customer-shell :deep(> div.relative > header) {
+    grid-template-columns: auto 1fr auto;
+    padding: 10px 18px;
+    gap: 12px;
+  }
+  .customer-shell :deep(> div.relative > header > :nth-child(3)) {
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .header-history-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid rgba(198, 173, 122, 0.4);
+  color: #efe5d0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+.header-history-btn:hover {
+  background: rgba(198, 173, 122, 0.15);
+  border-color: #c6ad7a;
+  color: #ffffff;
+}
+.header-reserve-btn {
+    padding: 6px 10px;
+    font-size: 10.5px;
+  }
+  .account-trigger {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+}
 @media (max-width: 700px) {
   .catalog-shell :deep(> div.relative > header + div) {
     padding: 18px 16px;
@@ -437,6 +486,55 @@ button:focus-visible {
   .account-menu-enter-from,
   .account-menu-leave-to {
     transform: none;
+  }
+}
+.header-history-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid rgba(198, 173, 122, 0.4);
+  color: #efe5d0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+.header-history-btn:hover {
+  background: rgba(198, 173, 122, 0.15);
+  border-color: #c6ad7a;
+  color: #ffffff;
+}
+.header-reserve-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: #c6ad7a;
+  color: #14281f;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+.header-reserve-btn:hover {
+  background: #e0d0ac;
+  color: #0b1a13;
+}
+@media (max-width: 600px) {
+  .header-history-btn {
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+  .header-reserve-btn {
+    padding: 6px 8px;
+    font-size: 10px;
   }
 }
 </style>

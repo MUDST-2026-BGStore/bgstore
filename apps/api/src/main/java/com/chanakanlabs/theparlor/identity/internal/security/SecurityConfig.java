@@ -128,7 +128,14 @@ public class SecurityConfig {
                         "/api/v1/categories",
                         "/api/v1/categories/{categoryId}",
                         "/api/v1/mechanics",
-                        "/api/v1/mechanics/{mechanicId}")
+                        "/api/v1/mechanics/{mechanicId}",
+                        "/api/v1/branches",
+                        "/api/v1/branches/{branchId}",
+                        "/api/v1/branches/{branchId}/availability",
+                        "/api/v1/branches/{branchId}/tables",
+                        "/api/v1/branches/{branchId}/tables/{tableId}",
+                        "/api/v1/branches/{branchId}/games",
+                        "/api/v1/branches/{branchId}/games/{gameId}")
                     .permitAll()
                     .requestMatchers("/api/v1/admin/**")
                     .hasRole("ADMIN")

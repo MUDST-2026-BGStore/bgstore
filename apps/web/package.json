@@ -10,18 +10,20 @@
     ]
   },
   "dependencies": {
+    "@tanstack/vue-query": "^5.104.4",
     "@theparlor/account": "workspace:*",
     "@theparlor/api-client": "workspace:*",
     "@theparlor/auth": "workspace:*",
     "@theparlor/ui": "workspace:*",
-    "@tanstack/vue-query": "^5.104.4",
     "pinia": "catalog:",
+    "qrcode": "^1.5.4",
     "tailwindcss": "^4.3.3",
     "vue": "catalog:",
     "vue-i18n": "^11.4.14",
     "vue-router": "catalog:"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.3"
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/qrcode": "^1.5.6"
   }
 }

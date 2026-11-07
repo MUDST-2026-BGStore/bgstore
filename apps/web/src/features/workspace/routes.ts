@@ -8,10 +8,28 @@ export const workspaceRoutes: RouteRecordRaw[] = [
     component: () => import('./pages/WorkspaceIndex.vue'),
   },
   {
-    path: '/management',
+    path: '/workspace/management',
     name: 'WorkspaceManagement',
-    meta: { roles: ['admin', 'manager'] },
-    component: () => import('./pages/WorkspaceManagement.vue'),
+    meta: { requiresAuth: true },
+    component: () =>
+      import('../reservations/pages/StaffReservationsPage.vue'),
+  },
+  {
+    path: '/workspace/reservations',
+    name: 'StaffReservationsPage',
+    redirect: '/workspace/management',
+  },
+  {
+    path: '/management',
+    redirect: '/workspace/management',
+  },
+  {
+    path: '/staff/reservations',
+    redirect: '/workspace/management',
+  },
+  {
+    path: '/management/reservations',
+    redirect: '/workspace/management',
   },
   {
     path: '/admin',
