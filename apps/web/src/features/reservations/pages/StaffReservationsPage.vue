@@ -20,6 +20,7 @@ import type { FoodOrderItem } from '../types';
 import { calculatePreOrderDiscount } from '../data/payment';
 import TableBillModal from '../components/TableBillModal.vue';
 import { useCustomerReservationsStore } from '../data/reservations-store';
+import { FOOD_MENU_ITEMS } from '../data/food-menu';
 
 const queryClient = useQueryClient();
 
@@ -58,9 +59,45 @@ const reservationsQuery = useQuery({
   enabled: computed(() => !!selectedBranchId.value),
 });
 
-const reservations = computed<Reservation[]>(
-  () => reservationsQuery.data.value?.items ?? []
-);
+const reservations = computed<any[]>(() => {
+  const apiItems = reservationsQuery.data.value?.items ?? [];
+  const localItems = reservationsStore.reservations.value.filter(
+    (r) =>
+      !selectedBranchId.value ||
+      r.branchId === selectedBranchId.value ||
+      r.branchName.toLowerCase() === selectedBranch.value?.name.toLowerCase()
+  );
+
+  const combined = [...apiItems];
+  for (const loc of localItems) {
+    if (!combined.some((c) => c.id === loc.id)) {
+      combined.push({
+        id: loc.id,
+        branchId: loc.branchId,
+        tableId: loc.tableId,
+        startsAt: loc.startsAt,
+        endsAt: loc.endsAt,
+        checkedInAt: loc.checkedInAt,
+        completedAt: loc.completedAt,
+        partySize: loc.partySize,
+        status: loc.status,
+        customer: {
+          displayName: loc.customerName,
+          phone: loc.customerPhone,
+        } as any,
+        notes: loc.notes,
+        clientType: loc.clientType,
+        source: (loc.clientType === 'WALK_IN' ? 'WALK_IN' : 'ONLINE') as any,
+        hourlyRate: loc.hourlyRate,
+      } as any);
+    }
+  }
+
+  if (selectedStatus.value !== 'ALL') {
+    return combined.filter((r) => r.status === selectedStatus.value);
+  }
+  return combined;
+});
 
 // Format Timestamps
 function formatInterval(startsAt: string, endsAt: string): string {
@@ -74,6 +111,72 @@ function formatInterval(startsAt: string, endsAt: string): string {
   });
   const timeStr = `${s.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – ${e.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
   return `${dateStr}, ${timeStr}`;
+}
+
+// Staff Snack Tab Ordering
+const staffSnackReservation = ref<any>(null);
+const staffSnackQuantities = ref<Record<string, number>>({});
+
+function openStaffAddSnacks(res: any) {
+  staffSnackReservation.value = res;
+  staffSnackQuantities.value = {};
+}
+
+function getStaffSnackQty(itemId: string): number {
+  return staffSnackQuantities.value[itemId] || 0;
+}
+
+function adjustStaffSnackQty(item: any, delta: number) {
+  const current = getStaffSnackQty(item.id);
+  const next = Math.max(0, current + delta);
+  if (next === 0) {
+    delete staffSnackQuantities.value[item.id];
+  } else {
+    staffSnackQuantities.value[item.id] = next;
+  }
+}
+
+const staffSnackSelectedItems = computed(() => {
+  return Object.entries(staffSnackQuantities.value)
+    .filter(([_, qty]) => qty > 0)
+    .map(([id, qty]) => {
+      const item = FOOD_MENU_ITEMS.find((f) => f.id === id);
+      return {
+        item: {
+          id,
+          name: item?.name || id,
+          nameTh: item?.nameTh,
+          price: item?.price || 0,
+        },
+        quantity: qty,
+      };
+    });
+});
+
+const staffSnackSubtotal = computed(() => {
+  return staffSnackSelectedItems.value.reduce(
+    (sum, it) => sum + it.item.price * it.quantity,
+    0
+  );
+});
+
+function submitStaffSnackOrder() {
+  if (!staffSnackReservation.value || staffSnackSelectedItems.value.length === 0) return;
+  reservationsStore.addStaffSnackOrder(
+    staffSnackReservation.value.id,
+    staffSnackSelectedItems.value,
+    'Added by staff at counter'
+  );
+  staffSnackReservation.value = null;
+}
+
+function isWalkIn(res: any): boolean {
+  return (
+    res.source === 'WALK_IN' ||
+    res.clientType === 'WALK_IN' ||
+    (res.id && String(res.id).startsWith('walkin')) ||
+    (res.notes && String(res.notes).toLowerCase().includes('walk-in'))
+  );
 }
 
 // Staff Actions: Check-in, Cancel, No-Show
@@ -203,6 +306,7 @@ const walkInPhone = ref('');
 const walkInSelectedTable = ref<TableAvailability | null>(null);
 const walkInFood = ref<FoodOrderItem[]>([]);
 const walkInNotes = ref('');
+const walkInStartNow = ref(true);
 const walkInError = ref('');
 
 const walkInStartTimestamp = computed(() => {
@@ -262,33 +366,76 @@ async function handleStaffBooking() {
   if (!walkInSelectedTable.value) return;
   walkInError.value = '';
 
-  let notes = walkInNotes.value ? `${walkInNotes.value}\n` : '';
+  const startsNow = walkInStartNow.value;
+  const startsAtIso = startsNow ? new Date().toISOString() : walkInStartTimestamp.value;
+  const endsAtIso = startsNow
+    ? new Date(Date.now() + walkInDuration.value * 3600000).toISOString()
+    : walkInEndTimestamp.value;
+
+  const rateMinor = (walkInSelectedTable.value.hourlyRate as any)?.amountMinor;
+  const rate = rateMinor ? Number(rateMinor) / 100 : 200;
+
+  // Add to local store immediately as active walk-in session
+  const newSession = reservationsStore.startWalkInSession({
+    branchId: selectedBranchId.value,
+    branchName: selectedBranch.value?.name ?? 'Siam',
+    tableId: walkInSelectedTable.value.tableId,
+    tableLabel: walkInSelectedTable.value.label || `Table ${walkInSelectedTable.value.tableId}`,
+    partySize: walkInPartySize.value,
+    customerName: walkInCustomerName.value || 'Walk-in Guests',
+    customerPhone: `${walkInCountryCode.value} ${walkInPhone.value}`.trim() || undefined,
+    hourlyRate: rate,
+    durationHours: walkInDuration.value,
+  });
+
   if (walkInFood.value.length > 0) {
-    const foodSummary = walkInFood.value
-      .map((f) => `${f.quantity}x ${f.item.name}`)
-      .join(', ');
-    const discountCalc = calculatePreOrderDiscount(
-      walkInFood.value.reduce((a, b) => a + b.item.price * b.quantity, 0)
+    reservationsStore.addStaffSnackOrder(
+      newSession.id,
+      walkInFood.value.map((f) => ({
+        item: {
+          id: f.item.id,
+          name: f.item.name,
+          nameTh: f.item.nameTh,
+          price: f.item.price,
+        },
+        quantity: f.quantity,
+      })),
+      'Added during walk-in check-in'
     );
-    notes += `[Staff Pre-order (-10%)]: ${foodSummary} (฿${discountCalc.discountedTotal})`;
   }
 
-  const payload = {
-    source: 'WALK_IN',
-    tableId: walkInSelectedTable.value.tableId,
-    startsAt: walkInStartTimestamp.value,
-    endsAt: walkInEndTimestamp.value,
-    partySize: walkInPartySize.value,
-    customer: {
-      type: 'GUEST',
-      name: walkInCustomerName.value || 'Walk-in Guest',
-      phone: `${walkInCountryCode.value} ${walkInPhone.value}`.trim() || undefined,
-    },
-    games: [],
-    notes: notes.trim() || undefined,
-  };
+  try {
+    let notes = walkInNotes.value ? `${walkInNotes.value}\n` : '';
+    if (walkInFood.value.length > 0) {
+      const foodSummary = walkInFood.value
+        .map((f) => `${f.quantity}x ${f.item.name}`)
+        .join(', ');
+      const discountCalc = calculatePreOrderDiscount(
+        walkInFood.value.reduce((a, b) => a + b.item.price * b.quantity, 0)
+      );
+      notes += `[Staff Pre-order (-10%)]: ${foodSummary} (฿${discountCalc.discountedTotal})`;
+    }
 
-  await staffCreateMutation.mutateAsync(payload);
+    const payload = {
+      source: 'WALK_IN',
+      tableId: walkInSelectedTable.value.tableId,
+      startsAt: startsAtIso,
+      endsAt: endsAtIso,
+      partySize: walkInPartySize.value,
+      customer: {
+        type: 'GUEST',
+        name: walkInCustomerName.value || 'Walk-in Guests',
+        phone: `${walkInCountryCode.value} ${walkInPhone.value}`.trim() || undefined,
+      },
+      games: [],
+      notes: notes.trim() || undefined,
+    };
+    await staffCreateMutation.mutateAsync(payload);
+  } catch {
+    // Local store holds the active session
+  }
+
+  showWalkInModal.value = false;
 }
 
 function getCustomerName(c: any): string {
@@ -438,10 +585,14 @@ function formatStatus(status: string): string {
                 </div>
               </td>
 
-              <!-- Customer Details (International phone support) -->
+              <!-- Customer Details (International phone support + Client Type Badge) -->
               <td>
                 <div class="customer-cell">
-                  <span class="cust-name">{{ getCustomerName(res.customer) }}</span>
+                  <div class="cust-name-row">
+                    <span class="cust-name">{{ getCustomerName(res.customer) }}</span>
+                    <span v-if="isWalkIn(res)" class="client-type-badge walkin">Walk-in</span>
+                    <span v-else class="client-type-badge reserved">Reserved</span>
+                  </div>
                   <span v-if="getCustomerPhone(res.customer)" class="cust-phone">
                     <span class="gold-bullet">◆</span> {{ getCustomerPhone(res.customer) }}
                   </span>
@@ -500,6 +651,13 @@ function formatStatus(status: string): string {
                     <span class="playing-tag">
                       <span class="gold-bullet">◆</span> Currently Playing
                     </span>
+                    <button
+                      type="button"
+                      class="action-btn add-snack-btn"
+                      @click="openStaffAddSnacks(res)"
+                    >
+                      + Add Snacks/Drinks
+                    </button>
                     <button
                       type="button"
                       class="action-btn bill-btn"
@@ -626,6 +784,14 @@ function formatStatus(status: string): string {
               </div>
             </div>
 
+            <!-- Immediate Session Checkbox -->
+            <div class="form-field full-width">
+              <label class="walkin-now-toggle">
+                <input type="checkbox" v-model="walkInStartNow" />
+                <span><strong>Start session now</strong> (Guest is at the counter, table starts immediately)</span>
+              </label>
+            </div>
+
             <!-- Table Selection -->
             <div class="walkin-tables">
               <label class="form-label">Select Available Table:</label>
@@ -674,6 +840,77 @@ function formatStatus(status: string): string {
               <span v-if="staffCreateMutation.isPending.value">Saving Booking…</span>
               <span v-else>Confirm & Create Reservation</span>
             </button>
+          </div>
+        </div>
+      </div>
+      <!-- Staff Quick Add Snacks/Drinks Modal -->
+      <div v-if="staffSnackReservation" class="modal-backdrop" @click.self="staffSnackReservation = null">
+        <div class="modal-card snack-modal-card">
+          <div class="snack-modal-header">
+            <div>
+              <div class="snack-eyebrow">
+                <span class="gold-sparkle">✦</span>
+                <span>TABLE TAB / SNACK SERVICE</span>
+              </div>
+              <h3 class="snack-modal-title">Add Snacks & Drinks to Table</h3>
+              <p class="snack-modal-sub">
+                Table {{ staffSnackReservation.tableId }} • {{ getCustomerName(staffSnackReservation.customer) }}
+              </p>
+            </div>
+            <button type="button" class="close-x" @click="staffSnackReservation = null">✕</button>
+          </div>
+
+          <div class="snack-picker-body">
+            <div class="snack-items-list">
+              <div
+                v-for="item in FOOD_MENU_ITEMS"
+                :key="item.id"
+                class="snack-row-item"
+              >
+                <div class="snack-info">
+                  <span class="snack-name">{{ item.name }}</span>
+                  <span class="snack-price">฿{{ item.price }}</span>
+                </div>
+                <div class="snack-stepper">
+                  <button
+                    type="button"
+                    class="snack-step-btn"
+                    :disabled="getStaffSnackQty(item.id) <= 0"
+                    @click="adjustStaffSnackQty(item, -1)"
+                  >
+                    -
+                  </button>
+                  <span class="snack-qty-num">{{ getStaffSnackQty(item.id) }}</span>
+                  <button
+                    type="button"
+                    class="snack-step-btn plus"
+                    @click="adjustStaffSnackQty(item, 1)"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="snack-modal-footer">
+            <div class="snack-order-summary">
+              <span>Selected Total:</span>
+              <strong class="snack-total-val">฿{{ staffSnackSubtotal }}</strong>
+            </div>
+            <div class="snack-footer-actions">
+              <button type="button" class="btn btn-secondary" @click="staffSnackReservation = null">
+                Cancel
+              </button>
+              <button
+                type="button"
+                class="btn btn-primary"
+                :disabled="staffSnackSelectedItems.length === 0"
+                @click="submitStaffSnackOrder"
+              >
+                Add to Table Tab (฿{{ staffSnackSubtotal }})
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1269,4 +1506,214 @@ function formatStatus(status: string): string {
   transform: translateY(-1px);
 }
 
+
+.cust-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.client-type-badge {
+  font-size: 10.5px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 8px;
+  letter-spacing: 0.03em;
+}
+
+.client-type-badge.walkin {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.client-type-badge.reserved {
+  background: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.action-btn.add-snack-btn {
+  background: #142b20;
+  color: #ffd98a;
+  border: 1px solid #c6ad7a;
+  white-space: nowrap;
+}
+
+.action-btn.add-snack-btn:hover {
+  background: #1f3f30;
+}
+
+.walkin-now-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13.5px;
+  color: #92400e;
+}
+
+.walkin-now-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #142b20;
+  cursor: pointer;
+}
+
+/* Snack Modal */
+.snack-modal-card {
+  max-width: 520px;
+  width: 100%;
+}
+
+.snack-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 18px 22px 14px;
+  border-bottom: 1.5px solid #e7ded0;
+  background: #fdfbf7;
+}
+
+.snack-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #8c7649;
+  margin-bottom: 4px;
+}
+
+.gold-sparkle {
+  color: #c6ad7a;
+}
+
+.snack-modal-title {
+  margin: 0 0 2px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #142b20;
+}
+
+.snack-modal-sub {
+  margin: 0;
+  font-size: 13px;
+  color: #6a6252;
+}
+
+.snack-picker-body {
+  padding: 14px 22px;
+  max-height: 52vh;
+  overflow-y: auto;
+}
+
+.snack-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.snack-row-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #fcfaf6;
+  border: 1px solid #e7ded0;
+  border-radius: 8px;
+}
+
+.snack-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.snack-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #142b20;
+}
+
+.snack-price {
+  font-size: 13px;
+  font-weight: 800;
+  color: #8c7649;
+}
+
+.snack-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.snack-step-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid #c9bda7;
+  background: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  color: #142b20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.snack-step-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.snack-step-btn.plus {
+  background: #142b20;
+  color: #ffd98a;
+  border-color: #c6ad7a;
+}
+
+.snack-qty-num {
+  min-width: 20px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: #142b20;
+}
+
+.snack-modal-footer {
+  padding: 14px 22px 18px;
+  border-top: 1.5px solid #c6ad7a;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  gap: 12px;
+}
+
+.snack-order-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  color: #554e42;
+}
+
+.snack-total-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #142b20;
+}
+
+.snack-footer-actions {
+  display: flex;
+  gap: 8px;
+}
 </style>

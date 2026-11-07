@@ -15,6 +15,10 @@ export const workspaceRoutes: RouteRecordRaw[] = [
       import('../reservations/pages/StaffReservationsPage.vue'),
   },
   {
+    path: '/staff/reservations',
+    redirect: '/workspace/reservations',
+  },
+  {
     path: '/management',
     name: 'WorkspaceManagement',
     meta: { roles: ['admin', 'manager'] },

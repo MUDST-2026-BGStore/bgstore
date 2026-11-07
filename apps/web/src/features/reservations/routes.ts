@@ -22,5 +22,8 @@ export const staffReservationRoutes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
     component: () => import('./pages/StaffReservationsPage.vue'),
   },
+  {
+    path: '/staff/reservations',
+    redirect: '/workspace/reservations',
+  },
 ];
-

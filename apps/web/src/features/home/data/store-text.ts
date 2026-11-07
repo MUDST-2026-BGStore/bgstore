@@ -741,7 +741,26 @@ const thai: Record<string, string> = {
     'เซสชันเล่นเกมที่กำลังดำเนินอยู่',
   'Playing Now':
     'กำลังเล่นอยู่',
-
+  'Played Time:':
+    'เวลาเล่นจริง:',
+  'mins':
+    'นาที',
+  'Walk-in Session':
+    'ลูกค้า Walk-in',
+  'Reserved Client':
+    'ลูกค้าจองออนไลน์',
+  'Counter Payment Method:':
+    'ช่องทางการชำระเงินที่เคาน์เตอร์:',
+  'Card':
+    'บัตรเครดิต/เดบิต',
+  'Cash':
+    'เงินสด',
+  'PromptPay QR':
+    'พร้อมเพย์ QR',
+  'Actual Played Time Billed:':
+    'คิดค่าบริการตามเวลาเล่นจริง:',
+  'Late Arrival Adjustment: Booked {sched}, checked in at {checkin} ({late} min late). Billed for actual {mins} min played.':
+    'ปรับตามเวลามาถึงจริง: จองไว้ {sched} เช็คอินเวลา {checkin} (มาช้า {late} นาที) คิดค่าโต๊ะตามเวลาเล่นจริง {mins} นาที',
 };
 export function useStoreText() {
   const { locale } = useLocale();

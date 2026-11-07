@@ -52,19 +52,26 @@ export interface CustomerReservation {
   notes?: string;
   cancellationReason?: string;
   createdAt: string;
+  clientType?: 'RESERVED' | 'WALK_IN';
   hourlyRate?: number;
   preOrder?: CustomerReservationPreOrder;
   inPlayOrders?: InPlayOrder[];
 }
 
-const STORAGE_KEY = 'theparlor_customer_reservations_v2';
+const STORAGE_KEY = 'theparlor_customer_reservations_v3';
 
 function getInitialReservations(): CustomerReservation[] {
   const now = new Date();
 
-  // Active Ongoing Session (Checked-in 1 hour ago, currently playing!)
-  const activeStart = new Date(now.getTime() - 3600000 * 1.25);
-  const activeEnd = new Date(now.getTime() + 3600000 * 1.75);
+  // 1. TYPE A: Reserved Client (Late Arrival Example: Booked 1 hr ago, checked in 15 mins late!)
+  // Scheduled: 60 mins slot. Arrived 15 min late -> played 45 mins.
+  const bookedStart = new Date(now.getTime() - 60 * 60000);
+  const lateCheckIn = new Date(now.getTime() - 45 * 60000); // 15 mins late
+  const bookedEnd = new Date(bookedStart.getTime() + 60 * 60000); // ends around now
+
+  // 2. TYPE B: Walk-in Client (Started directly at counter 35 mins ago)
+  const walkinCheckIn = new Date(now.getTime() - 35 * 60000);
+  const walkinEnd = new Date(walkinCheckIn.getTime() + 120 * 60000); // 2 hours
 
   // Upcoming Tomorrow at 18:00
   const tomorrowStart = new Date(now);
@@ -94,31 +101,32 @@ function getInitialReservations(): CustomerReservation[] {
       branchName: 'Siam',
       tableId: 't-siam-1',
       tableLabel: 'The Emerald Salon (Table 1)',
-      startsAt: activeStart.toISOString(),
-      endsAt: activeEnd.toISOString(),
-      checkedInAt: activeStart.toISOString(),
+      startsAt: bookedStart.toISOString(),
+      endsAt: bookedEnd.toISOString(),
+      checkedInAt: lateCheckIn.toISOString(),
       partySize: 4,
       status: 'CHECKED_IN',
       customerName: 'Khun Parlor Member',
       customerPhone: '+66 81 234 5678',
-      hourlyRate: 200,
-      notes: '[Pre-order Paid QR (-10%)]: 2x Belgian Craft Truffle Fries, 2x Midnight Cold Brew Cascara',
+      clientType: 'RESERVED',
+      hourlyRate: 300,
+      notes: '[Pre-order Paid QR (-10%)]: 2x Coca-Cola Original, 2x Lay\'s Classic Rock Salt',
       createdAt: new Date(now.getTime() - 3600000 * 24).toISOString(),
       preOrder: {
         items: [
           {
-            item: { id: 'snack-1', name: 'Belgian Craft Truffle Fries', nameTh: 'เฟรนช์ฟรายส์ทรัฟเฟิลสไตล์เบลเยียม', price: 180 },
+            item: { id: 'bev-coca-cola', name: 'Coca-Cola Original (Can 325ml)', nameTh: 'โคคา-โคล่า รสชาติต้นตำรับ (กระป๋อง 325 มล.)', price: 35 },
             quantity: 2,
           },
           {
-            item: { id: 'drink-1', name: 'Midnight Cold Brew Cascara', nameTh: 'โคลด์บรูว์มิดไนท์ คาสคารา', price: 140 },
+            item: { id: 'snack-lays-classic', name: 'Lay\'s Classic Rock Salt (Big Bag 73g)', nameTh: 'เลย์ รสมันฝรั่งแท้ คลาสสิก (ซองใหญ่ 73 กรัม)', price: 40 },
             quantity: 2,
           },
         ],
-        subtotal: 640,
+        subtotal: 150,
         discountRate: 0.1,
-        discountAmount: 64,
-        discountedTotal: 576,
+        discountAmount: 15,
+        discountedTotal: 135,
         paid: true,
         paymentMethod: 'promptpay_qr',
         paymentReference: 'TH-PRM-LIVE',
@@ -128,31 +136,58 @@ function getInitialReservations(): CustomerReservation[] {
         {
           id: 'ord-live-1',
           orderNumber: 'TAB-01',
-          createdAt: new Date(now.getTime() - 3600000 * 0.75).toISOString(),
+          createdAt: new Date(now.getTime() - 25 * 60000).toISOString(),
           items: [
             {
-              item: { id: 'snack-3', name: 'Crispy Calamari & Citrus Dip', nameTh: 'ปลาหมึกทอดกรอบซอสดิปซิตรัส', price: 210 },
+              item: { id: 'bev-singha-soda', name: 'Singha Soda Water (Glass Bottle 325ml)', nameTh: 'สิงห์โซดา (ขวดแก้ว 325 มล.)', price: 25 },
               quantity: 2,
             },
+            {
+              item: { id: 'snack-pringles-sour-cream', name: 'Pringles Sour Cream & Onion (Canister 107g)', nameTh: 'พริงเกิลส์ รสซาวครีมและหัวหอม (กระป๋อง 107 กรัม)', price: 65 },
+              quantity: 1,
+            },
           ],
-          subtotal: 420,
+          subtotal: 115,
           status: 'SERVED',
           paid: false,
           paymentMethod: 'on_tab',
-          notes: 'Extra lime wedge',
         },
+      ],
+    },
+    {
+      id: 'walkin-siam-live',
+      branchId: '00000000-0000-0000-0000-000000000001',
+      branchName: 'Siam',
+      tableId: 't-siam-2',
+      tableLabel: 'The Royal Library (Table 2)',
+      startsAt: walkinCheckIn.toISOString(),
+      endsAt: walkinEnd.toISOString(),
+      checkedInAt: walkinCheckIn.toISOString(),
+      partySize: 3,
+      status: 'CHECKED_IN',
+      customerName: 'Walk-in Guests',
+      customerPhone: '+66 89 765 4321',
+      clientType: 'WALK_IN',
+      hourlyRate: 200,
+      notes: 'Direct counter walk-in. Snacks added by staff.',
+      createdAt: walkinCheckIn.toISOString(),
+      inPlayOrders: [
         {
-          id: 'ord-live-2',
-          orderNumber: 'TAB-02',
-          createdAt: new Date(now.getTime() - 3600000 * 0.2).toISOString(),
+          id: 'ord-walkin-1',
+          orderNumber: 'COUNTER-01',
+          createdAt: new Date(now.getTime() - 20 * 60000).toISOString(),
           items: [
             {
-              item: { id: 'drink-3', name: 'Lychee Rose Sparkling Elixir', nameTh: 'ลิ้นจี่กุหลาบ สปาร์กลิ้ง เอลิกเซอร์', price: 150 },
+              item: { id: 'bev-coke-zero', name: 'Coca-Cola Zero Sugar (Can 325ml)', nameTh: 'โค้กไม่มีน้ำตาล ซีโร่ (กระป๋อง 325 มล.)', price: 35 },
               quantity: 2,
             },
+            {
+              item: { id: 'snack-lays-seaweed', name: 'Lay\'s Nori Seaweed (Big Bag 73g)', nameTh: 'เลย์ รสโนริสาหร่าย (ซองใหญ่ 73 กรัม)', price: 40 },
+              quantity: 1,
+            },
           ],
-          subtotal: 300,
-          status: 'PREPARING',
+          subtotal: 110,
+          status: 'SERVED',
           paid: false,
           paymentMethod: 'on_tab',
         },
@@ -162,32 +197,33 @@ function getInitialReservations(): CustomerReservation[] {
       id: 'res-thm-9812',
       branchId: '00000000-0000-0000-0000-000000000001',
       branchName: 'Siam',
-      tableId: 't-siam-2',
-      tableLabel: 'The Royal Library (Table 3)',
+      tableId: 't-siam-3',
+      tableLabel: 'The Grand Ballroom (Table 3)',
       startsAt: tomorrowStart.toISOString(),
       endsAt: tomorrowEnd.toISOString(),
-      partySize: 4,
+      partySize: 6,
       status: 'CONFIRMED',
       customerName: 'Khun Parlor Member',
       customerPhone: '+66 81 234 5678',
-      hourlyRate: 200,
-      notes: '[Pre-order Paid QR (-10%)]: 2x Belgian Craft Truffle Fries, 4x Midnight Cold Brew Cascara (Ref: TH-PRM-9812)',
+      clientType: 'RESERVED',
+      hourlyRate: 250,
+      notes: '[Pre-order Paid QR (-10%)]: 4x Oishi Green Tea Honey Lemon, 2x Glico Pocky Chocolate (Ref: TH-PRM-9812)',
       createdAt: new Date(now.getTime() - 3600000 * 4).toISOString(),
       preOrder: {
         items: [
           {
-            item: { id: 'snack-1', name: 'Belgian Craft Truffle Fries', nameTh: 'เฟรนช์ฟรายส์ทรัฟเฟิลสไตล์เบลเยียม', price: 180 },
-            quantity: 2,
-          },
-          {
-            item: { id: 'drink-1', name: 'Midnight Cold Brew Cascara', nameTh: 'โคลด์บรูว์มิดไนท์ คาสคารา', price: 140 },
+            item: { id: 'bev-oishi-lemon', name: 'Oishi Green Tea Honey Lemon (Bottle 350ml)', nameTh: 'ชาเขียวโออิชิ น้ำผึ้งผสมมะนาว (ขวด 350 มล.)', price: 30 },
             quantity: 4,
           },
+          {
+            item: { id: 'snack-pocky-chocolate', name: 'Glico Pocky Chocolate (Box 45g)', nameTh: 'กูลิโกะ ป๊อกกี้ บิสกิตแท่งเคลือบช็อกโกแลต (กล่อง 45 กรัม)', price: 25 },
+            quantity: 2,
+          },
         ],
-        subtotal: 920,
+        subtotal: 170,
         discountRate: 0.1,
-        discountAmount: 92,
-        discountedTotal: 828,
+        discountAmount: 17,
+        discountedTotal: 153,
         paid: true,
         paymentMethod: 'promptpay_qr',
         paymentReference: 'TH-PRM-9812',
@@ -199,55 +235,33 @@ function getInitialReservations(): CustomerReservation[] {
       branchId: '00000000-0000-0000-0000-000000000002',
       branchName: 'Ari',
       tableId: 't-ari-1',
-      tableLabel: 'Ari Garden Veranda (Table 1)',
+      tableLabel: 'The Garden Conservatory (Table 1)',
       startsAt: pastStart.toISOString(),
       endsAt: pastEnd.toISOString(),
       checkedInAt: pastStart.toISOString(),
       completedAt: pastEnd.toISOString(),
-      partySize: 2,
+      partySize: 4,
       status: 'COMPLETED',
       customerName: 'Khun Parlor Member',
-      customerPhone: '+66 81 234 5678',
-      hourlyRate: 180,
-      notes: '[Pre-order Paid QR (-10%)]: 1x Artisan Matcha Basque Cheesecake, 2x Lychee Rose Sparkling Elixir (Ref: TH-PRM-7401)',
-      createdAt: pastStart.toISOString(),
-      preOrder: {
-        items: [
-          {
-            item: { id: 'dessert-1', name: 'Artisan Matcha Basque Cheesecake', nameTh: 'มัทฉะบาสก์ชีสเค้กพรีเมียม', price: 195 },
-            quantity: 1,
-          },
-          {
-            item: { id: 'drink-3', name: 'Lychee Rose Sparkling Elixir', nameTh: 'ลิ้นจี่กุหลาบ สปาร์กลิ้ง เอลิกเซอร์', price: 150 },
-            quantity: 2,
-          },
-        ],
-        subtotal: 495,
-        discountRate: 0.1,
-        discountAmount: 49.5,
-        discountedTotal: 445.5,
-        paid: true,
-        paymentMethod: 'promptpay_qr',
-        paymentReference: 'TH-PRM-7401',
-        paidAtTimestamp: pastStart.toISOString(),
-      },
+      clientType: 'RESERVED',
+      hourlyRate: 200,
+      notes: 'Completed session. Settled at counter.',
+      createdAt: new Date(now.getTime() - 3600000 * 72).toISOString(),
     },
     {
-      id: 'res-thm-6120',
-      branchId: '00000000-0000-0000-0000-000000000003',
-      branchName: 'Riverside',
-      tableId: 't-riv-2',
-      tableLabel: 'Chao Phraya Lounge (Table 2)',
+      id: 'res-thm-5102',
+      branchId: '00000000-0000-0000-0000-000000000001',
+      branchName: 'Siam',
+      tableId: 't-siam-4',
+      tableLabel: 'The Mezzanine Lounge (Table 4)',
       startsAt: lastWeekStart.toISOString(),
       endsAt: lastWeekEnd.toISOString(),
-      partySize: 6,
+      partySize: 2,
       status: 'CANCELLED',
-      cancellationReason: 'Schedule conflict with work event',
       customerName: 'Khun Parlor Member',
-      customerPhone: '+66 81 234 5678',
-      hourlyRate: 220,
-      notes: 'Initial booking cancelled by customer.',
-      createdAt: lastWeekStart.toISOString(),
+      clientType: 'RESERVED',
+      hourlyRate: 150,
+      createdAt: new Date(now.getTime() - 3600000 * 168).toISOString(),
     },
   ];
 }
@@ -260,17 +274,18 @@ function loadReservations(): CustomerReservation[] {
       saveReservations(initial);
       return initial;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : getInitialReservations();
   } catch {
     return getInitialReservations();
   }
 }
 
-function saveReservations(items: CustomerReservation[]): void {
+function saveReservations(list: CustomerReservation[]): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  } catch (e) {
-    console.error('Failed to save customer reservations to localStorage', e);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  } catch {
+    // Ignore storage quota errors
   }
 }
 
@@ -283,15 +298,58 @@ export function useCustomerReservationsStore() {
   );
 
   function addReservation(reservation: CustomerReservation) {
+    if (!reservation.clientType) {
+      reservation.clientType = 'RESERVED';
+    }
     reservationsList.value = [reservation, ...reservationsList.value];
     saveReservations(reservationsList.value);
+  }
+
+  function startWalkInSession(params: {
+    branchId: string;
+    branchName: string;
+    tableId: string;
+    tableLabel: string;
+    partySize: number;
+    customerName: string;
+    customerPhone?: string;
+    hourlyRate?: number;
+    durationHours?: number;
+  }): CustomerReservation {
+    const now = new Date();
+    const duration = params.durationHours || 2;
+    const endsAt = new Date(now.getTime() + duration * 3600000);
+
+    const newWalkIn: CustomerReservation = {
+      id: `walkin-${Date.now().toString(36)}`,
+      branchId: params.branchId,
+      branchName: params.branchName,
+      tableId: params.tableId,
+      tableLabel: params.tableLabel,
+      startsAt: now.toISOString(),
+      endsAt: endsAt.toISOString(),
+      checkedInAt: now.toISOString(),
+      partySize: params.partySize,
+      status: 'CHECKED_IN',
+      customerName: params.customerName || 'Walk-in Guests',
+      customerPhone: params.customerPhone,
+      clientType: 'WALK_IN',
+      hourlyRate: params.hourlyRate || 200,
+      notes: 'Counter Walk-in Session',
+      createdAt: now.toISOString(),
+      inPlayOrders: [],
+    };
+
+    reservationsList.value = [newWalkIn, ...reservationsList.value];
+    saveReservations(reservationsList.value);
+    return newWalkIn;
   }
 
   function cancelReservation(reservationId: string, reason?: string) {
     const target = reservationsList.value.find((r) => r.id === reservationId);
     if (target) {
       target.status = 'CANCELLED';
-      target.cancellationReason = reason || 'Cancelled by customer';
+      target.cancellationReason = reason || undefined;
       saveReservations([...reservationsList.value]);
     }
   }
@@ -322,13 +380,14 @@ export function useCustomerReservationsStore() {
         target.inPlayOrders = [];
       }
       const orderCount = target.inPlayOrders.length + 1;
+      const prefix = target.clientType === 'WALK_IN' ? 'COUNTER' : 'TAB';
       const newOrder: InPlayOrder = {
         id: `ord-${Date.now().toString(36)}`,
-        orderNumber: `TAB-${String(orderCount).padStart(2, '0')}`,
+        orderNumber: `${prefix}-${String(orderCount).padStart(2, '0')}`,
         createdAt: new Date().toISOString(),
         items: order.items,
         subtotal: order.subtotal,
-        status: 'RECEIVED',
+        status: 'SERVED',
         paid: order.paid,
         paymentMethod: order.paymentMethod,
         paymentReference: order.paymentReference,
@@ -339,6 +398,21 @@ export function useCustomerReservationsStore() {
       return newOrder;
     }
     return null;
+  }
+
+  function addStaffSnackOrder(
+    reservationId: string,
+    items: PreOrderItemRecord[],
+    notes?: string
+  ) {
+    const subtotal = items.reduce((sum, it) => sum + it.item.price * it.quantity, 0);
+    return addInPlayOrder(reservationId, {
+      items,
+      subtotal,
+      paid: false,
+      paymentMethod: 'on_tab',
+      notes: notes || 'Added by staff at counter',
+    });
   }
 
   function updateInPlayOrderStatus(
@@ -356,7 +430,7 @@ export function useCustomerReservationsStore() {
     }
   }
 
-  function settleSessionBill(reservationId: string, paymentMethod = 'promptpay_qr') {
+  function settleSessionBill(reservationId: string, paymentMethod = 'counter') {
     const target = reservationsList.value.find((r) => r.id === reservationId);
     if (target) {
       target.status = 'COMPLETED';
@@ -366,7 +440,7 @@ export function useCustomerReservationsStore() {
           o.paid = true;
           o.status = 'SERVED';
           if (!o.paymentReference) {
-            o.paymentReference = `TAB-SETTLED-${Date.now().toString().slice(-4)}`;
+            o.paymentReference = `SETTLED-${Date.now().toString().slice(-4)}`;
           }
         });
       }
@@ -383,9 +457,11 @@ export function useCustomerReservationsStore() {
     reservations: allReservations,
     activeSession,
     addReservation,
+    startWalkInSession,
     cancelReservation,
     checkInReservation,
     addInPlayOrder,
+    addStaffSnackOrder,
     updateInPlayOrderStatus,
     settleSessionBill,
     resetToDefault,
