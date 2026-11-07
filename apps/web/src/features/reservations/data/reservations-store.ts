@@ -46,7 +46,7 @@ export interface CustomerReservation {
   checkedInAt?: string;
   completedAt?: string;
   partySize: number;
-  status: 'CONFIRMED' | 'CHECKED_IN' | 'COMPLETED' | 'CANCELLED';
+  status: 'CONFIRMED' | 'CHECKED_IN' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
   customerName: string;
   customerPhone?: string;
   notes?: string;
@@ -292,7 +292,33 @@ function saveReservations(list: CustomerReservation[]): void {
 const reservationsList = ref<CustomerReservation[]>(loadReservations());
 
 export function useCustomerReservationsStore() {
-  const allReservations = computed(() => reservationsList.value);
+  function autoCheckNoShows() {
+    const now = Date.now();
+    let updated = false;
+    for (const r of reservationsList.value) {
+      if (r.status === 'CONFIRMED' && !r.checkedInAt) {
+        const startMs = new Date(r.startsAt).getTime();
+        // If 15 minutes past start time and customer has not checked in
+        if (now - startMs > 15 * 60 * 1000) {
+          r.status = 'NO_SHOW';
+          const autoNote = '[System]: Customer did not arrive within 15 minutes. Auto-released table.';
+          r.notes = r.notes ? `${r.notes}\n${autoNote}` : autoNote;
+          updated = true;
+        }
+      }
+    }
+    if (updated) {
+      saveReservations([...reservationsList.value]);
+    }
+  }
+
+  // Check on store initialization
+  autoCheckNoShows();
+
+  const allReservations = computed(() => {
+    autoCheckNoShows();
+    return reservationsList.value;
+  });
   const activeSession = computed(() =>
     reservationsList.value.find((r) => r.status === 'CHECKED_IN')
   );
@@ -464,6 +490,7 @@ export function useCustomerReservationsStore() {
     addStaffSnackOrder,
     updateInPlayOrderStatus,
     settleSessionBill,
+    autoCheckNoShows,
     resetToDefault,
   };
 }

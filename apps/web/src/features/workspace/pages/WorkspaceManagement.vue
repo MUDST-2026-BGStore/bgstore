@@ -18,7 +18,7 @@ const upcomingCount = computed(() => {
 <template>
   <div class="branch-mgmt-landing">
     <div class="container">
-      <header class="page-header">
+      <header class="console-header-block">
         <div class="header-titles">
           <div class="header-eyebrow">
             <span class="gold-sparkle">✦</span>
@@ -110,8 +110,8 @@ const upcomingCount = computed(() => {
 
 <style scoped>
 .branch-mgmt-landing {
-  background: #fbf9f4;
-  min-height: calc(100vh - 120px);
+  background: #142a1f;
+  min-height: calc(100vh - 80px);
   padding: 36px 16px 80px;
   color: #172b21;
   font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
@@ -122,11 +122,14 @@ const upcomingCount = computed(() => {
   margin: 0 auto;
 }
 
-/* Page Header */
-.page-header {
+/* Page Header Block */
+.console-header-block {
+  background: #ffffff;
+  border: 1.5px solid #c6ad7a;
+  border-radius: 12px;
+  padding: 24px 28px;
   margin-bottom: 28px;
-  border-bottom: 2px solid #c6ad7a;
-  padding-bottom: 20px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
 }
 
 .header-eyebrow {

@@ -13,9 +13,6 @@ import {
   type Reservation,
   type TableAvailability,
 } from '@theparlor/api-client';
-import FoodMenuPicker from '../components/FoodMenuPicker.vue';
-import type { FoodOrderItem } from '../types';
-import { calculatePreOrderDiscount } from '../data/payment';
 import TableBillModal from '../components/TableBillModal.vue';
 import { useCustomerReservationsStore } from '../data/reservations-store';
 import { FOOD_MENU_ITEMS } from '../data/food-menu';
@@ -61,8 +58,36 @@ const reservationsQuery = useQuery({
 
 const reservationsStore = useCustomerReservationsStore();
 
+// Auto 15-min No-Show Mutation
+const autoNoShowMutation = useMutation({
+  mutationFn: async ({ resId }: { resId: string }) => {
+    return markReservationNoShow(selectedBranchId.value, resId, {
+      reason: 'Automatic No-Show: Customer did not arrive within 15 minutes of reservation start time.',
+    });
+  },
+  onSuccess: () => {
+    void queryClient.invalidateQueries({ queryKey: ['listBranchReservations'] });
+  },
+});
+
 const allReservations = computed<any[]>(() => {
-  const apiItems = reservationsQuery.data.value?.items ?? [];
+  const now = Date.now();
+  const apiItems = (reservationsQuery.data.value?.items ?? []).map((r) => {
+    // 15-minute automatic No-Show rule for API reservations
+    if (r.status === 'CONFIRMED' && !r.checkedInAt) {
+      const startMs = new Date(r.startsAt).getTime();
+      if (now - startMs > 15 * 60 * 1000) {
+        void autoNoShowMutation.mutateAsync({ resId: r.id });
+        return {
+          ...r,
+          status: 'NO_SHOW',
+          notes: r.notes ? `${r.notes}\n[System]: Auto-marked No-Show after 15 min.` : '[System]: Auto-marked No-Show after 15 min.',
+        };
+      }
+    }
+    return r;
+  });
+
   const localItems = reservationsStore.reservations.value.filter(
     (r) =>
       !selectedBranchId.value ||
@@ -73,6 +98,15 @@ const allReservations = computed<any[]>(() => {
   const combined = [...apiItems];
   for (const loc of localItems) {
     if (!combined.some((c) => c.id === loc.id)) {
+      // 15-minute auto No-Show rule for local items
+      let status = loc.status;
+      if (status === 'CONFIRMED' && !loc.checkedInAt) {
+        const startMs = new Date(loc.startsAt).getTime();
+        if (now - startMs > 15 * 60 * 1000) {
+          status = 'NO_SHOW';
+        }
+      }
+
       combined.push({
         id: loc.id,
         branchId: loc.branchId,
@@ -82,7 +116,7 @@ const allReservations = computed<any[]>(() => {
         checkedInAt: loc.checkedInAt,
         completedAt: loc.completedAt,
         partySize: loc.partySize,
-        status: loc.status,
+        status,
         customer: {
           displayName: loc.customerName,
           phone: loc.customerPhone,
@@ -195,7 +229,7 @@ function isWalkIn(res: any): boolean {
   );
 }
 
-// Staff Snack Tab Ordering
+// Staff Snack Tab Ordering (for counter items added during session)
 const staffSnackReservation = ref<any>(null);
 const staffSnackQuantities = ref<Record<string, number>>({});
 
@@ -279,7 +313,7 @@ function openStaffBill(res: any) {
   }
 }
 
-// Mutations
+// Check In Mutation
 const actionInProgress = ref<string | null>(null);
 const actionError = ref<string>('');
 
@@ -308,15 +342,15 @@ async function handleCheckIn(res: Reservation) {
   }
 }
 
-// Reason Modal (for Cancel or No-Show)
-const modalAction = ref<'CANCEL' | 'NO_SHOW' | null>(null);
+// Cancel Modal (Customer requested cancel)
+const modalAction = ref<'CANCEL' | null>(null);
 const targetReservation = ref<Reservation | null>(null);
 const modalReason = ref<string>('');
 
-function openReasonModal(res: Reservation, action: 'CANCEL' | 'NO_SHOW') {
+function openCancelModal(res: Reservation) {
   targetReservation.value = res;
-  modalAction.value = action;
-  modalReason.value = action === 'CANCEL' ? 'Customer requested' : 'Customer did not arrive within 30 minutes';
+  modalAction.value = 'CANCEL';
+  modalReason.value = 'Customer called to cancel';
   actionError.value = '';
 }
 
@@ -331,65 +365,36 @@ const cancelMutation = useMutation({
   },
   onError: (err: any) => {
     actionError.value =
-      err?.response?.data?.message || err?.message || 'Action failed.';
+      err?.response?.data?.message || err?.message || 'Cancel failed.';
   },
 });
 
-const noShowMutation = useMutation({
-  mutationFn: async ({ resId, reason }: { resId: string; reason: string }) => {
-    return markReservationNoShow(selectedBranchId.value, resId, { reason });
-  },
-  onSuccess: () => {
-    modalAction.value = null;
-    targetReservation.value = null;
-    void queryClient.invalidateQueries({ queryKey: ['listBranchReservations'] });
-  },
-  onError: (err: any) => {
-    actionError.value =
-      err?.response?.data?.message || err?.message || 'Action failed.';
-  },
-});
-
-async function submitModalAction() {
+async function submitCancelAction() {
   if (!targetReservation.value || !modalAction.value) return;
   actionError.value = '';
-  if (modalAction.value === 'CANCEL') {
-    await cancelMutation.mutateAsync({
-      resId: targetReservation.value.id,
-      reason: modalReason.value,
-    });
-  } else {
-    await noShowMutation.mutateAsync({
-      resId: targetReservation.value.id,
-      reason: modalReason.value,
-    });
-  }
+  reservationsStore.cancelReservation(targetReservation.value.id, modalReason.value);
+  await cancelMutation.mutateAsync({
+    resId: targetReservation.value.id,
+    reason: modalReason.value,
+  });
 }
 
-// Staff Walk-in Modal
+// Staff Walk-in Modal (Instant Seating - NO Pre-Order Snacks)
 const showWalkInModal = ref(false);
-const walkInDate = ref(new Date().toISOString().split('T')[0]);
-const walkInTime = ref('15:00');
 const walkInDuration = ref(2);
 const walkInPartySize = ref(4);
 const walkInCustomerName = ref('');
 const walkInCountryCode = ref('+66');
 const walkInPhone = ref('');
 const walkInSelectedTable = ref<TableAvailability | null>(null);
-const walkInFood = ref<FoodOrderItem[]>([]);
-const walkInNotes = ref('');
-const walkInStartNow = ref(true);
 const walkInError = ref('');
 
 const walkInStartTimestamp = computed(() => {
-  if (!walkInDate.value || !walkInTime.value) return '';
-  const dt = new Date(`${walkInDate.value}T${walkInTime.value}:00`);
-  return isNaN(dt.getTime()) ? '' : dt.toISOString();
+  return new Date().toISOString();
 });
 
 const walkInEndTimestamp = computed(() => {
-  if (!walkInStartTimestamp.value) return '';
-  const dt = new Date(walkInStartTimestamp.value);
+  const dt = new Date();
   dt.setHours(dt.getHours() + walkInDuration.value);
   return dt.toISOString();
 });
@@ -413,7 +418,7 @@ const walkInAvailabilityQuery = useQuery({
       undefined,
       signal
     ),
-  enabled: computed(() => showWalkInModal.value && !!selectedBranchId.value && !!walkInStartTimestamp.value),
+  enabled: computed(() => showWalkInModal.value && !!selectedBranchId.value),
 });
 
 const walkInTables = computed(() =>
@@ -444,16 +449,14 @@ async function handleStaffBooking() {
   if (!walkInSelectedTable.value) return;
   walkInError.value = '';
 
-  const startsNow = walkInStartNow.value;
-  const startsAtIso = startsNow ? new Date().toISOString() : walkInStartTimestamp.value;
-  const endsAtIso = startsNow
-    ? new Date(Date.now() + walkInDuration.value * 3600000).toISOString()
-    : walkInEndTimestamp.value;
+  const startsAtIso = new Date().toISOString();
+  const endsAtIso = new Date(Date.now() + walkInDuration.value * 3600000).toISOString();
 
   const rateMinor = (walkInSelectedTable.value.hourlyRate as any)?.amountMinor;
   const rate = rateMinor ? Number(rateMinor) / 100 : 200;
 
-  const newSession = reservationsStore.startWalkInSession({
+  // Immediate walk-in session seated at the counter
+  reservationsStore.startWalkInSession({
     branchId: selectedBranchId.value,
     branchName: selectedBranch.value?.name ?? 'Siam',
     tableId: walkInSelectedTable.value.tableId,
@@ -465,34 +468,7 @@ async function handleStaffBooking() {
     durationHours: walkInDuration.value,
   });
 
-  if (walkInFood.value.length > 0) {
-    reservationsStore.addStaffSnackOrder(
-      newSession.id,
-      walkInFood.value.map((f) => ({
-        item: {
-          id: f.item.id,
-          name: f.item.name,
-          nameTh: f.item.nameTh,
-          price: f.item.price,
-        },
-        quantity: f.quantity,
-      })),
-      'Added during walk-in check-in'
-    );
-  }
-
   try {
-    let notes = walkInNotes.value ? `${walkInNotes.value}\n` : '';
-    if (walkInFood.value.length > 0) {
-      const foodSummary = walkInFood.value
-        .map((f) => `${f.quantity}x ${f.item.name}`)
-        .join(', ');
-      const discountCalc = calculatePreOrderDiscount(
-        walkInFood.value.reduce((a, b) => a + b.item.price * b.quantity, 0)
-      );
-      notes += `[Staff Pre-order (-10%)]: ${foodSummary} (฿${discountCalc.discountedTotal})`;
-    }
-
     const payload = {
       source: 'WALK_IN',
       tableId: walkInSelectedTable.value.tableId,
@@ -505,7 +481,7 @@ async function handleStaffBooking() {
         phone: `${walkInCountryCode.value} ${walkInPhone.value}`.trim() || undefined,
       },
       games: [],
-      notes: notes.trim() || undefined,
+      notes: 'Counter Walk-in Session',
     };
     await staffCreateMutation.mutateAsync(payload);
   } catch {
@@ -536,7 +512,7 @@ function formatStatus(status: string): string {
       case 'CANCELLED':
         return 'ยกเลิกแล้ว';
       case 'NO_SHOW':
-        return 'ไม่มาตามนัด';
+        return 'ไม่มาตามนัด (อัตโนมัติ)';
       case 'PENDING':
         return 'รอยืนยัน';
       default:
@@ -553,7 +529,7 @@ function formatStatus(status: string): string {
     case 'CANCELLED':
       return 'Cancelled';
     case 'NO_SHOW':
-      return 'No-Show';
+      return 'Auto No-Show';
     case 'PENDING':
       return 'Pending';
     default:
@@ -568,8 +544,8 @@ function formatStatus(status: string): string {
 <template>
   <div class="staff-console-page">
     <div class="container">
-      <!-- Page Header matching Customer Reservation styling -->
-      <header class="page-header">
+      <!-- Elevated Header Block on Green Canvas -->
+      <header class="console-header-block">
         <div class="header-titles">
           <div class="header-eyebrow">
             <span class="gold-sparkle">✦</span>
@@ -577,7 +553,7 @@ function formatStatus(status: string): string {
           </div>
           <h1 class="page-title">Branch Floor & Reservations</h1>
           <p class="page-subtitle">
-            Manage live gaming sessions, seat walk-in guests, log refreshments, and check out bills.
+            Manage live table sessions, seat walk-in guests, log refreshments, and check out bills.
           </p>
         </div>
 
@@ -601,7 +577,7 @@ function formatStatus(status: string): string {
         </div>
       </header>
 
-      <!-- Operational View Switcher & Shift Metrics -->
+      <!-- Operational View Switcher Block -->
       <div class="filters-card">
         <div class="filter-group">
           <span class="filter-label">View:</span>
@@ -677,7 +653,7 @@ function formatStatus(status: string): string {
               <line x1="9" y1="4" x2="9" y2="20" />
             </svg>
           </div>
-          <h3 class="empty-title">All Tables Are Open</h3>
+          <h3 class="empty-title">All Tables Are Available</h3>
           <p class="empty-text">
             No active gaming sessions currently running at {{ selectedBranch?.name || 'this branch' }}. Ready to seat walk-in guests or check in bookings!
           </p>
@@ -819,7 +795,7 @@ function formatStatus(status: string): string {
         <div v-if="upcomingReservations.length === 0" class="empty-reservations-box">
           <div class="empty-icon-wrap">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <rect x="3" y="4" width="18" height="18" rx="2" />
               <line x1="16" y1="2" x2="16" y2="6" />
               <line x1="8" y1="2" x2="8" y2="6" />
               <line x1="3" y1="10" x2="21" y2="10" />
@@ -846,6 +822,9 @@ function formatStatus(status: string): string {
                 <span class="ref-badge">Ref: {{ res.id }}</span>
                 <span class="client-type-tag reserved">
                   <span class="gold-bullet">◆</span> Reserved Client
+                </span>
+                <span class="auto-noshow-pill">
+                  Auto No-Show after 15m
                 </span>
               </div>
               <span class="status-badge badge-confirmed">
@@ -900,16 +879,9 @@ function formatStatus(status: string): string {
                 <button
                   type="button"
                   class="btn btn-secondary"
-                  @click="openReasonModal(res, 'CANCEL')"
+                  @click="openCancelModal(res)"
                 >
                   Cancel
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-secondary"
-                  @click="openReasonModal(res, 'NO_SHOW')"
-                >
-                  Mark No-Show
                 </button>
               </div>
             </div>
@@ -1030,20 +1002,18 @@ function formatStatus(status: string): string {
         @settled="staffBillReservation = null; queryClient.invalidateQueries({ queryKey: ['listBranchReservations'] })"
       />
 
-      <!-- Action Reason Modal (Cancel / No Show) -->
+      <!-- Cancel Confirmation Modal -->
       <Transition name="fade">
         <div v-if="modalAction" class="modal-overlay" @click.self="modalAction = null">
           <div class="modal-card">
-            <h3 class="modal-heading">
-              {{ modalAction === 'CANCEL' ? 'Cancel Reservation' : 'Mark as No-Show' }}
-            </h3>
+            <h3 class="modal-heading">Cancel Reservation</h3>
             <p class="modal-desc">
-              Update status for Reservation Ref <strong>{{ targetReservation?.id }}</strong> at
-              {{ selectedBranch?.name }}.
+              Cancel Reservation Ref <strong>{{ targetReservation?.id }}</strong> at
+              {{ selectedBranch?.name }}. Table will be made available immediately.
             </p>
 
             <div class="form-group">
-              <label for="action-reason" class="modal-label">Reason for record:</label>
+              <label for="action-reason" class="modal-label">Cancellation reason:</label>
               <input
                 id="action-reason"
                 v-model="modalReason"
@@ -1055,39 +1025,41 @@ function formatStatus(status: string): string {
 
             <div class="modal-buttons">
               <button type="button" class="btn btn-secondary" @click="modalAction = null">
-                Close
+                Keep Reservation
               </button>
               <button
                 type="button"
-                class="btn"
-                :class="modalAction === 'CANCEL' ? 'btn-danger' : 'btn-primary'"
-                :disabled="cancelMutation.isPending.value || noShowMutation.isPending.value"
-                @click="submitModalAction"
+                class="btn btn-danger"
+                :disabled="cancelMutation.isPending.value"
+                @click="submitCancelAction"
               >
-                Confirm {{ modalAction === 'CANCEL' ? 'Cancellation' : 'No-Show' }}
+                Confirm Cancellation
               </button>
             </div>
           </div>
         </div>
       </Transition>
 
-      <!-- Staff Walk-in Seating Modal -->
+      <!-- Staff Walk-in Seating Modal (NO PRE-ORDER SNACKS) -->
       <Transition name="fade">
         <div v-if="showWalkInModal" class="modal-overlay" @click.self="showWalkInModal = false">
           <div class="modal-card walkin-card">
             <div class="walkin-header">
               <div class="header-eyebrow">
                 <span class="gold-sparkle">✦</span>
-                <span>QUICK WALK-IN SEATING</span>
+                <span>INSTANT WALK-IN SEATING</span>
               </div>
               <h3 class="modal-heading">Seat Walk-in Table</h3>
+              <p class="modal-desc">
+                Select an available table to begin playing immediately. Drinks & snacks can be ordered at the counter during the session.
+              </p>
             </div>
 
             <div class="walkin-body">
               <div class="form-section">
-                <label class="modal-label">Available Tables at {{ selectedBranch?.name }}:</label>
+                <label class="modal-label">Select Available Table at {{ selectedBranch?.name }}:</label>
                 <div v-if="walkInTables.length === 0" class="no-tables">
-                  Loading table availability...
+                  Checking table availability...
                 </div>
                 <div v-else class="tables-grid">
                   <button
@@ -1149,17 +1121,6 @@ function formatStatus(status: string): string {
                   placeholder="Walk-in Guests"
                   class="modal-input"
                 />
-              </div>
-
-              <div class="form-section">
-                <details class="preorder-details">
-                  <summary class="details-summary">
-                    + Add Packaged Refreshments (-10% Pre-order Discount)
-                  </summary>
-                  <div class="picker-wrap">
-                    <FoodMenuPicker v-model="walkInFood" />
-                  </div>
-                </details>
               </div>
 
               <div v-if="walkInError" class="alert-box">{{ walkInError }}</div>
@@ -1256,9 +1217,10 @@ function formatStatus(status: string): string {
 </template>
 
 <style scoped>
+/* Signature Deep Parlor Forest Green Background */
 .staff-console-page {
-  background: #fbf9f4;
-  min-height: calc(100vh - 120px);
+  background: #142a1f;
+  min-height: calc(100vh - 80px);
   padding: 36px 16px 80px;
   color: #172b21;
   font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
@@ -1269,14 +1231,17 @@ function formatStatus(status: string): string {
   margin: 0 auto;
 }
 
-/* Page Header */
-.page-header {
+/* Elevated White Blocks on Green Background */
+.console-header-block {
+  background: #ffffff;
+  border: 1.5px solid #c6ad7a;
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 28px;
-  border-bottom: 2px solid #c6ad7a;
-  padding-bottom: 20px;
   gap: 20px;
   flex-wrap: wrap;
 }
@@ -1299,7 +1264,7 @@ function formatStatus(status: string): string {
 
 .page-title {
   margin: 0 0 6px;
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 800;
   color: #142b20;
   letter-spacing: -0.02em;
@@ -1397,17 +1362,17 @@ function formatStatus(status: string): string {
   color: #ffffff;
 }
 
-/* Filter Card & Tabs */
+/* Filter Card Block */
 .filters-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
   background: #ffffff;
-  border: 1px solid #ded5c3;
-  border-radius: 10px;
-  padding: 14px 18px;
+  border: 1.5px solid #ded5c3;
+  border-radius: 12px;
+  padding: 14px 20px;
   margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(32, 60, 48, 0.04);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.22);
   gap: 16px;
   flex-wrap: wrap;
 }
@@ -1435,7 +1400,7 @@ function formatStatus(status: string): string {
   background: #f7f3ea;
   border: 1px solid #dcd1be;
   border-radius: 20px;
-  padding: 5px 12px;
+  padding: 6px 14px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
@@ -1501,7 +1466,7 @@ function formatStatus(status: string): string {
   border-radius: 12px;
   padding: 52px 20px;
   text-align: center;
-  margin-top: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
 .empty-icon-wrap {
@@ -1534,7 +1499,7 @@ function formatStatus(status: string): string {
   border: 1.5px solid #ded5c3;
   border-radius: 12px;
   padding: 22px 24px;
-  box-shadow: 0 4px 16px rgba(20, 43, 32, 0.05);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -1543,7 +1508,7 @@ function formatStatus(status: string): string {
 
 .reservation-card:hover {
   border-color: #c6ad7a;
-  box-shadow: 0 8px 24px rgba(20, 43, 32, 0.1), 0 0 12px rgba(198, 173, 122, 0.12);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3), 0 0 12px rgba(198, 173, 122, 0.16);
   transform: translateY(-2px);
 }
 
@@ -1609,6 +1574,16 @@ function formatStatus(status: string): string {
   background: #f0f7f2;
   border: 1px solid #c8e6d2;
   color: #145e31;
+}
+
+.auto-noshow-pill {
+  font-size: 11px;
+  color: #b45309;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-weight: 700;
 }
 
 /* Status Badges */
@@ -1743,7 +1718,7 @@ function formatStatus(status: string): string {
   font-weight: 800;
 }
 
-/* Preorder Section */
+/* Preorder / Tab Section */
 .preorder-section {
   background: #fdfcf9;
   border: 1px solid #e0d5c1;
@@ -1876,7 +1851,7 @@ function formatStatus(status: string): string {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(18, 36, 28, 0.65);
+  background: rgba(10, 24, 17, 0.75);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1891,15 +1866,15 @@ function formatStatus(status: string): string {
   padding: 28px 24px;
   max-width: 480px;
   width: 100%;
-  box-shadow: 0 12px 32px rgba(20, 43, 32, 0.2);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
 }
 
 .walkin-card {
-  max-width: 620px;
+  max-width: 580px;
 }
 
 .snack-card {
-  max-width: 500px;
+  max-width: 480px;
 }
 
 .walkin-header {
@@ -1946,7 +1921,7 @@ function formatStatus(status: string): string {
 /* Walkin Table Selector Grid */
 .tables-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 10px;
 }
 
@@ -2040,25 +2015,6 @@ function formatStatus(status: string): string {
 
 .step-val.small {
   font-size: 13.5px;
-}
-
-.preorder-details {
-  border: 1px dashed #dcd1be;
-  border-radius: 8px;
-  padding: 10px 14px;
-  background: #fcfaf6;
-  margin-top: 14px;
-}
-
-.details-summary {
-  font-size: 13px;
-  font-weight: 700;
-  color: #142b20;
-  cursor: pointer;
-}
-
-.picker-wrap {
-  margin-top: 12px;
 }
 
 /* Snack Modal List */
