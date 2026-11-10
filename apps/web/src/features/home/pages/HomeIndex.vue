@@ -21,21 +21,52 @@ import {
 const compact = ref(false);
 const filterDialog = ref<HTMLDialogElement>();
 const searchInput = ref<HTMLInputElement>();
+const catalogHeading = ref<HTMLElement>();
+const catalogLayout = ref<HTMLElement>();
+let sidebarFrame: number | undefined;
+let headingObserver: ResizeObserver | undefined;
 let mobileLayout: MediaQueryList | undefined;
+function measureSidebar() {
+  const layout = catalogLayout.value;
+  if (!layout || compact.value) return;
+  // Measure the grid rather than the sticky sidebar, whose height changes here.
+  const top = Math.round(layout.getBoundingClientRect().top);
+  layout.style.setProperty('--catalog-layout-top', `${top}px`);
+}
+function scheduleSidebarMeasure() {
+  if (sidebarFrame !== undefined || compact.value) return;
+  sidebarFrame = window.requestAnimationFrame(() => {
+    sidebarFrame = undefined;
+    measureSidebar();
+  });
+}
 function syncLayout() {
   compact.value = mobileLayout?.matches ?? false;
   if (!compact.value && filterDialog.value?.open) {
     filterDialog.value.close();
     searchInput.value?.focus({ preventScroll: true });
   }
+  measureSidebar();
 }
 onMounted(() => {
   if (typeof window.matchMedia !== 'function') return;
   mobileLayout = window.matchMedia('(max-width: 700px)');
   syncLayout();
   mobileLayout.addEventListener('change', syncLayout);
+  window.addEventListener('scroll', scheduleSidebarMeasure, { passive: true });
+  window.addEventListener('resize', scheduleSidebarMeasure);
+  if (catalogHeading.value && typeof ResizeObserver !== 'undefined') {
+    headingObserver = new ResizeObserver(scheduleSidebarMeasure);
+    headingObserver.observe(catalogHeading.value);
+  }
 });
-onBeforeUnmount(() => mobileLayout?.removeEventListener('change', syncLayout));
+onBeforeUnmount(() => {
+  mobileLayout?.removeEventListener('change', syncLayout);
+  window.removeEventListener('scroll', scheduleSidebarMeasure);
+  window.removeEventListener('resize', scheduleSidebarMeasure);
+  headingObserver?.disconnect();
+  if (sidebarFrame !== undefined) window.cancelAnimationFrame(sidebarFrame);
+});
 function openFilters() {
   if (compact.value) filterDialog.value?.showModal();
 }
@@ -112,7 +143,7 @@ function markImageFailed(url: string) {
       {{ t('Sign-in failed. Open Account to try again.') }}
     </p>
     <section id="collection" aria-labelledby="collection-title">
-      <div class="catalog-heading">
+      <div ref="catalogHeading" class="catalog-heading">
         <h1 id="collection-title" class="sr-only">
           {{ t('Shop board games') }}
         </h1>
@@ -137,7 +168,7 @@ function markImageFailed(url: string) {
             :placeholder="t('Search games, designers, mechanics…')"
         /></label>
       </div>
-      <div class="catalog-layout">
+      <div ref="catalogLayout" class="catalog-layout">
         <aside
           id="desktop-catalog-filters"
           class="filters"
@@ -559,10 +590,13 @@ h1 {
 }
 .filters {
   position: sticky;
-  top: calc(var(--parlor-header-height, 64px) + var(--catalog-search-height));
+  --filter-sticky-top: calc(
+    var(--parlor-header-height, 64px) + var(--catalog-search-height)
+  );
+  top: var(--filter-sticky-top);
   align-self: start;
   max-height: calc(
-    100dvh - var(--parlor-header-height, 64px) - var(--catalog-search-height) -
+    100dvh - max(var(--filter-sticky-top), var(--catalog-layout-top, 0px)) -
       16px
   );
   overflow-y: auto;
