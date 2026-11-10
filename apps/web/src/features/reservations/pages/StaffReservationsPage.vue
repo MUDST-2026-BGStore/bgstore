@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import { RouterLink } from 'vue-router';
+import { useRoute, RouterLink } from 'vue-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import {
   listBranches,
@@ -20,9 +20,62 @@ import { useAuthStore } from '../../../shared/stores/auth';
 const queryClient = useQueryClient();
 const auth = useAuthStore();
 const reservationsStore = useCustomerReservationsStore();
+const route = useRoute();
 
 // Sidebar state & Role resolution
-const isSidebarCollapsed = ref(false);
+const SIDEBAR_STORAGE_KEY = 'theparlor.staff_sidebar_collapsed';
+
+function isManagementPath(path?: string, name?: string | symbol | null): boolean {
+  if (path && (path === '/workspace/management' || path.startsWith('/workspace/management'))) {
+    return true;
+  }
+  if (name === 'WorkspaceManagement' || name === 'StaffReservationsPage') {
+    return true;
+  }
+  return false;
+}
+
+function getInitialSidebarCollapsed(): boolean {
+  // Opening or navigating to /workspace/management defaults to collapsed
+  if (isManagementPath(route.path, route.name)) {
+    return true;
+  }
+  try {
+    const saved = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    if (saved !== null) {
+      return saved === 'true';
+    }
+  } catch {
+    // Fallback if localStorage is unavailable
+  }
+  return false;
+}
+
+// Synchronously initialized so initial render receives .collapsed immediately (no FOUC)
+const isSidebarCollapsed = ref(getInitialSidebarCollapsed());
+
+function toggleSidebar() {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value;
+}
+
+// Persist user manual toggles
+watch(isSidebarCollapsed, (val) => {
+  try {
+    localStorage.setItem(SIDEBAR_STORAGE_KEY, String(val));
+  } catch {
+    // ignore
+  }
+});
+
+// When landing on /workspace/management from another path, enforce default collapsed state
+watch(
+  () => route.path,
+  (newPath, oldPath) => {
+    if (isManagementPath(newPath, route.name) && oldPath !== newPath) {
+      isSidebarCollapsed.value = true;
+    }
+  }
+);
 
 type NavTab =
   | 'dashboard'
@@ -1136,7 +1189,7 @@ const venuePolicies = ref({
       <button
         type="button"
         class="sidebar-collapse-btn"
-        @click="isSidebarCollapsed = !isSidebarCollapsed"
+        @click="toggleSidebar"
         :aria-label="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
         :title="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
       >
