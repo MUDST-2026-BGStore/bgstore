@@ -30,7 +30,7 @@
   --pf-v5-global--active-color--100: var(--parlor-ink);
 }
 
-#keycloak-bg[data-page-id="login-login"]:lang(th) {
+#keycloak-bg[data-page-id='login-login']:lang(th) {
   --pf-v5-global--FontFamily--text: 'FC Mee Sakul', system-ui, sans-serif;
   --pf-v5-global--FontFamily--heading: var(--pf-v5-global--FontFamily--text);
 }
@@ -117,7 +117,7 @@ html.login-pf {
   color: #fff3dc !important;
 }
 
-[data-page-id="login-login"] .parlor-wordmark {
+[data-page-id='login-login'] .parlor-wordmark {
   text-transform: uppercase;
 }
 
@@ -177,7 +177,7 @@ html.login-pf {
   text-align: center;
 }
 
-[data-page-id="login-login"] #kc-page-title:lang(th) {
+[data-page-id='login-login'] #kc-page-title:lang(th) {
   line-height: 1.2;
   letter-spacing: normal;
 }
@@ -493,13 +493,16 @@ html.login-pf {
 }
 
 @media (max-width: 300px) {
-  [data-page-id="login-login"] #kc-header-wrapper.pf-v5-c-brand {
+  :is([data-page-id='login-login'], [data-page-id='login-register'])
+    #kc-header-wrapper.pf-v5-c-brand {
     gap: 4px;
     font-size: 11px;
     letter-spacing: 0.14em;
   }
 
-  [data-page-id="login-login"] #kc-header-wrapper .parlor-suit {
+  :is([data-page-id='login-login'], [data-page-id='login-register'])
+    #kc-header-wrapper
+    .parlor-suit {
     font-size: 12px;
   }
 }

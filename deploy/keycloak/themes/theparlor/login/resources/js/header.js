@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
-  if (document.body.dataset.pageId !== 'login-login') return;
+  const pageId = document.body.dataset.pageId;
+  if (pageId !== 'login-login' && pageId !== 'login-register') return;
   const header = document.getElementById('kc-header');
   const select = document.getElementById('login-select-toggle');
   const languages = [

@@ -177,6 +177,40 @@ test('offers sign-up and password reset with matching screens', async ({
   await expect(page.locator('#kc-login')).toBeVisible();
 });
 
+test('uses the storefront language switcher size on sign-up', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 812 });
+  await page.goto('/');
+  const storefront = page.locator('.header-language .locale-switcher');
+  await expect(storefront).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  const storefrontSize = await storefront.boundingBox();
+  expect(storefrontSize).not.toBeNull();
+
+  await page.goto('/login');
+  await page.getByRole('link', { name: 'Sign up', exact: true }).click();
+  const signup = page.locator('#kc-header .parlor-header-language');
+  await expect(signup).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  const signupSize = await signup.boundingBox();
+  expect(signupSize).not.toBeNull();
+  expect(signupSize!.width).toBeCloseTo(storefrontSize!.width, 0);
+  expect(signupSize!.height).toBeCloseTo(storefrontSize!.height, 0);
+  expect(signupSize!.x).toBeLessThan(32);
+
+  const thai = signup.getByRole('link', { name: 'ไทย', exact: true });
+  await thai.click();
+  await expect(thai).toHaveAttribute('aria-current', 'true');
+  await expect(
+    page.getByRole('heading', { name: 'สร้างบัญชีของคุณ' }),
+  ).toBeVisible();
+  await signup.getByRole('link', { name: 'EN', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Create your account' }),
+  ).toBeVisible();
+});
+
 test('switches sign-in to the storefront Thai font while keeping the wordmark', async ({
   page,
 }) => {
