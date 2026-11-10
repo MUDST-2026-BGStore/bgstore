@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { defaultDestination, pageAccess, safeReturnPath } from './access';
+import { workspaceDestination, pageAccess, safeReturnPath } from './access';
 
 describe('public and private page policy', () => {
   it('allows public browsing without a session and requires login for protected pages', () => {
@@ -22,12 +22,12 @@ describe('public and private page policy', () => {
     ).toBe('allow');
   });
   it('uses a predictable landing page with administrator taking precedence', () => {
-    expect(defaultDestination(['staff'])).toBe('WorkspaceIndex');
-    expect(defaultDestination(['manager'])).toBe('WorkspaceManagement');
-    expect(defaultDestination(['manager', 'admin'])).toBe(
+    expect(workspaceDestination(['staff'])).toBe('WorkspaceIndex');
+    expect(workspaceDestination(['manager'])).toBe('WorkspaceManagement');
+    expect(workspaceDestination(['manager', 'admin'])).toBe(
       'WorkspaceAdministration',
     );
-    expect(defaultDestination([])).toBe('WorkspaceIndex');
+    expect(workspaceDestination([])).toBe('WorkspaceIndex');
   });
   it.each([
     'https://evil.example',

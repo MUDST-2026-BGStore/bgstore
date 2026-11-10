@@ -55,6 +55,7 @@ async function render(authenticated = false) {
     authenticated,
     displayName: 'Test Player',
     username: 'player',
+    roles: [],
     logout,
   } as unknown as ReturnType<typeof useAuthStore>);
   const router = createRouter({
@@ -74,6 +75,11 @@ async function render(authenticated = false) {
             path: 'login',
             name: 'AuthLogin',
             component: { template: '<p>Login destination</p>' },
+          },
+          {
+            path: 'workspace',
+            name: 'WorkspaceIndex',
+            component: { template: '<p>Workspace destination</p>' },
           },
           {
             path: 'profile',
@@ -148,7 +154,7 @@ it('shows profile, workspace and the existing logout action only for authenticat
   await page.get('.account-trigger').trigger('click');
   expect(page.get('#account-panel').text()).toContain('Test Player');
   expect(page.get('a[href="/profile"]').text()).toContain('Your profile');
-  expect(page.get('#account-panel a[href="/login"]').text()).toContain(
+  expect(page.get('#account-panel a[href="/workspace"]').text()).toContain(
     'Open your workspace',
   );
   await page.get('.sign-out').trigger('click');

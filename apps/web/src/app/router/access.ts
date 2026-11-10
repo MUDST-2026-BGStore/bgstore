@@ -7,7 +7,7 @@ export interface PageAccess {
   roles?: readonly string[];
 }
 
-export function defaultDestination(roles: readonly string[]): string {
+export function workspaceDestination(roles: readonly string[]): string {
   if (roles.includes('admin')) return 'WorkspaceAdministration';
   if (roles.includes('manager')) return 'WorkspaceManagement';
   return 'WorkspaceIndex';

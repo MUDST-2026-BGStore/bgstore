@@ -9,6 +9,8 @@ configMapGenerator:
       - theme.properties=themes/theparlor/login/theme.properties
       - footer.ftl=themes/theparlor/login/footer.ftl
       - login-reset-password.ftl=themes/theparlor/login/login-reset-password.ftl
+      - header.js=themes/theparlor/login/resources/js/header.js
+      - fc-mee-sakul.ttf=themes/theparlor/login/resources/fonts/fc-mee-sakul.ttf
       - parlor.css=themes/theparlor/login/resources/css/parlor.css
       - favicon.svg=themes/theparlor/login/resources/img/favicon.svg
       - card-fan.svg=themes/theparlor/login/resources/img/card-fan.svg

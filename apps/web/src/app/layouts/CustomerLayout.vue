@@ -9,6 +9,7 @@ import {
 } from '../../features/home';
 import { useLocale } from '../../shared/lib/locale';
 import { useAuthStore } from '../../shared/stores/auth';
+import { workspaceDestination } from '../router/access';
 
 const auth = useAuthStore();
 const route = useRoute();
@@ -184,7 +185,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
                   >{{ t('Your profile') }}
                   <span aria-hidden="true">↗</span></RouterLink
                 >
-                <RouterLink :to="{ name: 'AuthLogin' }"
+                <RouterLink :to="{ name: workspaceDestination(auth.roles) }"
                   >{{ t('Open your workspace') }}
                   <span aria-hidden="true">↗</span></RouterLink
                 >

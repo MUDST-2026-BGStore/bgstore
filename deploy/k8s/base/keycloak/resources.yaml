@@ -99,6 +99,11 @@ spec:
                   key: login-reset-password.ftl,
                   path: login-reset-password.ftl,
                 }
+              - { key: header.js, path: resources/js/header.js }
+              - {
+                  key: fc-mee-sakul.ttf,
+                  path: resources/fonts/fc-mee-sakul.ttf,
+                }
               - { key: parlor.css, path: resources/css/parlor.css }
               - { key: favicon.svg, path: resources/img/favicon.svg }
               - { key: card-fan.svg, path: resources/img/card-fan.svg }
