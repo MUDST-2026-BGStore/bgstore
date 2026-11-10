@@ -4,13 +4,15 @@ import { RouterLink, RouterView, useRoute } from 'vue-router';
 import { ParlorShell, BLocaleSwitcher } from '@theparlor/ui';
 import {
   StoreCartButton,
-  StoreCartPanel,
   useStoreText,
+  MyOrdersModal,
+  useOrdersStore,
 } from '../../features/home';
 import { useLocale } from '../../shared/lib/locale';
 import { useAuthStore } from '../../shared/stores/auth';
 
 const auth = useAuthStore();
+const ordersStore = useOrdersStore();
 const route = useRoute();
 const { t } = useStoreText();
 const { locale, setLocale, saveStatus, retrySave } = useLocale();
@@ -74,7 +76,11 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
     brand-href="/"
     :class="{
       'catalog-shell':
-        route.name === 'HomeIndex' || route.name === 'GameProduct',
+        route.name === 'HomeIndex' ||
+        route.name === 'GameProduct' ||
+        route.name === 'Cart' ||
+        route.name === 'Checkout',
+      'cart-shell': route.name === 'Cart' || route.name === 'Checkout',
     }"
   >
     <template #header-left>
@@ -115,6 +121,31 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
       <RouterLink to="/reservations/new" class="header-reserve-btn">
         {{ t('Reserve Table') }}
       </RouterLink>
+      
+      <button
+        type="button"
+        class="header-orders-btn"
+        :title="t('Track your orders and parcels')"
+        @click="ordersStore.openOrdersModal()"
+      >
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          aria-hidden="true"
+        >
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+          <line x1="12" y1="22.08" x2="12" y2="12" />
+        </svg>
+        <span class="btn-text">{{ t('Orders') }}</span>
+        <span v-if="ordersStore.orders.length > 0" class="header-orders-badge">
+          {{ ordersStore.orders.length }}
+        </span>
+      </button>
       <StoreCartButton />
       <div
         ref="accountRoot"
@@ -203,7 +234,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
     </template>
 
     <RouterView />
-    <StoreCartPanel />
+    <MyOrdersModal />
   </ParlorShell>
 </template>
 
@@ -230,6 +261,13 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
 }
 .catalog-shell :deep(> div.relative > header + div) {
   padding: 20px 32px 24px;
+}
+.catalog-shell.cart-shell {
+  background: #f4f5f7;
+}
+.catalog-shell.cart-shell :deep(> div.relative > header + div) {
+  padding: 0;
+  background: #f4f5f7;
 }
 .catalog-shell
   :deep(> div.relative > header > :nth-child(2) > span:first-child),
@@ -533,6 +571,47 @@ button:focus-visible {
     font-size: 10px;
   }
   .header-reserve-btn {
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+}
+
+.header-orders-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid rgba(198, 173, 122, 0.4);
+  color: #efe5d0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+.header-orders-btn:hover {
+  background: rgba(198, 173, 122, 0.15);
+  border-color: #c6ad7a;
+  color: #ffffff;
+}
+.header-orders-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #c6ad7a;
+  color: #14281f;
+  font-size: 10px;
+  font-weight: 800;
+}
+@media (max-width: 600px) {
+  .header-orders-btn {
     padding: 6px 8px;
     font-size: 10px;
   }

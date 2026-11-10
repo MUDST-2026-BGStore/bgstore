@@ -16,6 +16,12 @@ import TableBillModal from '../components/TableBillModal.vue';
 import { useCustomerReservationsStore } from '../data/reservations-store';
 import { games, type CatalogGame } from '../../home/data/catalog';
 import { useAuthStore } from '../../../shared/stores/auth';
+import {
+  useOrdersStore,
+  type RetailOrder,
+  type OrderFulfillmentStatus,
+  CARRIERS,
+} from '../../home/stores/orders';
 
 const queryClient = useQueryClient();
 const auth = useAuthStore();
@@ -1617,7 +1623,7 @@ const venuePolicies = ref({
                       <div v-if="getTableAssignedGames(table.id).length > 0" class="tile-assigned-games-box">
                         <div class="assigned-chips-wrap">
                           <span class="game-chip-capsule">
-                            🎲 {{ getTableAssignedGames(table.id)[0] }}
+                            {{ getTableAssignedGames(table.id)[0] }}
                             <button
                               type="button"
                               class="btn-chip-unassign"
@@ -1808,7 +1814,7 @@ const venuePolicies = ref({
                   <!-- Assigned Game Box on Occupied Table -->
                   <div class="tile-assigned-games-box" style="margin: 8px 0;">
                     <div class="assigned-header-row">
-                      <span class="assigned-label">🎲 Assigned Game:</span>
+                      <span class="assigned-label">Assigned Game:</span>
                       <!-- Only show + Assign Game if table has no game yet -->
                       <button
                         v-if="getTableAssignedGames(table.id).length === 0"
@@ -1882,7 +1888,7 @@ const venuePolicies = ref({
             </div>
 
             <div v-if="activeFloorReservations.length === 0" class="empty-state-box">
-              <div class="empty-icon">☕</div>
+              <div class="empty-icon"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg></div>
               <h3>No Active Play Sessions</h3>
               <p>There are no tables currently playing. Seat a walk-in guest or check in a reserved booking.</p>
             </div>
@@ -1915,7 +1921,7 @@ const venuePolicies = ref({
                         <!-- If table already has game: show chip with return button -->
                         <div v-if="getTableAssignedGames(res.tableId).length > 0" class="session-chips-wrap">
                           <span class="game-chip-capsule">
-                            🎲 {{ getTableAssignedGames(res.tableId)[0] }}
+                            {{ getTableAssignedGames(res.tableId)[0] }}
                             <button
                               type="button"
                               class="btn-chip-unassign"
@@ -2074,7 +2080,7 @@ const venuePolicies = ref({
                 :class="{ active: gameStatusFilter === 'AVAILABLE' }"
                 @click="gameStatusFilter = 'AVAILABLE'"
               >
-                🟢 Available on Shelf ({{ games.filter(g => !getGameLocation(g.name)).length }})
+                ● Available on Shelf ({{ games.filter(g => !getGameLocation(g.name)).length }})
               </button>
               <button
                 type="button"
@@ -2082,7 +2088,7 @@ const venuePolicies = ref({
                 :class="{ active: gameStatusFilter === 'IN_USE' }"
                 @click="gameStatusFilter = 'IN_USE'"
               >
-                🔴 In Use at Tables ({{ games.filter(g => !!getGameLocation(g.name)).length }})
+                ● In Use at Tables ({{ games.filter(g => !!getGameLocation(g.name)).length }})
               </button>
             </div>
 
@@ -2108,8 +2114,8 @@ const venuePolicies = ref({
                 </div>
                 <p class="game-designer">Designed by {{ game.designer }}</p>
                 <div class="game-meta-row">
-                  <span>👥 {{ game.players[0] }}–{{ game.players[1] }} Players</span>
-                  <span>⏱ {{ game.playMinutes[0] }}–{{ game.playMinutes[1] }} min</span>
+                  <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> {{ game.players[0] }}–{{ game.players[1] }} Players</span>
+                  <span><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> {{ game.playMinutes[0] }}–{{ game.playMinutes[1] }} min</span>
                 </div>
                 <p class="game-desc">{{ game.description }}</p>
 
@@ -2215,7 +2221,7 @@ const venuePolicies = ref({
                   :class="{ active: stockCategoryFilter === 'beverages' }"
                   @click="stockCategoryFilter = 'beverages'"
                 >
-                  🥤 Beverages
+                  Beverages
                 </button>
                 <button
                   type="button"
@@ -2223,7 +2229,7 @@ const venuePolicies = ref({
                   :class="{ active: stockCategoryFilter === 'snacks' }"
                   @click="stockCategoryFilter = 'snacks'"
                 >
-                  🍿 Snacks & Fries
+                  Snacks & Fries
                 </button>
                 <button
                   type="button"
@@ -2231,7 +2237,7 @@ const venuePolicies = ref({
                   :class="{ active: stockCategoryFilter === 'tea_coffee' }"
                   @click="stockCategoryFilter = 'tea_coffee'"
                 >
-                  ☕ Tea & Coffee
+                  Tea & Coffee
                 </button>
                 <button
                   type="button"
@@ -2239,7 +2245,7 @@ const venuePolicies = ref({
                   :class="{ active: stockCategoryFilter === 'bakery_desserts' }"
                   @click="stockCategoryFilter = 'bakery_desserts'"
                 >
-                  🥐 Bakery
+                  Bakery
                 </button>
               </div>
 
@@ -2251,7 +2257,7 @@ const venuePolicies = ref({
                   :class="{ active: stockStatusFilter === 'NEED_REORDER' }"
                   @click="stockStatusFilter = stockStatusFilter === 'NEED_REORDER' ? 'ALL' : 'NEED_REORDER'"
                 >
-                  ⚠️ Needs Reorder ({{ lowStockCount + outOfStockCount }})
+                  Needs Reorder ({{ lowStockCount + outOfStockCount }})
                 </button>
               </div>
             </div>
@@ -2367,7 +2373,7 @@ const venuePolicies = ref({
                         title="Remove SKU from branch catalog"
                         @click="removeStockItem(item.id)"
                       >
-                        🗑 Remove
+                        Remove
                       </button>
                     </td>
                   </tr>
@@ -2544,6 +2550,101 @@ const venuePolicies = ref({
             </div>
           </section>
         </template>
+      
+    <!-- Modal: Retail Order Packing Slip -->
+    <div
+      v-if="showPackingSlipModal && activePackingSlipOrder"
+      class="modal-backdrop"
+      @click.self="closePackingSlip"
+    >
+      <div class="packing-slip-modal-box">
+        <div class="slip-header">
+          <div class="slip-brand">
+            <span class="gold-star">✦</span>
+            <strong>THE PARLOR · BOARD GAME STORE</strong>
+          </div>
+          <button type="button" class="btn-close-slip" @click="closePackingSlip">✕</button>
+        </div>
+
+        <div class="slip-body">
+          <div class="slip-meta-grid">
+            <div>
+              <span class="lbl">ORDER ID</span>
+              <strong class="val">{{ activePackingSlipOrder.id }}</strong>
+            </div>
+            <div>
+              <span class="lbl">DATE</span>
+              <span class="val">{{ new Date(activePackingSlipOrder.createdAt).toLocaleDateString() }}</span>
+            </div>
+            <div>
+              <span class="lbl">PAYMENT</span>
+              <span class="val text-green">PAID (PromptPay)</span>
+            </div>
+            <div>
+              <span class="lbl">COURIER</span>
+              <strong class="val text-gold">{{ activePackingSlipOrder.carrierName || 'Store Pickup' }}</strong>
+            </div>
+          </div>
+
+          <div v-if="activePackingSlipOrder.trackingNumber" class="slip-tracking-box">
+            <span>COURIER TRACKING NUMBER:</span>
+            <code>{{ activePackingSlipOrder.trackingNumber }}</code>
+          </div>
+
+          <div class="slip-address-box">
+            <span class="lbl">SHIP TO:</span>
+            <strong>{{ activePackingSlipOrder.shippingAddress.name }} ({{ activePackingSlipOrder.shippingAddress.phone }})</strong>
+            <p>{{ activePackingSlipOrder.shippingAddress.address }} {{ activePackingSlipOrder.shippingAddress.extra || '' }}</p>
+            <p>{{ activePackingSlipOrder.shippingAddress.city }}, {{ activePackingSlipOrder.shippingAddress.region }} {{ activePackingSlipOrder.shippingAddress.postal }}</p>
+            <p v-if="activePackingSlipOrder.shippingAddress.note" class="text-italic">Note: {{ activePackingSlipOrder.shippingAddress.note }}</p>
+          </div>
+
+          <div class="slip-items-table">
+            <div class="slip-table-head">
+              <span>ITEM & EDITION</span>
+              <span class="text-center">QTY</span>
+              <span class="text-right">PRICE</span>
+              <span class="text-right">TOTAL</span>
+            </div>
+            <div
+              v-for="item in activePackingSlipOrder.items"
+              :key="item.variantId"
+              class="slip-table-row"
+            >
+              <span>{{ item.gameName }} ({{ item.edition }})</span>
+              <span class="text-center">{{ item.quantity }}</span>
+              <span class="text-right">฿{{ item.unitPrice.toLocaleString() }}</span>
+              <span class="text-right font-bold">฿{{ item.totalPrice.toLocaleString() }}</span>
+            </div>
+          </div>
+
+          <div class="slip-totals-box">
+            <div class="slip-tot-row">
+              <span>Items Subtotal:</span>
+              <span>฿{{ activePackingSlipOrder.itemSubtotal.toLocaleString() }}</span>
+            </div>
+            <div class="slip-tot-row">
+              <span>Shipping Fee:</span>
+              <span>{{ activePackingSlipOrder.shippingFee === 0 ? 'FREE' : '฿' + activePackingSlipOrder.shippingFee }}</span>
+            </div>
+            <div class="slip-tot-row slip-grand-total">
+              <strong>TOTAL BILLED:</strong>
+              <strong>฿{{ activePackingSlipOrder.totalAmount.toLocaleString() }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="slip-footer">
+          <button type="button" class="btn-print-slip" onclick="window.print()">
+            Print Packing Slip
+          </button>
+          <button type="button" class="btn-close-slip-text" @click="closePackingSlip">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+
       </main>
 
       <!-- Assign Game to Table Modal (Enforces: 1. Only started session can receive game; 2. Cannot assign to already assigned table) -->
@@ -2563,7 +2664,7 @@ const venuePolicies = ref({
           <div class="modal-form-body">
             <!-- Alert if no tables are currently eligible -->
             <div v-if="eligibleTablesForGame.length === 0" class="rule-warning-box">
-              <span class="gold-bullet">⚠️</span>
+              <span class="gold-bullet"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></span>
               <span>
                 No tables eligible right now. Games can only be assigned to tables with an <strong>active started session</strong> that do not already have an assigned game.
               </span>
@@ -2626,7 +2727,7 @@ const venuePolicies = ref({
                   <div class="game-choice-info">
                     <strong class="game-choice-name">{{ g.name }}</strong>
                     <span class="game-choice-sub">
-                      👥 {{ g.players[0] }}-{{ g.players[1] }}p · ⏱ {{ g.playMinutes[0] }}-{{ g.playMinutes[1] }}m
+                      {{ g.players[0] }}-{{ g.players[1] }}p · {{ g.playMinutes[0] }}-{{ g.playMinutes[1] }}m
                     </span>
                   </div>
                   <div class="game-choice-status">
@@ -2698,10 +2799,10 @@ const venuePolicies = ref({
               <div class="form-group">
                 <label class="modal-label">Category:</label>
                 <select v-model="newFoodForm.category" class="modal-select">
-                  <option value="beverages">🥤 Beverages</option>
-                  <option value="snacks">🍿 Snacks & Fries</option>
-                  <option value="tea_coffee">☕ Tea & Coffee</option>
-                  <option value="bakery_desserts">🥐 Bakery & Desserts</option>
+                  <option value="beverages">Beverages</option>
+                  <option value="snacks">Snacks & Fries</option>
+                  <option value="tea_coffee">Tea & Coffee</option>
+                  <option value="bakery_desserts">Bakery & Desserts</option>
                 </select>
               </div>
 
@@ -5205,5 +5306,617 @@ const venuePolicies = ref({
 .modal-buttons {
   display: flex;
   gap: 8px;
+}
+
+/* ========================================== */
+/* STYLES: RETAIL ORDERS & PARCELS MANAGEMENT */
+/* ========================================== */
+.nav-badge-amber {
+  margin-left: auto;
+  background: #d97706;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 800;
+  border-radius: 10px;
+  padding: 1px 6px;
+}
+
+.order-filter-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-pills-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-pill-btn {
+  padding: 7px 14px;
+  background: #172c21;
+  border: 1px solid #234635;
+  border-radius: 6px;
+  color: #a4b8ad;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.filter-pill-btn:hover {
+  background: #1f3d2e;
+  color: #efe5d0;
+}
+
+.filter-pill-btn.active {
+  background: #c6ad7a;
+  border-color: #c6ad7a;
+  color: #14281f;
+  font-weight: 700;
+}
+
+.order-search-box {
+  flex: 1;
+  max-width: 400px;
+}
+
+.order-search-input {
+  width: 100%;
+  padding: 8px 14px;
+  background: #0f1d16;
+  border: 1px solid #234635;
+  border-radius: 6px;
+  color: #fafbf9;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+.order-search-input:focus {
+  outline: none;
+  border-color: #c6ad7a;
+}
+
+.staff-orders-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.staff-order-card {
+  background: #172c21;
+  border: 1px solid #234635;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: border-color 150ms ease;
+}
+
+.staff-order-card.border-amber {
+  border-left: 4px solid #d97706;
+}
+
+.order-top-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #13241b;
+  border-bottom: 1px solid #234635;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.order-id-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.order-code {
+  font-family: monospace;
+  font-size: 14px;
+  color: #ffd98a;
+  background: #1d3729;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #315843;
+}
+
+.order-timestamp {
+  font-size: 12px;
+  color: #8c9e94;
+}
+
+.order-badges-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badge-carrier-pill {
+  padding: 3px 10px;
+  background: #1e3b2c;
+  color: #a7f3d0;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.badge-pickup-pill {
+  padding: 3px 10px;
+  background: #2a3e32;
+  color: #ffd98a;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.status-chip {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.chip-amber {
+  background: #451a03;
+  color: #fbbf24;
+  border: 1px solid #b45309;
+}
+
+.chip-green {
+  background: #064e3b;
+  color: #6ee7b7;
+  border: 1px solid #059669;
+}
+
+.chip-gray {
+  background: #1e293b;
+  color: #cbd5e1;
+  border: 1px solid #475569;
+}
+
+.order-address-box {
+  padding: 14px 18px;
+  background: #16281e;
+  border-bottom: 1px solid #234635;
+}
+
+.cust-info-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 4px;
+}
+
+.cust-name {
+  font-size: 13.5px;
+  color: #fafbf9;
+}
+
+.cust-phone {
+  font-size: 12.5px;
+  color: #c6ad7a;
+  text-decoration: none;
+}
+
+.cust-phone:hover {
+  text-decoration: underline;
+}
+
+.addr-line {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: #a4b8ad;
+}
+
+.addr-note {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #ffd98a;
+}
+
+.order-items-preview {
+  padding: 12px 18px;
+  border-bottom: 1px solid #234635;
+}
+
+.preview-title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #7b9487;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.items-compact-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item-compact-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #fafbf9;
+}
+
+.item-img-mini {
+  width: 28px;
+  height: 34px;
+  object-fit: cover;
+  border-radius: 3px;
+  border: 1px solid #315843;
+}
+
+.it-name {
+  font-weight: 600;
+}
+
+.it-edition {
+  color: #8c9e94;
+  font-size: 11.5px;
+}
+
+.it-qty {
+  color: #c6ad7a;
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.it-price {
+  font-family: monospace;
+  font-weight: 700;
+  min-width: 60px;
+  text-align: right;
+}
+
+.order-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #13241b;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.order-totals {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.total-lbl {
+  font-size: 12px;
+  color: #8c9e94;
+}
+
+.total-val {
+  font-size: 15px;
+  color: #ffd98a;
+  font-family: monospace;
+}
+
+.pp-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: #1f3d2e;
+  border: 1px solid #315843;
+  color: #a7f3d0;
+  border-radius: 4px;
+}
+
+.order-dispatch-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.assigned-tracking-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #0e1a13;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #234635;
+}
+
+.tr-lbl {
+  font-size: 10.5px;
+  color: #7b9487;
+  font-weight: 700;
+}
+
+.tr-code {
+  font-family: monospace;
+  font-size: 13px;
+  color: #6ee7b7;
+  font-weight: 700;
+}
+
+.tracking-input-group {
+  display: flex;
+  align-items: center;
+}
+
+.input-tracking {
+  padding: 6px 10px;
+  background: #0f1d16;
+  border: 1px solid #234635;
+  border-radius: 4px;
+  color: #fafbf9;
+  font-size: 12px;
+  width: 220px;
+}
+
+.input-tracking:focus {
+  outline: none;
+  border-color: #c6ad7a;
+}
+
+.action-buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-sm-slip {
+  padding: 6px 10px;
+  background: #234635;
+  border: 1px solid #315843;
+  border-radius: 4px;
+  color: #efe5d0;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.btn-sm-slip:hover {
+  background: #315843;
+}
+
+.btn-sm-dispatch {
+  padding: 6px 14px;
+  background: #d97706;
+  border: 1px solid #b45309;
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.btn-sm-dispatch:hover {
+  background: #b45309;
+}
+
+.btn-sm-delivered {
+  padding: 6px 14px;
+  background: #059669;
+  border: 1px solid #047857;
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.btn-sm-delivered:hover {
+  background: #047857;
+}
+
+.empty-orders-view {
+  text-align: center;
+  padding: 40px 20px;
+  color: #8c9e94;
+}
+
+/* Packing Slip Modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.packing-slip-modal-box {
+  width: min(580px, 94vw);
+  background: #fafbf9;
+  color: #14241c;
+  border-radius: 8px;
+  border: 1px solid #c6ad7a;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.slip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: #142a1f;
+  color: #efe5d0;
+}
+
+.slip-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #fafbf9;
+}
+
+.gold-star {
+  color: #c6ad7a;
+}
+
+.btn-close-slip {
+  background: transparent;
+  border: none;
+  color: #efe5d0;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.slip-body {
+  padding: 20px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.slip-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #dcd8ce;
+  margin-bottom: 14px;
+}
+
+.slip-meta-grid .lbl {
+  display: block;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  color: #6a776f;
+  font-weight: 700;
+}
+
+.slip-meta-grid .val {
+  font-size: 13px;
+  color: #14241c;
+}
+
+.slip-tracking-box {
+  background: #ede6d6;
+  border: 1px dashed #b89d63;
+  padding: 8px 12px;
+  border-radius: 4px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+}
+
+.slip-tracking-box code {
+  font-family: monospace;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.slip-address-box {
+  padding: 12px;
+  background: #f4efe4;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.slip-address-box .lbl {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  color: #6a776f;
+}
+
+.slip-items-table {
+  border: 1px solid #dcd8ce;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.slip-table-head {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.2fr 1.2fr;
+  padding: 8px 12px;
+  background: #ede6d6;
+  font-size: 11px;
+  font-weight: 700;
+  color: #4b5850;
+}
+
+.slip-table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.2fr 1.2fr;
+  padding: 8px 12px;
+  border-top: 1px solid #eee8dc;
+  font-size: 12.5px;
+}
+
+.slip-totals-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  font-size: 13px;
+}
+
+.slip-tot-row {
+  display: flex;
+  gap: 16px;
+  min-width: 220px;
+  justify-content: space-between;
+}
+
+.slip-grand-total {
+  border-top: 1px solid #dcd8ce;
+  padding-top: 6px;
+  font-size: 15px;
+  color: #142a1f;
+}
+
+.slip-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #ede6d6;
+  border-top: 1px solid #dcd8ce;
+}
+
+.btn-print-slip {
+  padding: 8px 16px;
+  background: #142a1f;
+  color: #fafbf9;
+  border: 1px solid #c6ad7a;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-close-slip-text {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid #829087;
+  border-radius: 4px;
+  color: #14241c;
+  font-size: 13px;
+  cursor: pointer;
 }
 </style>

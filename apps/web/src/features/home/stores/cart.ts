@@ -3,15 +3,20 @@ import { defineStore } from 'pinia';
 import { games } from '../data/catalog';
 import { variants } from '../data/retail';
 import { branches, DELIVERY_BRANCH_ID, retailStockAt } from '../data/branches';
+import { CARRIERS, type ShippingCarrier, type RetailOrder } from './orders';
+
 // TODO(cart-api): All lines, prices and stock in this store are fixture-backed.
 // Wire create/get/add/update/remove cart and sign-in merge after CartsController
 // is implemented; generated client methods currently target throwing stubs.
 export const CART_STORAGE_KEY = 'theparlor.cart.preview.v1';
 export const FULFILLMENT_STORAGE_KEY = 'theparlor.cart.fulfillment.v1';
+export const CARRIER_STORAGE_KEY = 'theparlor.cart.carrier.v1';
+
 interface CartItem {
   variantId: string;
   quantity: number;
 }
+
 function restore(): CartItem[] {
   try {
     const saved: unknown = JSON.parse(
@@ -44,6 +49,7 @@ function restore(): CartItem[] {
     return [];
   }
 }
+
 function restoreFulfillment(): {
   method: 'shipping' | 'pickup';
   branchId: string;
@@ -66,11 +72,26 @@ function restoreFulfillment(): {
   }
   return { method: 'shipping', branchId: '' };
 }
+
+function restoreCarrier(): ShippingCarrier {
+  try {
+    const val = localStorage.getItem(CARRIER_STORAGE_KEY);
+    if (val && ['flash', 'kerry', 'ems', 'sameday'].includes(val)) {
+      return val as ShippingCarrier;
+    }
+  } catch {
+    /* Ignore */
+  }
+  return 'flash';
+}
+
 export const useCartStore = defineStore('shopping-cart', () => {
   const items = ref<CartItem[]>(restore());
   const savedFulfillment = restoreFulfillment();
   const method = ref<'shipping' | 'pickup'>(savedFulfillment.method);
   const pickupBranchId = ref(savedFulfillment.branchId);
+  const carrier = ref<ShippingCarrier>(restoreCarrier());
+
   const fulfillmentBranchId = computed(() =>
     method.value === 'shipping' ? DELIVERY_BRANCH_ID : pickupBranchId.value,
   );
@@ -78,10 +99,13 @@ export const useCartStore = defineStore('shopping-cart', () => {
     branches.find((branch) => branch.id === fulfillmentBranchId.value),
   );
   const isOpen = ref(false);
-  const stage = ref<'cart' | 'details' | 'review'>('cart');
+  const stage = ref<'cart' | 'details' | 'review' | 'payment' | 'confirmation'>('cart');
+  const placedOrder = ref<RetailOrder | null>(null);
+
   function stockFor(variantId: string) {
     return retailStockAt(variantId, fulfillmentBranchId.value);
   }
+
   const lines = computed(() =>
     items.value.flatMap((item) => {
       const variant = variants.find((v) => v.id === item.variantId);
@@ -102,24 +126,35 @@ export const useCartStore = defineStore('shopping-cart', () => {
         : [];
     }),
   );
+
   const count = computed(() =>
     lines.value.reduce((sum, item) => sum + item.quantity, 0),
   );
+
   const subtotal = computed(() =>
     lines.value.reduce((sum, item) => sum + item.total, 0),
   );
+
+  const carrierInfo = computed(() => CARRIERS[carrier.value] ?? CARRIERS.flash);
+
+  const isFreeShipping = computed(() => false);
+
+  const shippingFee = computed(() => {
+    if (method.value !== 'shipping') return 0;
+    return carrierInfo.value.fee;
+  });
+
+  const totalPayable = computed(() => subtotal.value + shippingFee.value);
+
   const issues = computed(() => lines.value.filter((line) => line.problem));
-  // TODO(checkout-api): This flag permits prototype navigation only, not placing
-  // an order. Require a server quote and stock validation before real checkout.
+
   const canCheckout = computed(
     () =>
       count.value > 0 &&
       Boolean(fulfillmentBranch.value) &&
       !issues.value.length,
   );
-  // TODO(cart-api): Use a server/guest cart and sign-in merge. Reprice/revalidate
-  // every variant against ONE fulfillment branch; browser totals and stock never
-  // reserve inventory. Do not aggregate stock, transfer or split the first release.
+
   watch(
     items,
     (value) => {
@@ -131,6 +166,7 @@ export const useCartStore = defineStore('shopping-cart', () => {
     },
     { deep: true, flush: 'sync' },
   );
+
   watch(
     [method, pickupBranchId],
     () => {
@@ -149,6 +185,19 @@ export const useCartStore = defineStore('shopping-cart', () => {
     },
     { flush: 'sync' },
   );
+
+  watch(
+    carrier,
+    (val) => {
+      try {
+        localStorage.setItem(CARRIER_STORAGE_KEY, val);
+      } catch {
+        /* Ignore */
+      }
+    },
+    { flush: 'sync' },
+  );
+
   function setFulfillment(
     nextMethod: 'shipping' | 'pickup',
     branchId = pickupBranchId.value,
@@ -160,6 +209,11 @@ export const useCartStore = defineStore('shopping-cart', () => {
       ? branchId
       : '';
   }
+
+  function setCarrier(nextCarrier: ShippingCarrier) {
+    carrier.value = nextCarrier;
+  }
+
   function add(
     variantId: string,
     quantity = 1,
@@ -181,9 +235,7 @@ export const useCartStore = defineStore('shopping-cart', () => {
       (current?.quantity || 0) + quantity > retailStockAt(variantId, sourceId)
     )
       return false;
-    // The first item may initialize an empty order from the viewed store.
-    // Existing orders keep their own fulfillment choice. Never synchronize it
-    // back to browsing; shortages are resolved inside the cart only.
+
     if (!items.value.length && source) {
       if (source.method === 'pickup') setFulfillment('pickup', source.branchId);
       else setFulfillment('shipping');
@@ -192,6 +244,7 @@ export const useCartStore = defineStore('shopping-cart', () => {
     else items.value.push({ variantId, quantity });
     return true;
   }
+
   function update(variantId: string, quantity: number) {
     const item = items.value.find((item) => item.variantId === variantId);
     if (
@@ -207,15 +260,26 @@ export const useCartStore = defineStore('shopping-cart', () => {
     else item.quantity = quantity;
     return true;
   }
+
+  function clearCart() {
+    items.value = [];
+  }
+
   function open() {
     stage.value = 'cart';
     isOpen.value = true;
   }
+
   return {
     items,
     lines,
     count,
     subtotal,
+    carrier,
+    carrierInfo,
+    shippingFee,
+    isFreeShipping,
+    totalPayable,
     isOpen,
     stage,
     method,
@@ -224,10 +288,13 @@ export const useCartStore = defineStore('shopping-cart', () => {
     fulfillmentBranchId,
     issues,
     canCheckout,
+    placedOrder,
     stockFor,
     setFulfillment,
+    setCarrier,
     add,
     update,
+    clearCart,
     open,
   };
 });

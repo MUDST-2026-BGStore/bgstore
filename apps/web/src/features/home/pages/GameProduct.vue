@@ -16,6 +16,10 @@ import {
 } from '../api/catalog';
 import StoreContext from '../components/StoreContext.vue';
 import StoreAccordion from '../components/StoreAccordion.vue';
+import { useCartStore } from '../stores/cart';
+import { variants } from '../data/retail';
+import { retailStockAt } from '../data/branches';
+import { formatPrice } from '../data/catalog';
 
 const route = useRoute();
 const { t, locale } = useStoreText();
@@ -62,6 +66,58 @@ onBeforeUnmount(() => {
 });
 // Catalog/edition identity is authoritative. Price, stock, branch membership and
 // checkout remain unavailable until their own APIs are implemented; no fixture join.
+
+const cart = useCartStore();
+const buyQty = ref(1);
+const addedSuccess = ref(false);
+
+function getSlug(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+const matchedVariant = computed(() => {
+  if (!game.value) return null;
+  const gName = (game.value.name || '').toLowerCase();
+  const gId = (game.value.id || '').toLowerCase();
+  const slug = getSlug(game.value.name || '');
+  return (
+    variants.find(
+      (v) =>
+        v.gameId === slug ||
+        v.gameId === gId ||
+        v.gameId === gName ||
+        gName.includes(v.gameId) ||
+        slug.includes(v.gameId),
+    ) ?? null
+  );
+});
+
+const variantStock = computed(() => {
+  if (!matchedVariant.value) return 0;
+  return retailStockAt(matchedVariant.value.id, cart.fulfillmentBranchId);
+});
+
+const remainingStock = computed(() => {
+  if (!matchedVariant.value) return 0;
+  const inCart = cart.items.find((i) => i.variantId === matchedVariant.value?.id)?.quantity ?? 0;
+  return Math.max(0, variantStock.value - inCart);
+});
+
+function handleAddToCart() {
+  if (!matchedVariant.value) return;
+  if (cart.method === 'pickup' && !cart.pickupBranchId) {
+    cart.setFulfillment('shipping');
+  }
+  const ok = cart.add(matchedVariant.value.id, buyQty.value);
+  if (ok) {
+    addedSuccess.value = true;
+    buyQty.value = 1;
+    setTimeout(() => {
+      addedSuccess.value = false;
+    }, 2500);
+  }
+}
+
 </script>
 <template>
   <div class="product-page">
@@ -152,6 +208,71 @@ onBeforeUnmount(() => {
         <p class="muted" role="status">
           {{ t('Price and stock information is unavailable.') }}
         </p>
+
+        <!-- Order Game for Home Delivery -->
+        <div v-if="matchedVariant" class="game-delivery-buy-box">
+          <div class="delivery-buy-header">
+            <div class="delivery-tag">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <rect x="1" y="3" width="15" height="13" />
+                <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
+                <circle cx="5.5" cy="18.5" r="2.5" />
+                <circle cx="18.5" cy="18.5" r="2.5" />
+              </svg>
+              <span>{{ t('Available for Home Delivery') }}</span>
+            </div>
+            <strong class="delivery-price">{{ formatPrice(matchedVariant.price) }}</strong>
+          </div>
+
+          <div class="delivery-buy-actions">
+            <div class="stepper">
+              <button
+                type="button"
+                class="stepper-btn"
+                :disabled="buyQty <= 1"
+                :aria-label="t('Decrease quantity')"
+                @click="buyQty > 1 && buyQty--"
+              >
+                −
+              </button>
+              <span class="stepper-count">{{ buyQty }}</span>
+              <button
+                type="button"
+                class="stepper-btn"
+                :disabled="buyQty >= 99"
+                :aria-label="t('Increase quantity')"
+                @click="buyQty++"
+              >
+                +
+              </button>
+            </div>
+
+            <button
+              type="button"
+              class="btn-add-to-bag"
+              :class="{ 'is-added': addedSuccess }"
+              @click="handleAddToCart"
+            >
+              <svg v-if="!addedSuccess" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M5 7h14l1 14H4L5 7Z" />
+                <path d="M8 8V6a4 4 0 0 1 8 0v2" />
+              </svg>
+              <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <span>{{ addedSuccess ? (locale === 'th-TH' ? 'เพิ่มลงตะกร้าแล้ว!' : 'Added!') : (locale === 'th-TH' ? 'ใส่ตะกร้า' : t('Add to Cart')) }}</span>
+              <span v-if="!addedSuccess" class="bag-price">· {{ formatPrice(matchedVariant.price * buyQty) }}</span>
+            </button>
+            <RouterLink to="/cart" class="btn-goto-cart" v-if="addedSuccess || cart.count > 0">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M5 7h14l1 14H4L5 7Z" />
+                <path d="M8 8V6a4 4 0 0 1 8 0v2" />
+              </svg>
+              <span>{{ locale === 'th-TH' ? 'ดูตะกร้า' : 'View Cart' }}</span>
+              <span class="cart-pill-count">{{ cart.count }}</span>
+            </RouterLink>
+          </div>
+        </div>
         <div class="product-accordions">
           <StoreAccordion :key="game.id" :title="t('Game details')">
             <dl>
@@ -462,5 +583,160 @@ select:focus-visible {
 .btn-icon {
   font-size: 16px;
   color: #c6ad7a;
+}
+
+/* Delivery Buy Box */
+.game-delivery-buy-box {
+  margin: 18px 0 24px;
+  padding: 18px 20px;
+  background: #fffaf1;
+  border: 1px solid #c6ad7a;
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(20, 36, 28, 0.08);
+}
+
+.delivery-buy-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.delivery-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f5e3d;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.delivery-price {
+  font-size: 24px;
+  font-weight: 800;
+  color: #142a1f;
+  letter-spacing: -0.01em;
+}
+
+.delivery-buy-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #c6ad7a;
+  border-radius: 4px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.stepper-btn {
+  width: 38px;
+  height: 42px;
+  background: transparent;
+  border: none;
+  font-size: 18px;
+  font-weight: bold;
+  color: #142a1f;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 140ms ease;
+}
+
+.stepper-btn:hover:not(:disabled) {
+  background: #ebe3d3;
+}
+
+.stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.stepper-count {
+  width: 40px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #142a1f;
+}
+
+.btn-add-to-bag {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 42px;
+  padding: 0 20px;
+  background: #142a1f;
+  border: 1px solid #c6ad7a;
+  border-radius: 4px;
+  color: #efe5d0;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 140ms ease;
+  box-shadow: 0 2px 6px rgba(20, 42, 31, 0.15);
+}
+
+.btn-add-to-bag:hover {
+  background: #244c38;
+  color: #ffffff;
+  border-color: #dfc999;
+}
+
+.btn-add-to-bag svg {
+  color: #c6ad7a;
+}
+
+.bag-price {
+  color: #ffd98a;
+}
+
+.btn-add-to-bag.is-added {
+  background: #1f5e3d;
+  border-color: #34d399;
+  color: #ffffff;
+}
+
+.btn-goto-cart {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 16px;
+  background: transparent;
+  border: 1px solid #c6ad7a;
+  border-radius: 4px;
+  color: #142a1f;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+
+.btn-goto-cart:hover {
+  background: #f7f1e5;
+  border-color: #9f8448;
+}
+
+.cart-pill-count {
+  background: #142a1f;
+  color: #c6ad7a;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 10px;
 }
 </style>

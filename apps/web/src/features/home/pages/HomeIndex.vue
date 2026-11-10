@@ -8,7 +8,11 @@ import { RouterLink } from 'vue-router';
 import { useCatalogBrowseStore } from '../stores/catalog-browse';
 import { useStoreText } from '../data/store-text';
 import StoreContext from '../components/StoreContext.vue';
-import { range } from '../data/catalog';
+import { range, formatPrice } from '../data/catalog';
+import { useCartStore } from '../stores/cart';
+import { variants } from '../data/retail';
+import { retailStockAt } from '../data/branches';
+import type { Game } from '@theparlor/api-client';
 import {
   useCatalog,
   useTaxonomy,
@@ -49,6 +53,105 @@ const taxonomy = useTaxonomy();
 const { query, category, players, time, difficulty, sort, view } = storeToRefs(
   useCatalogBrowseStore(),
 );
+
+const cart = useCartStore();
+
+const defaultPrices: Record<string, number> = {
+  azul: 1490,
+  wingspan: 2490,
+  codenames: 990,
+  avalon: 1190,
+  catan: 1890,
+  pandemic: 1690,
+  carcassonne: 1390,
+  splendor: 1490,
+  '7-wonders': 2190,
+  'ticket-to-ride': 1990,
+  dixit: 1490,
+  'love-letter': 690,
+  skull: 890,
+  'terraforming-mars': 2790,
+  cascadia: 1790,
+  'blood-on-the-clocktower': 3890,
+};
+
+function getSlug(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+function getGameVariant(game: Game) {
+  const gName = (game.name || '').toLowerCase();
+  const gId = (game.id || '').toLowerCase();
+  const slug = getSlug(game.name || '');
+
+  if (slug.includes('avalon') || gName.includes('avalon')) {
+    return null;
+  }
+
+  return (
+    variants.find(
+      (v) =>
+        v.gameId === slug ||
+        v.gameId === gId ||
+        v.gameId === gName ||
+        gName.includes(v.gameId) ||
+        slug.includes(v.gameId),
+    ) ?? null
+  );
+}
+
+function getGameStock(game: Game): number {
+  const v = getGameVariant(game);
+  if (!v) return 0;
+  return retailStockAt(v.id, cart.fulfillmentBranchId);
+}
+
+function getRemainingStock(game: Game): number {
+  const v = getGameVariant(game);
+  if (!v) return 0;
+  const inCart = cart.items.find((i) => i.variantId === v.id)?.quantity ?? 0;
+  return Math.max(0, getGameStock(game) - inCart);
+}
+
+function getGamePriceDisplay(game: Game): string {
+  const v = getGameVariant(game);
+  if (!v) {
+    return locale.value === 'th-TH' ? 'เช่าเล่นที่ร้าน' : 'Rental Only';
+  }
+  return formatPrice(v.price);
+}
+
+// Interactive Quantity Picker & Confirm Flow
+const selectingQtyGameId = ref<string | null>(null);
+const cardQty = ref<number>(1);
+const addedSuccessGameId = ref<string | null>(null);
+
+function startSelectQty(game: Game) {
+  selectingQtyGameId.value = game.id;
+  cardQty.value = 1;
+}
+
+function confirmAddToCart(game: Game) {
+  const v = getGameVariant(game);
+  if (v) {
+    if (cart.method === 'pickup' && !cart.pickupBranchId) {
+      cart.setFulfillment('shipping');
+    }
+    const added = cart.add(v.id, cardQty.value);
+    if (added) {
+      addedSuccessGameId.value = game.id;
+      selectingQtyGameId.value = null;
+      cardQty.value = 1;
+
+      setTimeout(() => {
+        if (addedSuccessGameId.value === game.id) {
+          addedSuccessGameId.value = null;
+        }
+      }, 1200);
+    }
+  }
+}
+
 const games = computed(() => catalog.data.value ?? []);
 const categories = computed(() => [
   ...new Set(games.value.flatMap((game) => game.categories)),
@@ -279,6 +382,92 @@ function markImageFailed(url: string) {
                 <p class="list-description">
                   {{ localizedDescription(game, locale) }}
                 </p>
+
+                <!-- Retail Price & Add to Cart -->
+                <div class="card-buy-bar">
+                  <span class="card-retail-amt">{{ getGamePriceDisplay(game) }}</span>
+
+                  <template v-if="getGameVariant(game)">
+                    <!-- State 1: Currently selecting quantity with confirm cart button -->
+                    <div
+                      v-if="selectingQtyGameId === game.id"
+                      class="card-picker-bar"
+                      @click.stop.prevent
+                    >
+                      <div class="card-stepper-wrap">
+                        <button
+                          type="button"
+                          class="btn-step"
+                          :disabled="cardQty <= 1"
+                          :aria-label="t('Decrease quantity')"
+                          @click.stop.prevent="cardQty > 1 && cardQty--"
+                        >
+                          −
+                        </button>
+                        <span class="step-num">{{ cardQty }}</span>
+                        <button
+                          type="button"
+                          class="btn-step"
+                          :disabled="cardQty >= 99"
+                          :aria-label="t('Increase quantity')"
+                          @click.stop.prevent="cardQty++"
+                        >
+                          +
+                        </button>
+                      </div>
+
+                      <button
+                        type="button"
+                        class="btn-confirm-add"
+                        :aria-label="locale === 'th-TH' ? 'ยืนยันใส่ตะกร้า' : 'Confirm add to cart'"
+                        @click.stop.prevent="confirmAddToCart(game)"
+                      >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                          <path d="M5 7h14l1 14H4L5 7Z" />
+                          <path d="M8 8V6a4 4 0 0 1 8 0v2" />
+                        </svg>
+                        <span>{{ locale === 'th-TH' ? 'เพิ่ม' : 'Add' }}</span>
+                      </button>
+                    </div>
+
+                    <!-- State 2: Successfully added confirmation flash -->
+                    <div
+                      v-else-if="addedSuccessGameId === game.id"
+                      class="card-added-flash"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <span>{{ locale === 'th-TH' ? 'เพิ่มแล้ว!' : 'Added!' }}</span>
+                    </div>
+
+                    <!-- State 3: Normal initial state -->
+                    <button
+                      v-else
+                      type="button"
+                      class="btn-card-add-cart"
+                      :aria-label="t('Add {name} to cart', { name: game.name })"
+                      @click.stop.prevent="startSelectQty(game)"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        aria-hidden="true"
+                      >
+                        <path d="M5 7h14l1 14H4L5 7Z" />
+                        <path d="M8 8V6a4 4 0 0 1 8 0v2" />
+                      </svg>
+                      <span>{{ locale === 'th-TH' ? 'ใส่ตะกร้า' : t('Add to Cart') }}</span>
+                    </button>
+                  </template>
+                  <span v-else class="card-rental-tag">
+                    {{ locale === 'th-TH' ? 'เช่าเล่นที่ร้าน' : 'Rental Only' }}
+                  </span>
+                </div>
               </div>
             </article>
           </TransitionGroup>
@@ -1156,5 +1345,197 @@ footer a:hover {
   button:active {
     translate: none;
   }
+}
+
+/* Card Buy Bar & Add to Cart Button */
+.card-buy-bar {
+  margin-top: auto;
+  padding-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid #ebe6dc;
+}
+
+.card-retail-amt {
+  font-size: 15px;
+  font-weight: 700;
+  color: #142a1f;
+  letter-spacing: -0.01em;
+}
+
+.btn-card-add-cart {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  background: #142a1f;
+  border: 1px solid #c6ad7a;
+  border-radius: 4px;
+  color: #efe5d0;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+
+.btn-card-add-cart:hover {
+  background: #244c38;
+  color: #ffffff;
+  border-color: #dfc999;
+}
+
+.btn-card-add-cart svg {
+  color: #c6ad7a;
+}
+
+/* Card Stepper Styling */
+.card-qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  background: #142a1f;
+  border: 1px solid #c6ad7a;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(20, 42, 31, 0.15);
+}
+
+.btn-card-step {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  color: #efe5d0;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.btn-card-step:hover {
+  background: #244c38;
+  color: #ffffff;
+}
+
+.card-step-num {
+  min-width: 24px;
+  padding: 0 4px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffd98a;
+  user-select: none;
+}
+
+/* Card Picker Bar & Confirm Button */
+.card-picker-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-stepper-wrap {
+  display: inline-flex;
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #c6ad7a;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(20, 42, 31, 0.08);
+}
+
+.btn-step {
+  width: 26px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  color: #142a1f;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 140ms ease;
+}
+
+.btn-step:hover:not(:disabled) {
+  background: #ede6d8;
+}
+
+.btn-step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.step-num {
+  min-width: 20px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #142a1f;
+}
+
+.btn-confirm-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 28px;
+  padding: 0 10px;
+  background: #142a1f;
+  border: 1px solid #c6ad7a;
+  border-radius: 4px;
+  color: #efe5d0;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+
+.btn-confirm-add:hover {
+  background: #244c38;
+  color: #ffffff;
+  border-color: #dfc999;
+}
+
+.btn-confirm-add svg {
+  color: #ffd98a;
+}
+
+.card-added-flash {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 28px;
+  padding: 0 10px;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 4px;
+  color: #065f46;
+  font-size: 12px;
+  font-weight: 700;
+  animation: fadeIn 180ms ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.card-rental-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7d6b47;
+  background: #fbf7ed;
+  border: 1px solid #e5d8b8;
+  padding: 4px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
 }
 </style>
