@@ -1388,20 +1388,6 @@ const venuePolicies = ref({
         </button>
       </div>
     </aside>
-        <div class="user-profile-row">
-          <div class="user-avatar-gold">
-            {{ (auth.username || 'Staff').slice(0, 2).toUpperCase() }}
-          </div>
-          <div class="user-info-text">
-            <strong class="user-name">{{ auth.username || 'Staff Member' }}</strong>
-            <span class="user-role-label">{{ userRoleTitle }}</span>
-          </div>
-        </div>
-        <button type="button" class="btn-signout" @click="auth.logout()">
-          Sign Out
-        </button>
-      </div>
-    </aside>
 
     <!-- Main Content Area -->
     <div class="gl-main-wrapper">
