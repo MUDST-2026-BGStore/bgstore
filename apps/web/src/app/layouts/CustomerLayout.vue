@@ -231,21 +231,6 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
 .catalog-shell :deep(> div.relative > header + div) {
   padding: 20px 32px 24px;
 }
-.catalog-shell
-  :deep(> div.relative > header > :nth-child(2) > span:first-child),
-.catalog-shell
-  :deep(> div.relative > header > :nth-child(2) > span:last-child) {
-  display: inline;
-  color: #ddc18c;
-  font-size: 13px;
-}
-.catalog-shell
-  :deep(> div.relative > header > :nth-child(2) > span:nth-child(2)) {
-  color: #fff3dc;
-  font-size: 13px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
 .catalog-shell .header-language {
   position: relative;
 }
@@ -451,20 +436,6 @@ button:focus-visible {
   }
   .customer-shell :deep(> div.relative > header > :nth-child(3)) {
     gap: 0;
-  }
-  .catalog-shell :deep(> div.relative > header > :nth-child(2)) {
-    gap: 4px;
-  }
-  .catalog-shell
-    :deep(> div.relative > header > :nth-child(2) > span:nth-child(2)) {
-    font-size: 11px;
-    letter-spacing: 0.08em;
-  }
-  .catalog-shell
-    :deep(> div.relative > header > :nth-child(2) > span:first-child),
-  .catalog-shell
-    :deep(> div.relative > header > :nth-child(2) > span:last-child) {
-    font-size: 10px;
   }
   .account-trigger {
     padding: 10px 6px;

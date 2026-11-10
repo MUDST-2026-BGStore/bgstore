@@ -251,8 +251,9 @@ test('mobile filter drawer shares state, traps focus, restores focus and closes 
   await expect(
     drawer.getByRole('combobox', { name: 'Players', exact: true }),
   ).toHaveValue('8');
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 701, height: 900 });
   await expect(drawer).toBeHidden();
+  await expect(page.locator('.filters select[name=players]')).toBeVisible();
   await expect(page.locator('.filters select[name=players]')).toHaveValue('8');
   await page.setViewportSize({ width: 390, height: 700 });
   await page.evaluate(() => window.scrollTo({ top: 400, behavior: 'instant' }));
