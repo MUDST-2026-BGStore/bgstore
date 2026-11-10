@@ -3,6 +3,7 @@
 // Selection currently saves only a local preference; it does not filter the live
 // catalog by library membership or establish stock/fulfillment availability.
 import { computed, onMounted, ref } from 'vue';
+import { RouterLink } from 'vue-router';
 import { branches } from '../data/branches';
 import { useStoreContextStore } from '../stores/store-context';
 import BranchSelect from './BranchSelect.vue';
@@ -123,6 +124,10 @@ defineExpose({ open });
         label="Branch"
         class="store-branch-select"
       />
+      <RouterLink class="locations-link" to="/branches" @click="dialog?.close()"
+        >{{ t('Branch locations') }}
+        <span aria-hidden="true">→</span></RouterLink
+      >
     </fieldset>
     <label class="browse-option"
       ><input
@@ -148,6 +153,13 @@ defineExpose({ open });
   </dialog>
 </template>
 <style scoped>
+.locations-link {
+  display: inline-block;
+  margin-top: 10px;
+  color: #244c38;
+  font-size: 13px;
+  text-decoration: underline;
+}
 .store-context {
   display: flex;
   align-items: center;

@@ -10,11 +10,12 @@
     ]
   },
   "dependencies": {
+    "@tanstack/vue-query": "^5.104.4",
     "@theparlor/account": "workspace:*",
     "@theparlor/api-client": "workspace:*",
     "@theparlor/auth": "workspace:*",
     "@theparlor/ui": "workspace:*",
-    "@tanstack/vue-query": "^5.104.4",
+    "maplibre-gl": "^6.17.0",
     "pinia": "catalog:",
     "tailwindcss": "^4.3.3",
     "vue": "catalog:",

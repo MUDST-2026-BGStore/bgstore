@@ -7,6 +7,11 @@ export const homeRoutes: RouteRecordRaw[] = [
     component: () => import('./pages/GameProduct.vue'),
   },
   {
+    path: '/branches',
+    name: 'BranchLocations',
+    component: () => import('./pages/BranchLocations.vue'),
+  },
+  {
     path: '/',
     name: 'HomeIndex',
     component: () => import('./pages/HomeIndex.vue'),

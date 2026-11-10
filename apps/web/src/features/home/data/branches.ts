@@ -2,17 +2,49 @@ export interface StoreBranch {
   id: string;
   name: string;
   pickup: boolean;
+  address: string;
+  /** Approximate map position for the address; not a verified geocode. */
+  location: { lat: number; lng: number };
 }
 // TODO(branch-api): Replace fictional fixture branches with active branches and
 // configured rental/retail/pickup/shipping capabilities. Only Siam fulfills delivery
 // in this first version. No transfer, split shipment or warehouse aggregation.
 // Canonical seed copy used by the dev database lives in
 // apps/api/src/maintenance/resources/seed/reference-data.json (make seed-dev);
-// keep the two sources in sync until the API replaces this file.
+// keep the two sources in sync until the API replaces this file. Coordinates
+// are frontend-only approximations of the seed addresses.
 export const branches: StoreBranch[] = [
-  { id: 'siam', name: 'Siam', pickup: true },
-  { id: 'ari', name: 'Ari', pickup: true },
-  { id: 'riverside', name: 'Riverside', pickup: true },
+  {
+    id: 'siam',
+    name: 'Siam',
+    pickup: true,
+    address: '483 Siam Square Soi 7, Pathum Wan, Bangkok 10330',
+    location: { lat: 13.7449, lng: 100.5338 },
+  },
+  {
+    id: 'ari',
+    name: 'Ari',
+    pickup: true,
+    address: '71 Phahon Yothin Soi 7, Phaya Thai, Bangkok 10400',
+    location: { lat: 13.7796, lng: 100.5446 },
+  },
+  {
+    id: 'riverside',
+    name: 'Riverside',
+    pickup: true,
+    address: '2194 Charoen Krung 42, Bang Rak, Bangkok 10500',
+    location: { lat: 13.7226, lng: 100.5136 },
+  },
+];
+// Business-wide opening hours from the seed data (ISO weekday, 1 = Monday).
+export const openingHours: { day: number; opens: string; closes: string }[] = [
+  { day: 1, opens: '12:00', closes: '21:00' },
+  { day: 2, opens: '12:00', closes: '21:00' },
+  { day: 3, opens: '12:00', closes: '21:00' },
+  { day: 4, opens: '12:00', closes: '21:00' },
+  { day: 5, opens: '12:00', closes: '21:30' },
+  { day: 6, opens: '10:00', closes: '21:30' },
+  { day: 7, opens: '10:00', closes: '21:00' },
 ];
 export const DELIVERY_BRANCH_ID = 'siam';
 const retailStock: Record<string, Record<string, number>> = {
