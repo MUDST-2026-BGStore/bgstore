@@ -22,22 +22,42 @@ const locateError = ref('');
 const distances = ref<Record<string, number>>({});
 const list = ref<HTMLElement>();
 const directory = ref<HTMLElement>();
+const branchMap = ref<InstanceType<typeof BranchMap>>();
 // Area of the map hidden by the floating list: left column on desktop,
 // bottom sheet on phones. BranchMap keeps pins out from under it.
 const occluded = ref({ left: 0, bottom: 0 });
 let panelObserver: ResizeObserver | undefined;
+let measurementFrame: number | undefined;
+function measureOcclusion() {
+  const panel = directory.value?.getBoundingClientRect();
+  const layout = directory.value?.parentElement?.getBoundingClientRect();
+  if (!panel || !layout) return;
+  const sheet = window.matchMedia('(max-width: 700px)').matches;
+  const next = sheet
+    ? { left: 0, bottom: layout.bottom - panel.top }
+    : { left: panel.right - layout.left, bottom: 0 };
+  if (
+    next.left !== occluded.value.left ||
+    next.bottom !== occluded.value.bottom
+  )
+    occluded.value = next;
+}
+function scheduleMeasurement() {
+  if (measurementFrame !== undefined) cancelAnimationFrame(measurementFrame);
+  // Breakpoints can move the panel without changing its observed size.
+  measurementFrame = requestAnimationFrame(measureOcclusion);
+}
 onMounted(() => {
-  panelObserver = new ResizeObserver(() => {
-    const el = directory.value;
-    if (!el) return;
-    const sheet = window.matchMedia('(max-width: 700px)').matches;
-    occluded.value = sheet
-      ? { left: 0, bottom: el.offsetHeight }
-      : { left: el.offsetLeft + el.offsetWidth, bottom: 0 };
-  });
+  panelObserver = new ResizeObserver(scheduleMeasurement);
   if (directory.value) panelObserver.observe(directory.value);
+  window.addEventListener('resize', scheduleMeasurement);
+  scheduleMeasurement();
 });
-onUnmounted(() => panelObserver?.disconnect());
+onUnmounted(() => {
+  panelObserver?.disconnect();
+  window.removeEventListener('resize', scheduleMeasurement);
+  if (measurementFrame !== undefined) cancelAnimationFrame(measurementFrame);
+});
 const now = ref(new Date());
 let timer: ReturnType<typeof setInterval> | undefined;
 onMounted(() => (timer = setInterval(() => (now.value = new Date()), 60000)));
@@ -132,13 +152,14 @@ const filtered = computed(() => {
 async function select(id: string) {
   selectedId.value = id;
   await nextTick();
+  branchMap.value?.panTo(id);
   list.value
     ?.querySelector(`[data-branch="${id}"]`)
     ?.scrollIntoView({ block: 'nearest' });
 }
 function toggleInfo(id: string) {
   expandedId.value = expandedId.value === id ? '' : id;
-  selectedId.value = id;
+  void select(id);
 }
 // The heart saves the branch as the visitor's browsing preference (same as the
 // store selector). It is an explicit action; un-saving returns to browsing.
@@ -342,6 +363,7 @@ watch(filterOpen, (open) => {
 
       <div class="map-panel">
         <BranchMap
+          ref="branchMap"
           :points="branches"
           :selected-id="selectedId"
           :locating="locating"

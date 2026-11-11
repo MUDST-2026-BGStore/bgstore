@@ -17,7 +17,8 @@ import { useStoreText } from '../data/store-text';
 setWorkerUrl(workerUrl);
 
 const MAP_STYLE = 'https://tiles.openfreemap.org/styles/positron';
-const EDGE = 60;
+const EDGE = 80;
+const FOCUS_ZOOM = 15;
 
 interface MapPoint {
   id: string;
@@ -32,13 +33,14 @@ const props = defineProps<{
   occluded?: { left?: number; bottom?: number };
 }>();
 const emit = defineEmits<{ select: [id: string]; locate: [] }>();
-const { t } = useStoreText();
+const { t, locale } = useStoreText();
 
 const container = useTemplateRef<HTMLDivElement>('container');
 const map = shallowRef<MapLibreMap>();
 let markers: Marker[] = [];
-// Until the visitor moves the map, keep refitting as the layout settles.
-let touched = false;
+// Layout changes preserve the last camera intent without undoing manual pans.
+let view: 'overview' | 'selection' | 'manual' = 'overview';
+let observer: ResizeObserver | undefined;
 
 const reducedMotion = () =>
   window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -52,10 +54,13 @@ const padding = () => ({
 function fit() {
   const instance = map.value;
   if (!instance || !props.points.length) return;
+  view = 'overview';
   const bounds = new LngLatBounds();
   for (const point of props.points) bounds.extend(point.location);
   instance.fitBounds(bounds, {
     padding: padding(),
+    // Replace focus padding rather than adding it again when returning to overview.
+    absolutePadding: true,
     maxZoom: 14,
     duration: reducedMotion() ? 0 : 400,
   });
@@ -64,21 +69,19 @@ function panTo(id: string) {
   const instance = map.value;
   const point = props.points.find((p) => p.id === id);
   if (!instance || !point) return;
-  touched = true;
-  const screen = instance.project(point.location);
-  const { width, height } = instance.getContainer().getBoundingClientRect();
-  const pad = padding();
-  const visible =
-    screen.x > pad.left &&
-    screen.x < width - pad.right &&
-    screen.y > pad.top &&
-    screen.y < height - pad.bottom;
-  if (!visible)
-    instance.easeTo({
-      center: point.location,
-      padding: pad,
-      duration: reducedMotion() ? 0 : 500,
-    });
+  view = 'selection';
+  instance.easeTo({
+    center: point.location,
+    zoom: Math.max(instance.getZoom(), FOCUS_ZOOM),
+    padding: padding(),
+    duration: reducedMotion() ? 0 : 500,
+  });
+}
+
+function syncLayout() {
+  map.value?.resize();
+  if (view === 'overview') fit();
+  else if (view === 'selection') panTo(props.selectedId);
 }
 
 function markerElement(point: MapPoint, active: boolean) {
@@ -87,8 +90,7 @@ function markerElement(point: MapPoint, active: boolean) {
   button.className = active ? 'branch-pin is-active' : 'branch-pin';
   button.setAttribute('aria-label', t(point.name));
   button.setAttribute('aria-pressed', String(active));
-  if (active)
-    button.innerHTML = `<svg viewBox="0 0 32 42" aria-hidden="true"><path d="M16 41s14-13.6 14-25A14 14 0 0 0 2 16c0 11.4 14 25 14 25Z" fill="#244c38" stroke="white" stroke-width="2"/><rect x="10" y="10" width="12" height="12" rx="2" fill="white"/><path d="M13 14h6M13 18h6" stroke="#244c38" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+  button.innerHTML = `<svg viewBox="0 0 32 42" aria-hidden="true"><path d="M16 41s14-13.6 14-25A14 14 0 0 0 2 16c0 11.4 14 25 14 25Z" fill="currentColor" stroke="white" stroke-width="2"/><rect x="10" y="10" width="12" height="12" rx="2" fill="white"/><path d="M13 14h6M13 18h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
   const label = document.createElement('span');
   label.className = 'branch-pin-label';
   label.textContent = t(point.name);
@@ -112,7 +114,8 @@ function renderMarkers() {
     const active = point.id === props.selectedId;
     return new Marker({
       element: markerElement(point, active),
-      anchor: active ? 'bottom' : 'center',
+      anchor: 'bottom',
+      subpixelPositioning: true,
     })
       .setLngLat(point.location)
       .addTo(instance);
@@ -150,33 +153,27 @@ onMounted(() => {
   );
   // Only user gestures carry an originalEvent; programmatic moves do not.
   instance.on('movestart', (event) => {
-    if ('originalEvent' in event && event.originalEvent) touched = true;
+    if ('originalEvent' in event && event.originalEvent) view = 'manual';
   });
   map.value = instance;
   renderMarkers();
   fit();
+  observer = new ResizeObserver(syncLayout);
+  observer.observe(container.value);
 });
 onUnmounted(() => {
+  observer?.disconnect();
+  for (const marker of markers) marker.remove();
   map.value?.remove();
   map.value = undefined;
   markers = [];
 });
 
 watch(
-  () => [props.points, props.selectedId] as const,
+  () => [props.points, props.selectedId, locale.value] as const,
   () => renderMarkers(),
 );
-watch(
-  () => props.selectedId,
-  (id) => panTo(id),
-);
-watch(
-  () => props.occluded,
-  () => {
-    map.value?.resize();
-    if (!touched) fit();
-  },
-);
+watch(() => props.occluded, syncLayout);
 defineExpose({ fit, panTo });
 </script>
 
@@ -270,23 +267,19 @@ defineExpose({ fit, panTo });
 }
 /* Marker elements are created by MapLibre outside this component's scope. */
 :deep(.branch-pin) {
-  position: relative;
-  width: 16px;
-  height: 16px;
-  border: 2px solid white;
-  border-radius: 50%;
-  background: #2f7a4f;
-  box-shadow: 0 1px 4px #14241c55;
+  /* MapLibre owns the transform; normal-flow offsets would displace the pin. */
+  position: absolute;
+  width: 34px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #2f7a4f;
+  filter: drop-shadow(0 2px 3px #14241c66);
   cursor: pointer;
 }
 :deep(.branch-pin.is-active) {
-  width: 34px;
-  height: 44px;
-  border: 0;
-  border-radius: 0;
-  background: none;
-  box-shadow: none;
-  filter: drop-shadow(0 2px 3px #14241c66);
+  color: #244c38;
 }
 :deep(.branch-pin svg) {
   display: block;
@@ -311,14 +304,12 @@ defineExpose({ fit, panTo });
     sans-serif;
   white-space: nowrap;
   box-shadow: 0 1px 4px #14241c33;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 140ms ease;
-}
-:deep(.branch-pin:hover .branch-pin-label),
-:deep(.branch-pin:focus-visible .branch-pin-label),
-:deep(.branch-pin.is-active .branch-pin-label) {
   opacity: 1;
+  pointer-events: none;
+}
+:deep(.branch-pin.is-active .branch-pin-label) {
+  background: #244c38;
+  color: white;
 }
 @media (prefers-reduced-motion: reduce) {
   .actions button,
