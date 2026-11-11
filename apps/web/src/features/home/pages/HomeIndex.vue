@@ -31,7 +31,7 @@ function syncLayout() {
 }
 onMounted(() => {
   if (typeof window.matchMedia !== 'function') return;
-  mobileLayout = window.matchMedia('(max-width: 700px)');
+  mobileLayout = window.matchMedia('(max-width: 900px)');
   syncLayout();
   mobileLayout.addEventListener('change', syncLayout);
 });

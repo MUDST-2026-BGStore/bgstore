@@ -1,3 +1,28 @@
+/* Thai Font: FC Mee Sakul (https://www.f0nt.com/release/fc-mee-sakul/) */
+@font-face {
+  font-family: 'FC Mee Sakul';
+  src: url('/fonts/fc-mee-sakul.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+:lang(th),
+:lang(th-TH),
+[lang='th'],
+[lang='th-TH'],
+.font-thai {
+  font-family:
+    'FC Mee Sakul',
+    'Plus Jakarta Sans',
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif !important;
+}
+
 @import 'tailwindcss';
 
 /* Tailwind v4 auto-detects classes in the app only; libs/web components are

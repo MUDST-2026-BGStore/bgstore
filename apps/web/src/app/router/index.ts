@@ -7,6 +7,7 @@ import { homeRoutes } from '../../features/home/routes';
 import { authRoutes } from '../../features/auth/routes';
 import { workspaceRoutes } from '../../features/workspace/routes';
 import { accountRoutes } from '../../features/account/routes';
+import { reservationRoutes } from '../../features/reservations/routes';
 import { installAuthGuards } from './guards';
 
 import CustomerLayout from '../layouts/CustomerLayout.vue';
@@ -24,6 +25,7 @@ export function createAppRouter() {
     ...homeRoutes,
     ...authRoutes,
     ...accountRoutes,
+    ...reservationRoutes,
   ];
 
   const customerRoutes = customerPages.filter(
