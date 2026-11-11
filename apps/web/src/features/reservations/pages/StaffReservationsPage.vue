@@ -323,6 +323,38 @@ const freeTablesCount = computed(() => {
   return branchFloorTables.length - occupiedTablesCount.value;
 });
 
+// Breadcrumb context label for the active view (FortiSOAR-style location trail)
+const activeViewLabel = computed(() => {
+  const labels: Record<NavTab, string> = {
+    dashboard: 'Dashboard',
+    floor: 'Tables & Floor',
+    sessions: 'Live Sessions',
+    bookings: 'Bookings & Timeline',
+    library: 'Game Library',
+    inventory: 'Inventory & Fulfillment',
+    'staff-roster': 'Staff & Shifts',
+    analytics: 'Revenue & Analytics',
+    settings: 'Venue Settings',
+    policies: 'Venue Policies',
+  };
+  return labels[activeTab.value];
+});
+
+// Floor occupancy breakdown (FortiSIEM-style counter rail)
+const floorOccupancy = computed(() => {
+  const reserved = branchFloorTables.filter(
+    (t) => getTableStatus(t).state === 'RESERVED',
+  ).length;
+  const occupied = occupiedTablesCount.value;
+  const free = freeTablesCount.value;
+  const total = branchFloorTables.length || 1;
+  return [
+    { state: 'In play', count: occupied, cls: 'occupied', pct: Math.round((occupied / total) * 100) },
+    { state: 'Reserved', count: reserved, cls: 'reserved', pct: Math.round((reserved / total) * 100) },
+    { state: 'Free', count: free, cls: 'free', pct: Math.round((free / total) * 100) },
+  ];
+});
+
 // "Needs You Now" alerts (Most urgent first)
 const needsYouItems = computed(() => {
   const alerts: any[] = [];
@@ -331,6 +363,7 @@ const needsYouItems = computed(() => {
     alerts.push({
       id: r.id,
       type: 'IN_PLAY',
+      sev: 'med',
       title: `Table ${r.tableId} in play for ${elapsed} min`,
       subtitle: `${r.partySize} guests · ${getCustomerName(r.customer)} · Table charge: ฿${calculateCurrentPlayFee(r)}`,
       reservation: r,
@@ -344,6 +377,7 @@ const needsYouItems = computed(() => {
       alerts.push({
         id: r.id,
         type: 'LATE',
+        sev: 'high',
         title: `Customer late ${diffMins}m: ${getCustomerName(r.customer)} (Table ${r.tableId})`,
         subtitle: `Scheduled ${formatTime(r.startsAt)} · Auto-released if 15m late`,
         reservation: r,
@@ -1613,6 +1647,12 @@ const venuePolicies = ref({
           <div class="console-role-pill">
             <span>{{ userRoleTitle }}</span>
           </div>
+
+          <nav class="crumb-trail" aria-label="Location">
+            <span>{{ selectedBranch?.name || 'Branch' }}</span>
+            <i class="fa-solid fa-angle-right" aria-hidden="true"></i>
+            <span class="crumb-current">{{ activeViewLabel }}</span>
+          </nav>
         </div>
 
 
@@ -1806,81 +1846,9 @@ const venuePolicies = ref({
             </div>
           </section>
 
-          <!-- Block 3: Needs You Now Queue -->
-          <section
-            v-if="needsYouItems.length > 0"
-            class="console-block needs-you-card"
-          >
-            <div class="needs-you-header">
-              <div class="needs-you-title">
-                <span>Needs you now</span>
-                <span class="needs-count-pill">{{ needsYouItems.length }}</span>
-              </div>
-              <span class="most-urgent">Most urgent first</span>
-            </div>
-
-            <div class="needs-items-list">
-              <div
-                v-for="alert in needsYouItems"
-                :key="alert.id"
-                class="needs-item-row"
-              >
-                <div class="needs-item-left">
-                  <div class="alert-icon-square">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                  </div>
-                  <div>
-                    <strong class="needs-item-title">{{ alert.title }}</strong>
-                    <p class="needs-item-sub">{{ alert.subtitle }}</p>
-                  </div>
-                </div>
-
-                <div class="needs-item-actions">
-                  <button
-                    v-if="alert.type === 'IN_PLAY'"
-                    type="button"
-                    class="btn-gold-pill"
-                    @click="openAddSnacks(alert.reservation)"
-                  >
-                    + Add Refreshments
-                  </button>
-
-                  <button
-                    v-if="alert.type === 'IN_PLAY'"
-                    type="button"
-                    class="btn-primary-parlor small"
-                    @click="openCheckBill(alert.reservation)"
-                  >
-                    Check Bill <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
-                  </button>
-
-                  <button
-                    v-if="alert.type === 'LATE'"
-                    type="button"
-                    class="btn-primary-parlor small"
-                    @click="handleCheckIn(alert.reservation)"
-                  >
-                    Check-in Guest
-                  </button>
-                </div>
-              </div>
-            </div>
-          </section>
-
           <!-- Block 4: Two-Column Lower Section: Floor Plan & Coming Up -->
-          <div class="two-column-service-row">
-            <!-- Left Column: Floor Plan -->
-            <div class="column-left">
+          <div class="dash-grid">
+            <div class="dash-main">
               <section class="console-block">
                 <div class="section-card-header">
                   <div class="header-left">
@@ -2046,8 +2014,63 @@ const venuePolicies = ref({
               </section>
             </div>
 
-            <!-- Right Column: Coming Up Timeline -->
-            <div class="column-right">
+            <aside class="dash-side">
+          <!-- FortiSIEM-style incident rail: severity-tagged attention boxes -->
+          <section
+            v-if="needsYouItems.length > 0"
+            class="console-block needs-you-card"
+          >
+            <div class="panel-head">
+              <div class="panel-title-row">
+                <h2 class="panel-title">Needs you now</h2>
+                <span class="count-pill warn">{{ needsYouItems.length }}</span>
+              </div>
+              <span class="panel-hint">Most urgent first</span>
+            </div>
+
+            <div class="incident-stack">
+              <article
+                v-for="alert in needsYouItems"
+                :key="alert.id"
+                class="incident-box"
+                :class="alert.sev === 'high' ? 'sev-high' : 'sev-med'"
+              >
+                <div class="incident-body">
+                  <strong class="incident-title">{{ alert.title }}</strong>
+                  <p class="incident-sub">{{ alert.subtitle }}</p>
+                  <div class="incident-actions">
+                    <button
+                      v-if="alert.type === 'IN_PLAY'"
+                      type="button"
+                      class="btn-secondary-parlor small"
+                      @click="openAddSnacks(alert.reservation)"
+                    >
+                      + Add refreshments
+                    </button>
+                    <button
+                      v-if="alert.type === 'IN_PLAY'"
+                      type="button"
+                      class="btn-primary-parlor small"
+                      @click="openCheckBill(alert.reservation)"
+                    >
+                      Check bill <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+                    </button>
+                    <button
+                      v-if="alert.type === 'LATE'"
+                      type="button"
+                      class="btn-primary-parlor small"
+                      @click="handleCheckIn(alert.reservation)"
+                    >
+                      Check in guest
+                    </button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
+
+              <!-- Coming Up Timeline -->
               <section class="console-block">
                 <div class="section-card-header">
                   <div class="header-left">
@@ -2125,7 +2148,7 @@ const venuePolicies = ref({
                   </article>
                 </div>
               </section>
-            </div>
+            </aside>
           </div>
         </template>
 
@@ -2152,6 +2175,8 @@ const venuePolicies = ref({
               </button>
             </div>
 
+            <div class="floor-layout">
+              <div class="floor-main">
             <div class="floor-tables-grid expanded">
               <article
                 v-for="table in branchFloorTables"
@@ -2300,6 +2325,33 @@ const venuePolicies = ref({
                   </button>
                 </template>
               </article>
+            </div>
+              </div>
+
+              <aside class="floor-side">
+                <section class="console-block occ-panel">
+                  <div class="panel-head">
+                    <h2 class="panel-title">Occupancy</h2>
+                    <span class="panel-hint">{{ branchFloorTables.length }} tables</span>
+                  </div>
+                  <div class="occ-body">
+                    <div
+                      v-for="row in floorOccupancy"
+                      :key="row.state"
+                      class="occ-row"
+                      :class="row.cls"
+                    >
+                      <span class="occ-dot"></span>
+                      <span class="occ-label">{{ row.state }}</span>
+                      <span class="occ-count">{{ row.count }}</span>
+                      <span class="occ-bar"
+                        ><span class="occ-fill" :style="{ width: row.pct + '%' }"></span
+                      ></span>
+                    </div>
+                  </div>
+                  <div class="occ-foot">Live state · refreshes with floor data</div>
+                </section>
+              </aside>
             </div>
           </section>
         </template>
@@ -4904,114 +4956,264 @@ const venuePolicies = ref({
   color: var(--ink);
 }
 
-/* Needs-you queue ----------------------------------------------------- */
+/* Panel head anatomy ------------------------------------------------- */
 
-.needs-you-card {
-  border-color: #e3d3ac;
-}
-
-.needs-you-header {
+.panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--line-soft);
-  background: var(--gold-soft);
-  border-radius: var(--r) var(--r) 0 0;
 }
 
-.needs-you-title {
+.panel-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--gold-ink);
-  font-size: 12.5px;
-  font-weight: 600;
 }
 
-.needs-count-pill {
-  padding: 0 7px;
-  border-radius: 9px;
-  background: var(--gold);
-  color: #142b20;
-  font-size: 10.5px;
-  font-weight: 600;
-  line-height: 16px;
-}
-
-.most-urgent {
-  color: var(--gold-ink);
-  font-size: 11px;
-}
-
-.needs-items-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.needs-item-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 9px 16px;
-  border-bottom: 1px solid var(--line-soft);
-}
-
-.needs-item-row:last-child {
-  border-bottom: 0;
-}
-
-.needs-item-left {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-width: 0;
-}
-
-.alert-icon-square {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 30px;
-  width: 30px;
-  height: 30px;
-  border-radius: var(--r);
-  background: var(--warn-bg);
-  border: 1px solid #e3d3ac;
-  color: var(--warn);
-}
-
-.needs-item-title {
+.panel-title {
+  margin: 0;
   color: var(--ink);
   font-size: 12.5px;
   font-weight: 600;
 }
 
-.needs-item-sub {
-  margin: 0;
+.panel-hint {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.count-pill {
+  padding: 0 7px;
+  border-radius: 9px;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.count-pill.warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.count-pill.accent {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+/* Breadcrumb trail (FortiSOAR) ---------------------------------------- */
+
+.crumb-trail {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.crumb-trail i {
+  font-size: 9px;
+  color: #a9b5aa;
+}
+
+.crumb-root {
+  color: var(--muted);
+}
+
+.crumb-current {
+  color: var(--ink);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Incident boxes (FortiSIEM severity cards) --------------------------- */
+
+.incident-stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.incident-box {
+  padding: 10px 14px 10px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  border-left: 2px solid transparent;
+}
+
+.incident-box:last-child {
+  border-bottom: 0;
+}
+
+.incident-box.sev-high {
+  border-left-color: var(--err);
+  background: #fdf7f5;
+}
+
+.incident-box.sev-med {
+  border-left-color: var(--gold);
+}
+
+.incident-title {
+  display: block;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.incident-sub {
+  margin: 1px 0 8px;
   color: var(--muted);
   font-size: 11.5px;
 }
 
-.needs-item-actions {
+.incident-actions {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex: 0 0 auto;
+}
+
+/* Occupancy rail (FortiSIEM counters) --------------------------------- */
+
+.occ-panel {
+  margin-bottom: 0;
+}
+
+.occ-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.occ-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  font-size: 12px;
+}
+
+.occ-row:last-child {
+  border-bottom: 0;
+}
+
+.occ-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #a9b5aa;
+}
+
+.occ-row.occupied .occ-dot {
+  background: var(--accent);
+}
+
+.occ-row.reserved .occ-dot {
+  background: var(--gold);
+}
+
+.occ-label {
+  flex: 1;
+  color: var(--body);
+}
+
+.occ-count {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.occ-bar {
+  flex: 0 0 54px;
+  height: 4px;
+  border-radius: 2px;
+  background: #e6ebe6;
+  overflow: hidden;
+}
+
+.occ-fill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.occ-row.reserved .occ-fill {
+  background: var(--gold);
+}
+
+.occ-row.free .occ-fill {
+  background: #a9b5aa;
+}
+
+.occ-foot {
+  padding: 8px 16px;
+  border-top: 1px solid var(--line-soft);
+  background: #f7f9f7;
+  color: var(--muted);
+  font-size: 10.5px;
+  border-radius: 0 0 var(--r) var(--r);
+}
+
+/* Row-hover action emphasis (FortiSOAR) ------------------------------- */
+
+.parlor-table .actions-cell {
+  opacity: 0.55;
+}
+
+.parlor-table tbody tr:hover .actions-cell {
+  opacity: 1;
+}
+
+/* Needs-you legacy hooks kept harmless */
+
+.needs-you-card {
+  border-color: #e3d3ac;
+}
+
+.needs-you-card .panel-head {
+  background: var(--gold-soft);
+  border-bottom-color: #e9dfc4;
+  border-radius: var(--r) var(--r) 0 0;
+}
+
+.needs-you-card .panel-title {
+  color: var(--gold-ink);
+}
+
+.needs-you-card .panel-hint {
+  color: var(--gold-ink);
 }
 
 /* Two-column lower area ---------------------------------------------- */
 
-.two-column-service-row {
+.dash-grid {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
 }
 
-.column-left,
-.column-right {
+.dash-main,
+.dash-side {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.floor-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 16px;
+  align-items: start;
+}
+
+.floor-main,
+.floor-side {
   min-width: 0;
 }
 
@@ -6155,7 +6357,8 @@ select.parlor-input,
 /* ------------------------------------------------------------------ */
 
 @media (max-width: 1080px) {
-  .two-column-service-row {
+  .dash-grid,
+  .floor-layout {
     grid-template-columns: 1fr;
   }
 
@@ -6199,7 +6402,7 @@ select.parlor-input,
     gap: 8px;
   }
 
-  .needs-item-row {
+  .incident-box {
     flex-direction: column;
     align-items: flex-start;
   }
