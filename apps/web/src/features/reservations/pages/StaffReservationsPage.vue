@@ -84,6 +84,8 @@ type NavTab =
   | 'bookings'
   | 'library'
   | 'inventory'
+  | 'branches'
+  | 'manage-tables'
   | 'staff-roster'
   | 'analytics'
   | 'settings'
@@ -114,7 +116,7 @@ const userRoleTitle = computed(() => {
 // Guard administration tabs (inventory/stock is accessible to all staff)
 watch(activeTab, (tab) => {
   if (
-    ['staff-roster', 'analytics', 'settings', 'policies'].includes(tab) &&
+    ['branches', 'manage-tables', 'staff-roster', 'analytics', 'settings', 'policies'].includes(tab) &&
     !isAdmin.value
   ) {
     activeTab.value = 'dashboard';
@@ -632,9 +634,14 @@ function returnGameFromAnyTable(gameName: string) {
   }
 }
 
+const catalogGames = ref<CatalogGame[]>([...games]);
+const activeInUseGamesCount = computed(() => {
+  return Object.values(tableAssignedGames.value).flat().length;
+});
+
 const filteredGames = computed(() => {
   const q = gameSearchQuery.value.trim().toLowerCase();
-  return games.filter((g) => {
+  return catalogGames.value.filter((g) => {
     const isAssigned = !!getGameLocation(g.name);
     if (gameStatusFilter.value === 'AVAILABLE' && isAssigned) return false;
     if (gameStatusFilter.value === 'IN_USE' && !isAssigned) return false;
@@ -650,7 +657,7 @@ const filteredGames = computed(() => {
 
 const assignableGamesList = computed(() => {
   const q = assignModalSearch.value.trim().toLowerCase();
-  return games.filter((g) => {
+  return catalogGames.value.filter((g) => {
     if (!q) return true;
     return (
       g.name.toLowerCase().includes(q) ||
@@ -1139,6 +1146,540 @@ const todayTotalGross = computed(
 );
 
 // ==========================================
+// FEATURE: BUSINESS OVERVIEW & MANAGE BRANCHES (User Stories 6 & 7)
+// ==========================================
+export interface BranchRecord {
+  id: string;
+  name: string;
+  code: string;
+  status: 'Active' | 'Inactive';
+  address: string;
+  city: string;
+  phone: string;
+  email: string;
+  totalTables: number;
+  availableTables: number;
+  reservedTables: number;
+  occupiedTables: number;
+  checkInsToday: number;
+  openingHours: {
+    monFri: string;
+    sat: string;
+    sun: string;
+  };
+}
+
+const branchesList = ref<BranchRecord[]>([
+  {
+    id: 'b1',
+    name: 'The Parlor · Siam Square',
+    code: 'BKK-SQ1',
+    status: 'Active',
+    address: '388 Rama I Rd, Pathum Wan',
+    city: 'Bangkok',
+    phone: '+66 2 251 8899',
+    email: 'siamsquare@theparlor.com',
+    totalTables: 20,
+    availableTables: 16,
+    reservedTables: 3,
+    occupiedTables: 1,
+    checkInsToday: 14,
+    openingHours: {
+      monFri: '11:00 - 22:00',
+      sat: '10:00 - 23:00',
+      sun: '10:00 - 22:00',
+    },
+  },
+  {
+    id: 'b2',
+    name: 'The Parlor · Asok Station',
+    code: 'BKK-AS2',
+    status: 'Active',
+    address: '211 Sukhumvit Soi 21, Watthana',
+    city: 'Bangkok',
+    phone: '+66 2 664 3322',
+    email: 'asok@theparlor.com',
+    totalTables: 15,
+    availableTables: 12,
+    reservedTables: 2,
+    occupiedTables: 1,
+    checkInsToday: 9,
+    openingHours: {
+      monFri: '11:00 - 22:00',
+      sat: '10:00 - 23:00',
+      sun: '10:00 - 22:00',
+    },
+  },
+  {
+    id: 'b3',
+    name: 'The Parlor · Silom Edge',
+    code: 'BKK-SL3',
+    status: 'Active',
+    address: '2 Silom Rd, Bang Rak',
+    city: 'Bangkok',
+    phone: '+66 2 234 5678',
+    email: 'silom@theparlor.com',
+    totalTables: 18,
+    availableTables: 14,
+    reservedTables: 3,
+    occupiedTables: 1,
+    checkInsToday: 11,
+    openingHours: {
+      monFri: '10:00 - 23:00',
+      sat: '10:00 - 23:30',
+      sun: '10:00 - 22:00',
+    },
+  },
+  {
+    id: 'b4',
+    name: 'The Parlor · Thonglor 13 (Opening Soon)',
+    code: 'BKK-TL4',
+    status: 'Inactive',
+    address: '138 Soi Thonglor 13, Khlong Tan Nuea',
+    city: 'Bangkok',
+    phone: '+66 2 712 9900',
+    email: 'thonglor@theparlor.com',
+    totalTables: 24,
+    availableTables: 24,
+    reservedTables: 0,
+    occupiedTables: 0,
+    checkInsToday: 0,
+    openingHours: {
+      monFri: '12:00 - 22:00',
+      sat: '11:00 - 23:00',
+      sun: '11:00 - 22:00',
+    },
+  },
+]);
+
+const branchSearchQuery = ref('');
+const branchStatusFilter = ref<'All' | 'Active' | 'Inactive'>('All');
+
+const filteredBranches = computed(() => {
+  return branchesList.value.filter((b) => {
+    const matchesSearch =
+      b.name.toLowerCase().includes(branchSearchQuery.value.toLowerCase()) ||
+      b.code.toLowerCase().includes(branchSearchQuery.value.toLowerCase()) ||
+      b.city.toLowerCase().includes(branchSearchQuery.value.toLowerCase());
+    const matchesStatus =
+      branchStatusFilter.value === 'All' || b.status === branchStatusFilter.value;
+    return matchesSearch && matchesStatus;
+  });
+});
+
+const overviewTotalBranches = computed(() => branchesList.value.length);
+const overviewTotalTables = computed(() =>
+  branchesList.value.reduce((acc, b) => acc + b.totalTables, 0)
+);
+const overviewTotalCheckIns = computed(() =>
+  branchesList.value.reduce((acc, b) => acc + b.checkInsToday, 0)
+);
+const overviewTotalActiveReservations = computed(() =>
+  branchesList.value.reduce((acc, b) => acc + b.reservedTables + b.occupiedTables, 0)
+);
+
+const showAddBranchModal = ref(false);
+const editingBranchId = ref<string | null>(null);
+const branchForm = ref({
+  name: '',
+  code: '',
+  status: 'Active' as 'Active' | 'Inactive',
+  address: '',
+  city: 'Bangkok',
+  phone: '',
+  email: '',
+  totalTables: 12,
+  monFriOpen: '11:00',
+  monFriClose: '22:00',
+  satOpen: '10:00',
+  satClose: '23:00',
+  sunOpen: '10:00',
+  sunClose: '22:00',
+});
+
+function openAddBranchModal() {
+  editingBranchId.value = null;
+  branchForm.value = {
+    name: '',
+    code: `BKK-BR${branchesList.value.length + 1}`,
+    status: 'Active',
+    address: '',
+    city: 'Bangkok',
+    phone: '',
+    email: '',
+    totalTables: 12,
+    monFriOpen: '11:00',
+    monFriClose: '22:00',
+    satOpen: '10:00',
+    satClose: '23:00',
+    sunOpen: '10:00',
+    sunClose: '22:00',
+  };
+  showAddBranchModal.value = true;
+}
+
+function openEditBranchModal(b: BranchRecord) {
+  editingBranchId.value = b.id;
+  const [monFriOpen, monFriClose] = b.openingHours.monFri.split(' - ');
+  const [satOpen, satClose] = b.openingHours.sat.split(' - ');
+  const [sunOpen, sunClose] = b.openingHours.sun.split(' - ');
+  branchForm.value = {
+    name: b.name,
+    code: b.code,
+    status: b.status,
+    address: b.address,
+    city: b.city,
+    phone: b.phone,
+    email: b.email,
+    totalTables: b.totalTables,
+    monFriOpen: monFriOpen || '11:00',
+    monFriClose: monFriClose || '22:00',
+    satOpen: satOpen || '10:00',
+    satClose: satClose || '23:00',
+    sunOpen: sunOpen || '10:00',
+    sunClose: sunClose || '22:00',
+  };
+  showAddBranchModal.value = true;
+}
+
+function saveBranch() {
+  if (!branchForm.value.name.trim() || !branchForm.value.code.trim()) return;
+  const openingHours = {
+    monFri: `${branchForm.value.monFriOpen} - ${branchForm.value.monFriClose}`,
+    sat: `${branchForm.value.satOpen} - ${branchForm.value.satClose}`,
+    sun: `${branchForm.value.sunOpen} - ${branchForm.value.sunClose}`,
+  };
+
+  if (editingBranchId.value) {
+    const idx = branchesList.value.findIndex((b) => b.id === editingBranchId.value);
+    if (idx !== -1) {
+      branchesList.value[idx] = {
+        ...branchesList.value[idx],
+        name: branchForm.value.name,
+        code: branchForm.value.code,
+        status: branchForm.value.status,
+        address: branchForm.value.address,
+        city: branchForm.value.city,
+        phone: branchForm.value.phone,
+        email: branchForm.value.email,
+        totalTables: Number(branchForm.value.totalTables),
+        openingHours,
+      };
+    }
+  } else {
+    branchesList.value.push({
+      id: `b${Date.now()}`,
+      name: branchForm.value.name,
+      code: branchForm.value.code,
+      status: branchForm.value.status,
+      address: branchForm.value.address,
+      city: branchForm.value.city,
+      phone: branchForm.value.phone,
+      email: branchForm.value.email,
+      totalTables: Number(branchForm.value.totalTables),
+      availableTables: Number(branchForm.value.totalTables),
+      reservedTables: 0,
+      occupiedTables: 0,
+      checkInsToday: 0,
+      openingHours,
+    });
+  }
+  showAddBranchModal.value = false;
+}
+
+function toggleBranchStatus(b: BranchRecord) {
+  b.status = b.status === 'Active' ? 'Inactive' : 'Active';
+}
+
+function deleteBranch(bId: string) {
+  if (confirm('Are you sure you want to delete this branch location?')) {
+    branchesList.value = branchesList.value.filter((b) => b.id !== bId);
+  }
+}
+
+// ==========================================
+// FEATURE: PHYSICAL TABLE INVENTORY MANAGEMENT (User Story 8)
+// ==========================================
+export type PhysicalTableShape = 'Round' | 'Square' | 'Rectangle' | 'Oval';
+export type PhysicalTableStatus = 'Available' | 'Reserved' | 'Occupied' | 'Unavailable';
+export type PhysicalTableZone = 'Main Hall' | 'Private Room' | 'VIP Room' | 'Rooftop Lounge';
+
+export interface PhysicalTableRecord {
+  id: string;
+  name: string;
+  branchName: string;
+  capacity: number;
+  shape: PhysicalTableShape;
+  status: PhysicalTableStatus;
+  active: boolean;
+  zone: PhysicalTableZone;
+  lastUpdated: string;
+}
+
+const physicalTablesList = ref<PhysicalTableRecord[]>([
+  { id: 'T01', name: 'Table 1', branchName: 'The Parlor · Siam Square', capacity: 2, shape: 'Round', status: 'Available', active: true, zone: 'Main Hall', lastUpdated: '10 mins ago' },
+  { id: 'T02', name: 'Table 2', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Square', status: 'Reserved', active: true, zone: 'Main Hall', lastUpdated: '5 mins ago' },
+  { id: 'T03', name: 'Table 3', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Square', status: 'Available', active: true, zone: 'Main Hall', lastUpdated: 'Just now' },
+  { id: 'T04', name: 'Table 4', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Round', status: 'Occupied', active: true, zone: 'Main Hall', lastUpdated: '45 mins ago' },
+  { id: 'T05', name: 'Table 5', branchName: 'The Parlor · Siam Square', capacity: 6, shape: 'Rectangle', status: 'Available', active: true, zone: 'Main Hall', lastUpdated: '1 hour ago' },
+  { id: 'T06', name: 'Table 6', branchName: 'The Parlor · Siam Square', capacity: 6, shape: 'Rectangle', status: 'Available', active: true, zone: 'Main Hall', lastUpdated: '2 hours ago' },
+  { id: 'T07', name: 'Table 7 (VIP)', branchName: 'The Parlor · Siam Square', capacity: 8, shape: 'Oval', status: 'Reserved', active: true, zone: 'VIP Room', lastUpdated: '15 mins ago' },
+  { id: 'T08', name: 'Table 8 (Private)', branchName: 'The Parlor · Siam Square', capacity: 6, shape: 'Rectangle', status: 'Available', active: true, zone: 'Private Room', lastUpdated: '3 hours ago' },
+  { id: 'T09', name: 'Table 9 (Rooftop)', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Round', status: 'Occupied', active: true, zone: 'Rooftop Lounge', lastUpdated: '30 mins ago' },
+  { id: 'T10', name: 'Table 10 (Maintenance)', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Square', status: 'Unavailable', active: false, zone: 'Main Hall', lastUpdated: 'Yesterday' },
+]);
+
+const tableSearchQuery = ref('');
+const tableFilterBranch = ref('The Parlor · Siam Square');
+const tableFilterZone = ref('All zones');
+const tableFilterStatus = ref<string>('All statuses');
+
+const filteredPhysicalTables = computed(() => {
+  return physicalTablesList.value.filter((t) => {
+    const matchesSearch =
+      t.name.toLowerCase().includes(tableSearchQuery.value.toLowerCase()) ||
+      t.id.toLowerCase().includes(tableSearchQuery.value.toLowerCase());
+    const matchesBranch =
+      tableFilterBranch.value === 'All branches' || t.branchName === tableFilterBranch.value;
+    const matchesZone =
+      tableFilterZone.value === 'All zones' || t.zone === tableFilterZone.value;
+    const matchesStatus =
+      tableFilterStatus.value === 'All statuses' || t.status === tableFilterStatus.value;
+    return matchesSearch && matchesBranch && matchesZone && matchesStatus;
+  });
+});
+
+const tableCountTotal = computed(() => physicalTablesList.value.length);
+const tableCountAvailable = computed(
+  () => physicalTablesList.value.filter((t) => t.status === 'Available').length
+);
+const tableCountReserved = computed(
+  () => physicalTablesList.value.filter((t) => t.status === 'Reserved').length
+);
+const tableCountOccupied = computed(
+  () => physicalTablesList.value.filter((t) => t.status === 'Occupied').length
+);
+
+const showAddTableModal = ref(false);
+const editingTableId = ref<string | null>(null);
+const tableForm = ref({
+  name: '',
+  branchName: 'The Parlor · Siam Square',
+  capacity: 4,
+  shape: 'Square' as PhysicalTableShape,
+  status: 'Available' as PhysicalTableStatus,
+  zone: 'Main Hall' as PhysicalTableZone,
+  active: true,
+});
+
+function openAddTableModal() {
+  editingTableId.value = null;
+  tableForm.value = {
+    name: `Table ${physicalTablesList.value.length + 1}`,
+    branchName:
+      tableFilterBranch.value === 'All branches'
+        ? 'The Parlor · Siam Square'
+        : tableFilterBranch.value,
+    capacity: 4,
+    shape: 'Square',
+    status: 'Available',
+    zone: 'Main Hall',
+    active: true,
+  };
+  showAddTableModal.value = true;
+}
+
+function openEditTableModal(t: PhysicalTableRecord) {
+  editingTableId.value = t.id;
+  tableForm.value = {
+    name: t.name,
+    branchName: t.branchName,
+    capacity: t.capacity,
+    shape: t.shape,
+    status: t.status,
+    zone: t.zone,
+    active: t.active,
+  };
+  showAddTableModal.value = true;
+}
+
+function saveTable() {
+  if (!tableForm.value.name.trim()) return;
+  if (editingTableId.value) {
+    const idx = physicalTablesList.value.findIndex((t) => t.id === editingTableId.value);
+    if (idx !== -1) {
+      physicalTablesList.value[idx] = {
+        ...physicalTablesList.value[idx],
+        name: tableForm.value.name,
+        branchName: tableForm.value.branchName,
+        capacity: Number(tableForm.value.capacity),
+        shape: tableForm.value.shape,
+        status: tableForm.value.status,
+        zone: tableForm.value.zone,
+        active: tableForm.value.active,
+        lastUpdated: 'Just now',
+      };
+    }
+  } else {
+    physicalTablesList.value.push({
+      id: `T${String(physicalTablesList.value.length + 1).padStart(2, '0')}`,
+      name: tableForm.value.name,
+      branchName: tableForm.value.branchName,
+      capacity: Number(tableForm.value.capacity),
+      shape: tableForm.value.shape,
+      status: tableForm.value.status,
+      zone: tableForm.value.zone,
+      active: tableForm.value.active,
+      lastUpdated: 'Just now',
+    });
+  }
+  showAddTableModal.value = false;
+}
+
+function deleteTable(tId: string) {
+  if (confirm('Are you sure you want to delete this table from floor inventory?')) {
+    physicalTablesList.value = physicalTablesList.value.filter((t) => t.id !== tId);
+  }
+}
+
+// ==========================================
+// FEATURE: BOARD GAME CATALOG MANAGEMENT (User Story 9)
+// ==========================================
+const showAddGameModal = ref(false);
+const editingGameId = ref<string | null>(null);
+const gameForm = ref({
+  title: '',
+  designer: '',
+  categories: 'Strategy',
+  complexity: 'Medium' as 'Light' | 'Medium' | 'Heavy',
+  minPlayers: 2,
+  maxPlayers: 4,
+  durationMinutes: 45,
+  copiesCount: 2,
+  description: '',
+  coverImage: '',
+});
+
+function openAddGameModal() {
+  editingGameId.value = null;
+  gameForm.value = {
+    title: '',
+    designer: '',
+    categories: 'Strategy, Board Game',
+    complexity: 'Medium',
+    minPlayers: 2,
+    maxPlayers: 4,
+    durationMinutes: 45,
+    copiesCount: 2,
+    description: 'Engaging board game experience for parlor visitors.',
+    coverImage:
+      'https://images.unsplash.com/photo-1610890716171-6b1bb98ffd09?auto=format&fit=crop&w=400&q=80',
+  };
+  showAddGameModal.value = true;
+}
+
+function openEditGameModal(g: CatalogGame) {
+  editingGameId.value = g.id;
+  gameForm.value = {
+    title: g.name,
+    designer: g.designer || '',
+    categories: g.categories.join(', '),
+    complexity:
+      g.difficulty === 'Easy'
+        ? 'Light'
+        : g.difficulty === 'Advanced'
+          ? 'Heavy'
+          : 'Medium',
+    minPlayers: g.players[0] || 2,
+    maxPlayers: g.players[1] || 4,
+    durationMinutes: g.playMinutes[1] || 45,
+    copiesCount: 2,
+    description: g.description || '',
+    coverImage: '',
+  };
+  showAddGameModal.value = true;
+}
+
+function saveGame() {
+  if (!gameForm.value.title.trim()) return;
+  const validCategories: (
+    | 'Party & Casual'
+    | 'Social Deduction'
+    | 'Strategy'
+    | 'Cooperative'
+    | 'Mystery & Puzzle'
+    | 'Quick & Light'
+    | 'Adventure & Immersive'
+  )[] = ['Strategy'];
+  const catArray = gameForm.value.categories
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean) as (
+    | 'Party & Casual'
+    | 'Social Deduction'
+    | 'Strategy'
+    | 'Cooperative'
+    | 'Mystery & Puzzle'
+    | 'Quick & Light'
+    | 'Adventure & Immersive'
+  )[];
+  const finalCategories = catArray.length ? catArray : validCategories;
+  const difficulty: 'Easy' | 'Medium' | 'Advanced' =
+    gameForm.value.complexity === 'Light'
+      ? 'Easy'
+      : gameForm.value.complexity === 'Heavy'
+        ? 'Advanced'
+        : 'Medium';
+
+  if (editingGameId.value) {
+    const idx = catalogGames.value.findIndex((g) => g.id === editingGameId.value);
+    if (idx !== -1) {
+      catalogGames.value[idx] = {
+        ...catalogGames.value[idx],
+        name: gameForm.value.title,
+        designer: gameForm.value.designer,
+        categories: finalCategories,
+        difficulty,
+        players: [Number(gameForm.value.minPlayers), Number(gameForm.value.maxPlayers)],
+        playMinutes: [
+          Math.floor(Number(gameForm.value.durationMinutes) * 0.7),
+          Number(gameForm.value.durationMinutes),
+        ],
+        description: gameForm.value.description || catalogGames.value[idx].description,
+      };
+    }
+  } else {
+    catalogGames.value.unshift({
+      id: `g-${Date.now()}`,
+      name: gameForm.value.title,
+      designer: gameForm.value.designer || 'The Parlor Studio',
+      categories: finalCategories,
+      mechanics: ['Worker Placement', 'Tile Placement'],
+      players: [Number(gameForm.value.minPlayers), Number(gameForm.value.maxPlayers)],
+      playMinutes: [
+        Math.floor(Number(gameForm.value.durationMinutes) * 0.7),
+        Number(gameForm.value.durationMinutes),
+      ],
+      teachMinutes: 10,
+      setupMinutes: 5,
+      difficulty,
+      language: 'English / Thai',
+      description:
+        gameForm.value.description ||
+        'Engaging board game experience for parlor visitors.',
+      retailPrice: null,
+    });
+  }
+  showAddGameModal.value = false;
+}
+
+function deleteGame(gId: string) {
+  if (confirm('Are you sure you want to remove this board game from library catalog?')) {
+    catalogGames.value = catalogGames.value.filter((g) => g.id !== gId);
+  }
+}
+
+// ==========================================
 // FEATURE 5: VENUE SETTINGS & POLICIES (Admin)
 // ==========================================
 const venueSettings = ref({
@@ -1332,6 +1873,45 @@ const venuePolicies = ref({
           </div>
 
           <a
+            href="#branches"
+            class="nav-item"
+            :class="{ active: activeTab === 'branches' }"
+            :title="isSidebarCollapsed ? 'Business & Branches' : undefined"
+            @click.prevent="activeTab = 'branches'"
+          >
+            <span class="nav-icon-box">
+              <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 21h18"/>
+                <path d="M9 8h1"/>
+                <path d="M9 12h1"/>
+                <path d="M9 16h1"/>
+                <path d="M14 8h1"/>
+                <path d="M14 12h1"/>
+                <path d="M14 16h1"/>
+                <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/>
+              </svg>
+            </span>
+            <span class="nav-label">Business & Branches</span>
+          </a>
+
+          <a
+            href="#manage-tables"
+            class="nav-item"
+            :class="{ active: activeTab === 'manage-tables' }"
+            :title="isSidebarCollapsed ? 'Manage Tables' : undefined"
+            @click.prevent="activeTab = 'manage-tables'"
+          >
+            <span class="nav-icon-box">
+              <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <path d="M3 9h18"/>
+                <path d="M9 21V9"/>
+              </svg>
+            </span>
+            <span class="nav-label">Manage Tables</span>
+          </a>
+
+          <a
             href="#staff-roster"
             class="nav-item"
             :class="{ active: activeTab === 'staff-roster' }"
@@ -1364,22 +1944,6 @@ const venuePolicies = ref({
               </svg>
             </span>
             <span class="nav-label">Revenue & Analytics</span>
-          </a>
-
-          <a
-            href="#settings"
-            class="nav-item"
-            :class="{ active: activeTab === 'settings' }"
-            :title="isSidebarCollapsed ? 'Venue Settings' : undefined"
-            @click.prevent="activeTab = 'settings'"
-          >
-            <span class="nav-icon-box">
-              <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-              </svg>
-            </span>
-            <span class="nav-label">Venue Settings</span>
           </a>
 
           <a
@@ -2144,16 +2708,49 @@ const venuePolicies = ref({
             <div class="view-header-row">
               <div>
                 <div class="view-eyebrow">✦ THE PARLOR COLLECTION & SHELF INVENTORY</div>
-                <h1 class="view-title">Board Game Library</h1>
-                <p class="view-subtitle">Check game availability in real time, see which table is currently playing, and assign to tables.</p>
+                <h1 class="view-title">Board Game Library & Catalog</h1>
+                <p class="view-subtitle">Check game availability in real time, see which table is currently playing, and manage catalog titles.</p>
               </div>
-              <div class="search-games-input-wrap">
-                <input
-                  v-model="gameSearchQuery"
-                  type="search"
-                  placeholder="Filter games by name, designer, genre..."
-                  class="parlor-input"
-                />
+              <div class="header-mgmt-actions">
+                <button
+                  v-if="isAdmin"
+                  type="button"
+                  class="btn-primary-parlor"
+                  @click="openAddGameModal"
+                >
+                  ✦ + Add Board Game
+                </button>
+                <div class="search-games-input-wrap">
+                  <input
+                    v-model="gameSearchQuery"
+                    type="search"
+                    placeholder="Filter games by name, designer, genre..."
+                    class="parlor-input"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Game Live Summary Cards (User Story 9 AC) -->
+            <div class="analytics-ribbon-grid mb-4">
+              <div class="analytics-card">
+                <span class="analytics-label">TOTAL GAMES</span>
+                <div class="analytics-value">{{ catalogGames.length }}</div>
+                <span class="analytics-sub">Catalog titles registered</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">AVAILABLE COPIES</span>
+                <div class="analytics-value text-emerald-700">
+                  {{ catalogGames.filter(g => !getGameLocation(g.name)).length }}
+                </div>
+                <span class="analytics-sub">On shelf & ready to assign</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">COPIES IN USE</span>
+                <div class="analytics-value text-amber-700">
+                  {{ activeInUseGamesCount }}
+                </div>
+                <span class="analytics-sub">Currently playing at tables</span>
               </div>
             </div>
 
@@ -2165,7 +2762,7 @@ const venuePolicies = ref({
                 :class="{ active: gameStatusFilter === 'ALL' }"
                 @click="gameStatusFilter = 'ALL'"
               >
-                All Games ({{ games.length }})
+                All Games ({{ catalogGames.length }})
               </button>
               <button
                 type="button"
@@ -2173,7 +2770,7 @@ const venuePolicies = ref({
                 :class="{ active: gameStatusFilter === 'AVAILABLE' }"
                 @click="gameStatusFilter = 'AVAILABLE'"
               >
-                🟢 Available on Shelf ({{ games.filter(g => !getGameLocation(g.name)).length }})
+                🟢 Available on Shelf ({{ catalogGames.filter(g => !getGameLocation(g.name)).length }})
               </button>
               <button
                 type="button"
@@ -2181,7 +2778,7 @@ const venuePolicies = ref({
                 :class="{ active: gameStatusFilter === 'IN_USE' }"
                 @click="gameStatusFilter = 'IN_USE'"
               >
-                🔴 In Use at Tables ({{ games.filter(g => !!getGameLocation(g.name)).length }})
+                🔴 In Use at Tables ({{ catalogGames.filter(g => !!getGameLocation(g.name)).length }})
               </button>
             </div>
 
@@ -2203,7 +2800,7 @@ const venuePolicies = ref({
 
                 <div class="game-card-header">
                   <h3 class="game-name">{{ game.name }}</h3>
-                  <span class="game-difficulty-pill">{{ game.difficulty }}</span>
+                  <span class="game-difficulty-pill">{{ game.difficulty || 'Medium' }}</span>
                 </div>
                 <p class="game-designer">Designed by {{ game.designer }}</p>
                 <div class="game-meta-row">
@@ -2229,6 +2826,16 @@ const venuePolicies = ref({
                   >
                     ✦ Assign to Playing Table →
                   </button>
+
+                  <!-- Admin Management Actions for Game (User Story 9 AC) -->
+                  <div v-if="isAdmin" class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
+                    <button type="button" class="btn-xs-secondary flex-1" @click="openEditGameModal(game)">
+                      Edit
+                    </button>
+                    <button type="button" class="btn-xs-danger flex-1" @click="deleteGame(game.id)">
+                      Delete
+                    </button>
+                  </div>
                 </div>
               </article>
             </div>
@@ -2477,9 +3084,319 @@ const venuePolicies = ref({
         </template>
 
         <!-- ========================================== -->
-        <!-- VIEW 7: STAFF & SHIFTS (Manager & Admin)   -->
+        <!-- VIEW: BUSINESS OVERVIEW & MANAGE BRANCHES (User Stories 6 & 7) -->
         <!-- ========================================== -->
-        <template v-else-if="activeTab === 'staff-roster' && isManager">
+        <template v-else-if="activeTab === 'branches' && isAdmin">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ MULTI-PROPERTY FLEET TELEMETRY (OWNER)</div>
+                <h1 class="view-title">Business Overview & Branches</h1>
+                <p class="view-subtitle">Monitor live operations, manage branch locations, and update operating hours across all properties.</p>
+              </div>
+              <div class="header-mgmt-actions">
+                <button type="button" class="btn-primary-parlor" @click="openAddBranchModal">
+                  ✦ + Add Branch
+                </button>
+              </div>
+            </div>
+
+            <!-- Top Level Multi-Branch Summary Cards (User Story 6 AC) -->
+            <div class="analytics-ribbon-grid">
+              <div class="analytics-card">
+                <span class="analytics-label">TOTAL BRANCHES</span>
+                <div class="analytics-value">{{ overviewTotalBranches }}</div>
+                <span class="analytics-sub">Locations in system</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">TOTAL FLEET TABLES</span>
+                <div class="analytics-value">{{ overviewTotalTables }}</div>
+                <span class="analytics-sub">Seating across all branches</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">TODAY'S CHECK-INS</span>
+                <div class="analytics-value">{{ overviewTotalCheckIns }}</div>
+                <span class="analytics-sub">Total parties served today</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">ACTIVE SESSIONS</span>
+                <div class="analytics-value text-emerald-700">{{ overviewTotalActiveReservations }}</div>
+                <span class="analytics-sub">Live tables currently in play</span>
+              </div>
+            </div>
+
+            <!-- Filter & Search Controls -->
+            <div class="table-controls-bar">
+              <div class="search-input-wrap">
+                <input
+                  v-model="branchSearchQuery"
+                  type="search"
+                  placeholder="Filter branch by name, code, or city..."
+                  class="parlor-input"
+                />
+              </div>
+              <div class="filter-controls-group">
+                <button
+                  type="button"
+                  class="filter-pill"
+                  :class="{ active: branchStatusFilter === 'All' }"
+                  @click="branchStatusFilter = 'All'"
+                >
+                  All ({{ branchesList.length }})
+                </button>
+                <button
+                  type="button"
+                  class="filter-pill avail"
+                  :class="{ active: branchStatusFilter === 'Active' }"
+                  @click="branchStatusFilter = 'Active'"
+                >
+                  Active ({{ branchesList.filter(b => b.status === 'Active').length }})
+                </button>
+                <button
+                  type="button"
+                  class="filter-pill in-use"
+                  :class="{ active: branchStatusFilter === 'Inactive' }"
+                  @click="branchStatusFilter = 'Inactive'"
+                >
+                  Inactive ({{ branchesList.filter(b => b.status === 'Inactive').length }})
+                </button>
+              </div>
+            </div>
+
+            <!-- Branches List Table (User Story 6 & 7 AC) -->
+            <div class="bookings-list-wrap">
+              <table class="parlor-table">
+                <thead>
+                  <tr>
+                    <th>Branch Details</th>
+                    <th>Status</th>
+                    <th>Tables Summary</th>
+                    <th>Today's Check-ins</th>
+                    <th>Operating Hours</th>
+                    <th>Contact</th>
+                    <th class="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="branch in filteredBranches" :key="branch.id">
+                    <td>
+                      <div class="font-bold text-gray-900">{{ branch.name }}</div>
+                      <div class="text-xs text-gray-500 font-mono">{{ branch.code }} · {{ branch.address }}, {{ branch.city }}</div>
+                    </td>
+                    <td>
+                      <span
+                        class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider"
+                        :class="branch.status === 'Active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-gray-100 text-gray-600 border border-gray-300'"
+                      >
+                        {{ branch.status }}
+                      </span>
+                    </td>
+                    <td>
+                      <div class="text-sm font-semibold">{{ branch.totalTables }} Total Tables</div>
+                      <div class="text-xs text-gray-500">
+                        <span class="text-emerald-700 font-medium">{{ branch.availableTables }} free</span> ·
+                        <span class="text-amber-700 font-medium">{{ branch.occupiedTables }} playing</span> ·
+                        <span>{{ branch.reservedTables }} booked</span>
+                      </div>
+                    </td>
+                    <td>
+                      <div class="text-sm font-semibold text-gray-900">{{ branch.checkInsToday }} parties</div>
+                    </td>
+                    <td>
+                      <div class="text-xs text-gray-700"><strong>Mon-Fri:</strong> {{ branch.openingHours.monFri }}</div>
+                      <div class="text-xs text-gray-700"><strong>Sat-Sun:</strong> {{ branch.openingHours.sat }}</div>
+                    </td>
+                    <td>
+                      <div class="text-xs text-gray-900">{{ branch.phone }}</div>
+                      <div class="text-xs text-gray-500">{{ branch.email }}</div>
+                    </td>
+                    <td class="text-right">
+                      <div class="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          class="btn-xs-secondary"
+                          @click="openEditBranchModal(branch)"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-xs-secondary"
+                          @click="toggleBranchStatus(branch)"
+                        >
+                          {{ branch.status === 'Active' ? 'Deactivate' : 'Activate' }}
+                        </button>
+                        <button
+                          type="button"
+                          class="btn-xs-danger"
+                          @click="deleteBranch(branch.id)"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr v-if="filteredBranches.length === 0">
+                    <td colspan="7" class="text-center py-8 text-gray-500">
+                      No branch locations found matching your search criteria.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW: MANAGE PHYSICAL TABLES (User Story 8) -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'manage-tables' && isAdmin">
+          <section class="console-block">
+            <div class="view-header-row">
+              <div>
+                <div class="view-eyebrow">✦ PHYSICAL TABLE INVENTORY (OWNER)</div>
+                <h1 class="view-title">Manage Tables & Floor Seating</h1>
+                <p class="view-subtitle">View, create, edit, and configure physical table inventory across branches.</p>
+              </div>
+              <div class="header-mgmt-actions">
+                <button type="button" class="btn-primary-parlor" @click="openAddTableModal">
+                  ✦ + Add Table
+                </button>
+              </div>
+            </div>
+
+            <!-- Branch & Live Table Status Counters (User Story 8 AC) -->
+            <div class="analytics-ribbon-grid">
+              <div class="analytics-card">
+                <span class="analytics-label">TOTAL TABLES</span>
+                <div class="analytics-value">{{ tableCountTotal }}</div>
+                <span class="analytics-sub">Registered floor units</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">AVAILABLE</span>
+                <div class="analytics-value text-emerald-700">{{ tableCountAvailable }}</div>
+                <span class="analytics-sub">Ready for walk-in / booking</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">RESERVED</span>
+                <div class="analytics-value text-blue-700">{{ tableCountReserved }}</div>
+                <span class="analytics-sub">Scheduled for guests</span>
+              </div>
+              <div class="analytics-card">
+                <span class="analytics-label">OCCUPIED</span>
+                <div class="analytics-value text-amber-700">{{ tableCountOccupied }}</div>
+                <span class="analytics-sub">Currently playing</span>
+              </div>
+            </div>
+
+            <!-- Controls: Branch Dropdown, Zone Filter, Status Filter, Search (User Story 8 AC) -->
+            <div class="table-controls-bar">
+              <div class="flex items-center gap-2 flex-wrap">
+                <select v-model="tableFilterBranch" class="parlor-select">
+                  <option value="All branches">All branches</option>
+                  <option v-for="b in branchesList" :key="b.id" :value="b.name">{{ b.name }}</option>
+                </select>
+
+                <select v-model="tableFilterZone" class="parlor-select">
+                  <option value="All zones">All zones</option>
+                  <option value="Main Hall">Main Hall</option>
+                  <option value="Private Room">Private Room</option>
+                  <option value="VIP Room">VIP Room</option>
+                  <option value="Rooftop Lounge">Rooftop Lounge</option>
+                </select>
+
+                <select v-model="tableFilterStatus" class="parlor-select">
+                  <option value="All statuses">All statuses</option>
+                  <option value="Available">Available (Green)</option>
+                  <option value="Reserved">Reserved (Blue)</option>
+                  <option value="Occupied">Occupied (Amber)</option>
+                  <option value="Unavailable">Unavailable (Gray)</option>
+                </select>
+              </div>
+
+              <div class="search-input-wrap">
+                <input
+                  v-model="tableSearchQuery"
+                  type="search"
+                  placeholder="Search table name or ID..."
+                  class="parlor-input"
+                />
+              </div>
+            </div>
+
+            <!-- Table Inventory List -->
+            <div class="bookings-list-wrap">
+              <table class="parlor-table">
+                <thead>
+                  <tr>
+                    <th>Table Name</th>
+                    <th>Branch</th>
+                    <th>Capacity</th>
+                    <th>Shape</th>
+                    <th>Zone</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                    <th class="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="tbl in filteredPhysicalTables" :key="tbl.id">
+                    <td>
+                      <div class="font-bold text-gray-900">{{ tbl.name }}</div>
+                      <div class="text-xs text-gray-500 font-mono">{{ tbl.id }}</div>
+                    </td>
+                    <td>
+                      <span class="text-sm text-gray-700">{{ tbl.branchName }}</span>
+                    </td>
+                    <td>
+                      <span class="font-semibold text-gray-900">{{ tbl.capacity }} Seats</span>
+                    </td>
+                    <td>
+                      <span class="px-2 py-0.5 rounded text-xs bg-gray-100 border border-gray-300 font-medium">
+                        {{ tbl.shape }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="text-sm text-gray-700">{{ tbl.zone }}</span>
+                    </td>
+                    <td>
+                      <span
+                        class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider"
+                        :class="{
+                          'bg-emerald-100 text-emerald-800 border border-emerald-300': tbl.status === 'Available',
+                          'bg-blue-100 text-blue-800 border border-blue-300': tbl.status === 'Reserved',
+                          'bg-amber-100 text-amber-800 border border-amber-300': tbl.status === 'Occupied',
+                          'bg-gray-200 text-gray-700 border border-gray-300': tbl.status === 'Unavailable'
+                        }"
+                      >
+                        {{ tbl.status }}
+                      </span>
+                    </td>
+                    <td>
+                      <span class="text-xs text-gray-500">{{ tbl.lastUpdated }}</span>
+                    </td>
+                    <td class="text-right">
+                      <div class="flex items-center justify-end gap-2">
+                        <button type="button" class="btn-xs-secondary" @click="openEditTableModal(tbl)">Edit</button>
+                        <button type="button" class="btn-xs-danger" @click="deleteTable(tbl.id)">Delete</button>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr v-if="filteredPhysicalTables.length === 0">
+                    <td colspan="8" class="text-center py-8 text-gray-500">
+                      No tables found matching your search/filter criteria.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </template>
+
+        <!-- ========================================== -->
+        <!-- VIEW 7: STAFF & SHIFTS (Admin)             -->
+        <!-- ========================================== -->
+        <template v-else-if="activeTab === 'staff-roster' && isAdmin">
           <section class="console-block">
             <div class="view-header-row">
               <div>
@@ -2487,7 +3404,6 @@ const venuePolicies = ref({
                 <h1 class="view-title">Staff & Shift Attendance</h1>
                 <p class="view-subtitle">Active shift supervision, table zone allocations, and roster management.</p>
               </div>
-              <span class="role-pill-gold">Branch Manager Access</span>
             </div>
 
             <div class="staff-roster-grid">
@@ -2515,9 +3431,9 @@ const venuePolicies = ref({
         </template>
 
         <!-- ========================================== -->
-        <!-- VIEW 8: REVENUE & ANALYTICS (Manager+)     -->
+        <!-- VIEW 8: REVENUE & ANALYTICS (Admin)        -->
         <!-- ========================================== -->
-        <template v-else-if="activeTab === 'analytics' && isManager">
+        <template v-else-if="activeTab === 'analytics' && isAdmin">
           <section class="console-block">
             <div class="view-header-row">
               <div>
@@ -2525,7 +3441,6 @@ const venuePolicies = ref({
                 <h1 class="view-title">Revenue & Branch Analytics</h1>
                 <p class="view-subtitle">Today's real-time financial gross, hourly table time, and refreshments sales.</p>
               </div>
-              <span class="role-pill-gold">Managerial Insights</span>
             </div>
 
             <div class="analytics-ribbon-grid">
@@ -3166,6 +4081,282 @@ const venuePolicies = ref({
                 Add to Table Tab (฿{{ staffSnackSubtotal }})
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add/Edit Branch Modal (User Stories 6 & 7) -->
+      <div v-if="showAddBranchModal && isAdmin" class="modal-backdrop" @click.self="showAddBranchModal = false">
+        <div class="modal-card">
+          <div class="walkin-header">
+            <div>
+              <div class="eyebrow-sub">ADMINISTRATION · BRANCH DIRECTORY</div>
+              <h3 class="modal-title">{{ editingBranchId ? 'Edit Branch Location' : 'Add New Branch Location' }}</h3>
+              <p class="modal-sub">Configure branch code, operating hours, and floor table capacity.</p>
+            </div>
+            <button type="button" class="close-x" @click="showAddBranchModal = false">✕</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label">Branch Name *</label>
+                <input v-model="branchForm.name" type="text" class="parlor-input" placeholder="e.g. The Parlor · Silom" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">Branch Code *</label>
+                <input v-model="branchForm.code" type="text" class="parlor-input font-mono" placeholder="e.g. BKK-SL3" />
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label">Address Line *</label>
+                <input v-model="branchForm.address" type="text" class="parlor-input" placeholder="e.g. 123 Silom Rd" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">City *</label>
+                <input v-model="branchForm.city" type="text" class="parlor-input" placeholder="Bangkok" />
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label">Contact Phone *</label>
+                <input v-model="branchForm.phone" type="tel" class="parlor-input" placeholder="+66 2 123 4567" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">Email</label>
+                <input v-model="branchForm.email" type="email" class="parlor-input" placeholder="branch@theparlor.com" />
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label">Total Tables *</label>
+                <input v-model.number="branchForm.totalTables" type="number" min="1" max="100" class="parlor-input" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">Status *</label>
+                <select v-model="branchForm.status" class="parlor-select">
+                  <option value="Active">Active</option>
+                  <option value="Inactive">Inactive</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group mt-3">
+              <label class="field-label font-bold text-gray-800">Daily Operating Hours (User Story 7 AC)</label>
+              <div class="grid grid-cols-3 gap-2 mt-1">
+                <div class="p-2.5 rounded-lg border border-gray-200 bg-gray-50">
+                  <span class="text-xs font-semibold text-gray-700 block mb-1">Mon - Fri</span>
+                  <div class="flex items-center gap-1">
+                    <input v-model="branchForm.monFriOpen" type="time" class="parlor-input text-xs p-1" />
+                    <span>–</span>
+                    <input v-model="branchForm.monFriClose" type="time" class="parlor-input text-xs p-1" />
+                  </div>
+                </div>
+                <div class="p-2.5 rounded-lg border border-gray-200 bg-gray-50">
+                  <span class="text-xs font-semibold text-gray-700 block mb-1">Saturday</span>
+                  <div class="flex items-center gap-1">
+                    <input v-model="branchForm.satOpen" type="time" class="parlor-input text-xs p-1" />
+                    <span>–</span>
+                    <input v-model="branchForm.satClose" type="time" class="parlor-input text-xs p-1" />
+                  </div>
+                </div>
+                <div class="p-2.5 rounded-lg border border-gray-200 bg-gray-50">
+                  <span class="text-xs font-semibold text-gray-700 block mb-1">Sunday</span>
+                  <div class="flex items-center gap-1">
+                    <input v-model="branchForm.sunOpen" type="time" class="parlor-input text-xs p-1" />
+                    <span>–</span>
+                    <input v-model="branchForm.sunClose" type="time" class="parlor-input text-xs p-1" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary-parlor" @click="showAddBranchModal = false">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-primary-parlor"
+              :disabled="!branchForm.name.trim() || !branchForm.code.trim()"
+              @click="saveBranch"
+            >
+              {{ editingBranchId ? 'Update Branch Location' : 'Create Branch Location' }} →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add/Edit Table Modal (User Story 8) -->
+      <div v-if="showAddTableModal && isAdmin" class="modal-backdrop" @click.self="showAddTableModal = false">
+        <div class="modal-card">
+          <div class="walkin-header">
+            <div>
+              <div class="eyebrow-sub">ADMINISTRATION · FLOOR INVENTORY</div>
+              <h3 class="modal-title">{{ editingTableId ? 'Edit Table Configuration' : 'Add New Physical Table' }}</h3>
+              <p class="modal-sub">Define seating capacity, shape, zone allocation, and active status.</p>
+            </div>
+            <button type="button" class="close-x" @click="showAddTableModal = false">✕</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label">Table Name *</label>
+                <input v-model="tableForm.name" type="text" class="parlor-input" placeholder="e.g. Table 12" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">Branch Assignment *</label>
+                <select v-model="tableForm.branchName" class="parlor-select">
+                  <option v-for="b in branchesList" :key="b.id" :value="b.name">{{ b.name }}</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label">Capacity (Seats) *</label>
+                <input v-model.number="tableForm.capacity" type="number" min="1" max="50" class="parlor-input" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">Table Shape *</label>
+                <select v-model="tableForm.shape" class="parlor-select">
+                  <option value="Square">Square</option>
+                  <option value="Round">Round</option>
+                  <option value="Rectangle">Rectangle</option>
+                  <option value="Oval">Oval</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label">Zone / Floor Area *</label>
+                <select v-model="tableForm.zone" class="parlor-select">
+                  <option value="Main Hall">Main Hall</option>
+                  <option value="Private Room">Private Room</option>
+                  <option value="VIP Room">VIP Room</option>
+                  <option value="Rooftop Lounge">Rooftop Lounge</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="field-label">Initial Status *</label>
+                <select v-model="tableForm.status" class="parlor-select">
+                  <option value="Available">Available (Green)</option>
+                  <option value="Reserved">Reserved (Blue)</option>
+                  <option value="Occupied">Occupied (Amber)</option>
+                  <option value="Unavailable">Unavailable (Gray/Maintenance)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="field-label">Active on Floor</label>
+              <select v-model="tableForm.active" class="parlor-select">
+                <option :value="true">Yes — Available for floor operations</option>
+                <option :value="false">No — Hidden/inactive</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary-parlor" @click="showAddTableModal = false">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-primary-parlor"
+              :disabled="!tableForm.name.trim()"
+              @click="saveTable"
+            >
+              {{ editingTableId ? 'Save Table Changes' : 'Add Table to Inventory' }} →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add/Edit Game Modal (User Story 9) -->
+      <div v-if="showAddGameModal && isAdmin" class="modal-backdrop" @click.self="showAddGameModal = false">
+        <div class="modal-card">
+          <div class="walkin-header">
+            <div>
+              <div class="eyebrow-sub">ADMINISTRATION · CATALOG CONFIGURATION</div>
+              <h3 class="modal-title">{{ editingGameId ? 'Edit Board Game' : 'Add New Board Game' }}</h3>
+              <p class="modal-sub">Add a new board game title and specs to the parlor shelf catalog.</p>
+            </div>
+            <button type="button" class="close-x" @click="showAddGameModal = false">✕</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label">Game Title *</label>
+                <input v-model="gameForm.title" type="text" class="parlor-input" placeholder="e.g. Catan, Wingspan" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">Designer / Studio</label>
+                <input v-model="gameForm.designer" type="text" class="parlor-input" placeholder="e.g. Klaus Teuber" />
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label">Categories (comma-separated) *</label>
+                <input v-model="gameForm.categories" type="text" class="parlor-input" placeholder="e.g. Strategy, Trading" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">Complexity *</label>
+                <select v-model="gameForm.complexity" class="parlor-select">
+                  <option value="Light">Light (Beginner friendly)</option>
+                  <option value="Medium">Medium (Casual strategy)</option>
+                  <option value="Heavy">Heavy (Expert strategic)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-row-3">
+              <div class="form-group">
+                <label class="field-label">Min Players *</label>
+                <input v-model.number="gameForm.minPlayers" type="number" min="1" max="20" class="parlor-input" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">Max Players *</label>
+                <input v-model.number="gameForm.maxPlayers" type="number" min="1" max="20" class="parlor-input" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">Duration (min) *</label>
+                <input v-model.number="gameForm.durationMinutes" type="number" min="5" max="360" class="parlor-input" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="field-label">Cover Image URL</label>
+              <input v-model="gameForm.coverImage" type="url" class="parlor-input" placeholder="https://example.com/game-cover.jpg" />
+            </div>
+
+            <div class="form-group">
+              <label class="field-label">Description</label>
+              <textarea v-model="gameForm.description" rows="2" class="parlor-input" placeholder="Brief rules or overview of gameplay..."></textarea>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary-parlor" @click="showAddGameModal = false">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-primary-parlor"
+              :disabled="!gameForm.title.trim()"
+              @click="saveGame"
+            >
+              {{ editingGameId ? 'Update Game in Catalog' : 'Add Game to Catalog' }} →
+            </button>
           </div>
         </div>
       </div>
@@ -5476,5 +6667,85 @@ const venuePolicies = ref({
 .modal-buttons {
   display: flex;
   gap: 8px;
+}
+
+/* ========================================== */
+/* ADMIN TABLES & BRANCHES EXPANSION STYLES   */
+/* ========================================== */
+.table-controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: #ffffff;
+  border: 1px solid #e6dfd3;
+  border-radius: 12px;
+}
+
+.parlor-select {
+  height: 38px;
+  padding: 0 12px;
+  background-color: #ffffff;
+  border: 1.5px solid #dcd3c4;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #142b20;
+  outline: none;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.parlor-select:focus {
+  border-color: #142b20;
+  box-shadow: 0 0 0 2px rgba(20, 43, 32, 0.1);
+}
+
+.btn-xs-secondary {
+  padding: 4px 10px;
+  background: #f4efe6;
+  border: 1px solid #d8cdbc;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #142b20;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-xs-secondary:hover {
+  background: #e9e0d1;
+  border-color: #c4b59f;
+}
+
+.btn-xs-danger {
+  padding: 4px 10px;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b91c1c;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-xs-danger:hover {
+  background: #fecaca;
+  border-color: #f87171;
+}
+
+.form-row-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
 }
 </style>
