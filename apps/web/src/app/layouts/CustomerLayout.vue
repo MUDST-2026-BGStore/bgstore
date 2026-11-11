@@ -81,8 +81,10 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
         route.name === 'HomeIndex' ||
         route.name === 'GameProduct' ||
         route.name === 'Cart' ||
-        route.name === 'Checkout',
+        route.name === 'Checkout' ||
+        route.name === 'BranchLocations',
       'cart-shell': route.name === 'Cart' || route.name === 'Checkout',
+      'map-shell': route.name === 'BranchLocations',
     }"
   >
     <template #header-left>
@@ -292,6 +294,14 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
   font-size: 13px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+}
+/* Branch map page: the map fills the viewport below the header, edge to edge. */
+.catalog-shell.map-shell :deep(> div.relative) {
+  height: 100svh;
+}
+.catalog-shell.map-shell :deep(> div.relative > header + div) {
+  min-height: 0;
+  padding: 0;
 }
 .catalog-shell .header-language {
   position: relative;

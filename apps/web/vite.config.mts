@@ -22,10 +22,10 @@ export default defineConfig(() => ({
     host: '0.0.0.0',
   },
   plugins: [vue(), tailwindcss()],
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [],
-  // },
+  // MapLibre's worker (imported with ?worker&url) is an ES module with shared chunks.
+  worker: {
+    format: 'es' as const,
+  },
   build: {
     outDir: './dist',
     emptyOutDir: true,
