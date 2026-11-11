@@ -3,6 +3,7 @@ import { expect, test } from '@playwright/test';
 for (const viewport of [
   { width: 1440, height: 960 },
   { width: 375, height: 812 },
+  { width: 320, height: 812 },
 ]) {
   test(`renders the Parlor sign-in theme at ${viewport.width}px`, async ({
     page,
@@ -36,6 +37,19 @@ for (const viewport of [
           (header?.height || 0) / 2,
       ),
     ).toBeLessThan(2);
+    const language = page.locator('#kc-header .parlor-header-language');
+    await expect(language).toBeVisible();
+    const english = language.getByRole('link', { name: 'EN', exact: true });
+    await expect(english).toHaveAttribute('aria-current', 'true');
+    await expect(english).toHaveCSS('background-color', 'rgb(198, 173, 122)');
+    const switcher = await language.boundingBox();
+    expect(switcher?.x).toBeLessThan(32);
+    expect((switcher?.x ?? 0) + (switcher?.width ?? 0)).toBeLessThan(
+      wordmark?.x ?? 0,
+    );
+    expect((switcher?.y ?? 0) + (switcher?.height ?? 0)).toBeLessThanOrEqual(
+      header?.height ?? 0,
+    );
     const form = await page.getByRole('main').boundingBox();
     expect(form).not.toBeNull();
     expect(
@@ -161,4 +175,64 @@ test('offers sign-up and password reset with matching screens', async ({
   await page.getByRole('link', { name: 'Sign up', exact: true }).click();
   await page.getByRole('link', { name: 'Sign in', exact: true }).click();
   await expect(page.locator('#kc-login')).toBeVisible();
+});
+
+test('uses the storefront language switcher size on sign-up', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 812 });
+  await page.goto('/');
+  const storefront = page.locator('.header-language .locale-switcher');
+  await expect(storefront).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  const storefrontSize = await storefront.boundingBox();
+  expect(storefrontSize).not.toBeNull();
+
+  await page.goto('/login');
+  await page.getByRole('link', { name: 'Sign up', exact: true }).click();
+  const signup = page.locator('#kc-header .parlor-header-language');
+  await expect(signup).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  const signupSize = await signup.boundingBox();
+  expect(signupSize).not.toBeNull();
+  expect(signupSize!.width).toBeCloseTo(storefrontSize!.width, 0);
+  expect(signupSize!.height).toBeCloseTo(storefrontSize!.height, 0);
+  expect(signupSize!.x).toBeLessThan(32);
+
+  const thai = signup.getByRole('link', { name: 'ไทย', exact: true });
+  await thai.click();
+  await expect(thai).toHaveAttribute('aria-current', 'true');
+  await expect(
+    page.getByRole('heading', { name: 'สร้างบัญชีของคุณ' }),
+  ).toBeVisible();
+  await signup.getByRole('link', { name: 'EN', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Create your account' }),
+  ).toBeVisible();
+});
+
+test('switches sign-in to the storefront Thai font while keeping the wordmark', async ({
+  page,
+}) => {
+  await page.goto('/workspace');
+  const language = page.locator('#kc-header .parlor-header-language');
+  const thai = language.getByRole('link', { name: 'ไทย', exact: true });
+  await thai.click();
+  await expect(thai).toHaveAttribute('aria-current', 'true');
+  const title = page.getByRole('heading', { name: 'เข้าสู่ระบบ' });
+  await expect(title).toHaveCSS('font-family', /FC Mee Sakul/);
+  await expect(page.locator('#username')).toHaveCSS(
+    'font-family',
+    /FC Mee Sakul/,
+  );
+  await expect(page.locator('.parlor-wordmark')).toHaveCSS(
+    'font-family',
+    /Plus Jakarta Sans/,
+  );
+  await expect(page.locator('#kc-header .parlor-suit').first()).toHaveCSS(
+    'font-family',
+    /Plus Jakarta Sans/,
+  );
+  await language.getByRole('link', { name: 'EN', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible();
 });

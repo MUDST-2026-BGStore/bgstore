@@ -176,6 +176,13 @@ it('still redirects an existing account away from onboarding', async () => {
   expect(router.currentRoute.value.name).toBe('WorkspaceIndex');
 });
 
+it('sends a signed-in user to the storefront after a standard login', async () => {
+  await signIn();
+  respond();
+  await router.push('/login');
+  expect(router.currentRoute.value.name).toBe('HomeIndex');
+});
+
 it('does not swallow account lookup errors while the identity is unchanged', async () => {
   await signIn();
   respond(500);
