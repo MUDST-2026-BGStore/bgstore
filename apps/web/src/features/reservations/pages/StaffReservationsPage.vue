@@ -1085,7 +1085,7 @@ function refreshAll() {
 }
 
 // ==========================================
-// FEATURE 3: STAFF & SHIFTS (Manager+)
+// FEATURE: STAFF & SHIFTS
 // ==========================================
 interface StaffMember {
   id: string;
@@ -1095,6 +1095,20 @@ interface StaffMember {
   status: 'ON_DUTY' | 'ON_BREAK' | 'OFF_DUTY';
   assignedZone: string;
 }
+
+const shiftOptions = [
+  'Morning (10:00 - 16:00)',
+  'Evening (16:00 - 23:00)',
+  'Night (18:00 - 01:00)',
+  'Full Day (10:00 - 20:00)',
+];
+
+const staffRoles: StaffMember['role'][] = [
+  'Floor Lead',
+  'Game Master',
+  'Counter & POS',
+  'Branch Manager',
+];
 
 const branchStaffRoster = ref<StaffMember[]>([
   {
@@ -1131,8 +1145,73 @@ const branchStaffRoster = ref<StaffMember[]>([
   },
 ]);
 
+const showAddStaffModal = ref(false);
+const editingStaffId = ref<string | null>(null);
+const staffForm = ref({
+  name: '',
+  role: 'Floor Lead' as StaffMember['role'],
+  shift: 'Evening (16:00 - 23:00)',
+  status: 'ON_DUTY' as StaffMember['status'],
+  assignedZone: 'Tables 1 - 3',
+});
+
+function openAddStaffModal() {
+  editingStaffId.value = null;
+  staffForm.value = {
+    name: '',
+    role: 'Floor Lead',
+    shift: 'Evening (16:00 - 23:00)',
+    status: 'ON_DUTY',
+    assignedZone: 'Tables 1 - 3',
+  };
+  showAddStaffModal.value = true;
+}
+
+function openEditStaffModal(staff: StaffMember) {
+  editingStaffId.value = staff.id;
+  staffForm.value = {
+    name: staff.name,
+    role: staff.role,
+    shift: staff.shift,
+    status: staff.status,
+    assignedZone: staff.assignedZone,
+  };
+  showAddStaffModal.value = true;
+}
+
+function saveStaff() {
+  if (!staffForm.value.name.trim()) return;
+  if (editingStaffId.value) {
+    const idx = branchStaffRoster.value.findIndex((s) => s.id === editingStaffId.value);
+    if (idx !== -1) {
+      branchStaffRoster.value[idx] = {
+        ...branchStaffRoster.value[idx],
+        name: staffForm.value.name.trim(),
+        role: staffForm.value.role,
+        shift: staffForm.value.shift,
+        status: staffForm.value.status,
+        assignedZone: staffForm.value.assignedZone.trim() || 'Floor Operations',
+      };
+    }
+  } else {
+    branchStaffRoster.value.push({
+      id: `s${Date.now()}`,
+      name: staffForm.value.name.trim(),
+      role: staffForm.value.role,
+      shift: staffForm.value.shift,
+      status: staffForm.value.status,
+      assignedZone: staffForm.value.assignedZone.trim() || 'Floor Operations',
+    });
+  }
+  showAddStaffModal.value = false;
+}
+
+function deleteStaff(id: string) {
+  branchStaffRoster.value = branchStaffRoster.value.filter((s) => s.id !== id);
+}
+
 // ==========================================
-// FEATURE 4: REVENUE & ANALYTICS (Manager+)
+// FEATURE: REVENUE & ANALYTICS
 // ==========================================
 const totalTableFeesToday = computed(() => {
   return activeFloorReservations.value.reduce(
@@ -1146,7 +1225,7 @@ const todayTotalGross = computed(
 );
 
 // ==========================================
-// FEATURE: BUSINESS OVERVIEW & MANAGE BRANCHES (User Stories 6 & 7)
+// FEATURE: BUSINESS OVERVIEW & MANAGE BRANCHES
 // ==========================================
 export interface BranchRecord {
   id: string;
@@ -1318,11 +1397,22 @@ function openAddBranchModal() {
   showAddBranchModal.value = true;
 }
 
+function parseTimeString(timeRange: string | undefined, fallbackOpen: string, fallbackClose: string): [string, string] {
+  if (!timeRange) return [fallbackOpen, fallbackClose];
+  const matches = timeRange.match(/\b\d{1,2}:\d{2}\b/g);
+  if (matches && matches.length >= 2) {
+    const open = matches[0].padStart(5, '0');
+    const close = matches[1].padStart(5, '0');
+    return [open, close];
+  }
+  return [fallbackOpen, fallbackClose];
+}
+
 function openEditBranchModal(b: BranchRecord) {
   editingBranchId.value = b.id;
-  const [monFriOpen, monFriClose] = b.openingHours.monFri.split(' - ');
-  const [satOpen, satClose] = b.openingHours.sat.split(' - ');
-  const [sunOpen, sunClose] = b.openingHours.sun.split(' - ');
+  const [monFriOpen, monFriClose] = parseTimeString(b.openingHours?.monFri, '11:00', '22:00');
+  const [satOpen, satClose] = parseTimeString(b.openingHours?.sat, '10:00', '23:00');
+  const [sunOpen, sunClose] = parseTimeString(b.openingHours?.sun, '10:00', '22:00');
   branchForm.value = {
     name: b.name,
     code: b.code,
@@ -1332,12 +1422,12 @@ function openEditBranchModal(b: BranchRecord) {
     phone: b.phone,
     email: b.email,
     totalTables: b.totalTables,
-    monFriOpen: monFriOpen || '11:00',
-    monFriClose: monFriClose || '22:00',
-    satOpen: satOpen || '10:00',
-    satClose: satClose || '23:00',
-    sunOpen: sunOpen || '10:00',
-    sunClose: sunClose || '22:00',
+    monFriOpen,
+    monFriClose,
+    satOpen,
+    satClose,
+    sunOpen,
+    sunClose,
   };
   showAddBranchModal.value = true;
 }
@@ -1345,9 +1435,9 @@ function openEditBranchModal(b: BranchRecord) {
 function saveBranch() {
   if (!branchForm.value.name.trim() || !branchForm.value.code.trim()) return;
   const openingHours = {
-    monFri: `${branchForm.value.monFriOpen} - ${branchForm.value.monFriClose}`,
-    sat: `${branchForm.value.satOpen} - ${branchForm.value.satClose}`,
-    sun: `${branchForm.value.sunOpen} - ${branchForm.value.sunClose}`,
+    monFri: `${branchForm.value.monFriOpen || '11:00'} - ${branchForm.value.monFriClose || '22:00'}`,
+    sat: `${branchForm.value.satOpen || '10:00'} - ${branchForm.value.satClose || '23:00'}`,
+    sun: `${branchForm.value.sunOpen || '10:00'} - ${branchForm.value.sunClose || '22:00'}`,
   };
 
   if (editingBranchId.value) {
@@ -1398,11 +1488,10 @@ function deleteBranch(bId: string) {
 }
 
 // ==========================================
-// FEATURE: PHYSICAL TABLE INVENTORY MANAGEMENT (User Story 8)
+// FEATURE: PHYSICAL TABLE INVENTORY MANAGEMENT
 // ==========================================
 export type PhysicalTableShape = 'Round' | 'Square' | 'Rectangle' | 'Oval';
 export type PhysicalTableStatus = 'Available' | 'Reserved' | 'Occupied' | 'Unavailable';
-export type PhysicalTableZone = 'Main Hall' | 'Private Room' | 'VIP Room' | 'Rooftop Lounge';
 
 export interface PhysicalTableRecord {
   id: string;
@@ -1412,26 +1501,24 @@ export interface PhysicalTableRecord {
   shape: PhysicalTableShape;
   status: PhysicalTableStatus;
   active: boolean;
-  zone: PhysicalTableZone;
   lastUpdated: string;
 }
 
 const physicalTablesList = ref<PhysicalTableRecord[]>([
-  { id: 'T01', name: 'Table 1', branchName: 'The Parlor · Siam Square', capacity: 2, shape: 'Round', status: 'Available', active: true, zone: 'Main Hall', lastUpdated: '10 mins ago' },
-  { id: 'T02', name: 'Table 2', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Square', status: 'Reserved', active: true, zone: 'Main Hall', lastUpdated: '5 mins ago' },
-  { id: 'T03', name: 'Table 3', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Square', status: 'Available', active: true, zone: 'Main Hall', lastUpdated: 'Just now' },
-  { id: 'T04', name: 'Table 4', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Round', status: 'Occupied', active: true, zone: 'Main Hall', lastUpdated: '45 mins ago' },
-  { id: 'T05', name: 'Table 5', branchName: 'The Parlor · Siam Square', capacity: 6, shape: 'Rectangle', status: 'Available', active: true, zone: 'Main Hall', lastUpdated: '1 hour ago' },
-  { id: 'T06', name: 'Table 6', branchName: 'The Parlor · Siam Square', capacity: 6, shape: 'Rectangle', status: 'Available', active: true, zone: 'Main Hall', lastUpdated: '2 hours ago' },
-  { id: 'T07', name: 'Table 7 (VIP)', branchName: 'The Parlor · Siam Square', capacity: 8, shape: 'Oval', status: 'Reserved', active: true, zone: 'VIP Room', lastUpdated: '15 mins ago' },
-  { id: 'T08', name: 'Table 8 (Private)', branchName: 'The Parlor · Siam Square', capacity: 6, shape: 'Rectangle', status: 'Available', active: true, zone: 'Private Room', lastUpdated: '3 hours ago' },
-  { id: 'T09', name: 'Table 9 (Rooftop)', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Round', status: 'Occupied', active: true, zone: 'Rooftop Lounge', lastUpdated: '30 mins ago' },
-  { id: 'T10', name: 'Table 10 (Maintenance)', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Square', status: 'Unavailable', active: false, zone: 'Main Hall', lastUpdated: 'Yesterday' },
+  { id: 'T01', name: 'Table 1', branchName: 'The Parlor · Siam Square', capacity: 2, shape: 'Round', status: 'Available', active: true, lastUpdated: '10 mins ago' },
+  { id: 'T02', name: 'Table 2', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Square', status: 'Reserved', active: true, lastUpdated: '5 mins ago' },
+  { id: 'T03', name: 'Table 3', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Square', status: 'Available', active: true, lastUpdated: 'Just now' },
+  { id: 'T04', name: 'Table 4', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Round', status: 'Occupied', active: true, lastUpdated: '45 mins ago' },
+  { id: 'T05', name: 'Table 5', branchName: 'The Parlor · Siam Square', capacity: 6, shape: 'Rectangle', status: 'Available', active: true, lastUpdated: '1 hour ago' },
+  { id: 'T06', name: 'Table 6', branchName: 'The Parlor · Siam Square', capacity: 6, shape: 'Rectangle', status: 'Available', active: true, lastUpdated: '2 hours ago' },
+  { id: 'T07', name: 'Table 7 (VIP)', branchName: 'The Parlor · Siam Square', capacity: 8, shape: 'Oval', status: 'Reserved', active: true, lastUpdated: '15 mins ago' },
+  { id: 'T08', name: 'Table 8 (Private)', branchName: 'The Parlor · Siam Square', capacity: 6, shape: 'Rectangle', status: 'Available', active: true, lastUpdated: '3 hours ago' },
+  { id: 'T09', name: 'Table 9 (Rooftop)', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Round', status: 'Occupied', active: true, lastUpdated: '30 mins ago' },
+  { id: 'T10', name: 'Table 10 (Maintenance)', branchName: 'The Parlor · Siam Square', capacity: 4, shape: 'Square', status: 'Unavailable', active: false, lastUpdated: 'Yesterday' },
 ]);
 
 const tableSearchQuery = ref('');
 const tableFilterBranch = ref('The Parlor · Siam Square');
-const tableFilterZone = ref('All zones');
 const tableFilterStatus = ref<string>('All statuses');
 
 const filteredPhysicalTables = computed(() => {
@@ -1441,11 +1528,9 @@ const filteredPhysicalTables = computed(() => {
       t.id.toLowerCase().includes(tableSearchQuery.value.toLowerCase());
     const matchesBranch =
       tableFilterBranch.value === 'All branches' || t.branchName === tableFilterBranch.value;
-    const matchesZone =
-      tableFilterZone.value === 'All zones' || t.zone === tableFilterZone.value;
     const matchesStatus =
       tableFilterStatus.value === 'All statuses' || t.status === tableFilterStatus.value;
-    return matchesSearch && matchesBranch && matchesZone && matchesStatus;
+    return matchesSearch && matchesBranch && matchesStatus;
   });
 });
 
@@ -1468,7 +1553,6 @@ const tableForm = ref({
   capacity: 4,
   shape: 'Square' as PhysicalTableShape,
   status: 'Available' as PhysicalTableStatus,
-  zone: 'Main Hall' as PhysicalTableZone,
   active: true,
 });
 
@@ -1483,7 +1567,6 @@ function openAddTableModal() {
     capacity: 4,
     shape: 'Square',
     status: 'Available',
-    zone: 'Main Hall',
     active: true,
   };
   showAddTableModal.value = true;
@@ -1497,7 +1580,6 @@ function openEditTableModal(t: PhysicalTableRecord) {
     capacity: t.capacity,
     shape: t.shape,
     status: t.status,
-    zone: t.zone,
     active: t.active,
   };
   showAddTableModal.value = true;
@@ -1515,7 +1597,6 @@ function saveTable() {
         capacity: Number(tableForm.value.capacity),
         shape: tableForm.value.shape,
         status: tableForm.value.status,
-        zone: tableForm.value.zone,
         active: tableForm.value.active,
         lastUpdated: 'Just now',
       };
@@ -1528,7 +1609,6 @@ function saveTable() {
       capacity: Number(tableForm.value.capacity),
       shape: tableForm.value.shape,
       status: tableForm.value.status,
-      zone: tableForm.value.zone,
       active: tableForm.value.active,
       lastUpdated: 'Just now',
     });
@@ -1543,7 +1623,7 @@ function deleteTable(tId: string) {
 }
 
 // ==========================================
-// FEATURE: BOARD GAME CATALOG MANAGEMENT (User Story 9)
+// FEATURE: BOARD GAME CATALOG MANAGEMENT
 // ==========================================
 const showAddGameModal = ref(false);
 const editingGameId = ref<string | null>(null);
@@ -1680,7 +1760,7 @@ function deleteGame(gId: string) {
 }
 
 // ==========================================
-// FEATURE 5: VENUE SETTINGS & POLICIES (Admin)
+// FEATURE: VENUE SETTINGS & POLICIES
 // ==========================================
 const venueSettings = ref({
   branchName: 'The Parlor · Siam Paragon',
@@ -1692,16 +1772,135 @@ const venueSettings = ref({
   peakHourSurcharge: false,
 });
 
-const venuePolicies = ref({
-  noShowReleaseMinutes: 15,
-  autoReleaseEnabled: true,
-  playedTimeRecomputation: true,
-  baseHourlyRate2Seats: 150,
-  baseHourlyRate4Seats: 200,
-  baseHourlyRate6Seats: 300,
-  depositRequired: true,
-  depositAmount: 100,
+export interface VenuePolicyItem {
+  id: string;
+  title: string;
+  category: 'Reservations' | 'Billing & Rates' | 'Floor & Operations' | 'Safety & Conduct';
+  description: string;
+  metric: string;
+  active: boolean;
+}
+
+const venuePoliciesList = ref<VenuePolicyItem[]>([
+  {
+    id: 'pol-1',
+    title: 'Automatic 15-Minute No-Show Release',
+    category: 'Reservations',
+    description: 'When a customer reservation starts and they do not arrive within 15 minutes, the system automatically transitions their status to NO_SHOW and releases their table for walk-ins.',
+    metric: '15 Mins Grace',
+    active: true,
+  },
+  {
+    id: 'pol-2',
+    title: 'Dynamic Elapsed-Time Play Calculation',
+    category: 'Billing & Rates',
+    description: 'If customers arrive late, table play fee is dynamically computed based strictly on actual elapsed time from check-in to settlement at the counter.',
+    metric: 'Real-time billing',
+    active: true,
+  },
+  {
+    id: 'pol-3',
+    title: 'Standard Table Base Hourly Rates',
+    category: 'Billing & Rates',
+    description: '2-Seater Table: ฿150/hr · 4-Seater Table: ฿200/hr · 6-Seater Table: ฿300/hr. VIP surcharge: +25%.',
+    metric: '฿150 - ฿300/hr',
+    active: true,
+  },
+  {
+    id: 'pol-4',
+    title: 'Reservation Security Deposit Policy',
+    category: 'Reservations',
+    description: 'Large parties of 6 or more require a ฿100 advance deposit, fully creditable towards food, beverage, or table play fee upon arrival.',
+    metric: '฿100 Deposit',
+    active: true,
+  },
+  {
+    id: 'pol-5',
+    title: 'Game Component Care & Replacement Policy',
+    category: 'Floor & Operations',
+    description: 'Missing or ruined board game pieces are logged by Game Masters upon return. Deliberate damage is billed at retail replacement cost.',
+    metric: 'Fair Play',
+    active: true,
+  },
+]);
+
+const showPolicyModal = ref(false);
+const editingPolicyId = ref<string | null>(null);
+const policyCategories: VenuePolicyItem['category'][] = [
+  'Reservations',
+  'Billing & Rates',
+  'Floor & Operations',
+  'Safety & Conduct',
+];
+
+const policyForm = ref({
+  title: '',
+  category: 'Reservations' as VenuePolicyItem['category'],
+  metric: '',
+  description: '',
+  active: true,
 });
+
+function openAddPolicyModal() {
+  editingPolicyId.value = null;
+  policyForm.value = {
+    title: '',
+    category: 'Reservations',
+    metric: '',
+    description: '',
+    active: true,
+  };
+  showPolicyModal.value = true;
+}
+
+function openEditPolicyModal(p: VenuePolicyItem) {
+  editingPolicyId.value = p.id;
+  policyForm.value = {
+    title: p.title,
+    category: p.category,
+    metric: p.metric || '',
+    description: p.description,
+    active: p.active,
+  };
+  showPolicyModal.value = true;
+}
+
+function savePolicy() {
+  if (!policyForm.value.title.trim()) return;
+  if (editingPolicyId.value) {
+    const idx = venuePoliciesList.value.findIndex((p) => p.id === editingPolicyId.value);
+    if (idx !== -1) {
+      venuePoliciesList.value[idx] = {
+        ...venuePoliciesList.value[idx],
+        title: policyForm.value.title.trim(),
+        category: policyForm.value.category,
+        metric: policyForm.value.metric.trim(),
+        description: policyForm.value.description.trim(),
+        active: policyForm.value.active,
+      };
+    }
+  } else {
+    venuePoliciesList.value.push({
+      id: `pol-${Date.now()}`,
+      title: policyForm.value.title.trim(),
+      category: policyForm.value.category,
+      metric: policyForm.value.metric.trim(),
+      description: policyForm.value.description.trim(),
+      active: policyForm.value.active,
+    });
+  }
+  showPolicyModal.value = false;
+}
+
+function deletePolicy(id: string) {
+  if (confirm('Are you sure you want to delete this venue operational policy?')) {
+    venuePoliciesList.value = venuePoliciesList.value.filter((p) => p.id !== id);
+  }
+}
+
+function togglePolicyActive(p: VenuePolicyItem) {
+  p.active = !p.active;
+}
 </script>
 
 <template>
@@ -2731,7 +2930,7 @@ const venuePolicies = ref({
               </div>
             </div>
 
-            <!-- Game Live Summary Cards (User Story 9 AC) -->
+            <!-- Game Live Summary Cards -->
             <div class="analytics-ribbon-grid mb-4">
               <div class="analytics-card">
                 <span class="analytics-label">TOTAL GAMES</span>
@@ -2827,7 +3026,7 @@ const venuePolicies = ref({
                     ✦ Assign to Playing Table →
                   </button>
 
-                  <!-- Admin Management Actions for Game (User Story 9 AC) -->
+                  <!-- Admin Management Actions for Game -->
                   <div v-if="isAdmin" class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
                     <button type="button" class="btn-xs-secondary flex-1" @click="openEditGameModal(game)">
                       Edit
@@ -3084,13 +3283,13 @@ const venuePolicies = ref({
         </template>
 
         <!-- ========================================== -->
-        <!-- VIEW: BUSINESS OVERVIEW & MANAGE BRANCHES (User Stories 6 & 7) -->
+        <!-- VIEW: BUSINESS OVERVIEW & MANAGE BRANCHES  -->
         <!-- ========================================== -->
         <template v-else-if="activeTab === 'branches' && isAdmin">
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ MULTI-PROPERTY FLEET TELEMETRY (OWNER)</div>
+                <div class="view-eyebrow">✦ MULTI-PROPERTY FLEET TELEMETRY</div>
                 <h1 class="view-title">Business Overview & Branches</h1>
                 <p class="view-subtitle">Monitor live operations, manage branch locations, and update operating hours across all properties.</p>
               </div>
@@ -3101,7 +3300,7 @@ const venuePolicies = ref({
               </div>
             </div>
 
-            <!-- Top Level Multi-Branch Summary Cards (User Story 6 AC) -->
+            <!-- Top Level Multi-Branch Summary Cards -->
             <div class="analytics-ribbon-grid">
               <div class="analytics-card">
                 <span class="analytics-label">TOTAL BRANCHES</span>
@@ -3163,7 +3362,7 @@ const venuePolicies = ref({
               </div>
             </div>
 
-            <!-- Branches List Table (User Story 6 & 7 AC) -->
+            <!-- Branches List Table -->
             <div class="bookings-list-wrap">
               <table class="parlor-table">
                 <thead>
@@ -3202,9 +3401,10 @@ const venuePolicies = ref({
                     <td>
                       <div class="text-sm font-semibold text-gray-900">{{ branch.checkInsToday }} parties</div>
                     </td>
-                    <td>
-                      <div class="text-xs text-gray-700"><strong>Mon-Fri:</strong> {{ branch.openingHours.monFri }}</div>
-                      <div class="text-xs text-gray-700"><strong>Sat-Sun:</strong> {{ branch.openingHours.sat }}</div>
+                    <td class="text-xs">
+                      <div class="font-medium text-gray-800"><strong>Mon–Fri:</strong> {{ branch.openingHours.monFri }}</div>
+                      <div class="text-gray-600 mt-0.5"><strong>Sat:</strong> {{ branch.openingHours.sat }}</div>
+                      <div class="text-gray-600 mt-0.5"><strong>Sun:</strong> {{ branch.openingHours.sun }}</div>
                     </td>
                     <td>
                       <div class="text-xs text-gray-900">{{ branch.phone }}</div>
@@ -3248,13 +3448,13 @@ const venuePolicies = ref({
         </template>
 
         <!-- ========================================== -->
-        <!-- VIEW: MANAGE PHYSICAL TABLES (User Story 8) -->
+        <!-- VIEW: MANAGE PHYSICAL TABLES               -->
         <!-- ========================================== -->
         <template v-else-if="activeTab === 'manage-tables' && isAdmin">
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ PHYSICAL TABLE INVENTORY (OWNER)</div>
+                <div class="view-eyebrow">✦ PHYSICAL TABLE INVENTORY</div>
                 <h1 class="view-title">Manage Tables & Floor Seating</h1>
                 <p class="view-subtitle">View, create, edit, and configure physical table inventory across branches.</p>
               </div>
@@ -3265,7 +3465,7 @@ const venuePolicies = ref({
               </div>
             </div>
 
-            <!-- Branch & Live Table Status Counters (User Story 8 AC) -->
+            <!-- Branch & Live Table Status Counters -->
             <div class="analytics-ribbon-grid">
               <div class="analytics-card">
                 <span class="analytics-label">TOTAL TABLES</span>
@@ -3289,20 +3489,12 @@ const venuePolicies = ref({
               </div>
             </div>
 
-            <!-- Controls: Branch Dropdown, Zone Filter, Status Filter, Search (User Story 8 AC) -->
+            <!-- Controls: Branch Dropdown, Status Filter, Search -->
             <div class="table-controls-bar">
               <div class="flex items-center gap-2 flex-wrap">
                 <select v-model="tableFilterBranch" class="parlor-select">
                   <option value="All branches">All branches</option>
                   <option v-for="b in branchesList" :key="b.id" :value="b.name">{{ b.name }}</option>
-                </select>
-
-                <select v-model="tableFilterZone" class="parlor-select">
-                  <option value="All zones">All zones</option>
-                  <option value="Main Hall">Main Hall</option>
-                  <option value="Private Room">Private Room</option>
-                  <option value="VIP Room">VIP Room</option>
-                  <option value="Rooftop Lounge">Rooftop Lounge</option>
                 </select>
 
                 <select v-model="tableFilterStatus" class="parlor-select">
@@ -3333,7 +3525,6 @@ const venuePolicies = ref({
                     <th>Branch</th>
                     <th>Capacity</th>
                     <th>Shape</th>
-                    <th>Zone</th>
                     <th>Status</th>
                     <th>Last Updated</th>
                     <th class="text-right">Actions</th>
@@ -3355,9 +3546,6 @@ const venuePolicies = ref({
                       <span class="px-2 py-0.5 rounded text-xs bg-gray-100 border border-gray-300 font-medium">
                         {{ tbl.shape }}
                       </span>
-                    </td>
-                    <td>
-                      <span class="text-sm text-gray-700">{{ tbl.zone }}</span>
                     </td>
                     <td>
                       <span
@@ -3383,7 +3571,7 @@ const venuePolicies = ref({
                     </td>
                   </tr>
                   <tr v-if="filteredPhysicalTables.length === 0">
-                    <td colspan="8" class="text-center py-8 text-gray-500">
+                    <td colspan="7" class="text-center py-8 text-gray-500">
                       No tables found matching your search/filter criteria.
                     </td>
                   </tr>
@@ -3402,7 +3590,12 @@ const venuePolicies = ref({
               <div>
                 <div class="view-eyebrow">✦ BRANCH ROSTER & TEAM</div>
                 <h1 class="view-title">Staff & Shift Attendance</h1>
-                <p class="view-subtitle">Active shift supervision, table zone allocations, and roster management.</p>
+                <p class="view-subtitle">Active shift supervision, station assignments, and shift scheduling.</p>
+              </div>
+              <div class="header-mgmt-actions">
+                <button type="button" class="btn-primary-parlor" @click="openAddStaffModal">
+                  ✦ + Add Staff Member
+                </button>
               </div>
             </div>
 
@@ -3412,17 +3605,35 @@ const venuePolicies = ref({
                   <div class="staff-avatar-circle">
                     {{ staff.name.slice(0, 2).toUpperCase() }}
                   </div>
-                  <div>
+                  <div class="flex-1">
                     <h3 class="staff-name">{{ staff.name }}</h3>
                     <span class="staff-role-badge">{{ staff.role }}</span>
                   </div>
+                  <div class="flex items-center gap-1">
+                    <button type="button" class="btn-xs-secondary" @click="openEditStaffModal(staff)">Edit</button>
+                    <button type="button" class="btn-xs-danger" @click="deleteStaff(staff.id)">✕</button>
+                  </div>
                 </div>
                 <div class="staff-card-body">
-                  <p><strong>Shift:</strong> {{ staff.shift }}</p>
-                  <p><strong>Assigned Zone:</strong> {{ staff.assignedZone }}</p>
-                  <div class="duty-status-row">
-                    <span class="pulse-green"></span>
-                    <span class="duty-lbl">On Duty · Clocked in</span>
+                  <div class="mb-2">
+                    <label class="block text-xs font-semibold text-gray-700 mb-0.5">Assigned Shift:</label>
+                    <select v-model="staff.shift" class="parlor-select text-xs w-full py-1">
+                      <option v-for="s in shiftOptions" :key="s" :value="s">{{ s }}</option>
+                    </select>
+                  </div>
+                  <p class="text-xs text-gray-600 mb-2"><strong>Station / Area:</strong> {{ staff.assignedZone }}</p>
+                  <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+                    <div class="duty-status-row !mt-0">
+                      <span :class="staff.status === 'ON_DUTY' ? 'pulse-green' : staff.status === 'ON_BREAK' ? 'w-2 h-2 rounded-full bg-amber-500' : 'w-2 h-2 rounded-full bg-gray-400'"></span>
+                      <span class="duty-lbl" :class="staff.status === 'ON_DUTY' ? 'text-emerald-700' : staff.status === 'ON_BREAK' ? 'text-amber-700' : 'text-gray-500'">
+                        {{ staff.status === 'ON_DUTY' ? 'On Duty' : staff.status === 'ON_BREAK' ? 'On Break' : 'Off Duty' }}
+                      </span>
+                    </div>
+                    <select v-model="staff.status" class="text-xs border border-gray-300 rounded px-1.5 py-0.5 bg-white text-gray-700">
+                      <option value="ON_DUTY">On Duty</option>
+                      <option value="ON_BREAK">On Break</option>
+                      <option value="OFF_DUTY">Off Duty</option>
+                    </select>
                   </div>
                 </div>
               </article>
@@ -3469,7 +3680,7 @@ const venuePolicies = ref({
         </template>
 
         <!-- ========================================== -->
-        <!-- VIEW 9: VENUE SETTINGS (Admin only)        -->
+        <!-- VIEW 9: VENUE SETTINGS (Admin)             -->
         <!-- ========================================== -->
         <template v-else-if="activeTab === 'settings' && isAdmin">
           <section class="console-block">
@@ -3479,7 +3690,6 @@ const venuePolicies = ref({
                 <h1 class="view-title">Venue Settings</h1>
                 <p class="view-subtitle">Manage branch identity, operating hours, and capacity limits.</p>
               </div>
-              <span class="role-pill-gold admin">Super Admin Only</span>
             </div>
 
             <div class="settings-form-grid">
@@ -3506,7 +3716,7 @@ const venuePolicies = ref({
         </template>
 
         <!-- ========================================== -->
-        <!-- VIEW 10: VENUE POLICIES (Admin only)       -->
+        <!-- VIEW 10: VENUE POLICIES (Admin)            -->
         <!-- ========================================== -->
         <template v-else-if="activeTab === 'policies' && isAdmin">
           <section class="console-block">
@@ -3514,47 +3724,51 @@ const venuePolicies = ref({
               <div>
                 <div class="view-eyebrow">✦ GOVERNANCE & RULES</div>
                 <h1 class="view-title">Venue Operational Policies</h1>
-                <p class="view-subtitle">Configure 15-minute automatic no-show table releases, played-time recalculation, and hourly rates.</p>
+                <p class="view-subtitle">Manage venue operational rules, grace periods, play calculation, and table rate structures.</p>
               </div>
-              <span class="role-pill-gold admin">Super Admin Only</span>
+              <div class="header-mgmt-actions">
+                <button type="button" class="btn-primary-parlor" @click="openAddPolicyModal">
+                  ✦ + Add Policy
+                </button>
+              </div>
             </div>
 
             <div class="policies-cards-list">
-              <article class="policy-card">
+              <article v-for="policy in venuePoliciesList" :key="policy.id" class="policy-card">
                 <div class="policy-card-top">
-                  <div>
-                    <h3 class="policy-card-title">Automatic {{ venuePolicies.noShowReleaseMinutes }}-Minute No-Show Release</h3>
+                  <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+                      <h3 class="policy-card-title !mb-0">{{ policy.title }}</h3>
+                      <span class="category-tag">{{ policy.category }}</span>
+                      <span v-if="policy.metric" class="px-2 py-0.5 rounded text-xs bg-amber-50 text-amber-900 border border-amber-200 font-semibold font-mono">
+                        {{ policy.metric }}
+                      </span>
+                    </div>
                     <p class="policy-card-desc">
-                      When a customer reservation starts and they do not arrive within {{ venuePolicies.noShowReleaseMinutes }} minutes, the system automatically transitions their status to NO_SHOW and releases their table for walk-ins.
+                      {{ policy.description }}
                     </p>
                   </div>
-                  <span class="policy-active-tag">Active & Enforced</span>
-                </div>
-              </article>
-
-              <article class="policy-card">
-                <div class="policy-card-top">
-                  <div>
-                    <h3 class="policy-card-title">Dynamic Played-Time Recomputation</h3>
-                    <p class="policy-card-desc">
-                      If customers arrive late, table play fee is dynamically computed based strictly on actual elapsed time from check-in to settlement at the counter (e.g. booked 9-10 at ฿{{ venuePolicies.baseHourlyRate6Seats }}/hr, arrived 9:15 -> played 45 min -> billed ฿225).
-                    </p>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      class="px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer border transition-colors"
+                      :class="policy.active ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-gray-100 text-gray-500 border-gray-300'"
+                      @click="togglePolicyActive(policy)"
+                    >
+                      {{ policy.active ? 'Active & Enforced' : 'Inactive' }}
+                    </button>
+                    <button type="button" class="btn-xs-secondary" @click="openEditPolicyModal(policy)">
+                      Edit
+                    </button>
+                    <button type="button" class="btn-xs-danger" @click="deletePolicy(policy.id)">
+                      Delete
+                    </button>
                   </div>
-                  <span class="policy-active-tag">Active & Enforced</span>
                 </div>
               </article>
-
-              <article class="policy-card">
-                <div class="policy-card-top">
-                  <div>
-                    <h3 class="policy-card-title">Standard Table Hourly Rates</h3>
-                    <p class="policy-card-desc">
-                      2-Seater Table: ฿{{ venuePolicies.baseHourlyRate2Seats }}/hr · 4-Seater Table: ฿{{ venuePolicies.baseHourlyRate4Seats }}/hr · 6-Seater Table: ฿{{ venuePolicies.baseHourlyRate6Seats }}/hr.
-                    </p>
-                  </div>
-                  <span class="policy-active-tag">Default Matrix</span>
-                </div>
-              </article>
+              <div v-if="venuePoliciesList.length === 0" class="text-center py-8 text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                No venue operational policies configured. Click "+ Add Policy" to create one.
+              </div>
             </div>
           </section>
         </template>
@@ -4085,7 +4299,7 @@ const venuePolicies = ref({
         </div>
       </div>
 
-      <!-- Add/Edit Branch Modal (User Stories 6 & 7) -->
+      <!-- Add/Edit Branch Modal -->
       <div v-if="showAddBranchModal && isAdmin" class="modal-backdrop" @click.self="showAddBranchModal = false">
         <div class="modal-card">
           <div class="walkin-header">
@@ -4146,30 +4360,30 @@ const venuePolicies = ref({
             </div>
 
             <div class="form-group mt-3">
-              <label class="field-label font-bold text-gray-800">Daily Operating Hours (User Story 7 AC)</label>
-              <div class="grid grid-cols-3 gap-2 mt-1">
-                <div class="p-2.5 rounded-lg border border-gray-200 bg-gray-50">
-                  <span class="text-xs font-semibold text-gray-700 block mb-1">Mon - Fri</span>
-                  <div class="flex items-center gap-1">
-                    <input v-model="branchForm.monFriOpen" type="time" class="parlor-input text-xs p-1" />
-                    <span>–</span>
-                    <input v-model="branchForm.monFriClose" type="time" class="parlor-input text-xs p-1" />
+              <label class="field-label font-bold text-gray-800">Daily Operating Hours</label>
+              <div class="operating-hours-editor mt-1">
+                <div class="day-hours-row">
+                  <span class="day-label">Monday – Friday</span>
+                  <div class="time-range-inputs">
+                    <input v-model="branchForm.monFriOpen" type="time" class="time-field" />
+                    <span class="time-sep">to</span>
+                    <input v-model="branchForm.monFriClose" type="time" class="time-field" />
                   </div>
                 </div>
-                <div class="p-2.5 rounded-lg border border-gray-200 bg-gray-50">
-                  <span class="text-xs font-semibold text-gray-700 block mb-1">Saturday</span>
-                  <div class="flex items-center gap-1">
-                    <input v-model="branchForm.satOpen" type="time" class="parlor-input text-xs p-1" />
-                    <span>–</span>
-                    <input v-model="branchForm.satClose" type="time" class="parlor-input text-xs p-1" />
+                <div class="day-hours-row">
+                  <span class="day-label">Saturday</span>
+                  <div class="time-range-inputs">
+                    <input v-model="branchForm.satOpen" type="time" class="time-field" />
+                    <span class="time-sep">to</span>
+                    <input v-model="branchForm.satClose" type="time" class="time-field" />
                   </div>
                 </div>
-                <div class="p-2.5 rounded-lg border border-gray-200 bg-gray-50">
-                  <span class="text-xs font-semibold text-gray-700 block mb-1">Sunday</span>
-                  <div class="flex items-center gap-1">
-                    <input v-model="branchForm.sunOpen" type="time" class="parlor-input text-xs p-1" />
-                    <span>–</span>
-                    <input v-model="branchForm.sunClose" type="time" class="parlor-input text-xs p-1" />
+                <div class="day-hours-row">
+                  <span class="day-label">Sunday</span>
+                  <div class="time-range-inputs">
+                    <input v-model="branchForm.sunOpen" type="time" class="time-field" />
+                    <span class="time-sep">to</span>
+                    <input v-model="branchForm.sunClose" type="time" class="time-field" />
                   </div>
                 </div>
               </div>
@@ -4192,14 +4406,14 @@ const venuePolicies = ref({
         </div>
       </div>
 
-      <!-- Add/Edit Table Modal (User Story 8) -->
+      <!-- Add/Edit Table Modal -->
       <div v-if="showAddTableModal && isAdmin" class="modal-backdrop" @click.self="showAddTableModal = false">
         <div class="modal-card">
           <div class="walkin-header">
             <div>
               <div class="eyebrow-sub">ADMINISTRATION · FLOOR INVENTORY</div>
               <h3 class="modal-title">{{ editingTableId ? 'Edit Table Configuration' : 'Add New Physical Table' }}</h3>
-              <p class="modal-sub">Define seating capacity, shape, zone allocation, and active status.</p>
+              <p class="modal-sub">Define seating capacity, shape, and active status.</p>
             </div>
             <button type="button" class="close-x" @click="showAddTableModal = false">✕</button>
           </div>
@@ -4236,15 +4450,6 @@ const venuePolicies = ref({
 
             <div class="form-row-2">
               <div class="form-group">
-                <label class="field-label">Zone / Floor Area *</label>
-                <select v-model="tableForm.zone" class="parlor-select">
-                  <option value="Main Hall">Main Hall</option>
-                  <option value="Private Room">Private Room</option>
-                  <option value="VIP Room">VIP Room</option>
-                  <option value="Rooftop Lounge">Rooftop Lounge</option>
-                </select>
-              </div>
-              <div class="form-group">
                 <label class="field-label">Initial Status *</label>
                 <select v-model="tableForm.status" class="parlor-select">
                   <option value="Available">Available (Green)</option>
@@ -4253,14 +4458,13 @@ const venuePolicies = ref({
                   <option value="Unavailable">Unavailable (Gray/Maintenance)</option>
                 </select>
               </div>
-            </div>
-
-            <div class="form-group">
-              <label class="field-label">Active on Floor</label>
-              <select v-model="tableForm.active" class="parlor-select">
-                <option :value="true">Yes — Available for floor operations</option>
-                <option :value="false">No — Hidden/inactive</option>
-              </select>
+              <div class="form-group">
+                <label class="field-label">Active on Floor</label>
+                <select v-model="tableForm.active" class="parlor-select">
+                  <option :value="true">Yes — Available for floor operations</option>
+                  <option :value="false">No — Hidden/inactive</option>
+                </select>
+              </div>
             </div>
           </div>
 
@@ -4280,7 +4484,7 @@ const venuePolicies = ref({
         </div>
       </div>
 
-      <!-- Add/Edit Game Modal (User Story 9) -->
+      <!-- Add/Edit Game Modal -->
       <div v-if="showAddGameModal && isAdmin" class="modal-backdrop" @click.self="showAddGameModal = false">
         <div class="modal-card">
           <div class="walkin-header">
@@ -4356,6 +4560,132 @@ const venuePolicies = ref({
               @click="saveGame"
             >
               {{ editingGameId ? 'Update Game in Catalog' : 'Add Game to Catalog' }} →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add/Edit Staff Member Modal -->
+      <div v-if="showAddStaffModal && isAdmin" class="modal-backdrop" @click.self="showAddStaffModal = false">
+        <div class="modal-card">
+          <div class="walkin-header">
+            <div>
+              <div class="eyebrow-sub">ADMINISTRATION · STAFF ROSTER</div>
+              <h3 class="modal-title">{{ editingStaffId ? 'Edit Staff Member' : 'Add Staff Member' }}</h3>
+              <p class="modal-sub">Assign role, shift hours, and floor station.</p>
+            </div>
+            <button type="button" class="close-x" @click="showAddStaffModal = false">✕</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label">Staff Full Name *</label>
+                <input v-model="staffForm.name" type="text" class="parlor-input" placeholder="e.g. Krit Somchai" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">Role *</label>
+                <select v-model="staffForm.role" class="parlor-select">
+                  <option v-for="r in staffRoles" :key="r" :value="r">{{ r }}</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="field-label">Assigned Shift *</label>
+              <select v-model="staffForm.shift" class="parlor-select">
+                <option v-for="s in shiftOptions" :key="s" :value="s">{{ s }}</option>
+              </select>
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label">Station / Assigned Area</label>
+                <input v-model="staffForm.assignedZone" type="text" class="parlor-input" placeholder="e.g. Tables 1 - 4" />
+              </div>
+              <div class="form-group">
+                <label class="field-label">Duty Status</label>
+                <select v-model="staffForm.status" class="parlor-select">
+                  <option value="ON_DUTY">On Duty (Clocked in)</option>
+                  <option value="ON_BREAK">On Break</option>
+                  <option value="OFF_DUTY">Off Duty</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary-parlor" @click="showAddStaffModal = false">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-primary-parlor"
+              :disabled="!staffForm.name.trim()"
+              @click="saveStaff"
+            >
+              {{ editingStaffId ? 'Save Staff Changes' : 'Add Staff Member' }} →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add/Edit Venue Operational Policy Modal -->
+      <div v-if="showPolicyModal && isAdmin" class="modal-backdrop" @click.self="showPolicyModal = false">
+        <div class="modal-card">
+          <div class="walkin-header">
+            <div>
+              <div class="eyebrow-sub">ADMINISTRATION · VENUE GOVERNANCE</div>
+              <h3 class="modal-title">{{ editingPolicyId ? 'Edit Operational Policy' : 'Add Venue Policy' }}</h3>
+              <p class="modal-sub">Define operational parameters, grace limits, or pricing rules.</p>
+            </div>
+            <button type="button" class="close-x" @click="showPolicyModal = false">✕</button>
+          </div>
+
+          <div class="modal-body">
+            <div class="form-group">
+              <label class="field-label">Policy Title *</label>
+              <input v-model="policyForm.title" type="text" class="parlor-input" placeholder="e.g. Automatic 15-Minute No-Show Release" />
+            </div>
+
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="field-label">Category *</label>
+                <select v-model="policyForm.category" class="parlor-select">
+                  <option v-for="c in policyCategories" :key="c" :value="c">{{ c }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="field-label">Key Metric / Threshold</label>
+                <input v-model="policyForm.metric" type="text" class="parlor-input" placeholder="e.g. 15 Mins, ฿300/hr" />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="field-label">Policy Description *</label>
+              <textarea v-model="policyForm.description" rows="3" class="parlor-input" placeholder="Describe the policy condition and operational enforcement..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="field-label">Enforcement Status</label>
+              <select v-model="policyForm.active" class="parlor-select">
+                <option :value="true">Active & Enforced</option>
+                <option :value="false">Inactive / Draft</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn-secondary-parlor" @click="showPolicyModal = false">
+              Cancel
+            </button>
+            <button
+              type="button"
+              class="btn-primary-parlor"
+              :disabled="!policyForm.title.trim()"
+              @click="savePolicy"
+            >
+              {{ editingPolicyId ? 'Save Policy Changes' : 'Create Policy' }} →
             </button>
           </div>
         </div>
@@ -6747,5 +7077,57 @@ const venuePolicies = ref({
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
+}
+
+/* Operating Hours Editor */
+.operating-hours-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: #fbf9f5;
+  border: 1.5px solid #e7ded0;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.day-hours-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.day-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #142b20;
+  min-width: 130px;
+}
+
+.time-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-field {
+  padding: 5px 8px;
+  border: 1.5px solid #c6ad7a;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #ffffff;
+  color: #142b20;
+  font-family: inherit;
+  outline: none;
+}
+
+.time-field:focus {
+  border-color: #142b20;
+}
+
+.time-sep {
+  font-size: 12px;
+  color: #7d8b82;
+  font-weight: 500;
 }
 </style>
