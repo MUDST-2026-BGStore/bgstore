@@ -93,6 +93,13 @@ type NavTab =
 
 const activeTab = ref<NavTab>('dashboard');
 
+function selectNavTab(tab: NavTab) {
+  activeTab.value = tab;
+  if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+    isSidebarCollapsed.value = true;
+  }
+}
+
 // Role hierarchy (Management & Administration unified into Administration)
 const userRoles = computed(() => auth.roles || []);
 const isAdmin = computed(
@@ -1920,7 +1927,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           </svg>
         </div>
         <div class="brand-text-col">
-          <span class="brand-sub">✦ {{ roleBadgeLabel }}</span>
+          <span class="brand-sub">{{ roleBadgeLabel }}</span>
           <span class="brand-name">The Parlor</span>
         </div>
       </div>
@@ -1964,7 +1971,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           class="nav-item"
           :class="{ active: activeTab === 'dashboard' }"
           :title="isSidebarCollapsed ? 'Dashboard' : undefined"
-          @click.prevent="activeTab = 'dashboard'"
+          @click.prevent="selectNavTab('dashboard')"
         >
           <span class="nav-icon-box">
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1982,7 +1989,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           class="nav-item"
           :class="{ active: activeTab === 'floor' }"
           :title="isSidebarCollapsed ? 'Tables & Floor' : undefined"
-          @click.prevent="activeTab = 'floor'"
+          @click.prevent="selectNavTab('floor')"
         >
           <span class="nav-icon-box">
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1998,7 +2005,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           class="nav-item"
           :class="{ active: activeTab === 'sessions' }"
           :title="isSidebarCollapsed ? 'Live Sessions' : undefined"
-          @click.prevent="activeTab = 'sessions'"
+          @click.prevent="selectNavTab('sessions')"
         >
           <span class="nav-icon-box">
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2017,7 +2024,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           class="nav-item"
           :class="{ active: activeTab === 'bookings' }"
           :title="isSidebarCollapsed ? 'Bookings & Timeline' : undefined"
-          @click.prevent="activeTab = 'bookings'"
+          @click.prevent="selectNavTab('bookings')"
         >
           <span class="nav-icon-box">
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2035,7 +2042,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           class="nav-item"
           :class="{ active: activeTab === 'library' }"
           :title="isSidebarCollapsed ? 'Game Library' : undefined"
-          @click.prevent="activeTab = 'library'"
+          @click.prevent="selectNavTab('library')"
         >
           <span class="nav-icon-box">
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2052,7 +2059,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           class="nav-item"
           :class="{ active: activeTab === 'inventory' }"
           :title="isSidebarCollapsed ? 'Refreshments & Stock' : undefined"
-          @click.prevent="activeTab = 'inventory'"
+          @click.prevent="selectNavTab('inventory')"
         >
           <span class="nav-icon-box">
             <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2076,7 +2083,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
             class="nav-item"
             :class="{ active: activeTab === 'branches' }"
             :title="isSidebarCollapsed ? 'Business & Branches' : undefined"
-            @click.prevent="activeTab = 'branches'"
+            @click.prevent="selectNavTab('branches')"
           >
             <span class="nav-icon-box">
               <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2098,7 +2105,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
             class="nav-item"
             :class="{ active: activeTab === 'manage-tables' }"
             :title="isSidebarCollapsed ? 'Manage Tables' : undefined"
-            @click.prevent="activeTab = 'manage-tables'"
+            @click.prevent="selectNavTab('manage-tables')"
           >
             <span class="nav-icon-box">
               <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2115,7 +2122,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
             class="nav-item"
             :class="{ active: activeTab === 'staff-roster' }"
             :title="isSidebarCollapsed ? 'Staff & Shifts' : undefined"
-            @click.prevent="activeTab = 'staff-roster'"
+            @click.prevent="selectNavTab('staff-roster')"
           >
             <span class="nav-icon-box">
               <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2133,7 +2140,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
             class="nav-item"
             :class="{ active: activeTab === 'analytics' }"
             :title="isSidebarCollapsed ? 'Revenue & Analytics' : undefined"
-            @click.prevent="activeTab = 'analytics'"
+            @click.prevent="selectNavTab('analytics')"
           >
             <span class="nav-icon-box">
               <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2150,7 +2157,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
             class="nav-item"
             :class="{ active: activeTab === 'policies' }"
             :title="isSidebarCollapsed ? 'Venue Policies' : undefined"
-            @click.prevent="activeTab = 'policies'"
+            @click.prevent="selectNavTab('policies')"
           >
             <span class="nav-icon-box">
               <svg class="nav-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -2196,13 +2203,38 @@ function togglePolicyActive(p: VenuePolicyItem) {
       </div>
     </aside>
 
+    <!-- Mobile Sidebar Backdrop Overlay -->
+    <div
+      v-if="!isSidebarCollapsed"
+      class="sidebar-mobile-overlay"
+      @click="isSidebarCollapsed = true"
+    ></div>
+
     <!-- Main Content Area -->
     <div class="gl-main-wrapper">
       <!-- Top Header Navigation Bar -->
       <header class="gl-topbar">
         <div class="topbar-left">
+          <button
+            type="button"
+            class="mobile-menu-toggle"
+            @click="toggleSidebar"
+            :aria-label="isSidebarCollapsed ? 'Open navigation menu' : 'Close navigation menu'"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="3" y1="12" x2="21" y2="12"/>
+              <line x1="3" y1="6" x2="21" y2="6"/>
+              <line x1="3" y1="18" x2="21" y2="18"/>
+            </svg>
+          </button>
+
           <div class="branch-selector-capsule">
-            <span class="pin-icon">✦</span>
+            <span class="pin-icon">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                <circle cx="12" cy="10" r="3"/>
+              </svg>
+            </span>
             <select v-model="selectedBranchId" class="branch-select">
               <option v-for="b in branches" :key="b.id" :value="b.id">
                 The Parlor · {{ b.name }} Branch
@@ -2260,7 +2292,6 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <!-- Block 1: Service Greeting Hero -->
           <section class="console-block hero-block">
             <div class="eyebrow-row">
-              <span class="gold-sparkle">✦</span>
               <span class="hero-eyebrow">
                 TONIGHT AT THE PARLOR · {{ selectedBranch?.name.toUpperCase() || 'SIAM' }} BRANCH
               </span>
@@ -2297,7 +2328,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
               <button
                 type="button"
                 class="btn-secondary-parlor"
-                @click="activeTab = 'library'"
+                @click="selectNavTab('library')"
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
@@ -2428,7 +2459,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                 <div class="section-card-header">
                   <div class="header-left">
                     <h2 class="section-title">Floor</h2>
-                    <span class="live-tag">✦ Live</span>
+                    <span class="live-tag"><span class="pulse-green"></span> Live</span>
                   </div>
                   <span class="usage-text">{{ occupiedTablesCount }} of {{ branchFloorTables.length }} in use</span>
                 </div>
@@ -2479,7 +2510,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
                       <div v-if="getTableAssignedGames(table.id).length > 0" class="tile-assigned-games-box">
                         <div class="assigned-chips-wrap">
                           <span class="game-chip-capsule">
-                            🎲 {{ getTableAssignedGames(table.id)[0] }}
+                            <svg class="w-3.5 h-3.5 inline mr-1 text-amber-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                              <rect x="3" y="3" width="18" height="18" rx="3"/>
+                              <circle cx="8" cy="8" r="1" fill="currentColor"/>
+                              <circle cx="16" cy="16" r="1" fill="currentColor"/>
+                              <circle cx="12" cy="12" r="1" fill="currentColor"/>
+                            </svg>
+                            {{ getTableAssignedGames(table.id)[0] }}
                             <button
                               type="button"
                               class="btn-chip-unassign"
@@ -2591,7 +2628,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                           :disabled="actionInProgress === res.id"
                           @click="handleCheckIn(res)"
                         >
-                          ✦ Arrived
+                          Arrived
                         </button>
                         <button
                           type="button"
@@ -2624,7 +2661,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ REAL-TIME VENUE FLOOR PLAN</div>
+                <div class="view-eyebrow">REAL-TIME FLOOR PLAN</div>
                 <h1 class="view-title">Tables & Floor Management</h1>
                 <p class="view-subtitle">Live table occupancy, assigned games, guest seating, and floor status.</p>
               </div>
@@ -2670,7 +2707,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                   <!-- Assigned Game Box on Occupied Table -->
                   <div class="tile-assigned-games-box" style="margin: 8px 0;">
                     <div class="assigned-header-row">
-                      <span class="assigned-label">🎲 Assigned Game:</span>
+                      <span class="assigned-label">Assigned Game:</span>
                       <!-- Only show + Assign Game if table has no game yet -->
                       <button
                         v-if="getTableAssignedGames(table.id).length === 0"
@@ -2683,6 +2720,12 @@ function togglePolicyActive(p: VenuePolicyItem) {
                     </div>
                     <div v-if="getTableAssignedGames(table.id).length > 0" class="assigned-chips-wrap">
                       <span class="game-chip-capsule">
+                        <svg class="w-3.5 h-3.5 inline mr-1 text-amber-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <rect x="3" y="3" width="18" height="18" rx="3"/>
+                          <circle cx="8" cy="8" r="1" fill="currentColor"/>
+                          <circle cx="16" cy="16" r="1" fill="currentColor"/>
+                          <circle cx="12" cy="12" r="1" fill="currentColor"/>
+                        </svg>
                         {{ getTableAssignedGames(table.id)[0] }}
                         <button
                           type="button"
@@ -2690,7 +2733,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                           title="Return game to shelf"
                           @click.stop="unassignGameFromTable(table.id, getTableAssignedGames(table.id)[0])"
                         >
-                          ✕ Return
+                          ✕
                         </button>
                       </span>
                     </div>
@@ -2734,7 +2777,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ IN-PLAY TABLE MONITORING</div>
+                <div class="view-eyebrow">IN-PLAY TABLE MONITORING</div>
                 <h1 class="view-title">Active Play Sessions & Tabs</h1>
                 <p class="view-subtitle">Monitor played time, assigned games, refreshments, and settle bills with automatic late arrival recomputation.</p>
               </div>
@@ -2744,7 +2787,15 @@ function togglePolicyActive(p: VenuePolicyItem) {
             </div>
 
             <div v-if="activeFloorReservations.length === 0" class="empty-state-box">
-              <div class="empty-icon">☕</div>
+              <div class="empty-icon">
+                <svg class="w-10 h-10 mx-auto text-amber-800/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+                  <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+                  <line x1="6" y1="1" x2="6" y2="4"/>
+                  <line x1="10" y1="1" x2="10" y2="4"/>
+                  <line x1="14" y1="1" x2="14" y2="4"/>
+                </svg>
+              </div>
               <h3>No Active Play Sessions</h3>
               <p>There are no tables currently playing. Seat a walk-in guest or check in a reserved booking.</p>
             </div>
@@ -2777,7 +2828,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
                         <!-- If table already has game: show chip with return button -->
                         <div v-if="getTableAssignedGames(res.tableId).length > 0" class="session-chips-wrap">
                           <span class="game-chip-capsule">
-                            🎲 {{ getTableAssignedGames(res.tableId)[0] }}
+                            <svg class="w-3.5 h-3.5 inline mr-1 text-amber-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                              <rect x="3" y="3" width="18" height="18" rx="3"/>
+                              <circle cx="8" cy="8" r="1" fill="currentColor"/>
+                              <circle cx="16" cy="16" r="1" fill="currentColor"/>
+                              <circle cx="12" cy="12" r="1" fill="currentColor"/>
+                            </svg>
+                            {{ getTableAssignedGames(res.tableId)[0] }}
                             <button
                               type="button"
                               class="btn-chip-unassign"
@@ -2833,7 +2890,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ SHIFT SCHEDULE</div>
+                <div class="view-eyebrow">SHIFT SCHEDULE</div>
                 <h1 class="view-title">Bookings & Reservations Timeline</h1>
                 <p class="view-subtitle">Automatic 15-minute no-show policy releases tables to walk-ins if customers do not arrive.</p>
               </div>
@@ -2906,7 +2963,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ THE PARLOR COLLECTION & SHELF INVENTORY</div>
+                <div class="view-eyebrow">GAME COLLECTION & SHELF INVENTORY</div>
                 <h1 class="view-title">Board Game Library & Catalog</h1>
                 <p class="view-subtitle">Check game availability in real time, see which table is currently playing, and manage catalog titles.</p>
               </div>
@@ -2917,7 +2974,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                   class="btn-primary-parlor"
                   @click="openAddGameModal"
                 >
-                  ✦ + Add Board Game
+                  + Add Board Game
                 </button>
                 <div class="search-games-input-wrap">
                   <input
@@ -2969,7 +3026,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                 :class="{ active: gameStatusFilter === 'AVAILABLE' }"
                 @click="gameStatusFilter = 'AVAILABLE'"
               >
-                🟢 Available on Shelf ({{ catalogGames.filter(g => !getGameLocation(g.name)).length }})
+                <span class="w-2 h-2 rounded-full bg-emerald-600 inline-block mr-1"></span>Available on Shelf ({{ catalogGames.filter(g => !getGameLocation(g.name)).length }})
               </button>
               <button
                 type="button"
@@ -2977,7 +3034,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                 :class="{ active: gameStatusFilter === 'IN_USE' }"
                 @click="gameStatusFilter = 'IN_USE'"
               >
-                🔴 In Use at Tables ({{ catalogGames.filter(g => !!getGameLocation(g.name)).length }})
+                <span class="w-2 h-2 rounded-full bg-amber-600 inline-block mr-1"></span>In Use at Tables ({{ catalogGames.filter(g => !!getGameLocation(g.name)).length }})
               </button>
             </div>
 
@@ -3003,8 +3060,22 @@ function togglePolicyActive(p: VenuePolicyItem) {
                 </div>
                 <p class="game-designer">Designed by {{ game.designer }}</p>
                 <div class="game-meta-row">
-                  <span>👥 {{ game.players[0] }}–{{ game.players[1] }} Players</span>
-                  <span>⏱ {{ game.playMinutes[0] }}–{{ game.playMinutes[1] }} min</span>
+                  <span class="inline-flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    {{ game.players[0] }}–{{ game.players[1] }} Players
+                  </span>
+                  <span class="inline-flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                      <circle cx="12" cy="12" r="10"/>
+                      <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    {{ game.playMinutes[0] }}–{{ game.playMinutes[1] }} min
+                  </span>
                 </div>
                 <p class="game-desc">{{ game.description }}</p>
 
@@ -3015,7 +3086,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                     class="btn-return-shelf full"
                     @click="returnGameFromAnyTable(game.name)"
                   >
-                    Return to Shelf ↩ (From {{ getGameLocation(game.name) }})
+                    Return to Shelf (From {{ getGameLocation(game.name) }})
                   </button>
                   <button
                     v-else
@@ -3023,7 +3094,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                     class="btn-primary-parlor small full"
                     @click="openAssignGame(game)"
                   >
-                    ✦ Assign to Playing Table →
+                    Assign to Playing Table
                   </button>
 
                   <!-- Admin Management Actions for Game -->
@@ -3050,7 +3121,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ KITCHEN & BEVERAGE INVENTORY CONTROL</div>
+                <div class="view-eyebrow">FOOD & DRINK INVENTORY</div>
                 <h1 class="view-title">Food & Drink Stock Management</h1>
                 <p class="view-subtitle">
                   <span v-if="isAdmin">Admin Access · Full stock control, menu item creation, profit margins, and supplier batch restocks.</span>
@@ -3066,7 +3137,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                   class="btn-primary-parlor"
                   @click="openAddFoodModal"
                 >
-                  ✦ Add New Food / Drink Item
+                  + Add Food & Drink Item
                 </button>
                 <button
                   type="button"
@@ -3120,7 +3191,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                   :class="{ active: stockCategoryFilter === 'beverages' }"
                   @click="stockCategoryFilter = 'beverages'"
                 >
-                  🥤 Beverages
+                  Beverages
                 </button>
                 <button
                   type="button"
@@ -3128,7 +3199,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                   :class="{ active: stockCategoryFilter === 'snacks' }"
                   @click="stockCategoryFilter = 'snacks'"
                 >
-                  🍿 Snacks & Fries
+                  Snacks & Fries
                 </button>
                 <button
                   type="button"
@@ -3136,7 +3207,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                   :class="{ active: stockCategoryFilter === 'tea_coffee' }"
                   @click="stockCategoryFilter = 'tea_coffee'"
                 >
-                  ☕ Tea & Coffee
+                  Tea & Coffee
                 </button>
                 <button
                   type="button"
@@ -3144,7 +3215,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                   :class="{ active: stockCategoryFilter === 'bakery_desserts' }"
                   @click="stockCategoryFilter = 'bakery_desserts'"
                 >
-                  🥐 Bakery
+                  Bakery & Desserts
                 </button>
               </div>
 
@@ -3156,7 +3227,14 @@ function togglePolicyActive(p: VenuePolicyItem) {
                   :class="{ active: stockStatusFilter === 'NEED_REORDER' }"
                   @click="stockStatusFilter = stockStatusFilter === 'NEED_REORDER' ? 'ALL' : 'NEED_REORDER'"
                 >
-                  ⚠️ Needs Reorder ({{ lowStockCount + outOfStockCount }})
+                  <span class="inline-flex items-center gap-1">
+                    <svg class="w-3.5 h-3.5 text-current" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                      <line x1="12" y1="9" x2="12" y2="13"/>
+                      <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    Needs Reorder ({{ lowStockCount + outOfStockCount }})
+                  </span>
                 </button>
               </div>
             </div>
@@ -3272,7 +3350,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                         title="Remove SKU from branch catalog"
                         @click="removeStockItem(item.id)"
                       >
-                        🗑 Remove
+                        Remove
                       </button>
                     </td>
                   </tr>
@@ -3289,13 +3367,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ MULTI-PROPERTY FLEET TELEMETRY</div>
+                <div class="view-eyebrow">BRANCH FLEET OVERVIEW</div>
                 <h1 class="view-title">Business Overview & Branches</h1>
                 <p class="view-subtitle">Monitor live operations, manage branch locations, and update operating hours across all properties.</p>
               </div>
               <div class="header-mgmt-actions">
                 <button type="button" class="btn-primary-parlor" @click="openAddBranchModal">
-                  ✦ + Add Branch
+                  + Add Branch
                 </button>
               </div>
             </div>
@@ -3454,13 +3532,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ PHYSICAL TABLE INVENTORY</div>
+                <div class="view-eyebrow">PHYSICAL TABLE INVENTORY</div>
                 <h1 class="view-title">Manage Tables & Floor Seating</h1>
                 <p class="view-subtitle">View, create, edit, and configure physical table inventory across branches.</p>
               </div>
               <div class="header-mgmt-actions">
                 <button type="button" class="btn-primary-parlor" @click="openAddTableModal">
-                  ✦ + Add Table
+                  + Add Table
                 </button>
               </div>
             </div>
@@ -3588,13 +3666,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ BRANCH ROSTER & TEAM</div>
+                <div class="view-eyebrow">BRANCH ROSTER & TEAM</div>
                 <h1 class="view-title">Staff & Shift Attendance</h1>
                 <p class="view-subtitle">Active shift supervision, station assignments, and shift scheduling.</p>
               </div>
               <div class="header-mgmt-actions">
                 <button type="button" class="btn-primary-parlor" @click="openAddStaffModal">
-                  ✦ + Add Staff Member
+                  + Add Staff Member
                 </button>
               </div>
             </div>
@@ -3648,7 +3726,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ FINANCIAL & OCCUPANCY TELEMETRY</div>
+                <div class="view-eyebrow">FINANCIAL & OCCUPANCY ANALYTICS</div>
                 <h1 class="view-title">Revenue & Branch Analytics</h1>
                 <p class="view-subtitle">Today's real-time financial gross, hourly table time, and refreshments sales.</p>
               </div>
@@ -3686,7 +3764,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ SYSTEM CONFIGURATION</div>
+                <div class="view-eyebrow">SYSTEM CONFIGURATION</div>
                 <h1 class="view-title">Venue Settings</h1>
                 <p class="view-subtitle">Manage branch identity, operating hours, and capacity limits.</p>
               </div>
@@ -3722,13 +3800,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ GOVERNANCE & RULES</div>
+                <div class="view-eyebrow">OPERATIONAL GOVERNANCE & RULES</div>
                 <h1 class="view-title">Venue Operational Policies</h1>
                 <p class="view-subtitle">Manage venue operational rules, grace periods, play calculation, and table rate structures.</p>
               </div>
               <div class="header-mgmt-actions">
                 <button type="button" class="btn-primary-parlor" @click="openAddPolicyModal">
-                  ✦ + Add Policy
+                  + Add Policy
                 </button>
               </div>
             </div>
@@ -3791,7 +3869,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
           <div class="modal-form-body">
             <!-- Alert if no tables are currently eligible -->
             <div v-if="eligibleTablesForGame.length === 0" class="rule-warning-box">
-              <span class="gold-bullet">⚠️</span>
+              <span class="gold-bullet inline-flex items-center">
+                <svg class="w-4 h-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/>
+                  <line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </span>
               <span>
                 No tables eligible right now. Games can only be assigned to tables with an <strong>active started session</strong> that do not already have an assigned game.
               </span>
@@ -3854,7 +3938,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                   <div class="game-choice-info">
                     <strong class="game-choice-name">{{ g.name }}</strong>
                     <span class="game-choice-sub">
-                      👥 {{ g.players[0] }}-{{ g.players[1] }}p · ⏱ {{ g.playMinutes[0] }}-{{ g.playMinutes[1] }}m
+                      {{ g.players[0] }}–{{ g.players[1] }} players · {{ g.playMinutes[0] }}–{{ g.playMinutes[1] }} min
                     </span>
                   </div>
                   <div class="game-choice-status">
@@ -3926,10 +4010,10 @@ function togglePolicyActive(p: VenuePolicyItem) {
               <div class="form-group">
                 <label class="modal-label">Category:</label>
                 <select v-model="newFoodForm.category" class="modal-select">
-                  <option value="beverages">🥤 Beverages</option>
-                  <option value="snacks">🍿 Snacks & Fries</option>
-                  <option value="tea_coffee">☕ Tea & Coffee</option>
-                  <option value="bakery_desserts">🥐 Bakery & Desserts</option>
+                  <option value="beverages">Beverages</option>
+                  <option value="snacks">Snacks & Fries</option>
+                  <option value="tea_coffee">Tea & Coffee</option>
+                  <option value="bakery_desserts">Bakery & Desserts</option>
                 </select>
               </div>
 
@@ -4043,7 +4127,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                   type="number"
                   min="1"
                   class="modal-input"
-                  style="width: 100px; text-align: center; font-weight: 800;"
+                  style="width: 100px; text-align: center; font-weight: 600;"
                 />
                 <button
                   type="button"
@@ -4769,14 +4853,14 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .brand-sub {
   font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   color: #c6ad7a;
 }
 
 .brand-name {
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 700;
   color: #ffffff;
   letter-spacing: -0.01em;
 }
@@ -4858,9 +4942,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
   align-items: center;
   justify-content: space-between;
   padding: 12px 10px 4px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   color: #c6ad7a;
   white-space: nowrap;
   overflow: hidden;
@@ -4968,7 +5052,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   background: #c6ad7a;
   color: #142b20;
   font-size: 10.5px;
-  font-weight: 800;
+  font-weight: 700;
   border-radius: 10px;
   padding: 1px 6px;
   white-space: nowrap;
@@ -5036,7 +5120,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   align-items: center;
   justify-content: center;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   flex-shrink: 0;
 }
 
@@ -5221,6 +5305,30 @@ function togglePolicyActive(p: VenuePolicyItem) {
   border-color: #c6ad7a;
 }
 
+.mobile-menu-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1.5px solid #335942;
+  border-radius: 8px;
+  color: #ffd98a;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.mobile-menu-toggle:hover {
+  background: #1b3829;
+  border-color: #c6ad7a;
+}
+
+.sidebar-mobile-overlay {
+  display: none;
+}
+
 .topbar-avatar {
   width: 34px;
   height: 34px;
@@ -5229,7 +5337,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   border: 1.5px solid #c6ad7a;
   color: #ffd98a;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5277,8 +5385,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .hero-eyebrow {
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   color: #8c7649;
 }
 
@@ -5291,7 +5399,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .hero-title {
   margin: 0;
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 32px;
+  font-size: 26px;
   font-weight: 700;
   color: #142b20;
 }
@@ -5435,18 +5543,18 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .col-label {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   color: #8c7649;
   margin-bottom: 2px;
 }
 
 .col-value {
-  font-size: 28px;
-  font-weight: 800;
+  font-size: 24px;
+  font-weight: 700;
   color: #142b20;
-  line-height: 1.1;
+  line-height: 1.2;
 }
 
 .segmented-progress {
@@ -5502,7 +5610,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   color: #ffd98a;
   border: 1px solid #c6ad7a;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5628,7 +5736,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   color: #ffd98a;
   border: 1px solid #c6ad7a;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   padding: 2px 8px;
   border-radius: 12px;
 }
@@ -5684,7 +5792,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .table-num-lbl {
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 700;
   color: #142b20;
 }
 
@@ -5710,8 +5818,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .assigned-label {
-  font-size: 10.5px;
-  font-weight: 800;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   color: #8c7649;
   display: block;
 }
@@ -5784,9 +5893,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .state-badge {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
   padding: 2px 7px;
   border-radius: 6px;
 }
@@ -5939,7 +6048,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .time-bold {
   font-size: 13.5px;
-  font-weight: 800;
+  font-weight: 700;
   color: #142b20;
 }
 
@@ -6017,8 +6126,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .view-eyebrow {
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   color: #8c7649;
   margin-bottom: 4px;
 }
@@ -6026,7 +6135,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .view-title {
   margin: 0 0 4px;
   font-family: 'Playfair Display', Georgia, serif;
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 700;
   color: #142b20;
 }
@@ -6071,9 +6180,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
   padding: 10px 14px;
   background: #fbf9f4;
   color: #8c7649;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   border-bottom: 1.5px solid #e6dfd3;
 }
 
@@ -6086,7 +6195,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .table-badge {
   background: #f4ecdc;
   color: #142b20;
-  font-weight: 800;
+  font-weight: 700;
   padding: 3px 8px;
   border-radius: 6px;
   font-size: 12px;
@@ -6119,7 +6228,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .time-elapsed-badge {
   background: #dcfce7;
   color: #142b20;
-  font-weight: 800;
+  font-weight: 700;
   padding: 3px 8px;
   border-radius: 12px;
   font-size: 11px;
@@ -6138,7 +6247,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .status-tag {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   padding: 2px 8px;
   border-radius: 6px;
 }
@@ -6197,7 +6306,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   padding: 4px 8px;
   border-radius: 6px;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   margin-bottom: 6px;
 }
 
@@ -6246,13 +6355,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .game-name {
   margin: 0;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 700;
   color: #142b20;
 }
 
 .game-difficulty-pill {
-  font-size: 10px;
-  font-weight: 800;
+  font-size: 10.5px;
+  font-weight: 700;
   background: #f4ecdc;
   color: #142b20;
   padding: 2px 6px;
@@ -6407,17 +6516,17 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .stat-lbl {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   color: #8c7649;
 }
 
 .stat-num {
-  font-size: 28px;
-  font-weight: 800;
+  font-size: 24px;
+  font-weight: 700;
   color: #142b20;
-  line-height: 1.1;
+  line-height: 1.2;
   margin: 6px 0 2px;
 }
 
@@ -6529,7 +6638,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .stock-status-tag {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   padding: 3px 8px;
   border-radius: 8px;
 }
@@ -6644,7 +6753,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
+  font-weight: 700;
   font-size: 14px;
 }
 
@@ -6705,14 +6814,15 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .analytics-label {
   font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   color: #8c7649;
 }
 
 .analytics-value {
-  font-size: 28px;
-  font-weight: 800;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.2;
   color: #142b20;
   margin: 6px 0 2px;
 }
@@ -6761,7 +6871,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   color: #ffd98a;
   border: 1px solid #c6ad7a;
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 700;
   padding: 3px 10px;
   border-radius: 12px;
   white-space: nowrap;
@@ -6804,9 +6914,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .eyebrow-sub {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   color: #8c7649;
 }
 
@@ -6909,7 +7019,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .step-val {
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 700;
   min-width: 24px;
   text-align: center;
 }
@@ -7129,5 +7239,230 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-size: 12px;
   color: #7d8b82;
   font-weight: 500;
+}
+
+/* Responsive Table Wrappers */
+.sessions-table-wrap,
+.bookings-list-wrap,
+.inventory-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 12px;
+}
+
+/* ========================================== */
+/* RESPONSIVE DESIGN BREAKPOINTS             */
+/* ========================================== */
+
+@media (max-width: 1200px) {
+  .stock-stats-ribbon,
+  .analytics-ribbon-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .games-library-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 1024px) {
+  .gl-content {
+    padding: 20px 20px 48px;
+  }
+
+  .stat-ribbon {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .num-col {
+    padding: 10px 14px;
+    border-right: none;
+    border-bottom: 1px solid #f0e9df;
+  }
+
+  .num-col:last-child {
+    border-bottom: none;
+  }
+
+  .floor-tables-grid,
+  .floor-tables-grid.expanded {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .staff-roster-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar-mobile-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 20, 15, 0.65);
+    backdrop-filter: blur(2px);
+    z-index: 998;
+  }
+
+  .mobile-menu-toggle {
+    display: flex;
+  }
+
+  .sidebar-collapse-btn {
+    display: none;
+  }
+
+  .gl-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 999;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+    transform: translateX(0);
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 250px;
+  }
+
+  .gl-sidebar.collapsed {
+    transform: translateX(-100%);
+    width: 250px;
+    pointer-events: none;
+  }
+
+  .gl-sidebar.collapsed .brand-text-col,
+  .gl-sidebar.collapsed .nav-label,
+  .gl-sidebar.collapsed .nav-section-title,
+  .gl-sidebar.collapsed .sidebar-footer {
+    opacity: 1;
+    max-width: none;
+    max-height: none;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .gl-topbar {
+    height: auto;
+    min-height: 56px;
+    padding: 10px 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .topbar-left {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .topbar-search {
+    order: 3;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .topbar-actions {
+    order: 2;
+  }
+
+  .gl-content {
+    padding: 14px 14px 40px;
+    gap: 14px;
+  }
+
+  .console-block {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .stock-stats-ribbon,
+  .analytics-ribbon-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .games-library-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row-2,
+  .form-row-3 {
+    grid-template-columns: 1fr;
+  }
+
+  .table-controls-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .table-controls-bar > * {
+    width: 100%;
+  }
+
+  .operating-hours-editor .day-hours-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed #e6dfd3;
+  }
+
+  .operating-hours-editor .day-hours-row:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .time-range-inputs {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .modal-card {
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-title {
+    font-size: 22px;
+  }
+
+  .view-title {
+    font-size: 20px;
+  }
+
+  .console-role-pill {
+    display: none;
+  }
+
+  .stat-ribbon {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .floor-tables-grid,
+  .floor-tables-grid.expanded {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .library-filter-ribbon {
+    flex-wrap: wrap;
+  }
+
+  .modal-card {
+    padding: 18px 16px;
+  }
 }
 </style>
