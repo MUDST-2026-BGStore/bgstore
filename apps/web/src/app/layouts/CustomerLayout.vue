@@ -10,6 +10,8 @@ import {
 import { useLocale } from '../../shared/lib/locale';
 import { useAuthStore } from '../../shared/stores/auth';
 
+defineProps<{ hideHeaderSignOut?: boolean }>();
+
 const auth = useAuthStore();
 const route = useRoute();
 const { t } = useStoreText();
@@ -188,7 +190,12 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
                   >{{ t('Open your workspace') }}
                   <span aria-hidden="true">↗</span></RouterLink
                 >
-                <button type="button" class="sign-out" @click="signOut">
+                <button
+                  v-if="!hideHeaderSignOut"
+                  type="button"
+                  class="sign-out"
+                  @click="signOut"
+                >
                   {{ t('Sign out') }} <span aria-hidden="true">→</span>
                 </button>
               </template>
@@ -202,7 +209,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
       </div>
     </template>
 
-    <RouterView />
+    <slot><RouterView /></slot>
     <StoreCartPanel />
   </ParlorShell>
 </template>
