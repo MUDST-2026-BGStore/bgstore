@@ -91,33 +91,32 @@ type NavTab =
 
 const activeTab = ref<NavTab>('dashboard');
 
-// Role hierarchy
+// Role hierarchy (Management & Administration unified into Administration)
 const userRoles = computed(() => auth.roles || []);
 const isAdmin = computed(
-  () => userRoles.value.includes('admin') || userRoles.value.includes('developer')
+  () =>
+    userRoles.value.includes('admin') ||
+    userRoles.value.includes('manager') ||
+    userRoles.value.includes('developer')
 );
-const isManager = computed(
-  () => isAdmin.value || userRoles.value.includes('manager')
-);
+const isManager = isAdmin; // Combined management and administration into unified Administration role
 
 const roleBadgeLabel = computed(() => {
   if (isAdmin.value) return 'ADMIN CONSOLE';
-  if (userRoles.value.includes('manager')) return 'MANAGER CONSOLE';
   return 'STAFF CONSOLE';
 });
 
 const userRoleTitle = computed(() => {
   if (isAdmin.value) return 'Administrator';
-  if (userRoles.value.includes('manager')) return 'Branch Manager';
   return 'Floor Staff';
 });
 
-// Guard management & admin tabs (inventory/stock is accessible to all staff)
+// Guard administration tabs (inventory/stock is accessible to all staff)
 watch(activeTab, (tab) => {
-  if (['staff-roster', 'analytics'].includes(tab) && !isManager.value) {
-    activeTab.value = 'dashboard';
-  }
-  if (['settings', 'policies'].includes(tab) && !isAdmin.value) {
+  if (
+    ['staff-roster', 'analytics', 'settings', 'policies'].includes(tab) &&
+    !isAdmin.value
+  ) {
     activeTab.value = 'dashboard';
   }
 });
@@ -1325,11 +1324,11 @@ const venuePolicies = ref({
           <span class="nav-label">Refreshments & Stock</span>
         </a>
 
-        <!-- 2. Management (Manager & Admin only) -->
-        <template v-if="isManager">
-          <div class="nav-section-title mgmt-title">
-            <span>MANAGEMENT</span>
-            <span class="role-pill-tiny">Manager+</span>
+        <!-- Administration (Unified Admin & Management) -->
+        <template v-if="isAdmin">
+          <div class="nav-section-title admin-title">
+            <span>ADMINISTRATION</span>
+            <span class="role-pill-tiny admin">Admin</span>
           </div>
 
           <a
@@ -1366,14 +1365,6 @@ const venuePolicies = ref({
             </span>
             <span class="nav-label">Revenue & Analytics</span>
           </a>
-        </template>
-
-        <!-- 3. Administration (Admin only) -->
-        <template v-if="isAdmin">
-          <div class="nav-section-title admin-title">
-            <span>ADMINISTRATION</span>
-            <span class="role-pill-tiny admin">Admin</span>
-          </div>
 
           <a
             href="#settings"
@@ -2256,7 +2247,7 @@ const venuePolicies = ref({
                 <div class="view-eyebrow">✦ KITCHEN & BEVERAGE INVENTORY CONTROL</div>
                 <h1 class="view-title">Food & Drink Stock Management</h1>
                 <p class="view-subtitle">
-                  <span v-if="isManager">Manager Access · Full stock control, menu item creation, profit margins, and supplier batch restocks.</span>
+                  <span v-if="isAdmin">Admin Access · Full stock control, menu item creation, profit margins, and supplier batch restocks.</span>
                   <span v-else>Floor Staff Stock Access · Daily pantry counts and stock intake adjustments.</span>
                 </p>
               </div>
@@ -2771,7 +2762,7 @@ const venuePolicies = ref({
         <div class="modal-card">
           <div class="walkin-header">
             <div>
-              <div class="eyebrow-sub">MANAGER CATALOG CONFIGURATION</div>
+              <div class="eyebrow-sub">ADMIN CATALOG CONFIGURATION</div>
               <h3 class="modal-title">Add New Food / Drink Item</h3>
               <p class="modal-sub">
                 Define a new refreshment item, retail price, cost margins, and initial stock.
