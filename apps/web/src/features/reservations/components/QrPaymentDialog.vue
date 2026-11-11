@@ -167,13 +167,13 @@ function confirmPayment() {
 
 .qr-card {
   animation: qrCardSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-gold-500);
   border-radius: 12px;
   max-width: 440px;
   width: 100%;
   padding: 24px 22px;
-  box-shadow: 0 10px 30px rgba(18, 39, 29, 0.12);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-parlor-green-900) 12%, transparent);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -188,7 +188,7 @@ function confirmPayment() {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.15em;
@@ -196,26 +196,26 @@ function confirmPayment() {
 }
 
 .brand-text {
-  color: #203c30;
+  color: var(--color-parlor-green-800);
 }
 
 .payment-title {
   margin: 0;
   font-size: 20px;
   font-weight: 800;
-  color: #1a382b;
+  color: var(--color-parlor-green-850);
 }
 
 .payment-subtitle {
   margin: 6px 0 0;
   font-size: 13px;
-  color: #5e594d;
+  color: var(--color-parlor-neutral-600);
   line-height: 1.5;
 }
 
 .bill-breakdown {
-  background: #fffaf1;
-  border: 1px solid #e5dac6;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 8px;
   padding: 14px 16px;
   display: flex;
@@ -228,13 +228,13 @@ function confirmPayment() {
   align-items: center;
   justify-content: space-between;
   font-size: 13px;
-  color: #4b463a;
+  color: var(--color-parlor-neutral-600);
 }
 
 .discount-label {
   display: block;
   font-size: 11px;
-  color: #b54708;
+  color: var(--color-parlor-warning-600);
   font-weight: 700;
 }
 
@@ -246,38 +246,38 @@ function confirmPayment() {
 
 .strike {
   text-decoration: line-through;
-  color: #928a7b;
+  color: var(--color-parlor-neutral-500);
   font-size: 12px;
 }
 
 .val {
   font-weight: 600;
-  color: #1f362a;
+  color: var(--color-parlor-green-850);
 }
 
 .total-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid #d5c8b2;
+  border-top: 1px solid var(--color-parlor-neutral-300);
   padding-top: 10px;
   margin-top: 4px;
   font-size: 15px;
   font-weight: 800;
-  color: #162f23;
+  color: var(--color-parlor-green-900);
 }
 
 .grand-total {
   font-size: 20px;
-  color: #184330;
+  color: var(--color-parlor-green-800);
 }
 
 .qr-box {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: #fbf9f4;
-  border: 1px dashed #c6ad7a;
+  background: var(--color-parlor-page);
+  border: 1px dashed var(--color-parlor-gold-500);
   border-radius: 10px;
   padding: 18px;
 }
@@ -293,8 +293,8 @@ function confirmPayment() {
   width: 220px;
   height: 220px;
   border-radius: 8px;
-  border: 4px solid #ffffff;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 4px solid var(--color-parlor-white);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--color-parlor-green-950) 8%, transparent);
 }
 
 .qr-meta {
@@ -305,22 +305,22 @@ function confirmPayment() {
 }
 
 .ref-pill {
-  background: #e9dec9;
-  color: #3f392d;
+  background: var(--color-parlor-neutral-300);
+  color: var(--color-parlor-neutral-800);
   padding: 3px 8px;
   border-radius: 4px;
 }
 
 .timer-pill {
-  background: #e2f0d9;
-  color: #275e1b;
+  background: var(--color-parlor-success-100);
+  color: var(--color-parlor-success-700);
   padding: 3px 8px;
   border-radius: 4px;
 }
 
 .timer-pill.is-expiring {
-  background: #fde8e8;
-  color: #b91c1c;
+  background: var(--color-parlor-danger-100);
+  color: var(--color-parlor-danger-700);
 }
 
 .action-footer {
@@ -330,8 +330,8 @@ function confirmPayment() {
 }
 
 .confirm-pay-btn {
-  background: #203c30;
-  color: #fffaf1;
+  background: var(--color-parlor-green-800);
+  color: var(--color-parlor-white);
   border: none;
   padding: 13px 18px;
   border-radius: 6px;
@@ -342,7 +342,7 @@ function confirmPayment() {
 }
 
 .confirm-pay-btn:hover:not(:disabled) {
-  background: #152a21;
+  background: var(--color-parlor-green-900);
 }
 
 .confirm-pay-btn:disabled {
@@ -355,8 +355,8 @@ function confirmPayment() {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: #e2f0d9;
-  color: #1e5214;
+  background: var(--color-parlor-success-100);
+  color: var(--color-parlor-success-700);
   padding: 12px;
   border-radius: 6px;
   font-size: 14px;
@@ -369,8 +369,8 @@ function confirmPayment() {
 
 .cancel-btn {
   background: transparent;
-  border: 1px solid #d5c8b2;
-  color: #5c5546;
+  border: 1px solid var(--color-parlor-neutral-300);
+  color: var(--color-parlor-neutral-600);
   padding: 10px;
   border-radius: 6px;
   font-size: 13px;
@@ -379,7 +379,7 @@ function confirmPayment() {
 }
 
 .cancel-btn:hover {
-  background: #f7eee0;
+  background: var(--color-parlor-neutral-100);
 }
 
 @keyframes qrModalFadeIn {
@@ -395,11 +395,11 @@ function confirmPayment() {
 .gold-icon {
   width: 18px;
   height: 18px;
-  color: #ddc18c;
+  color: var(--color-parlor-gold-300);
   display: inline-block;
   vertical-align: middle;
   flex-shrink: 0;
-  filter: drop-shadow(0 0 4px rgba(198, 173, 122, 0.35));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--color-parlor-gold-500) 35%, transparent));
 }
 .gold-icon.mini-crest {
   width: 14px;

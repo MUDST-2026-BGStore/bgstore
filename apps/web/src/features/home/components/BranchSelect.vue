@@ -70,17 +70,17 @@ label {
   gap: 6px;
   min-width: 0;
   font-size: 13px;
-  color: #202e27;
+  color: var(--color-parlor-neutral-800);
 }
 input,
 select {
   width: 100%;
   min-width: 0;
-  border: 1px solid #829087;
+  border: 1px solid var(--color-parlor-neutral-500);
   border-radius: 3px;
   padding: 10px;
   background: white;
-  color: #202e27;
+  color: var(--color-parlor-neutral-800);
   font-size: 14px;
 }
 select {
@@ -88,12 +88,12 @@ select {
 }
 input:focus-visible,
 select:focus-visible {
-  outline: 2px solid #244c38;
+  outline: 2px solid var(--color-parlor-green-700);
   outline-offset: 3px;
 }
 p {
   font-size: 12px;
   line-height: 1.5;
-  color: #4e5b53;
+  color: var(--color-parlor-neutral-600);
 }
 </style>

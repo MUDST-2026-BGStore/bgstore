@@ -352,7 +352,7 @@ function handleSettleBill() {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(14, 30, 22, 0.72);
+  background: color-mix(in srgb, var(--color-parlor-green-950) 72%, transparent);
   backdrop-filter: blur(5px);
   display: flex;
   align-items: center;
@@ -362,15 +362,15 @@ function handleSettleBill() {
 }
 
 .modal-card {
-  background: #ffffff;
-  border: 1.5px solid #c6ad7a;
+  background: var(--color-parlor-white);
+  border: 1.5px solid var(--color-parlor-gold-500);
   border-radius: 14px;
   max-width: 580px;
   width: 100%;
   max-height: 88vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--color-parlor-green-950) 45%, transparent);
   overflow: hidden;
   font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
 }
@@ -378,11 +378,11 @@ function handleSettleBill() {
 /* Header */
 .dialog-header {
   padding: 20px 24px 16px;
-  border-bottom: 1.5px solid #e7ded0;
+  border-bottom: 1.5px solid var(--color-parlor-neutral-300);
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  background: #fdfbf7;
+  background: var(--color-parlor-page);
 }
 
 .header-tags {
@@ -397,8 +397,8 @@ function handleSettleBill() {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #142b20;
-  color: #ffd98a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
   font-size: 11px;
   font-weight: 800;
   padding: 3px 10px;
@@ -414,23 +414,23 @@ function handleSettleBill() {
 }
 
 .walkin-badge {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #fde68a;
+  background: var(--color-parlor-warning-100);
+  color: var(--color-parlor-warning-700);
+  border: 1px solid var(--color-parlor-warning-300);
 }
 
 .reserved-badge {
-  background: #e0f2fe;
-  color: #0369a1;
-  border: 1px solid #bae6fd;
+  background: var(--color-parlor-info-100);
+  color: var(--color-parlor-info-700);
+  border: 1px solid var(--color-parlor-info-300);
 }
 
 .pulse-dot {
   width: 7px;
   height: 7px;
-  background: #4ade80;
+  background: var(--color-parlor-success-400);
   border-radius: 50%;
-  box-shadow: 0 0 6px #4ade80;
+  box-shadow: 0 0 6px var(--color-parlor-success-400);
   animation: pulse-green 1.6s infinite ease-in-out;
 }
 
@@ -441,7 +441,7 @@ function handleSettleBill() {
 
 .table-ref {
   font-size: 12px;
-  color: #736959;
+  color: var(--color-parlor-neutral-600);
   font-weight: 600;
 }
 
@@ -449,19 +449,19 @@ function handleSettleBill() {
   margin: 0 0 4px;
   font-size: 22px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .dialog-sub {
   margin: 0;
   font-size: 13px;
-  color: #6a6252;
+  color: var(--color-parlor-neutral-600);
 }
 
 .btn-close {
   background: none;
   border: none;
-  color: #736959;
+  color: var(--color-parlor-neutral-600);
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
@@ -472,8 +472,8 @@ function handleSettleBill() {
 }
 
 .btn-close:hover {
-  background: #f0e6d6;
-  color: #142b20;
+  background: var(--color-parlor-neutral-150);
+  color: var(--color-parlor-green-900);
 }
 
 /* Success Screen */
@@ -486,9 +486,9 @@ function handleSettleBill() {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  background: #142b20;
-  color: #ffd98a;
-  border: 2px solid #c6ad7a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 2px solid var(--color-parlor-gold-500);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -499,14 +499,14 @@ function handleSettleBill() {
   margin: 0 0 8px;
   font-size: 22px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .success-sub {
   margin: 0 auto;
   max-width: 420px;
   font-size: 14px;
-  color: #554e42;
+  color: var(--color-parlor-neutral-600);
   line-height: 1.5;
 }
 
@@ -528,8 +528,8 @@ function handleSettleBill() {
 
 /* Bill Sections */
 .bill-section {
-  background: #fcfaf6;
-  border: 1px solid #ded5c3;
+  background: var(--color-parlor-page);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 10px;
   padding: 14px 18px;
 }
@@ -548,20 +548,20 @@ function handleSettleBill() {
 }
 
 .gold-bullet {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   font-size: 11px;
 }
 
 .section-title {
   font-size: 15px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .section-cost {
   font-size: 16px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .section-meta {
@@ -569,7 +569,7 @@ function handleSettleBill() {
   justify-content: space-between;
   align-items: center;
   font-size: 13px;
-  color: #635b4c;
+  color: var(--color-parlor-neutral-600);
 }
 
 .meta-tag {
@@ -580,32 +580,32 @@ function handleSettleBill() {
 }
 
 .tag-active {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--color-parlor-success-100);
+  color: var(--color-parlor-success-700);
 }
 
 .tag-completed {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--color-parlor-neutral-100);
+  color: var(--color-parlor-neutral-600);
 }
 
 /* Late Arrival Callout */
 .late-arrival-callout {
   margin-top: 10px;
-  background: #fffbeb;
-  border: 1px solid #fef3c7;
+  background: var(--color-parlor-warning-100);
+  border: 1px solid var(--color-parlor-warning-100);
   border-radius: 6px;
   padding: 8px 12px;
   display: flex;
   align-items: flex-start;
   gap: 8px;
   font-size: 12px;
-  color: #92400e;
+  color: var(--color-parlor-warning-700);
   line-height: 1.4;
 }
 
 .callout-icon {
-  color: #d97706;
+  color: var(--color-parlor-warning-600);
   font-size: 13px;
   flex-shrink: 0;
   margin-top: 1px;
@@ -629,7 +629,7 @@ function handleSettleBill() {
   display: flex;
   justify-content: space-between;
   font-size: 13.5px;
-  color: #3f392f;
+  color: var(--color-parlor-neutral-800);
 }
 
 .line-name {
@@ -646,9 +646,9 @@ function handleSettleBill() {
   gap: 6px;
   font-size: 11.5px;
   font-weight: 700;
-  color: #15803d;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  color: var(--color-parlor-success-700);
+  background: var(--color-parlor-success-100);
+  border: 1px solid var(--color-parlor-success-300);
   padding: 3px 8px;
   border-radius: 6px;
   margin-top: 6px;
@@ -657,7 +657,7 @@ function handleSettleBill() {
 /* In-Play Orders */
 .empty-inplay-note {
   font-size: 13px;
-  color: #8c8270;
+  color: var(--color-parlor-neutral-500);
   font-style: italic;
   padding: 8px 0;
 }
@@ -670,8 +670,8 @@ function handleSettleBill() {
 }
 
 .inplay-order-card {
-  background: #ffffff;
-  border: 1px solid #e7ded0;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 8px;
   padding: 10px 14px;
 }
@@ -686,16 +686,16 @@ function handleSettleBill() {
 
 .order-ref-num {
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .order-time {
-  color: #7d7363;
+  color: var(--color-parlor-neutral-500);
 }
 
 .tab-pill {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--color-parlor-warning-100);
+  color: var(--color-parlor-warning-700);
   font-size: 11px;
   font-weight: 700;
   padding: 2px 8px;
@@ -707,7 +707,7 @@ function handleSettleBill() {
   flex-direction: column;
   gap: 4px;
   font-size: 13px;
-  color: #3f392f;
+  color: var(--color-parlor-neutral-800);
 }
 
 .order-sub-item {
@@ -718,14 +718,14 @@ function handleSettleBill() {
 .order-note-line {
   margin-top: 6px;
   font-size: 12px;
-  color: #736959;
+  color: var(--color-parlor-neutral-600);
   font-style: italic;
 }
 
 /* Bill Summary Footer */
 .bill-summary-footer {
-  background: #ffffff;
-  border-top: 1.5px solid #c6ad7a;
+  background: var(--color-parlor-white);
+  border-top: 1.5px solid var(--color-parlor-gold-500);
   padding: 18px 24px 20px;
   display: flex;
   flex-direction: column;
@@ -737,22 +737,22 @@ function handleSettleBill() {
   justify-content: space-between;
   align-items: center;
   font-size: 14px;
-  color: #4b4435;
+  color: var(--color-parlor-neutral-800);
 }
 
 .summary-line.text-muted {
   font-size: 13px;
-  color: #6b6353;
+  color: var(--color-parlor-neutral-600);
 }
 
 .text-green {
-  color: #15803d;
+  color: var(--color-parlor-success-700);
   font-weight: 700;
 }
 
 .summary-divider {
   height: 1px;
-  background: #e7ded0;
+  background: var(--color-parlor-neutral-300);
   margin: 4px 0;
 }
 
@@ -763,23 +763,23 @@ function handleSettleBill() {
 .due-label {
   font-size: 15px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   display: block;
 }
 
 .due-hint {
   font-size: 12px;
-  color: #736959;
+  color: var(--color-parlor-neutral-600);
 }
 
 .due-amount {
   font-size: 26px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .due-amount.is-zero {
-  color: #15803d;
+  color: var(--color-parlor-success-700);
 }
 
 /* Actions */
@@ -799,7 +799,7 @@ function handleSettleBill() {
 .staff-pm-label {
   font-size: 13px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .staff-pm-options {
@@ -808,21 +808,21 @@ function handleSettleBill() {
 }
 
 .pm-radio-btn {
-  border: 1px solid #d4c8b4;
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 6px;
   padding: 5px 12px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  background: #faf6ee;
-  color: #554e42;
+  background: var(--color-parlor-neutral-100);
+  color: var(--color-parlor-neutral-600);
   transition: all 0.15s;
 }
 
 .pm-radio-btn.active {
-  background: #142b20;
-  color: #ffd98a;
-  border-color: #c6ad7a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border-color: var(--color-parlor-gold-500);
 }
 
 .sr-only {
@@ -842,38 +842,38 @@ function handleSettleBill() {
   font-size: 15px;
   font-weight: 800;
   border-radius: 8px;
-  background: #142b20;
-  color: #ffd98a;
-  border: 1.5px solid #c6ad7a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1.5px solid var(--color-parlor-gold-500);
   cursor: pointer;
   transition: all 0.15s;
 }
 
 .settle-btn:hover {
-  background: #1f3f30;
-  box-shadow: 0 4px 14px rgba(20, 43, 32, 0.25);
+  background: var(--color-parlor-green-800);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-parlor-green-900) 25%, transparent);
 }
 
 .counter-pay-box {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #fdf8ed;
-  border: 1px solid #ecd8ab;
+  background: var(--color-parlor-page);
+  border: 1px solid var(--color-parlor-gold-300);
   border-radius: 8px;
   padding: 12px 16px;
   font-size: 13px;
-  color: #5d4a1b;
+  color: var(--color-parlor-gold-700);
 }
 
 .counter-pay-box p {
   margin: 2px 0 0;
   font-size: 12px;
-  color: #7a6631;
+  color: var(--color-parlor-gold-700);
 }
 
 .gold-icon {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   flex-shrink: 0;
 }
 </style>

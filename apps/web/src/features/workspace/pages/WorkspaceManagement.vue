@@ -110,10 +110,10 @@ const upcomingCount = computed(() => {
 
 <style scoped>
 .branch-mgmt-landing {
-  background: #142a1f;
+  background: var(--color-parlor-green-900);
   min-height: calc(100vh - 80px);
   padding: 36px 16px 80px;
-  color: #172b21;
+  color: var(--color-parlor-green-900);
   font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
 }
 
@@ -124,12 +124,12 @@ const upcomingCount = computed(() => {
 
 /* Page Header Block */
 .console-header-block {
-  background: #ffffff;
-  border: 1.5px solid #c6ad7a;
+  background: var(--color-parlor-white);
+  border: 1.5px solid var(--color-parlor-gold-500);
   border-radius: 12px;
   padding: 24px 28px;
   margin-bottom: 28px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-parlor-green-950) 28%, transparent);
 }
 
 .header-eyebrow {
@@ -139,12 +139,12 @@ const upcomingCount = computed(() => {
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.14em;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
   margin-bottom: 6px;
 }
 
 .gold-sparkle {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   font-size: 14px;
 }
 
@@ -152,14 +152,14 @@ const upcomingCount = computed(() => {
   margin: 0 0 6px;
   font-size: 30px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   letter-spacing: -0.02em;
 }
 
 .page-subtitle {
   margin: 0;
   font-size: 14.5px;
-  color: #554e42;
+  color: var(--color-parlor-neutral-600);
   line-height: 1.5;
 }
 
@@ -171,11 +171,11 @@ const upcomingCount = computed(() => {
 }
 
 .reservation-card {
-  background: #ffffff;
-  border: 1.5px solid #ded5c3;
+  background: var(--color-parlor-white);
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 12px;
   padding: 22px 24px;
-  box-shadow: 0 4px 16px rgba(20, 43, 32, 0.05);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-parlor-green-900) 5%, transparent);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -183,20 +183,20 @@ const upcomingCount = computed(() => {
 }
 
 .reservation-card:hover {
-  border-color: #c6ad7a;
-  box-shadow: 0 8px 24px rgba(20, 43, 32, 0.1), 0 0 12px rgba(198, 173, 122, 0.12);
+  border-color: var(--color-parlor-gold-500);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-parlor-green-900) 10%, transparent), 0 0 12px color-mix(in srgb, var(--color-parlor-gold-500) 12%, transparent);
   transform: translateY(-2px);
 }
 
 .hero-card {
-  border-color: #baa67c;
+  border-color: var(--color-parlor-gold-500);
 }
 
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #f0e8db;
+  border-bottom: 1px solid var(--color-parlor-neutral-150);
   padding-bottom: 14px;
   gap: 12px;
   flex-wrap: wrap;
@@ -211,14 +211,14 @@ const upcomingCount = computed(() => {
 .branch-name {
   font-size: 17px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .gold-bullet {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   font-size: 12px;
 }
 
@@ -231,16 +231,16 @@ const upcomingCount = computed(() => {
 }
 
 .badge-confirmed {
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
-  box-shadow: 0 0 8px rgba(198, 173, 122, 0.3);
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1px solid var(--color-parlor-gold-500);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-parlor-gold-500) 30%, transparent);
 }
 
 .badge-completed {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
+  background: var(--color-parlor-neutral-100);
+  color: var(--color-parlor-neutral-600);
+  border: 1px solid var(--color-parlor-neutral-300);
 }
 
 .card-body {
@@ -253,15 +253,15 @@ const upcomingCount = computed(() => {
 .feature-text {
   margin: 0;
   font-size: 13.5px;
-  color: #554e42;
+  color: var(--color-parlor-neutral-600);
   line-height: 1.5;
 }
 
 .feature-metrics {
   display: flex;
   gap: 16px;
-  background: #fcfaf6;
-  border: 1px solid #ded5c3;
+  background: var(--color-parlor-page);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 8px;
   padding: 12px 16px;
 }
@@ -274,17 +274,17 @@ const upcomingCount = computed(() => {
 .metric-num {
   font-size: 22px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .metric-name {
   font-size: 11.5px;
   font-weight: 700;
-  color: #7a705e;
+  color: var(--color-parlor-neutral-600);
 }
 
 .card-footer {
-  border-top: 1px solid #f0e8db;
+  border-top: 1px solid var(--color-parlor-neutral-150);
   padding-top: 14px;
 }
 
@@ -302,15 +302,15 @@ const upcomingCount = computed(() => {
 }
 
 .btn-primary {
-  background: #142b20;
-  border: 1px solid #c6ad7a;
-  color: #ffd98a;
-  box-shadow: 0 2px 8px rgba(20, 43, 32, 0.2);
+  background: var(--color-parlor-green-900);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-gold-300);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-parlor-green-900) 20%, transparent);
 }
 
 .btn-primary:hover {
-  background: #1c3d2e;
-  border-color: #dfc18c;
+  background: var(--color-parlor-green-800);
+  border-color: var(--color-parlor-gold-300);
 }
 
 .nav-links-list {
@@ -321,7 +321,7 @@ const upcomingCount = computed(() => {
 }
 
 .mgmt-nav-link {
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   font-weight: 700;
   font-size: 13.5px;
   text-decoration: none;
@@ -332,6 +332,6 @@ const upcomingCount = computed(() => {
 
 .mgmt-nav-link:hover {
   text-decoration: underline;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
 }
 </style>

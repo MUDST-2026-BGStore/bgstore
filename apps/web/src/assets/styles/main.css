@@ -28,18 +28,65 @@
  *    var(--color-primary) etc. (their hex fallbacks stay as safety nets), and
  *  - generates utilities: bg-primary, text-text, border-border, ...
  */
-@theme {
-  --color-primary: #6366f1; /* indigo-500 */
-  --color-primary-hover: #4f46e5; /* indigo-600 */
-  --color-danger: #851d24; /* red-500 */
-  --color-danger-hover: color-mix(
-    in srgb,
-    var(--color-danger, #000 20%)
-  ); /* red-600 */
-  --color-surface: #1e293b; /* slate-800 */
-  --color-surface-hover: #334155; /* slate-700 */
-  --color-text: #e2e8f0; /* slate-200 */
-  --color-border: #334155; /* slate-700 */
+/*
+ * The Parlor palette — the only colors the site uses. Components reference
+ * var(--color-parlor-*) in CSS or parlor-* utilities (text-parlor-neutral-600).
+ * Neutrals follow the catalog: cool grey-green on #fafbf9, brand green + gold.
+ * `static` keeps every variable emitted even when no utility uses it.
+ */
+@theme static {
+  /* Brand greens (dark surfaces, header, primary actions) */
+  --color-parlor-green-950: #0e1d16;
+  --color-parlor-green-900: #142b20;
+  --color-parlor-green-850: #1b3829;
+  --color-parlor-green-800: #203c30; /* header */
+  --color-parlor-green-700: #244c38; /* accent / primary */
+  --color-parlor-green-600: #335942;
+
+  /* Brand gold and cream (rules, highlights, text on green) */
+  --color-parlor-gold-700: #7a6631; /* gold text on light */
+  --color-parlor-gold-500: #c6ad7a; /* header rule */
+  --color-parlor-gold-300: #ddc18c;
+  --color-parlor-cream: #efe5d0;
+
+  /* Neutrals */
+  --color-parlor-white: #ffffff;
+  --color-parlor-page: #fafbf9;
+  --color-parlor-neutral-100: #f0f2ef; /* muted surface */
+  --color-parlor-neutral-150: #e5ece6; /* hover / soft line */
+  --color-parlor-neutral-300: #d3d9d4; /* line */
+  --color-parlor-neutral-400: #b5bfb6;
+  --color-parlor-neutral-500: #829087; /* control border */
+  --color-parlor-neutral-600: #4e5b53; /* muted text */
+  --color-parlor-neutral-800: #202e27; /* ink */
+
+  /* Status */
+  --color-parlor-success-100: #e3f1e7;
+  --color-parlor-success-300: #b9d9c2;
+  --color-parlor-success-400: #6fcf97;
+  --color-parlor-success-500: #2f9e5f;
+  --color-parlor-success-700: #1f6b3c;
+  --color-parlor-warning-100: #fdf1d6;
+  --color-parlor-warning-300: #f3d58f;
+  --color-parlor-warning-600: #b45309;
+  --color-parlor-warning-700: #8a4a0e;
+  --color-parlor-danger-100: #fbe6e4;
+  --color-parlor-danger-300: #eba9a2;
+  --color-parlor-danger-600: #c0392b;
+  --color-parlor-danger-700: #8c2a20;
+  --color-parlor-info-100: #e3eef6;
+  --color-parlor-info-300: #b5d0e5;
+  --color-parlor-info-700: #1f5a85;
+
+  /* Semantic aliases consumed by @theparlor/ui (BButton, BCard) */
+  --color-primary: #244c38;
+  --color-primary-hover: #203c30;
+  --color-danger: #8c2a20;
+  --color-danger-hover: #c0392b;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f0f2ef;
+  --color-text: #202e27;
+  --color-border: #d3d9d4;
 }
 
 @layer base {
@@ -47,9 +94,9 @@
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus,
   input:-webkit-autofill:active {
-    @apply !shadow-[inset_0_0_0_1000px_#F4EDDF];
-    -webkit-text-fill-color: #142b20 !important;
-    caret-color: #142b20;
+    @apply !shadow-[inset_0_0_0_1000px_var(--color-parlor-neutral-100)];
+    -webkit-text-fill-color: var(--color-parlor-neutral-800) !important;
+    caret-color: var(--color-parlor-neutral-800);
   }
 }
 

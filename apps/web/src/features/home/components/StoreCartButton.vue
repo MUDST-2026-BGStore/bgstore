@@ -30,22 +30,23 @@ const { t } = useStoreText();
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #f3e5c5;
-  font:
-    14px Arial,
-    sans-serif;
-  padding: 10px 8px;
+  color: var(--color-parlor-cream);
+  min-height: 36px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 10px;
   border: 1px solid transparent;
-  border-radius: 3px;
+  border-radius: 4px;
   cursor: pointer;
   transition: background-color 140ms ease;
   white-space: nowrap;
 }
 .cart-trigger:hover {
-  background: #315242;
+  background: var(--color-parlor-green-600);
 }
 .cart-trigger:focus-visible {
-  outline: 2px solid #ddc18c;
+  outline: 2px solid var(--color-parlor-gold-300);
   outline-offset: 2px;
 }
 @media (prefers-reduced-motion: reduce) {

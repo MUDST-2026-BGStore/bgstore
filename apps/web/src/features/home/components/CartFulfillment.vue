@@ -67,7 +67,7 @@ function branchOption(id: string, name: string) {
   font:
     13px/1.5 Arial,
     sans-serif;
-  color: #202e27;
+  color: var(--color-parlor-neutral-800);
 }
 .fulfillment-options {
   display: flex;
@@ -81,7 +81,7 @@ function branchOption(id: string, name: string) {
   cursor: pointer;
 }
 input {
-  accent-color: #244c38;
+  accent-color: var(--color-parlor-green-700);
   width: 15px;
   height: 15px;
 }
@@ -93,7 +93,7 @@ input {
 select {
   min-width: 0;
   width: 100%;
-  border: 1px solid #829087;
+  border: 1px solid var(--color-parlor-neutral-500);
   border-radius: 3px;
   padding: 9px;
   background: white;
@@ -101,7 +101,7 @@ select {
 }
 select:focus-visible,
 input:focus-visible {
-  outline: 2px solid #244c38;
+  outline: 2px solid var(--color-parlor-green-700);
   outline-offset: 3px;
 }
 </style>

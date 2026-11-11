@@ -187,7 +187,7 @@ defineExpose({ open });
 .source-label {
   max-width: 45%;
   overflow-wrap: anywhere;
-  color: #4e5b53;
+  color: var(--color-parlor-neutral-600);
   font-size: 12px;
 }
 .context-dialog {
@@ -196,14 +196,14 @@ defineExpose({ open });
   overflow-y: auto;
   margin: auto;
   padding: 24px;
-  border: 1px solid #bac5bd;
+  border: 1px solid var(--color-parlor-neutral-400);
   border-radius: 5px;
-  color: #202e27;
-  background: #fcfcfa;
-  box-shadow: 0 16px 60px #12271c33;
+  color: var(--color-parlor-neutral-800);
+  background: var(--color-parlor-page);
+  box-shadow: 0 16px 60px color-mix(in srgb, var(--color-parlor-green-900) 20%, transparent);
 }
 .context-dialog::backdrop {
-  background: #102c20a3;
+  background: color-mix(in srgb, var(--color-parlor-green-900) 64%, transparent);
 }
 .dialog-heading {
   display: flex;
@@ -224,7 +224,7 @@ p {
   font-size: 13px;
   line-height: 1.5;
   margin-top: 9px;
-  color: #4e5b53;
+  color: var(--color-parlor-neutral-600);
 }
 fieldset {
   border: 0;
@@ -233,7 +233,7 @@ fieldset {
 }
 legend {
   font-size: 12px;
-  color: #4e5b53;
+  color: var(--color-parlor-neutral-600);
   margin-bottom: 6px;
 }
 label {
@@ -249,14 +249,14 @@ label {
     border-color 140ms ease;
 }
 label:hover {
-  background: #edf1ec;
+  background: var(--color-parlor-neutral-150);
 }
 label:has(input:checked) {
-  background: #e5ece6;
-  border-color: #829087;
+  background: var(--color-parlor-neutral-150);
+  border-color: var(--color-parlor-neutral-500);
 }
 input {
-  accent-color: #244c38;
+  accent-color: var(--color-parlor-green-700);
   flex-shrink: 0;
   width: 16px;
   height: 16px;
@@ -269,16 +269,16 @@ strong {
 small {
   display: block;
   font-size: 12px;
-  color: #4e5b53;
+  color: var(--color-parlor-neutral-600);
   margin-top: 2px;
 }
 .browse-option {
   margin-top: 16px;
-  border-top: 1px solid #d3d9d4;
+  border-top: 1px solid var(--color-parlor-neutral-300);
 }
 .save-context {
   width: 100%;
-  background: #244c38;
+  background: var(--color-parlor-green-700);
   color: white;
   font-size: 14px;
   padding: 11px;
@@ -291,16 +291,16 @@ small {
   margin: 10px 0 0 28px;
 }
 .save-context:disabled {
-  background: #e2e6e2;
-  color: #4e5b53;
+  background: var(--color-parlor-neutral-150);
+  color: var(--color-parlor-neutral-600);
   cursor: not-allowed;
 }
 .save-context:hover:enabled {
-  background: #193e2c;
+  background: var(--color-parlor-green-700);
 }
 button:focus-visible,
 input:focus-visible {
-  outline: 2px solid #244c38;
+  outline: 2px solid var(--color-parlor-green-700);
   outline-offset: 3px;
 }
 @media (prefers-reduced-motion: no-preference) {

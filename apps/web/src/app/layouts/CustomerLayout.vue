@@ -209,44 +209,46 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
 
 <style scoped>
 .catalog-shell {
-  background: #fafbf9;
+  background: var(--color-parlor-page);
   background-image: none;
-  color: #202e27;
+  color: var(--color-parlor-neutral-800);
   font-family: Arial, Helvetica, sans-serif;
 }
 .catalog-shell :deep(.felt-noise) {
   display: none;
 }
-.catalog-shell :deep(> div.relative) {
+/* One header for every customer page: green bar, gold rule, centered wordmark. */
+.customer-shell :deep(> div.relative) {
   margin: 0;
   min-height: 100svh;
   border: 0;
 }
-.catalog-shell :deep(> div.relative > header) {
-  background: #203c30;
-  border-bottom: 2px solid #c6ad7a;
+.customer-shell :deep(> div.relative > header) {
+  min-height: 64px;
+  background: var(--color-parlor-green-800);
+  border-bottom: 2px solid var(--color-parlor-gold-500);
   padding: 10px max(32px, calc((100vw - 1440px) / 2));
   font-family: 'Plus Jakarta Sans', Arial, sans-serif;
 }
 .catalog-shell :deep(> div.relative > header + div) {
   padding: 20px 32px 24px;
 }
-.catalog-shell
+.customer-shell
   :deep(> div.relative > header > :nth-child(2) > span:first-child),
-.catalog-shell
+.customer-shell
   :deep(> div.relative > header > :nth-child(2) > span:last-child) {
   display: inline;
-  color: #ddc18c;
+  color: var(--color-parlor-gold-300);
   font-size: 13px;
 }
-.catalog-shell
+.customer-shell
   :deep(> div.relative > header > :nth-child(2) > span:nth-child(2)) {
-  color: #fff3dc;
+  color: var(--color-parlor-cream);
   font-size: 13px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
 }
-.catalog-shell .header-language {
+.header-language {
   position: relative;
 }
 .language-feedback {
@@ -256,9 +258,9 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
   left: 0;
   width: 260px;
   padding: 12px;
-  background: #fffaf1;
-  border: 1px solid #c6ad7a;
-  color: #243e32;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-800);
   font:
     12px/1.7 Arial,
     sans-serif;
@@ -276,28 +278,30 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 12px;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 12px;
   border: 1px solid transparent;
   border-bottom: 0;
   border-radius: 4px 4px 0 0;
-  color: #c6b58f;
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  color: var(--color-parlor-cream);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: normal;
+  text-transform: none;
   cursor: pointer;
   transition:
     background-color 150ms ease,
     color 150ms ease;
 }
 .account-trigger:hover {
-  color: #efe5d0;
+  color: var(--color-parlor-white);
 }
 .account-trigger.is-open {
   z-index: 51;
-  border-color: #d3c4a8;
-  background: #fffaf1;
-  color: #14241c;
+  border-color: var(--color-parlor-neutral-300);
+  background: var(--color-parlor-white);
+  color: var(--color-parlor-green-900);
 }
 .account-trigger.is-open::after {
   position: absolute;
@@ -305,11 +309,12 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
   bottom: -1px;
   left: 0;
   height: 2px;
-  background: #fffaf1;
+  background: var(--color-parlor-white);
   content: '';
 }
 .chevron {
-  color: #82745e;
+  color: currentColor;
+  opacity: 0.7;
   transition: transform 150ms ease;
 }
 .is-open .chevron {
@@ -321,24 +326,24 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
   right: 0;
   z-index: 50;
   width: min(284px, calc(100vw - 64px));
-  border: 1px solid #d3c4a8;
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 4px 0 4px 4px;
-  background: #fffaf1;
-  color: #14241c;
-  box-shadow: 0 8px 24px #14241c24;
+  background: var(--color-parlor-white);
+  color: var(--color-parlor-green-900);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-parlor-green-900) 14%, transparent);
   transform-origin: top right;
 }
 .account-heading {
   display: grid;
   gap: 6px;
   padding: 20px 18px;
-  border-bottom: 1px solid #e5dac6;
+  border-bottom: 1px solid var(--color-parlor-neutral-300);
 }
 .account-caption {
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #6a6252;
+  color: var(--color-parlor-neutral-600);
 }
 .account-name {
   overflow-wrap: anywhere;
@@ -347,7 +352,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
 .account-description {
   font-size: 12px;
   line-height: 1.7;
-  color: #6a6252;
+  color: var(--color-parlor-neutral-600);
 }
 .account-options {
   padding: 4px;
@@ -372,19 +377,19 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
 .account-options button:hover,
 .account-options a:focus-visible,
 .account-options button:focus-visible {
-  background: #eee4d1;
+  background: var(--color-parlor-neutral-150);
 }
 .account-options span {
-  color: #82745e;
+  color: var(--color-parlor-neutral-500);
 }
 .account-options .sign-out {
-  border-top: 1px solid #e5dac6;
+  border-top: 1px solid var(--color-parlor-neutral-300);
   margin-top: 4px;
-  color: #8c392b;
+  color: var(--color-parlor-danger-700);
 }
 a:focus-visible,
 button:focus-visible {
-  outline: 2px solid #c6ad7a;
+  outline: 2px solid var(--color-parlor-gold-500);
   outline-offset: 2px;
 }
 .account-menu-enter-active,
@@ -411,32 +416,13 @@ button:focus-visible {
     gap: 8px;
     justify-content: flex-end;
   }
-  .header-history-btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 12px;
-  background: transparent;
-  border: 1px solid rgba(198, 173, 122, 0.4);
-  color: #efe5d0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  border-radius: 4px;
-  text-decoration: none;
-  transition: all 140ms ease;
-  white-space: nowrap;
-}
-.header-history-btn:hover {
-  background: rgba(198, 173, 122, 0.15);
-  border-color: #c6ad7a;
-  color: #ffffff;
-}
-.header-reserve-btn {
+  .header-history-btn,
+  .header-reserve-btn,
+  .account-trigger {
     padding: 6px 10px;
-    font-size: 10.5px;
+    font-size: 12px;
   }
   .account-trigger {
-    padding: 8px 10px;
     gap: 6px;
   }
 }
@@ -488,53 +474,55 @@ button:focus-visible {
     transform: none;
   }
 }
-.header-history-btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 12px;
-  background: transparent;
-  border: 1px solid rgba(198, 173, 122, 0.4);
-  color: #efe5d0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  border-radius: 4px;
-  text-decoration: none;
-  transition: all 140ms ease;
-  white-space: nowrap;
-}
-.header-history-btn:hover {
-  background: rgba(198, 173, 122, 0.15);
-  border-color: #c6ad7a;
-  color: #ffffff;
-}
+.header-history-btn,
 .header-reserve-btn {
   display: inline-flex;
   align-items: center;
+  min-height: 36px;
   padding: 8px 14px;
-  background: #c6ad7a;
-  color: #14281f;
+  border: 1px solid transparent;
+  border-radius: 4px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: normal;
   text-transform: none;
-  border-radius: 4px;
   text-decoration: none;
-  transition: all 140ms ease;
   white-space: nowrap;
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    color 140ms ease;
+}
+.header-history-btn {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--color-parlor-gold-500) 45%, transparent);
+  color: var(--color-parlor-cream);
+}
+.header-history-btn:hover {
+  background: color-mix(in srgb, var(--color-parlor-gold-500) 15%, transparent);
+  border-color: var(--color-parlor-gold-500);
+  color: var(--color-parlor-white);
+}
+.header-reserve-btn {
+  background: var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
 }
 .header-reserve-btn:hover {
-  background: #e0d0ac;
-  color: #0b1a13;
+  background: var(--color-parlor-gold-300);
+  color: var(--color-parlor-green-950);
 }
 @media (max-width: 600px) {
-  .header-history-btn {
-    padding: 6px 8px;
-    font-size: 10px;
-  }
+  .header-history-btn,
   .header-reserve-btn {
+    min-height: 32px;
     padding: 6px 8px;
-    font-size: 10px;
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .header-history-btn,
+  .header-reserve-btn {
+    transition: none;
   }
 }
 </style>

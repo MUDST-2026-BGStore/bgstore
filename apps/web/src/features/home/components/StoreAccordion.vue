@@ -32,8 +32,8 @@ const id = useId();
 </template>
 <style scoped>
 .store-accordion {
-  border-top: 1px solid #d3d9d4;
-  color: #202e27;
+  border-top: 1px solid var(--color-parlor-neutral-300);
+  color: var(--color-parlor-neutral-800);
 }
 .accordion-trigger {
   display: flex;
@@ -52,7 +52,7 @@ const id = useId();
   opacity: 0.7;
 }
 .accordion-trigger:focus-visible {
-  outline: 2px solid #244c38;
+  outline: 2px solid var(--color-parlor-green-700);
   outline-offset: 3px;
 }
 .accordion-icon {

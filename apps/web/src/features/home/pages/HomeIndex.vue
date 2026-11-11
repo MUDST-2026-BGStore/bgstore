@@ -448,12 +448,12 @@ function markImageFailed(url: string) {
 <style scoped>
 .storefront {
   --catalog-search-height: 64px;
-  --ink: #202e27;
-  --muted: #4e5b53;
-  --line: #d3d9d4;
-  --control-border: #829087;
-  --surface: #fff;
-  --accent: #244c38;
+  --ink: var(--color-parlor-neutral-800);
+  --muted: var(--color-parlor-neutral-600);
+  --line: var(--color-parlor-neutral-300);
+  --control-border: var(--color-parlor-neutral-500);
+  --surface: var(--color-parlor-white);
+  --accent: var(--color-parlor-green-700);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   width: 100%;
   max-width: 1440px;
@@ -510,7 +510,7 @@ h1 {
   height: var(--catalog-search-height);
   padding: 10px 0;
   border-bottom: 1px solid var(--line);
-  background: #fafbf9;
+  background: var(--color-parlor-page);
   display: flex;
   gap: 20px;
   justify-content: space-between;
@@ -542,12 +542,12 @@ h1 {
   font-size: 14px;
 }
 .search-field input::placeholder {
-  color: #56635b;
+  color: var(--color-parlor-neutral-600);
   opacity: 1;
 }
 .search-field:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px #244c3826;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-parlor-green-700) 15%, transparent);
 }
 .search-field input:focus {
   outline: none;
@@ -604,7 +604,7 @@ h1 {
   gap: 8px;
   border-radius: 3px;
   padding: 9px 10px;
-  color: #38493e;
+  color: var(--color-parlor-green-700);
   font-size: 13px;
 }
 .category-list button > span:last-child {
@@ -612,11 +612,11 @@ h1 {
   font-size: 12px;
 }
 .category-list button:hover {
-  background: #e9ede9;
+  background: var(--color-parlor-neutral-150);
 }
 .category-list button[aria-pressed='true'] {
-  background: #dce7df;
-  color: #1c422c;
+  background: var(--color-parlor-neutral-150);
+  color: var(--color-parlor-green-800);
   font-weight: 600;
 }
 .table-filters {
@@ -630,7 +630,7 @@ h1 {
   display: grid;
   gap: 7px;
   font-size: 13px;
-  color: #34473a;
+  color: var(--color-parlor-green-700);
 }
 .table-filters select {
   width: 100%;
@@ -707,7 +707,7 @@ h1 {
 }
 .sort-control select {
   padding: 5px 0;
-  color: #2d4333;
+  color: var(--color-parlor-green-700);
   font-size: 12px;
   max-width: 145px;
 }
@@ -721,15 +721,15 @@ h1 {
   border: 1px solid transparent;
   border-radius: 3px;
   padding: 8px;
-  color: #465a4c;
+  color: var(--color-parlor-green-600);
 }
 .view-switch button:hover {
-  background: #e9ede9;
+  background: var(--color-parlor-neutral-150);
 }
 .view-switch button[aria-pressed='true'] {
-  background: #dce7df;
-  border-color: #829087;
-  color: #244c38;
+  background: var(--color-parlor-neutral-150);
+  border-color: var(--color-parlor-neutral-500);
+  color: var(--color-parlor-green-700);
 }
 .view-switch svg {
   width: 15px;
@@ -758,7 +758,7 @@ h1 {
   justify-content: center;
   overflow: hidden;
   border-radius: 3px;
-  background: #f0f2ef;
+  background: var(--color-parlor-neutral-100);
 }
 .cover-button img {
   display: block;
@@ -801,7 +801,7 @@ h3 {
   line-height: 1.4;
 }
 .game-info h3 a:hover {
-  color: #1c5f3d;
+  color: var(--color-parlor-green-600);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -883,12 +883,12 @@ h3 {
 .empty-state button {
   margin-top: 20px;
   background: var(--accent);
-  color: #fff;
+  color: var(--color-parlor-white);
   border-radius: 3px;
   padding: 11px 16px;
 }
 .empty-state button:hover {
-  background: #173c29;
+  background: var(--color-parlor-green-850);
 }
 .shelf-end {
   display: flex;
@@ -926,9 +926,9 @@ footer a:hover {
 .login-alert {
   padding: 15px;
   margin-bottom: 20px;
-  border: 1px solid #9c6a56;
-  color: #823020;
-  background: #fff6ef;
+  border: 1px solid var(--color-parlor-neutral-500);
+  color: var(--color-parlor-danger-700);
+  background: var(--color-parlor-page);
 }
 .catalog-enter-active {
   transition:
@@ -975,7 +975,7 @@ footer a:hover {
   padding: 0;
   border: 0;
   border-left: 1px solid var(--control-border);
-  background: #fafbf9;
+  background: var(--color-parlor-page);
   color: var(--ink);
   transform: translateX(100%);
   transition:
@@ -989,7 +989,7 @@ footer a:hover {
   transform: translateX(0);
 }
 .catalog-filter-dialog::backdrop {
-  background: #14221d66;
+  background: color-mix(in srgb, var(--color-parlor-green-950) 40%, transparent);
 }
 @starting-style {
   .catalog-filter-dialog[open] {

@@ -208,10 +208,10 @@ onBeforeUnmount(() => {
 </template>
 <style scoped>
 .product-page {
-  --ink: #202e27;
-  --muted: #4e5b53;
-  --line: #d3d9d4;
-  --accent: #244c38;
+  --ink: var(--color-parlor-neutral-800);
+  --muted: var(--color-parlor-neutral-600);
+  --line: var(--color-parlor-neutral-300);
+  --accent: var(--color-parlor-green-700);
   width: 100%;
   max-width: 1320px;
   margin: 0 auto;
@@ -245,7 +245,7 @@ onBeforeUnmount(() => {
   align-items: center;
   justify-content: center;
   aspect-ratio: 1;
-  background: #f0f2ef;
+  background: var(--color-parlor-neutral-100);
   min-width: 0;
 }
 .product-media img {
@@ -302,8 +302,8 @@ select,
 input {
   min-width: 0;
   width: 100%;
-  background: #fff;
-  border: 1px solid #829087;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-neutral-500);
   padding: 11px;
   border-radius: 3px;
   color: var(--ink);
@@ -319,9 +319,9 @@ button {
     color 150ms ease;
 }
 button:disabled {
-  background: #e2e6e2;
+  background: var(--color-parlor-neutral-150);
   color: var(--muted);
-  border-color: #b5bfb6;
+  border-color: var(--color-parlor-neutral-400);
   cursor: not-allowed;
 }
 h2 {
@@ -419,8 +419,8 @@ select:focus-visible {
 .reserve-action-card {
   margin: 22px 0;
   padding: 18px 20px;
-  background: #fffaf1;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-gold-500);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
@@ -430,37 +430,37 @@ select:focus-visible {
   display: block;
   font-size: 15px;
   font-weight: 700;
-  color: #1a3325;
+  color: var(--color-parlor-green-850);
 }
 .action-card-text p {
   margin-top: 4px;
   font-size: 13px;
-  color: #556358;
+  color: var(--color-parlor-neutral-600);
 }
 .reserve-game-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  background: #203c30;
-  color: #fff3dc;
+  background: var(--color-parlor-green-800);
+  color: var(--color-parlor-cream);
   font-weight: 700;
   font-size: 13.5px;
   letter-spacing: 0.04em;
   padding: 12px 22px;
   border-radius: 4px;
-  border: 1px solid #c6ad7a;
+  border: 1px solid var(--color-parlor-gold-500);
   text-decoration: none;
   transition: all 140ms ease;
-  box-shadow: 0 2px 8px rgba(18, 38, 28, 0.12);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-parlor-green-900) 12%, transparent);
 }
 .reserve-game-btn:hover {
-  background: #14281f;
-  border-color: #dfc999;
+  background: var(--color-parlor-green-900);
+  border-color: var(--color-parlor-gold-300);
   transform: translateY(-1px);
 }
 .btn-icon {
   font-size: 16px;
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
 }
 </style>

@@ -195,8 +195,8 @@ const totalItemsCount = computed(() =>
 }
 
 .discount-banner {
-  background: #f4ecdc;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-neutral-100);
+  border: 1px solid var(--color-parlor-gold-500);
   border-radius: 6px;
   padding: 14px 18px;
   display: flex;
@@ -208,8 +208,8 @@ const totalItemsCount = computed(() =>
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #203c30;
-  color: #fffaf1;
+  background: var(--color-parlor-green-800);
+  color: var(--color-parlor-white);
   padding: 6px 12px;
   border-radius: 4px;
   font-size: 13px;
@@ -221,7 +221,7 @@ const totalItemsCount = computed(() =>
 .discount-copy {
   margin: 0;
   font-size: 13px;
-  color: #243e32;
+  color: var(--color-parlor-green-800);
   line-height: 1.5;
 }
 
@@ -241,9 +241,9 @@ const totalItemsCount = computed(() =>
 
 .cat-tab {
   padding: 7px 14px;
-  border: 1px solid #d5c8b2;
-  background: #fffaf1;
-  color: #3b362c;
+  border: 1px solid var(--color-parlor-neutral-300);
+  background: var(--color-parlor-white);
+  color: var(--color-parlor-neutral-800);
   border-radius: 20px;
   font-size: 13px;
   font-weight: 600;
@@ -252,30 +252,30 @@ const totalItemsCount = computed(() =>
 }
 
 .cat-tab:hover {
-  background: #eee3ce;
-  border-color: #baa88c;
+  background: var(--color-parlor-neutral-150);
+  border-color: var(--color-parlor-neutral-400);
 }
 
 .cat-tab.is-active {
-  background: #203c30;
-  border-color: #203c30;
-  color: #fff3dc;
+  background: var(--color-parlor-green-800);
+  border-color: var(--color-parlor-green-800);
+  color: var(--color-parlor-cream);
 }
 
 .search-input {
   padding: 8px 14px;
-  border: 1px solid #d5c8b2;
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 6px;
-  background: #ffffff;
-  color: #202e27;
+  background: var(--color-parlor-white);
+  color: var(--color-parlor-neutral-800);
   font-size: 13px;
   min-width: 240px;
   outline: none;
 }
 
 .search-input:focus {
-  border-color: #203c30;
-  box-shadow: 0 0 0 2px rgba(32, 60, 48, 0.15);
+  border-color: var(--color-parlor-green-800);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-parlor-green-800) 15%, transparent);
 }
 
 .menu-grid {
@@ -291,8 +291,8 @@ const totalItemsCount = computed(() =>
 }
 
 .menu-card {
-  background: #ffffff;
-  border: 1px solid #e0d5c1;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 10px;
   padding: 16px 18px;
   display: flex;
@@ -302,15 +302,15 @@ const totalItemsCount = computed(() =>
 }
 
 .menu-card:hover {
-  border-color: #c6ad7a;
-  box-shadow: 0 6px 18px rgba(20, 43, 32, 0.08), 0 0 12px rgba(198, 173, 122, 0.15);
+  border-color: var(--color-parlor-gold-500);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--color-parlor-green-900) 8%, transparent), 0 0 12px color-mix(in srgb, var(--color-parlor-gold-500) 15%, transparent);
   transform: translateY(-2px);
 }
 
 .menu-card.has-qty {
-  border-color: #203c30;
-  background: #faf8f3;
-  box-shadow: 0 0 0 1px #203c30;
+  border-color: var(--color-parlor-green-800);
+  background: var(--color-parlor-page);
+  box-shadow: 0 0 0 1px var(--color-parlor-green-800);
 }
 
 .card-header {
@@ -321,7 +321,7 @@ const totalItemsCount = computed(() =>
   margin: 0 0 6px 0;
   font-size: 15px;
   font-weight: 700;
-  color: #1b2f25;
+  color: var(--color-parlor-green-900);
   line-height: 1.35;
 }
 
@@ -337,8 +337,8 @@ const totalItemsCount = computed(() =>
   font-size: 10.5px;
   font-weight: 600;
   text-transform: lowercase; /* explicitly lowercase as requested */
-  background: #fde8cf;
-  color: #8c4e0b;
+  background: var(--color-parlor-warning-100);
+  color: var(--color-parlor-warning-700);
   padding: 2px 7px;
   border-radius: 4px;
   letter-spacing: 0.02em;
@@ -347,8 +347,8 @@ const totalItemsCount = computed(() =>
 .dietary-pill {
   font-size: 10.5px;
   font-weight: 600;
-  background: #e2f0d9;
-  color: #2e6022;
+  background: var(--color-parlor-success-100);
+  color: var(--color-parlor-success-700);
   padding: 2px 7px;
   border-radius: 4px;
 }
@@ -357,14 +357,14 @@ const totalItemsCount = computed(() =>
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
-  color: #555044;
+  color: var(--color-parlor-neutral-600);
 }
 
 .card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid #f0e9dc;
+  border-top: 1px solid var(--color-parlor-neutral-150);
   padding-top: 12px;
   margin-top: 8px;
   gap: 8px;
@@ -386,13 +386,13 @@ const totalItemsCount = computed(() =>
 .discounted-price {
   font-size: 16px;
   font-weight: 800;
-  color: #1a4231;
+  color: var(--color-parlor-green-800);
 }
 
 .original-price {
   font-size: 12px;
   text-decoration: line-through;
-  color: #8e887d;
+  color: var(--color-parlor-neutral-500);
 }
 
 .discount-tag {
@@ -400,8 +400,8 @@ const totalItemsCount = computed(() =>
   align-self: flex-start;
   font-size: 10px;
   font-weight: 700;
-  color: #b54708;
-  background: #fef0c7;
+  color: var(--color-parlor-warning-600);
+  background: var(--color-parlor-warning-100);
   padding: 1px 5px;
   border-radius: 3px;
   white-space: nowrap;
@@ -411,8 +411,8 @@ const totalItemsCount = computed(() =>
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #fffaf1;
-  border: 1px solid #d5c8b2;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 6px;
   padding: 3px;
 }
@@ -420,7 +420,7 @@ const totalItemsCount = computed(() =>
 .step-btn {
   background: transparent;
   border: none;
-  color: #203c30;
+  color: var(--color-parlor-green-800);
   font-weight: 700;
   font-size: 13px;
   padding: 4px 10px;
@@ -430,16 +430,16 @@ const totalItemsCount = computed(() =>
 }
 
 .step-btn:hover {
-  background: #e9dec9;
+  background: var(--color-parlor-neutral-300);
 }
 
 .step-btn.plus {
-  background: #203c30;
-  color: #fffaf1;
+  background: var(--color-parlor-green-800);
+  color: var(--color-parlor-white);
 }
 
 .step-btn.plus:hover {
-  background: #172c23;
+  background: var(--color-parlor-green-900);
 }
 
 .qty-count {
@@ -447,16 +447,16 @@ const totalItemsCount = computed(() =>
   font-weight: 700;
   min-width: 18px;
   text-align: center;
-  color: #172c23;
+  color: var(--color-parlor-green-900);
 }
 
 .preorder-tray {
-  background: #203c30;
-  color: #fffaf1;
+  background: var(--color-parlor-green-800);
+  color: var(--color-parlor-white);
   border-radius: 8px;
   padding: 14px 20px;
   margin-top: 8px;
-  box-shadow: 0 4px 16px rgba(18, 39, 29, 0.2);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-parlor-green-900) 20%, transparent);
 }
 
 .tray-info {
@@ -471,7 +471,7 @@ const totalItemsCount = computed(() =>
 .count-badge {
   font-size: 14px;
   font-weight: 700;
-  color: #f7ebd4;
+  color: var(--color-parlor-neutral-150);
 }
 
 .price-breakdown {
@@ -483,18 +483,18 @@ const totalItemsCount = computed(() =>
 .orig-strike {
   font-size: 13px;
   text-decoration: line-through;
-  color: #a8b8b0;
+  color: var(--color-parlor-neutral-400);
 }
 
 .discounted-sum {
   font-size: 18px;
   font-weight: 800;
-  color: #fce8bd;
+  color: var(--color-parlor-warning-100);
 }
 
 .saved-pill {
-  background: #2f614b;
-  color: #e5f6ed;
+  background: var(--color-parlor-green-600);
+  color: var(--color-parlor-success-100);
   font-size: 11px;
   font-weight: 700;
   padding: 3px 8px;
@@ -504,7 +504,7 @@ const totalItemsCount = computed(() =>
 .tray-footnote {
   margin: 0;
   font-size: 12px;
-  color: #b7cbbf;
+  color: var(--color-parlor-neutral-400);
 }
 
 @media (max-width: 640px) {
@@ -524,11 +524,11 @@ const totalItemsCount = computed(() =>
 .gold-icon {
   width: 18px;
   height: 18px;
-  color: #ddc18c;
+  color: var(--color-parlor-gold-300);
   display: inline-block;
   vertical-align: middle;
   flex-shrink: 0;
-  filter: drop-shadow(0 0 4px rgba(198, 173, 122, 0.35));
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--color-parlor-gold-500) 35%, transparent));
 }
 </style>
 

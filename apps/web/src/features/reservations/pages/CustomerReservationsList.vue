@@ -484,10 +484,10 @@ function confirmCancel() {
 
 <style scoped>
 .my-reservations-page {
-  background: #fbf9f4;
+  background: var(--color-parlor-page);
   min-height: calc(100vh - 120px);
   padding: 36px 16px 80px;
-  color: #172b21;
+  color: var(--color-parlor-green-900);
   font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
 }
 
@@ -502,7 +502,7 @@ function confirmCancel() {
   align-items: flex-end;
   justify-content: space-between;
   margin-bottom: 28px;
-  border-bottom: 2px solid #c6ad7a;
+  border-bottom: 2px solid var(--color-parlor-gold-500);
   padding-bottom: 20px;
   gap: 20px;
   flex-wrap: wrap;
@@ -515,12 +515,12 @@ function confirmCancel() {
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.14em;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
   margin-bottom: 6px;
 }
 
 .gold-sparkle {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   font-size: 14px;
 }
 
@@ -528,14 +528,14 @@ function confirmCancel() {
   margin: 0 0 6px;
   font-size: 30px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   letter-spacing: -0.02em;
 }
 
 .page-subtitle {
   margin: 0;
   font-size: 14.5px;
-  color: #554e42;
+  color: var(--color-parlor-neutral-600);
   line-height: 1.5;
 }
 
@@ -545,21 +545,21 @@ function confirmCancel() {
 
 /* Auth Required Box */
 .auth-required-box {
-  background: #ffffff;
-  border: 1.5px solid #c6ad7a;
+  background: var(--color-parlor-white);
+  border: 1.5px solid var(--color-parlor-gold-500);
   border-radius: 12px;
   padding: 48px 24px;
   text-align: center;
   max-width: 520px;
   margin: 40px auto;
-  box-shadow: 0 8px 24px rgba(20, 43, 32, 0.08);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-parlor-green-900) 8%, transparent);
 }
 
 .auth-icon-circle {
   width: 56px;
   height: 56px;
-  background: #142b20;
-  color: #ffd98a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -571,13 +571,13 @@ function confirmCancel() {
   margin: 0 0 8px;
   font-size: 20px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .auth-text {
   margin: 0 0 24px;
   font-size: 14px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
   line-height: 1.6;
 }
 
@@ -586,12 +586,12 @@ function confirmCancel() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #ffffff;
-  border: 1px solid #ded5c3;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 10px;
   padding: 14px 18px;
   margin-bottom: 24px;
-  box-shadow: 0 2px 8px rgba(32, 60, 48, 0.04);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-parlor-green-800) 4%, transparent);
   gap: 16px;
   flex-wrap: wrap;
 }
@@ -606,7 +606,7 @@ function confirmCancel() {
 .filter-label {
   font-size: 13px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .status-pills {
@@ -616,43 +616,43 @@ function confirmCancel() {
 }
 
 .pill-btn {
-  background: #f7f3ea;
-  border: 1px solid #dcd1be;
+  background: var(--color-parlor-neutral-100);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 20px;
   padding: 5px 12px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  color: #4b4435;
+  color: var(--color-parlor-neutral-800);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .pill-btn:hover {
-  background: #eee4d1;
-  border-color: #baa67c;
+  background: var(--color-parlor-neutral-150);
+  border-color: var(--color-parlor-gold-500);
 }
 
 .pill-btn.active {
-  background: #142b20;
-  border-color: #c6ad7a;
-  color: #ffd98a;
-  box-shadow: 0 2px 8px rgba(20, 43, 32, 0.25);
+  background: var(--color-parlor-green-900);
+  border-color: var(--color-parlor-gold-500);
+  color: var(--color-parlor-gold-300);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-parlor-green-900) 25%, transparent);
 }
 
 .branch-select-input {
   padding: 6px 12px;
-  border: 1px solid #dcd1be;
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 6px;
-  background: #ffffff;
+  background: var(--color-parlor-white);
   font-size: 13px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   font-weight: 600;
 }
 
 /* Empty Box */
 .empty-reservations-box {
-  background: #ffffff;
-  border: 1.5px dashed #c6ad7a;
+  background: var(--color-parlor-white);
+  border: 1.5px dashed var(--color-parlor-gold-500);
   border-radius: 12px;
   padding: 52px 20px;
   text-align: center;
@@ -660,7 +660,7 @@ function confirmCancel() {
 }
 
 .empty-icon-wrap {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   margin-bottom: 12px;
 }
 
@@ -668,13 +668,13 @@ function confirmCancel() {
   margin: 0 0 8px;
   font-size: 19px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .empty-text {
   margin: 0 0 20px;
   font-size: 14px;
-  color: #655e4e;
+  color: var(--color-parlor-neutral-600);
 }
 
 /* Reservations Grid & Cards */
@@ -685,11 +685,11 @@ function confirmCancel() {
 }
 
 .reservation-card {
-  background: #ffffff;
-  border: 1.5px solid #ded5c3;
+  background: var(--color-parlor-white);
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 12px;
   padding: 22px 24px;
-  box-shadow: 0 4px 16px rgba(20, 43, 32, 0.05);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-parlor-green-900) 5%, transparent);
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -697,8 +697,8 @@ function confirmCancel() {
 }
 
 .reservation-card:hover {
-  border-color: #c6ad7a;
-  box-shadow: 0 8px 24px rgba(20, 43, 32, 0.1), 0 0 12px rgba(198, 173, 122, 0.12);
+  border-color: var(--color-parlor-gold-500);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-parlor-green-900) 10%, transparent), 0 0 12px color-mix(in srgb, var(--color-parlor-gold-500) 12%, transparent);
   transform: translateY(-2px);
 }
 
@@ -706,7 +706,7 @@ function confirmCancel() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #f0e8db;
+  border-bottom: 1px solid var(--color-parlor-neutral-150);
   padding-bottom: 14px;
   gap: 12px;
   flex-wrap: wrap;
@@ -721,23 +721,23 @@ function confirmCancel() {
 .branch-name {
   font-size: 17px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
 .gold-bullet {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   font-size: 12px;
 }
 
 .ref-badge {
   font-size: 11px;
-  color: #6a6252;
+  color: var(--color-parlor-neutral-600);
   font-family: monospace;
-  background: #f4ecdc;
-  border: 1px solid #dcd1be;
+  background: var(--color-parlor-neutral-100);
+  border: 1px solid var(--color-parlor-neutral-300);
   padding: 3px 8px;
   border-radius: 4px;
   font-weight: 600;
@@ -753,28 +753,28 @@ function confirmCancel() {
 }
 
 .badge-confirmed {
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
-  box-shadow: 0 0 8px rgba(198, 173, 122, 0.3);
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1px solid var(--color-parlor-gold-500);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--color-parlor-gold-500) 30%, transparent);
 }
 
 .badge-checked_in {
-  background: #e0f2fe;
-  color: #0369a1;
-  border: 1px solid #bae6fd;
+  background: var(--color-parlor-info-100);
+  color: var(--color-parlor-info-700);
+  border: 1px solid var(--color-parlor-info-300);
 }
 
 .badge-completed {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
+  background: var(--color-parlor-neutral-100);
+  color: var(--color-parlor-neutral-600);
+  border: 1px solid var(--color-parlor-neutral-300);
 }
 
 .badge-cancelled {
-  background: #fef2f2;
-  color: #b91c1c;
-  border: 1px solid #fecaca;
+  background: var(--color-parlor-danger-100);
+  color: var(--color-parlor-danger-700);
+  border: 1px solid var(--color-parlor-danger-300);
 }
 
 .card-body {
@@ -785,8 +785,8 @@ function confirmCancel() {
 
 /* Schedule and ISO Timestamps */
 .schedule-block {
-  background: #fcfaf6;
-  border: 1px solid #ded5c3;
+  background: var(--color-parlor-page);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 8px;
   padding: 12px 16px;
   display: flex;
@@ -801,13 +801,13 @@ function confirmCancel() {
 }
 
 .schedule-icon {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
 }
 
 .schedule-text {
   font-size: 15px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .iso-timestamps-box {
@@ -815,7 +815,7 @@ function confirmCancel() {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
-  border-top: 1px dashed #e5dccb;
+  border-top: 1px dashed var(--color-parlor-neutral-300);
   padding-top: 6px;
   margin-top: 2px;
 }
@@ -823,7 +823,7 @@ function confirmCancel() {
 .iso-label {
   font-size: 11px;
   font-weight: 700;
-  color: #7a705e;
+  color: var(--color-parlor-neutral-600);
 }
 
 .iso-codes {
@@ -835,16 +835,16 @@ function confirmCancel() {
 
 .iso-codes code {
   font-size: 11px;
-  background: #f0e8db;
-  color: #383226;
+  background: var(--color-parlor-neutral-150);
+  color: var(--color-parlor-neutral-800);
   padding: 2px 6px;
   border-radius: 4px;
-  border: 1px solid #ded5c3;
+  border: 1px solid var(--color-parlor-neutral-300);
   font-family: monospace;
 }
 
 .iso-arrow {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   font-weight: 800;
 }
 
@@ -865,24 +865,24 @@ function confirmCancel() {
 }
 
 .detail-lbl {
-  color: #6a6252;
+  color: var(--color-parlor-neutral-600);
   font-weight: 600;
 }
 
 .detail-val {
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .table-highlight {
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   font-weight: 800;
 }
 
 /* Pre-order Breakdown */
 .preorder-section {
-  background: #fdfcf9;
-  border: 1px solid #e0d5c1;
+  background: var(--color-parlor-page);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 8px;
   padding: 14px 16px;
   display: flex;
@@ -895,7 +895,7 @@ function confirmCancel() {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  border-bottom: 1px solid #f0e8dc;
+  border-bottom: 1px solid var(--color-parlor-neutral-150);
   padding-bottom: 8px;
 }
 
@@ -904,15 +904,15 @@ function confirmCancel() {
   align-items: center;
   gap: 6px;
   font-size: 13.5px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .discount-pill {
   font-size: 10.5px;
   font-weight: 800;
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1px solid var(--color-parlor-gold-500);
   padding: 2px 8px;
   border-radius: 10px;
 }
@@ -928,7 +928,7 @@ function confirmCancel() {
   align-items: center;
   justify-content: space-between;
   font-size: 13px;
-  color: #2b3a31;
+  color: var(--color-parlor-green-800);
 }
 
 .item-name-qty {
@@ -939,8 +939,8 @@ function confirmCancel() {
 
 .qty-badge {
   font-weight: 800;
-  color: #142b20;
-  background: #f0e7d5;
+  color: var(--color-parlor-green-900);
+  background: var(--color-parlor-neutral-150);
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 11.5px;
@@ -948,14 +948,14 @@ function confirmCancel() {
 
 .item-calc-price {
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .preorder-footer-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px dashed #e0d5c1;
+  border-top: 1px dashed var(--color-parlor-neutral-300);
   padding-top: 10px;
   margin-top: 2px;
   gap: 12px;
@@ -968,7 +968,7 @@ function confirmCancel() {
   gap: 5px;
   font-size: 11.5px;
   font-weight: 700;
-  color: #1e5214;
+  color: var(--color-parlor-success-700);
 }
 
 .preorder-sum {
@@ -979,20 +979,20 @@ function confirmCancel() {
 
 .original-sum {
   font-size: 12px;
-  color: #8c8371;
+  color: var(--color-parlor-neutral-600);
   text-decoration: line-through;
 }
 
 .discounted-sum {
   font-size: 15px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 /* Notes & Cancelled Reason */
 .notes-box {
-  background: #fcf9f2;
-  border-left: 3px solid #c6ad7a;
+  background: var(--color-parlor-page);
+  border-left: 3px solid var(--color-parlor-gold-500);
   padding: 8px 12px;
   border-radius: 0 6px 6px 0;
 }
@@ -1000,7 +1000,7 @@ function confirmCancel() {
 .notes-tag {
   font-size: 11.5px;
   font-weight: 700;
-  color: #6a6252;
+  color: var(--color-parlor-neutral-600);
   display: block;
   margin-bottom: 2px;
 }
@@ -1008,13 +1008,13 @@ function confirmCancel() {
 .notes-text {
   margin: 0;
   font-size: 12.5px;
-  color: #27382f;
+  color: var(--color-parlor-neutral-800);
   line-height: 1.4;
 }
 
 .cancelled-box {
-  background: #fff5f5;
-  border-left: 3px solid #b91c1c;
+  background: var(--color-parlor-danger-100);
+  border-left: 3px solid var(--color-parlor-danger-700);
   padding: 8px 12px;
   border-radius: 0 6px 6px 0;
   display: flex;
@@ -1025,11 +1025,11 @@ function confirmCancel() {
 
 .cancel-lbl {
   font-weight: 700;
-  color: #991b1b;
+  color: var(--color-parlor-danger-700);
 }
 
 .cancel-text {
-  color: #7f1d1d;
+  color: var(--color-parlor-danger-700);
 }
 
 /* Card Footer */
@@ -1037,7 +1037,7 @@ function confirmCancel() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid #f0e8db;
+  border-top: 1px solid var(--color-parlor-neutral-150);
   padding-top: 14px;
   gap: 12px;
   flex-wrap: wrap;
@@ -1045,7 +1045,7 @@ function confirmCancel() {
 
 .inplay-prompt {
   font-size: 12px;
-  color: #3b5a45;
+  color: var(--color-parlor-green-600);
   font-weight: 600;
   display: flex;
   align-items: center;
@@ -1055,13 +1055,13 @@ function confirmCancel() {
 }
 
 .sparkle-gold {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
 }
 
 .btn-cancel {
   background: transparent;
-  border: 1px solid #e2b4b4;
-  color: #b91c1c;
+  border: 1px solid var(--color-parlor-danger-300);
+  color: var(--color-parlor-danger-700);
   font-size: 12.5px;
   font-weight: 700;
   padding: 6px 14px;
@@ -1071,8 +1071,8 @@ function confirmCancel() {
 }
 
 .btn-cancel:hover {
-  background: #fee2e2;
-  border-color: #b91c1c;
+  background: var(--color-parlor-danger-100);
+  border-color: var(--color-parlor-danger-700);
 }
 
 /* General Buttons */
@@ -1090,44 +1090,44 @@ function confirmCancel() {
 }
 
 .btn-primary {
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
-  box-shadow: 0 2px 8px rgba(20, 43, 32, 0.2);
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1px solid var(--color-parlor-gold-500);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-parlor-green-900) 20%, transparent);
 }
 
 .btn-primary:hover {
-  background: #1e3f2f;
-  box-shadow: 0 4px 14px rgba(20, 43, 32, 0.3), 0 0 10px rgba(198, 173, 122, 0.4);
+  background: var(--color-parlor-green-800);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-parlor-green-900) 30%, transparent), 0 0 10px color-mix(in srgb, var(--color-parlor-gold-500) 40%, transparent);
   transform: translateY(-1px);
 }
 
 .btn-secondary {
-  background: #ffffff;
-  border: 1px solid #ded5c3;
-  color: #383226;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-neutral-300);
+  color: var(--color-parlor-neutral-800);
 }
 
 .btn-secondary:hover {
-  background: #f7f3eb;
-  border-color: #baa67c;
+  background: var(--color-parlor-neutral-100);
+  border-color: var(--color-parlor-gold-500);
 }
 
 .btn-danger {
-  background: #b91c1c;
-  color: #ffffff;
+  background: var(--color-parlor-danger-700);
+  color: var(--color-parlor-white);
   border: none;
 }
 
 .btn-danger:hover {
-  background: #991b1b;
+  background: var(--color-parlor-danger-700);
 }
 
 /* Modal Overlay */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(16, 32, 24, 0.65);
+  background: color-mix(in srgb, var(--color-parlor-green-950) 65%, transparent);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -1137,26 +1137,26 @@ function confirmCancel() {
 }
 
 .modal-card {
-  background: #ffffff;
-  border: 1.5px solid #c6ad7a;
+  background: var(--color-parlor-white);
+  border: 1.5px solid var(--color-parlor-gold-500);
   border-radius: 12px;
   padding: 26px 28px;
   max-width: 460px;
   width: 100%;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 12px 36px color-mix(in srgb, var(--color-parlor-green-950) 40%, transparent);
 }
 
 .modal-heading {
   margin: 0 0 8px;
   font-size: 19px;
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .modal-desc {
   margin: 0 0 18px;
   font-size: 13.5px;
-  color: #554e42;
+  color: var(--color-parlor-neutral-600);
   line-height: 1.5;
 }
 
@@ -1167,7 +1167,7 @@ function confirmCancel() {
 .modal-label {
   font-size: 12.5px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   display: block;
   margin-bottom: 6px;
 }
@@ -1175,11 +1175,11 @@ function confirmCancel() {
 .form-select {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid #ded5c3;
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 6px;
   font-size: 13.5px;
-  color: #142b20;
-  background: #ffffff;
+  color: var(--color-parlor-green-900);
+  background: var(--color-parlor-white);
   box-sizing: border-box;
 }
 
@@ -1191,17 +1191,17 @@ function confirmCancel() {
 
 /* Active Ongoing Session Banner */
 .active-session-banner {
-  background: radial-gradient(ellipse at 50% 20%, #1f4232 0%, #142b20 70%, #0d1e16 100%);
-  border: 2px solid #c6ad7a;
+  background: radial-gradient(ellipse at 50% 20%, var(--color-parlor-green-800) 0%, var(--color-parlor-green-900) 70%, var(--color-parlor-green-950) 100%);
+  border: 2px solid var(--color-parlor-gold-500);
   border-radius: 14px;
   padding: 24px 28px;
   margin-bottom: 24px;
-  color: #fffaf0;
+  color: var(--color-parlor-page);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35), 0 0 20px rgba(198, 173, 122, 0.25);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--color-parlor-green-950) 35%, transparent), 0 0 20px color-mix(in srgb, var(--color-parlor-gold-500) 25%, transparent);
   flex-wrap: wrap;
 }
 
@@ -1212,16 +1212,16 @@ function confirmCancel() {
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.12em;
-  color: #ffd98a;
+  color: var(--color-parlor-gold-300);
   margin-bottom: 6px;
 }
 
 .live-pulse-dot {
   width: 8px;
   height: 8px;
-  background: #22c55e;
+  background: var(--color-parlor-success-500);
   border-radius: 50%;
-  box-shadow: 0 0 8px #22c55e;
+  box-shadow: 0 0 8px var(--color-parlor-success-500);
   animation: pulseLive 1.8s infinite;
 }
 
@@ -1235,7 +1235,7 @@ function confirmCancel() {
   margin: 0 0 10px;
   font-size: 24px;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--color-parlor-white);
   letter-spacing: -0.01em;
 }
 
@@ -1247,9 +1247,9 @@ function confirmCancel() {
 }
 
 .meta-chip {
-  background: rgba(198, 173, 122, 0.2);
-  border: 1px solid rgba(198, 173, 122, 0.4);
-  color: #fff8e7;
+  background: color-mix(in srgb, var(--color-parlor-gold-500) 20%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-parlor-gold-500) 40%, transparent);
+  color: var(--color-parlor-page);
   font-size: 11.5px;
   font-weight: 700;
   padding: 4px 10px;
@@ -1257,9 +1257,9 @@ function confirmCancel() {
 }
 
 .meta-chip.chip-orders {
-  background: rgba(34, 197, 94, 0.2);
-  border-color: #22c55e;
-  color: #bbf7d0;
+  background: color-mix(in srgb, var(--color-parlor-success-500) 20%, transparent);
+  border-color: var(--color-parlor-success-500);
+  color: var(--color-parlor-success-300);
 }
 
 .active-session-actions {
@@ -1270,25 +1270,25 @@ function confirmCancel() {
 }
 
 .btn-order-table {
-  background: #c6ad7a;
-  color: #14281f;
+  background: var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   font-size: 13.5px;
   font-weight: 800;
   padding: 11px 20px;
   border-radius: 8px;
   border: none;
-  box-shadow: 0 4px 14px rgba(198, 173, 122, 0.4);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-parlor-gold-500) 40%, transparent);
 }
 
 .btn-order-table:hover {
-  background: #e0d0ac;
+  background: var(--color-parlor-gold-300);
   transform: translateY(-2px);
 }
 
 .btn-view-bill {
   background: transparent;
-  color: #fff8e7;
-  border: 1.5px solid #c6ad7a;
+  color: var(--color-parlor-page);
+  border: 1.5px solid var(--color-parlor-gold-500);
   font-size: 13.5px;
   font-weight: 800;
   padding: 10px 18px;
@@ -1296,14 +1296,14 @@ function confirmCancel() {
 }
 
 .btn-view-bill:hover {
-  background: rgba(198, 173, 122, 0.2);
+  background: color-mix(in srgb, var(--color-parlor-gold-500) 20%, transparent);
   transform: translateY(-2px);
 }
 
 /* In-Play Orders within Card */
 .inplay-history-section {
-  background: #fdfaf4;
-  border: 1px solid #ded5c3;
+  background: var(--color-parlor-page);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 8px;
   padding: 12px 16px;
   display: flex;
@@ -1316,7 +1316,7 @@ function confirmCancel() {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .inplay-orders-grid {
@@ -1326,8 +1326,8 @@ function confirmCancel() {
 }
 
 .inplay-mini-card {
-  background: #ffffff;
-  border: 1px solid #e2d7c5;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 6px;
   padding: 10px 12px;
   display: flex;
@@ -1346,7 +1346,7 @@ function confirmCancel() {
   font-size: 11px;
   font-family: monospace;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .kitchen-pill {
@@ -1357,18 +1357,18 @@ function confirmCancel() {
 }
 
 .kitchen-pill.status-received {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--color-parlor-warning-100);
+  color: var(--color-parlor-warning-700);
 }
 
 .kitchen-pill.status-preparing {
-  background: #fed7aa;
-  color: #c2410c;
+  background: var(--color-parlor-warning-300);
+  color: var(--color-parlor-warning-600);
 }
 
 .kitchen-pill.status-served {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--color-parlor-success-100);
+  color: var(--color-parlor-success-700);
 }
 
 .pay-pill {
@@ -1379,18 +1379,18 @@ function confirmCancel() {
 }
 
 .pay-pill.tab {
-  background: #f4ecdc;
-  color: #8c7649;
+  background: var(--color-parlor-neutral-100);
+  color: var(--color-parlor-gold-700);
 }
 
 .pay-pill.paid {
-  background: #e2f0d9;
-  color: #1e5214;
+  background: var(--color-parlor-success-100);
+  color: var(--color-parlor-success-700);
 }
 
 .mini-items {
   font-size: 12px;
-  color: #383226;
+  color: var(--color-parlor-neutral-800);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1400,18 +1400,18 @@ function confirmCancel() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px dashed #efe8db;
+  border-top: 1px dashed var(--color-parlor-neutral-150);
   padding-top: 4px;
   font-size: 11px;
 }
 
 .ord-total {
   font-weight: 800;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .ord-note {
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
   font-style: italic;
 }
 
@@ -1422,9 +1422,9 @@ function confirmCancel() {
 }
 
 .btn-live-order {
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1px solid var(--color-parlor-gold-500);
   padding: 6px 14px;
   border-radius: 6px;
   font-size: 12.5px;
@@ -1434,13 +1434,13 @@ function confirmCancel() {
 }
 
 .btn-live-order:hover {
-  background: #1e3f2f;
+  background: var(--color-parlor-green-800);
 }
 
 .btn-live-bill {
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   padding: 6px 14px;
   border-radius: 6px;
   font-size: 12.5px;
@@ -1450,7 +1450,7 @@ function confirmCancel() {
 }
 
 .btn-live-bill:hover {
-  background: #f7f3ea;
+  background: var(--color-parlor-neutral-100);
 }
 
 </style>

@@ -1919,11 +1919,11 @@ function togglePolicyActive(p: VenuePolicyItem) {
         <div class="brand-dice-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <rect x="2" y="2" width="20" height="20" rx="5" fill="#142b20" stroke="#c6ad7a" stroke-width="1.5"/>
-            <circle cx="7" cy="7" r="1.8" fill="#ffd98a"/>
-            <circle cx="17" cy="7" r="1.8" fill="#ffd98a"/>
-            <circle cx="12" cy="12" r="1.8" fill="#ffd98a"/>
-            <circle cx="7" cy="17" r="1.8" fill="#ffd98a"/>
-            <circle cx="17" cy="17" r="1.8" fill="#ffd98a"/>
+            <circle cx="7" cy="7" r="1.8" fill="#ddc18c"/>
+            <circle cx="17" cy="7" r="1.8" fill="#ddc18c"/>
+            <circle cx="12" cy="12" r="1.8" fill="#ddc18c"/>
+            <circle cx="7" cy="17" r="1.8" fill="#ddc18c"/>
+            <circle cx="17" cy="17" r="1.8" fill="#ddc18c"/>
           </svg>
         </div>
         <div class="brand-text-col">
@@ -2510,7 +2510,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                       <div v-if="getTableAssignedGames(table.id).length > 0" class="tile-assigned-games-box">
                         <div class="assigned-chips-wrap">
                           <span class="game-chip-capsule">
-                            <svg class="w-3.5 h-3.5 inline mr-1 text-amber-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <svg class="w-3.5 h-3.5 inline mr-1 text-parlor-warning-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                               <rect x="3" y="3" width="18" height="18" rx="3"/>
                               <circle cx="8" cy="8" r="1" fill="currentColor"/>
                               <circle cx="16" cy="16" r="1" fill="currentColor"/>
@@ -2720,7 +2720,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                     </div>
                     <div v-if="getTableAssignedGames(table.id).length > 0" class="assigned-chips-wrap">
                       <span class="game-chip-capsule">
-                        <svg class="w-3.5 h-3.5 inline mr-1 text-amber-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                        <svg class="w-3.5 h-3.5 inline mr-1 text-parlor-warning-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                           <rect x="3" y="3" width="18" height="18" rx="3"/>
                           <circle cx="8" cy="8" r="1" fill="currentColor"/>
                           <circle cx="16" cy="16" r="1" fill="currentColor"/>
@@ -2788,7 +2788,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
             <div v-if="activeFloorReservations.length === 0" class="empty-state-box">
               <div class="empty-icon">
-                <svg class="w-10 h-10 mx-auto text-amber-800/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <svg class="w-10 h-10 mx-auto text-parlor-warning-700/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                   <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
                   <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
                   <line x1="6" y1="1" x2="6" y2="4"/>
@@ -2828,7 +2828,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                         <!-- If table already has game: show chip with return button -->
                         <div v-if="getTableAssignedGames(res.tableId).length > 0" class="session-chips-wrap">
                           <span class="game-chip-capsule">
-                            <svg class="w-3.5 h-3.5 inline mr-1 text-amber-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <svg class="w-3.5 h-3.5 inline mr-1 text-parlor-warning-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                               <rect x="3" y="3" width="18" height="18" rx="3"/>
                               <circle cx="8" cy="8" r="1" fill="currentColor"/>
                               <circle cx="16" cy="16" r="1" fill="currentColor"/>
@@ -2996,14 +2996,14 @@ function togglePolicyActive(p: VenuePolicyItem) {
               </div>
               <div class="analytics-card">
                 <span class="analytics-label">AVAILABLE COPIES</span>
-                <div class="analytics-value text-emerald-700">
+                <div class="analytics-value text-parlor-success-700">
                   {{ catalogGames.filter(g => !getGameLocation(g.name)).length }}
                 </div>
                 <span class="analytics-sub">On shelf & ready to assign</span>
               </div>
               <div class="analytics-card">
                 <span class="analytics-label">COPIES IN USE</span>
-                <div class="analytics-value text-amber-700">
+                <div class="analytics-value text-parlor-warning-700">
                   {{ activeInUseGamesCount }}
                 </div>
                 <span class="analytics-sub">Currently playing at tables</span>
@@ -3026,7 +3026,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                 :class="{ active: gameStatusFilter === 'AVAILABLE' }"
                 @click="gameStatusFilter = 'AVAILABLE'"
               >
-                <span class="w-2 h-2 rounded-full bg-emerald-600 inline-block mr-1"></span>Available on Shelf ({{ catalogGames.filter(g => !getGameLocation(g.name)).length }})
+                <span class="w-2 h-2 rounded-full bg-parlor-success-500 inline-block mr-1"></span>Available on Shelf ({{ catalogGames.filter(g => !getGameLocation(g.name)).length }})
               </button>
               <button
                 type="button"
@@ -3034,7 +3034,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                 :class="{ active: gameStatusFilter === 'IN_USE' }"
                 @click="gameStatusFilter = 'IN_USE'"
               >
-                <span class="w-2 h-2 rounded-full bg-amber-600 inline-block mr-1"></span>In Use at Tables ({{ catalogGames.filter(g => !!getGameLocation(g.name)).length }})
+                <span class="w-2 h-2 rounded-full bg-parlor-warning-600 inline-block mr-1"></span>In Use at Tables ({{ catalogGames.filter(g => !!getGameLocation(g.name)).length }})
               </button>
             </div>
 
@@ -3061,7 +3061,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                 <p class="game-designer">Designed by {{ game.designer }}</p>
                 <div class="game-meta-row">
                   <span class="inline-flex items-center gap-1">
-                    <svg class="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <svg class="w-3.5 h-3.5 text-parlor-neutral-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
                       <circle cx="9" cy="7" r="4"/>
                       <path d="M22 21v-2a4 4 0 0 0-3-3.87"/>
@@ -3070,7 +3070,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                     {{ game.players[0] }}–{{ game.players[1] }} Players
                   </span>
                   <span class="inline-flex items-center gap-1">
-                    <svg class="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <svg class="w-3.5 h-3.5 text-parlor-neutral-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                       <circle cx="12" cy="12" r="10"/>
                       <polyline points="12 6 12 12 16 14"/>
                     </svg>
@@ -3098,7 +3098,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                   </button>
 
                   <!-- Admin Management Actions for Game -->
-                  <div v-if="isAdmin" class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
+                  <div v-if="isAdmin" class="flex items-center gap-2 mt-2 pt-2 border-t border-parlor-neutral-100">
                     <button type="button" class="btn-xs-secondary flex-1" @click="openEditGameModal(game)">
                       Edit
                     </button>
@@ -3397,7 +3397,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
               </div>
               <div class="analytics-card">
                 <span class="analytics-label">ACTIVE SESSIONS</span>
-                <div class="analytics-value text-emerald-700">{{ overviewTotalActiveReservations }}</div>
+                <div class="analytics-value text-parlor-success-700">{{ overviewTotalActiveReservations }}</div>
                 <span class="analytics-sub">Live tables currently in play</span>
               </div>
             </div>
@@ -3457,36 +3457,36 @@ function togglePolicyActive(p: VenuePolicyItem) {
                 <tbody>
                   <tr v-for="branch in filteredBranches" :key="branch.id">
                     <td>
-                      <div class="font-bold text-gray-900">{{ branch.name }}</div>
-                      <div class="text-xs text-gray-500 font-mono">{{ branch.code }} · {{ branch.address }}, {{ branch.city }}</div>
+                      <div class="font-bold text-parlor-neutral-800">{{ branch.name }}</div>
+                      <div class="text-xs text-parlor-neutral-600 font-mono">{{ branch.code }} · {{ branch.address }}, {{ branch.city }}</div>
                     </td>
                     <td>
                       <span
                         class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider"
-                        :class="branch.status === 'Active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-gray-100 text-gray-600 border border-gray-300'"
+                        :class="branch.status === 'Active' ? 'bg-parlor-success-100 text-parlor-success-700 border border-parlor-success-300' : 'bg-parlor-neutral-100 text-parlor-neutral-600 border border-parlor-neutral-300'"
                       >
                         {{ branch.status }}
                       </span>
                     </td>
                     <td>
                       <div class="text-sm font-semibold">{{ branch.totalTables }} Total Tables</div>
-                      <div class="text-xs text-gray-500">
-                        <span class="text-emerald-700 font-medium">{{ branch.availableTables }} free</span> ·
-                        <span class="text-amber-700 font-medium">{{ branch.occupiedTables }} playing</span> ·
+                      <div class="text-xs text-parlor-neutral-600">
+                        <span class="text-parlor-success-700 font-medium">{{ branch.availableTables }} free</span> ·
+                        <span class="text-parlor-warning-700 font-medium">{{ branch.occupiedTables }} playing</span> ·
                         <span>{{ branch.reservedTables }} booked</span>
                       </div>
                     </td>
                     <td>
-                      <div class="text-sm font-semibold text-gray-900">{{ branch.checkInsToday }} parties</div>
+                      <div class="text-sm font-semibold text-parlor-neutral-800">{{ branch.checkInsToday }} parties</div>
                     </td>
                     <td class="text-xs">
-                      <div class="font-medium text-gray-800"><strong>Mon–Fri:</strong> {{ branch.openingHours.monFri }}</div>
-                      <div class="text-gray-600 mt-0.5"><strong>Sat:</strong> {{ branch.openingHours.sat }}</div>
-                      <div class="text-gray-600 mt-0.5"><strong>Sun:</strong> {{ branch.openingHours.sun }}</div>
+                      <div class="font-medium text-parlor-neutral-800"><strong>Mon–Fri:</strong> {{ branch.openingHours.monFri }}</div>
+                      <div class="text-parlor-neutral-600 mt-0.5"><strong>Sat:</strong> {{ branch.openingHours.sat }}</div>
+                      <div class="text-parlor-neutral-600 mt-0.5"><strong>Sun:</strong> {{ branch.openingHours.sun }}</div>
                     </td>
                     <td>
-                      <div class="text-xs text-gray-900">{{ branch.phone }}</div>
-                      <div class="text-xs text-gray-500">{{ branch.email }}</div>
+                      <div class="text-xs text-parlor-neutral-800">{{ branch.phone }}</div>
+                      <div class="text-xs text-parlor-neutral-600">{{ branch.email }}</div>
                     </td>
                     <td class="text-right">
                       <div class="flex items-center justify-end gap-2">
@@ -3515,7 +3515,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                     </td>
                   </tr>
                   <tr v-if="filteredBranches.length === 0">
-                    <td colspan="7" class="text-center py-8 text-gray-500">
+                    <td colspan="7" class="text-center py-8 text-parlor-neutral-600">
                       No branch locations found matching your search criteria.
                     </td>
                   </tr>
@@ -3552,17 +3552,17 @@ function togglePolicyActive(p: VenuePolicyItem) {
               </div>
               <div class="analytics-card">
                 <span class="analytics-label">AVAILABLE</span>
-                <div class="analytics-value text-emerald-700">{{ tableCountAvailable }}</div>
+                <div class="analytics-value text-parlor-success-700">{{ tableCountAvailable }}</div>
                 <span class="analytics-sub">Ready for walk-in / booking</span>
               </div>
               <div class="analytics-card">
                 <span class="analytics-label">RESERVED</span>
-                <div class="analytics-value text-blue-700">{{ tableCountReserved }}</div>
+                <div class="analytics-value text-parlor-info-700">{{ tableCountReserved }}</div>
                 <span class="analytics-sub">Scheduled for guests</span>
               </div>
               <div class="analytics-card">
                 <span class="analytics-label">OCCUPIED</span>
-                <div class="analytics-value text-amber-700">{{ tableCountOccupied }}</div>
+                <div class="analytics-value text-parlor-warning-700">{{ tableCountOccupied }}</div>
                 <span class="analytics-sub">Currently playing</span>
               </div>
             </div>
@@ -3611,17 +3611,17 @@ function togglePolicyActive(p: VenuePolicyItem) {
                 <tbody>
                   <tr v-for="tbl in filteredPhysicalTables" :key="tbl.id">
                     <td>
-                      <div class="font-bold text-gray-900">{{ tbl.name }}</div>
-                      <div class="text-xs text-gray-500 font-mono">{{ tbl.id }}</div>
+                      <div class="font-bold text-parlor-neutral-800">{{ tbl.name }}</div>
+                      <div class="text-xs text-parlor-neutral-600 font-mono">{{ tbl.id }}</div>
                     </td>
                     <td>
-                      <span class="text-sm text-gray-700">{{ tbl.branchName }}</span>
+                      <span class="text-sm text-parlor-neutral-800">{{ tbl.branchName }}</span>
                     </td>
                     <td>
-                      <span class="font-semibold text-gray-900">{{ tbl.capacity }} Seats</span>
+                      <span class="font-semibold text-parlor-neutral-800">{{ tbl.capacity }} Seats</span>
                     </td>
                     <td>
-                      <span class="px-2 py-0.5 rounded text-xs bg-gray-100 border border-gray-300 font-medium">
+                      <span class="px-2 py-0.5 rounded text-xs bg-parlor-neutral-100 border border-parlor-neutral-300 font-medium">
                         {{ tbl.shape }}
                       </span>
                     </td>
@@ -3629,17 +3629,17 @@ function togglePolicyActive(p: VenuePolicyItem) {
                       <span
                         class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider"
                         :class="{
-                          'bg-emerald-100 text-emerald-800 border border-emerald-300': tbl.status === 'Available',
-                          'bg-blue-100 text-blue-800 border border-blue-300': tbl.status === 'Reserved',
-                          'bg-amber-100 text-amber-800 border border-amber-300': tbl.status === 'Occupied',
-                          'bg-gray-200 text-gray-700 border border-gray-300': tbl.status === 'Unavailable'
+                          'bg-parlor-success-100 text-parlor-success-700 border border-parlor-success-300': tbl.status === 'Available',
+                          'bg-parlor-info-100 text-parlor-info-700 border border-parlor-info-300': tbl.status === 'Reserved',
+                          'bg-parlor-warning-100 text-parlor-warning-700 border border-parlor-warning-300': tbl.status === 'Occupied',
+                          'bg-parlor-neutral-150 text-parlor-neutral-800 border border-parlor-neutral-300': tbl.status === 'Unavailable'
                         }"
                       >
                         {{ tbl.status }}
                       </span>
                     </td>
                     <td>
-                      <span class="text-xs text-gray-500">{{ tbl.lastUpdated }}</span>
+                      <span class="text-xs text-parlor-neutral-600">{{ tbl.lastUpdated }}</span>
                     </td>
                     <td class="text-right">
                       <div class="flex items-center justify-end gap-2">
@@ -3649,7 +3649,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                     </td>
                   </tr>
                   <tr v-if="filteredPhysicalTables.length === 0">
-                    <td colspan="7" class="text-center py-8 text-gray-500">
+                    <td colspan="7" class="text-center py-8 text-parlor-neutral-600">
                       No tables found matching your search/filter criteria.
                     </td>
                   </tr>
@@ -3694,20 +3694,20 @@ function togglePolicyActive(p: VenuePolicyItem) {
                 </div>
                 <div class="staff-card-body">
                   <div class="mb-2">
-                    <label class="block text-xs font-semibold text-gray-700 mb-0.5">Assigned Shift:</label>
+                    <label class="block text-xs font-semibold text-parlor-neutral-800 mb-0.5">Assigned Shift:</label>
                     <select v-model="staff.shift" class="parlor-select text-xs w-full py-1">
                       <option v-for="s in shiftOptions" :key="s" :value="s">{{ s }}</option>
                     </select>
                   </div>
-                  <p class="text-xs text-gray-600 mb-2"><strong>Station / Area:</strong> {{ staff.assignedZone }}</p>
-                  <div class="flex items-center justify-between pt-2 border-t border-gray-100">
+                  <p class="text-xs text-parlor-neutral-600 mb-2"><strong>Station / Area:</strong> {{ staff.assignedZone }}</p>
+                  <div class="flex items-center justify-between pt-2 border-t border-parlor-neutral-100">
                     <div class="duty-status-row !mt-0">
-                      <span :class="staff.status === 'ON_DUTY' ? 'pulse-green' : staff.status === 'ON_BREAK' ? 'w-2 h-2 rounded-full bg-amber-500' : 'w-2 h-2 rounded-full bg-gray-400'"></span>
-                      <span class="duty-lbl" :class="staff.status === 'ON_DUTY' ? 'text-emerald-700' : staff.status === 'ON_BREAK' ? 'text-amber-700' : 'text-gray-500'">
+                      <span :class="staff.status === 'ON_DUTY' ? 'pulse-green' : staff.status === 'ON_BREAK' ? 'w-2 h-2 rounded-full bg-parlor-warning-600' : 'w-2 h-2 rounded-full bg-parlor-neutral-400'"></span>
+                      <span class="duty-lbl" :class="staff.status === 'ON_DUTY' ? 'text-parlor-success-700' : staff.status === 'ON_BREAK' ? 'text-parlor-warning-700' : 'text-parlor-neutral-600'">
                         {{ staff.status === 'ON_DUTY' ? 'On Duty' : staff.status === 'ON_BREAK' ? 'On Break' : 'Off Duty' }}
                       </span>
                     </div>
-                    <select v-model="staff.status" class="text-xs border border-gray-300 rounded px-1.5 py-0.5 bg-white text-gray-700">
+                    <select v-model="staff.status" class="text-xs border border-parlor-neutral-300 rounded px-1.5 py-0.5 bg-white text-parlor-neutral-800">
                       <option value="ON_DUTY">On Duty</option>
                       <option value="ON_BREAK">On Break</option>
                       <option value="OFF_DUTY">Off Duty</option>
@@ -3818,7 +3818,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                     <div class="flex items-center gap-2 mb-1.5 flex-wrap">
                       <h3 class="policy-card-title !mb-0">{{ policy.title }}</h3>
                       <span class="category-tag">{{ policy.category }}</span>
-                      <span v-if="policy.metric" class="px-2 py-0.5 rounded text-xs bg-amber-50 text-amber-900 border border-amber-200 font-semibold font-mono">
+                      <span v-if="policy.metric" class="px-2 py-0.5 rounded text-xs bg-parlor-warning-100 text-parlor-warning-700 border border-parlor-warning-300 font-semibold font-mono">
                         {{ policy.metric }}
                       </span>
                     </div>
@@ -3830,7 +3830,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                     <button
                       type="button"
                       class="px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer border transition-colors"
-                      :class="policy.active ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-gray-100 text-gray-500 border-gray-300'"
+                      :class="policy.active ? 'bg-parlor-success-100 text-parlor-success-700 border-parlor-success-300' : 'bg-parlor-neutral-100 text-parlor-neutral-600 border-parlor-neutral-300'"
                       @click="togglePolicyActive(policy)"
                     >
                       {{ policy.active ? 'Active & Enforced' : 'Inactive' }}
@@ -3844,7 +3844,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
                   </div>
                 </div>
               </article>
-              <div v-if="venuePoliciesList.length === 0" class="text-center py-8 text-gray-500 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+              <div v-if="venuePoliciesList.length === 0" class="text-center py-8 text-parlor-neutral-600 bg-parlor-page rounded-xl border border-dashed border-parlor-neutral-300">
                 No venue operational policies configured. Click "+ Add Policy" to create one.
               </div>
             </div>
@@ -3870,7 +3870,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
             <!-- Alert if no tables are currently eligible -->
             <div v-if="eligibleTablesForGame.length === 0" class="rule-warning-box">
               <span class="gold-bullet inline-flex items-center">
-                <svg class="w-4 h-4 text-amber-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg class="w-4 h-4 text-parlor-warning-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
                   <line x1="12" y1="9" x2="12" y2="13"/>
                   <line x1="12" y1="17" x2="12.01" y2="17"/>
@@ -4444,7 +4444,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
             </div>
 
             <div class="form-group mt-3">
-              <label class="field-label font-bold text-gray-800">Daily Operating Hours</label>
+              <label class="field-label font-bold text-parlor-neutral-800">Daily Operating Hours</label>
               <div class="operating-hours-editor mt-1">
                 <div class="day-hours-row">
                   <span class="day-label">Monday – Friday</span>
@@ -4781,23 +4781,23 @@ function togglePolicyActive(p: VenuePolicyItem) {
 <style scoped>
 /* ========================================================= */
 /* THE PARLOR CENTRAL MANAGEMENT CONSOLE STYLES              */
-/* Palette: Deep Forest Green (#142b20), Champagne Gold      */
-/* (#c6ad7a / #ffd98a), and Crisp White (#ffffff) blocks    */
+/* Palette: Deep Forest Green (var(--color-parlor-green-900)), Champagne Gold      */
+/* (var(--color-parlor-gold-500) / var(--color-parlor-gold-300)), and Crisp White (var(--color-parlor-white)) blocks    */
 /* ========================================================= */
 
 .gl-admin-layout {
   display: flex;
   min-height: 100vh;
-  background-color: #142b20;
+  background-color: var(--color-parlor-green-900);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 /* SIDEBAR */
 .gl-sidebar {
   width: 220px;
-  background: #0d1e16;
-  border-right: 1.5px solid #234635;
+  background: var(--color-parlor-green-950);
+  border-right: 1.5px solid var(--color-parlor-green-800);
   display: flex;
   flex-direction: column;
   padding: 18px 12px;
@@ -4855,13 +4855,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-size: 9.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
 }
 
 .brand-name {
   font-size: 16px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--color-parlor-white);
   letter-spacing: -0.01em;
 }
 
@@ -4869,7 +4869,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   background: transparent;
   border: none;
   font-size: 11px;
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   text-align: left;
   padding: 6px 10px;
   margin-bottom: 16px;
@@ -4883,8 +4883,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .sidebar-collapse-btn:hover {
-  color: #ffd98a;
-  background: rgba(35, 70, 53, 0.35);
+  color: var(--color-parlor-gold-300);
+  background: color-mix(in srgb, var(--color-parlor-green-800) 35%, transparent);
 }
 
 .collapse-icon-box {
@@ -4934,7 +4934,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: thin;
-  scrollbar-color: #234635 transparent;
+  scrollbar-color: var(--color-parlor-green-800) transparent;
 }
 
 .nav-section-title {
@@ -4945,7 +4945,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   white-space: nowrap;
   overflow: hidden;
   max-height: 36px;
@@ -4969,15 +4969,15 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-size: 9px;
   padding: 1px 5px;
   border-radius: 10px;
-  background: #1e3a2b;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-green-850);
+  color: var(--color-parlor-gold-300);
+  border: 1px solid var(--color-parlor-gold-500);
 }
 
 .role-pill-tiny.admin {
-  background: #3b2a1a;
-  color: #ffd98a;
-  border-color: #ffd98a;
+  background: var(--color-parlor-neutral-800);
+  color: var(--color-parlor-gold-300);
+  border-color: var(--color-parlor-gold-300);
 }
 
 .nav-item {
@@ -4988,7 +4988,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #d1c7b7;
+  color: var(--color-parlor-neutral-300);
   text-decoration: none;
   position: relative;
   box-sizing: border-box;
@@ -5000,15 +5000,15 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .nav-item:hover {
-  background: #1b3829;
-  color: #ffffff;
+  background: var(--color-parlor-green-850);
+  color: var(--color-parlor-white);
 }
 
 .nav-item.active {
-  background: #234635;
-  color: #ffd98a;
+  background: var(--color-parlor-green-800);
+  color: var(--color-parlor-gold-300);
   font-weight: 700;
-  border-left-color: #c6ad7a;
+  border-left-color: var(--color-parlor-gold-500);
 }
 
 .nav-icon-box {
@@ -5049,8 +5049,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .nav-badge-gold {
   margin-left: auto;
-  background: #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   font-size: 10.5px;
   font-weight: 700;
   border-radius: 10px;
@@ -5072,13 +5072,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .nav-divider {
   height: 1px;
-  background: #234635;
+  background: var(--color-parlor-green-800);
   margin: 10px 0;
   transition: margin 0.25s ease;
 }
 
 .sidebar-footer {
-  border-top: 1.5px solid #234635;
+  border-top: 1.5px solid var(--color-parlor-green-800);
   padding-top: 14px;
   display: flex;
   flex-direction: column;
@@ -5113,9 +5113,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: #142b20;
-  color: #ffd98a;
-  border: 1.5px solid #c6ad7a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1.5px solid var(--color-parlor-gold-500);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5132,7 +5132,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .user-name {
   font-size: 12.5px;
-  color: #ffffff;
+  color: var(--color-parlor-white);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5140,13 +5140,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .user-role-label {
   font-size: 10.5px;
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
 }
 
 .btn-signout {
   background: transparent;
-  border: 1px solid #365b45;
-  color: #d1c7b7;
+  border: 1px solid var(--color-parlor-green-600);
+  color: var(--color-parlor-neutral-300);
   border-radius: 6px;
   padding: 5px 8px;
   font-size: 11px;
@@ -5157,9 +5157,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-signout:hover {
-  background: #1e3a2b;
-  color: #ffd98a;
-  border-color: #c6ad7a;
+  background: var(--color-parlor-green-850);
+  color: var(--color-parlor-gold-300);
+  border-color: var(--color-parlor-gold-500);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -5186,8 +5186,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .gl-topbar {
   height: 60px;
-  background: #142b20;
-  border-bottom: 1.5px solid #284c37;
+  background: var(--color-parlor-green-900);
+  border-bottom: 1.5px solid var(--color-parlor-green-700);
   padding: 0 28px;
   display: flex;
   align-items: center;
@@ -5205,15 +5205,15 @@ function togglePolicyActive(p: VenuePolicyItem) {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #1b3829;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-green-850);
+  border: 1px solid var(--color-parlor-gold-500);
   border-radius: 20px;
   padding: 4px 12px;
 }
 
 .pin-icon {
   font-size: 11px;
-  color: #ffd98a;
+  color: var(--color-parlor-gold-300);
 }
 
 .branch-select {
@@ -5221,62 +5221,62 @@ function togglePolicyActive(p: VenuePolicyItem) {
   background: transparent;
   font-size: 12.5px;
   font-weight: 700;
-  color: #ffd98a;
+  color: var(--color-parlor-gold-300);
   outline: none;
   cursor: pointer;
 }
 
 .branch-select option {
-  background: #142b20;
-  color: #ffffff;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-white);
 }
 
 .console-role-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #0d1e16;
-  border: 1px solid #335942;
+  background: var(--color-parlor-green-950);
+  border: 1px solid var(--color-parlor-green-600);
   border-radius: 20px;
   padding: 4px 10px;
   font-size: 11.5px;
   font-weight: 700;
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
 }
 
 .pulse-indicator {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #10b981;
+  background: var(--color-parlor-success-500);
 }
 
 .topbar-search {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #0e1e16;
-  border: 1px solid #284c37;
+  background: var(--color-parlor-green-950);
+  border: 1px solid var(--color-parlor-green-700);
   border-radius: 20px;
   padding: 6px 14px;
   width: 320px;
 }
 
 .search-icon {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
 }
 
 .topbar-search-input {
   border: none;
   background: transparent;
   font-size: 13px;
-  color: #ffffff;
+  color: var(--color-parlor-white);
   outline: none;
   width: 100%;
 }
 
 .topbar-search-input::placeholder {
-  color: #7b8c82;
+  color: var(--color-parlor-neutral-500);
 }
 
 .topbar-actions {
@@ -5289,20 +5289,20 @@ function togglePolicyActive(p: VenuePolicyItem) {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  border: 1px solid #335942;
-  background: #1b3829;
+  border: 1px solid var(--color-parlor-green-600);
+  background: var(--color-parlor-green-850);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ffd98a;
+  color: var(--color-parlor-gold-300);
   cursor: pointer;
   text-decoration: none;
   transition: all 0.12s ease;
 }
 
 .icon-circle-btn:hover {
-  background: #234635;
-  border-color: #c6ad7a;
+  background: var(--color-parlor-green-800);
+  border-color: var(--color-parlor-gold-500);
 }
 
 .mobile-menu-toggle {
@@ -5310,9 +5310,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
   align-items: center;
   justify-content: center;
   background: transparent;
-  border: 1.5px solid #335942;
+  border: 1.5px solid var(--color-parlor-green-600);
   border-radius: 8px;
-  color: #ffd98a;
+  color: var(--color-parlor-gold-300);
   width: 36px;
   height: 36px;
   cursor: pointer;
@@ -5321,8 +5321,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .mobile-menu-toggle:hover {
-  background: #1b3829;
-  border-color: #c6ad7a;
+  background: var(--color-parlor-green-850);
+  border-color: var(--color-parlor-gold-500);
 }
 
 .sidebar-mobile-overlay {
@@ -5333,9 +5333,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
   width: 34px;
   height: 34px;
   border-radius: 8px;
-  background: #142b20;
-  border: 1.5px solid #c6ad7a;
-  color: #ffd98a;
+  background: var(--color-parlor-green-900);
+  border: 1.5px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-gold-300);
   font-size: 12px;
   font-weight: 700;
   display: flex;
@@ -5353,11 +5353,11 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .console-block {
-  background: #ffffff;
-  border: 1.5px solid #c6ad7a;
+  background: var(--color-parlor-white);
+  border: 1.5px solid var(--color-parlor-gold-500);
   border-radius: 16px;
   padding: 24px 26px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-parlor-green-950) 25%, transparent);
 }
 
 /* Hero Block */
@@ -5374,12 +5374,12 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .gold-sparkle {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   font-size: 14px;
 }
 
 .gold-bullet {
-  color: #c6ad7a;
+  color: var(--color-parlor-gold-500);
   font-size: 12px;
 }
 
@@ -5387,7 +5387,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
 }
 
 .title-row {
@@ -5401,16 +5401,16 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 26px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .live-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #eef7f2;
-  color: #142b20;
-  border: 1px solid #a7d3bc;
+  background: var(--color-parlor-success-100);
+  color: var(--color-parlor-green-900);
+  border: 1px solid var(--color-parlor-success-300);
   font-size: 11px;
   font-weight: 700;
   padding: 3px 10px;
@@ -5421,13 +5421,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #10b981;
+  background: var(--color-parlor-success-500);
 }
 
 .hero-subtitle {
   margin: 0 0 10px;
   font-size: 14px;
-  color: #554e42;
+  color: var(--color-parlor-neutral-600);
 }
 
 .hero-actions-bar {
@@ -5436,28 +5436,28 @@ function togglePolicyActive(p: VenuePolicyItem) {
   gap: 10px;
   flex-wrap: wrap;
   padding-top: 10px;
-  border-top: 1px solid #f0e9df;
+  border-top: 1px solid var(--color-parlor-neutral-150);
 }
 
 .btn-primary-parlor {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #142b20;
-  color: #ffd98a;
-  border: 1.5px solid #c6ad7a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1.5px solid var(--color-parlor-gold-500);
   border-radius: 20px;
   padding: 8px 20px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 3px 8px rgba(20, 43, 32, 0.25);
+  box-shadow: 0 3px 8px color-mix(in srgb, var(--color-parlor-green-900) 25%, transparent);
   transition: all 0.12s ease;
 }
 
 .btn-primary-parlor:hover {
-  background: #1b3829;
-  border-color: #ffd98a;
+  background: var(--color-parlor-green-850);
+  border-color: var(--color-parlor-gold-300);
 }
 
 .btn-primary-parlor.small {
@@ -5474,9 +5474,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #ffffff;
-  border: 1.5px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-white);
+  border: 1.5px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   border-radius: 20px;
   padding: 8px 18px;
   font-size: 13px;
@@ -5486,7 +5486,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-secondary-parlor:hover {
-  background: #fbf6ec;
+  background: var(--color-parlor-neutral-100);
 }
 
 .btn-secondary-parlor.small {
@@ -5503,16 +5503,16 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .updated-time {
   font-size: 12px;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
 }
 
 .btn-refresh-parlor {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   border-radius: 20px;
   padding: 5px 12px;
   font-size: 12px;
@@ -5521,7 +5521,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-refresh-parlor:hover {
-  background: #fbf6ec;
+  background: var(--color-parlor-neutral-100);
 }
 
 /* 4-Column Metric Ribbon Block */
@@ -5535,7 +5535,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   display: flex;
   flex-direction: column;
   padding: 0 16px;
-  border-right: 1px solid #f0e9df;
+  border-right: 1px solid var(--color-parlor-neutral-150);
 }
 
 .num-col:last-child {
@@ -5546,14 +5546,14 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
   margin-bottom: 2px;
 }
 
 .col-value {
   font-size: 24px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   line-height: 1.2;
 }
 
@@ -5566,17 +5566,17 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .progress-seg {
   height: 5px;
   flex: 1;
-  background: #e6dfd3;
+  background: var(--color-parlor-neutral-300);
   border-radius: 2px;
 }
 
 .progress-seg.active {
-  background: #142b20;
+  background: var(--color-parlor-green-900);
 }
 
 .col-sub {
   font-size: 12px;
-  color: #554e42;
+  color: var(--color-parlor-neutral-600);
 }
 
 /* Needs You Now Queue */
@@ -5599,16 +5599,16 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 19px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .needs-count-pill {
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1px solid var(--color-parlor-gold-500);
   font-size: 11px;
   font-weight: 700;
   display: flex;
@@ -5619,7 +5619,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .most-urgent {
   font-size: 11.5px;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
 }
 
 .needs-items-list {
@@ -5634,9 +5634,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
   justify-content: space-between;
   gap: 16px;
   padding: 12px 16px;
-  border: 1.5px solid #e6dfd3;
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 12px;
-  background: #fdfcf9;
+  background: var(--color-parlor-page);
 }
 
 .needs-item-left {
@@ -5649,9 +5649,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
   width: 36px;
   height: 36px;
   border-radius: 8px;
-  background: #fbf6ec;
-  border: 1px solid #c6ad7a;
-  color: #8c7649;
+  background: var(--color-parlor-neutral-100);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-gold-700);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5660,13 +5660,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .needs-item-title {
   font-size: 14px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .needs-item-sub {
   margin: 2px 0 0;
   font-size: 12.5px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
 }
 
 .needs-item-actions {
@@ -5676,9 +5676,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-gold-pill {
-  background: #fbf6ec;
-  border: 1.5px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-neutral-100);
+  border: 1.5px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   border-radius: 18px;
   padding: 5px 12px;
   font-size: 12px;
@@ -5687,7 +5687,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-gold-pill:hover {
-  background: #f4ecdc;
+  background: var(--color-parlor-neutral-100);
 }
 
 /* Two-Column Lower Split */
@@ -5703,7 +5703,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   align-items: center;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1.5px solid #e6dfd3;
+  border-bottom: 1.5px solid var(--color-parlor-neutral-300);
 }
 
 .header-left {
@@ -5717,24 +5717,24 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 20px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .live-tag {
   font-size: 11px;
   font-weight: 700;
-  color: #10b981;
+  color: var(--color-parlor-success-500);
 }
 
 .usage-text, .timeline-span {
   font-size: 12px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
 }
 
 .count-bubble {
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1px solid var(--color-parlor-gold-500);
   font-size: 11px;
   font-weight: 700;
   padding: 2px 8px;
@@ -5755,13 +5755,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .floor-table-tile {
-  border: 1.5px solid #e6dfd3;
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 12px;
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: #ffffff;
+  background: var(--color-parlor-white);
   transition: all 0.12s ease;
 }
 
@@ -5770,18 +5770,18 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .floor-table-tile.free {
-  border-color: #10b981;
-  background: #f0fdf4;
+  border-color: var(--color-parlor-success-500);
+  background: var(--color-parlor-success-100);
 }
 
 .floor-table-tile.occupied {
-  border-color: #c6ad7a;
-  background: #fffdfa;
+  border-color: var(--color-parlor-gold-500);
+  background: var(--color-parlor-white);
 }
 
 .floor-table-tile.reserved {
-  border-color: #94a3b8;
-  background: #f8fafc;
+  border-color: var(--color-parlor-neutral-500);
+  background: var(--color-parlor-page);
 }
 
 .tile-top-row {
@@ -5793,18 +5793,18 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .table-num-lbl {
   font-size: 15px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .table-seats-lbl {
   font-size: 11.5px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
 }
 
 /* Assigned Game Chips on Tables */
 .tile-assigned-games-box {
-  background: #fbf6ec;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-neutral-100);
+  border: 1px solid var(--color-parlor-gold-500);
   border-radius: 8px;
   padding: 6px 8px;
   margin: 4px 0;
@@ -5821,7 +5821,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
   display: block;
 }
 
@@ -5835,8 +5835,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #142b20;
-  color: #ffd98a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
   font-size: 11px;
   font-weight: 700;
   padding: 2px 7px;
@@ -5846,7 +5846,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .btn-chip-unassign {
   background: transparent;
   border: none;
-  color: #ffd98a;
+  color: var(--color-parlor-gold-300);
   cursor: pointer;
   font-size: 10px;
   padding: 0;
@@ -5856,13 +5856,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .btn-chip-unassign:hover {
   opacity: 1;
-  color: #ef4444;
+  color: var(--color-parlor-danger-600);
 }
 
 .btn-tile-assign-game {
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   font-size: 10.5px;
   font-weight: 700;
   padding: 2px 8px;
@@ -5871,7 +5871,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-tile-assign-game:hover {
-  background: #fbf6ec;
+  background: var(--color-parlor-neutral-100);
 }
 
 .btn-tile-assign-game.small {
@@ -5881,7 +5881,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .no-game-text {
   font-size: 11px;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
   font-style: italic;
 }
 
@@ -5901,28 +5901,28 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .state-badge.badge-free {
-  background: #dcfce7;
-  color: #142b20;
-  border: 1px solid #16a34a;
+  background: var(--color-parlor-success-100);
+  color: var(--color-parlor-green-900);
+  border: 1px solid var(--color-parlor-success-500);
 }
 
 .state-badge.badge-occupied {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-warning-100);
+  color: var(--color-parlor-warning-700);
+  border: 1px solid var(--color-parlor-gold-500);
 }
 
 .state-badge.badge-reserved {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
+  background: var(--color-parlor-neutral-100);
+  color: var(--color-parlor-neutral-600);
+  border: 1px solid var(--color-parlor-neutral-300);
 }
 
 .tile-time-pill {
   font-size: 10px;
   font-weight: 700;
-  background: #f4ecdc;
-  color: #142b20;
+  background: var(--color-parlor-neutral-100);
+  color: var(--color-parlor-green-900);
   padding: 2px 6px;
   border-radius: 10px;
 }
@@ -5931,7 +5931,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   margin: 0;
   font-size: 13.5px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -5945,11 +5945,11 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .tile-helper, .tile-sub-info, .tile-due-time {
   margin: 0;
   font-size: 11.5px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
 }
 
 .tile-due-time {
-  color: #475569;
+  color: var(--color-parlor-neutral-600);
 }
 
 .tile-action-link {
@@ -5957,7 +5957,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   border: none;
   font-size: 11.5px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   cursor: pointer;
   text-align: left;
   padding: 4px 0 0;
@@ -5972,9 +5972,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .tile-btn-small {
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   border-radius: 6px;
   padding: 4px 6px;
   font-size: 11px;
@@ -5983,9 +5983,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .tile-btn-assign {
-  background: #fbf6ec;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-neutral-100);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   border-radius: 6px;
   padding: 4px 6px;
   font-size: 11px;
@@ -5994,9 +5994,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .tile-btn-gold {
-  background: #142b20;
-  border: 1px solid #c6ad7a;
-  color: #ffd98a;
+  background: var(--color-parlor-green-900);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-gold-300);
   border-radius: 6px;
   padding: 4px 10px;
   font-size: 11px;
@@ -6009,19 +6009,19 @@ function togglePolicyActive(p: VenuePolicyItem) {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #fbf6ec;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-neutral-100);
+  border: 1px solid var(--color-parlor-gold-500);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 11.5px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
   margin-bottom: 12px;
 }
 
 .empty-timeline {
   text-align: center;
   padding: 28px 16px;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
   font-size: 13px;
 }
 
@@ -6034,8 +6034,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .timeline-card {
   display: flex;
   gap: 14px;
-  background: #fdfcf9;
-  border: 1.5px solid #e6dfd3;
+  background: var(--color-parlor-page);
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 12px;
   padding: 12px 14px;
 }
@@ -6049,7 +6049,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .time-bold {
   font-size: 13.5px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .timeline-card-content {
@@ -6068,17 +6068,17 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .timeline-guest-name {
   font-size: 13.5px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .party-tag, .table-tag {
   font-size: 12px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
 }
 
 .table-tag {
-  background: #f4ecdc;
-  color: #142b20;
+  background: var(--color-parlor-neutral-100);
+  color: var(--color-parlor-green-900);
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 6px;
@@ -6092,9 +6092,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-parlor-pill {
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   border-radius: 14px;
   padding: 3px 10px;
   font-size: 11.5px;
@@ -6106,7 +6106,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   background: transparent;
   border: none;
   font-size: 11.5px;
-  color: #991b1b;
+  color: var(--color-parlor-danger-700);
   cursor: pointer;
   text-decoration: underline;
   padding: 0 4px;
@@ -6119,7 +6119,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   align-items: flex-start;
   margin-bottom: 20px;
   padding-bottom: 16px;
-  border-bottom: 1.5px solid #e6dfd3;
+  border-bottom: 1.5px solid var(--color-parlor-neutral-300);
   gap: 16px;
   flex-wrap: wrap;
 }
@@ -6128,7 +6128,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
   margin-bottom: 4px;
 }
 
@@ -6137,13 +6137,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 22px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .view-subtitle {
   margin: 0;
   font-size: 13.5px;
-  color: #554e42;
+  color: var(--color-parlor-neutral-600);
 }
 
 .header-mgmt-actions {
@@ -6154,9 +6154,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .role-pill-gold {
-  background: #fbf6ec;
-  border: 1.5px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-neutral-100);
+  border: 1.5px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   font-size: 11.5px;
   font-weight: 700;
   padding: 4px 12px;
@@ -6164,8 +6164,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .role-pill-gold.admin {
-  background: #142b20;
-  color: #ffd98a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
 }
 
 /* Parlor Table */
@@ -6178,23 +6178,23 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .parlor-table th {
   text-align: left;
   padding: 10px 14px;
-  background: #fbf9f4;
-  color: #8c7649;
+  background: var(--color-parlor-page);
+  color: var(--color-parlor-gold-700);
   font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  border-bottom: 1.5px solid #e6dfd3;
+  border-bottom: 1.5px solid var(--color-parlor-neutral-300);
 }
 
 .parlor-table td {
   padding: 12px 14px;
-  border-bottom: 1px solid #f0e9df;
-  color: #142b20;
+  border-bottom: 1px solid var(--color-parlor-neutral-150);
+  color: var(--color-parlor-green-900);
 }
 
 .table-badge {
-  background: #f4ecdc;
-  color: #142b20;
+  background: var(--color-parlor-neutral-100);
+  color: var(--color-parlor-green-900);
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 6px;
@@ -6215,9 +6215,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-assign-mini {
-  background: #fbf6ec;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-neutral-100);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   font-size: 10.5px;
   font-weight: 700;
   padding: 2px 7px;
@@ -6226,8 +6226,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .time-elapsed-badge {
-  background: #dcfce7;
-  color: #142b20;
+  background: var(--color-parlor-success-100);
+  color: var(--color-parlor-green-900);
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 12px;
@@ -6235,7 +6235,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .fee-text {
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   font-size: 14px;
 }
 
@@ -6252,11 +6252,11 @@ function togglePolicyActive(p: VenuePolicyItem) {
   border-radius: 6px;
 }
 
-.status-tag.confirmed { background: #dcfce7; color: #15803d; }
-.status-tag.checked_in { background: #fef3c7; color: #92400e; }
-.status-tag.completed { background: #f1f5f9; color: #475569; }
-.status-tag.cancelled { background: #fee2e2; color: #991b1b; }
-.status-tag.no_show { background: #fee2e2; color: #991b1b; }
+.status-tag.confirmed { background: var(--color-parlor-success-100); color: var(--color-parlor-success-700); }
+.status-tag.checked_in { background: var(--color-parlor-warning-100); color: var(--color-parlor-warning-700); }
+.status-tag.completed { background: var(--color-parlor-neutral-100); color: var(--color-parlor-neutral-600); }
+.status-tag.cancelled { background: var(--color-parlor-danger-100); color: var(--color-parlor-danger-700); }
+.status-tag.no_show { background: var(--color-parlor-danger-100); color: var(--color-parlor-danger-700); }
 
 /* Game Library Ribbon & Cards */
 .library-filter-ribbon {
@@ -6266,9 +6266,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .filter-pill {
-  background: #ffffff;
-  border: 1.5px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-white);
+  border: 1.5px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   border-radius: 20px;
   padding: 6px 14px;
   font-size: 12px;
@@ -6277,8 +6277,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .filter-pill.active {
-  background: #142b20;
-  color: #ffd98a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
 }
 
 .games-library-grid {
@@ -6288,13 +6288,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .game-catalog-card {
-  border: 1.5px solid #e6dfd3;
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 12px;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  background: #ffffff;
+  background: var(--color-parlor-white);
   position: relative;
 }
 
@@ -6311,15 +6311,15 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .game-status-strip.avail {
-  background: #f0fdf4;
-  color: #15803d;
-  border: 1px solid #16a34a;
+  background: var(--color-parlor-success-100);
+  color: var(--color-parlor-success-700);
+  border: 1px solid var(--color-parlor-success-500);
 }
 
 .game-status-strip.unavail {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #dc2626;
+  background: var(--color-parlor-danger-100);
+  color: var(--color-parlor-danger-700);
+  border: 1px solid var(--color-parlor-danger-600);
 }
 
 .status-dot {
@@ -6330,9 +6330,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-return-shelf {
-  background: #fef2f2;
-  border: 1.5px solid #dc2626;
-  color: #991b1b;
+  background: var(--color-parlor-danger-100);
+  border: 1.5px solid var(--color-parlor-danger-600);
+  color: var(--color-parlor-danger-700);
   border-radius: 16px;
   padding: 6px 12px;
   font-size: 12px;
@@ -6342,7 +6342,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-return-shelf:hover {
-  background: #fee2e2;
+  background: var(--color-parlor-danger-100);
 }
 
 .game-card-header {
@@ -6356,14 +6356,14 @@ function togglePolicyActive(p: VenuePolicyItem) {
   margin: 0;
   font-size: 16px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .game-difficulty-pill {
   font-size: 10.5px;
   font-weight: 700;
-  background: #f4ecdc;
-  color: #142b20;
+  background: var(--color-parlor-neutral-100);
+  color: var(--color-parlor-green-900);
   padding: 2px 6px;
   border-radius: 6px;
 }
@@ -6371,7 +6371,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .game-designer {
   margin: 0;
   font-size: 12px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
 }
 
 .game-meta-row {
@@ -6379,14 +6379,14 @@ function togglePolicyActive(p: VenuePolicyItem) {
   gap: 12px;
   font-size: 11.5px;
   font-weight: 600;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   margin: 4px 0;
 }
 
 .game-desc {
   margin: 0;
   font-size: 12px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
   line-height: 1.4;
   flex: 1;
 }
@@ -6400,12 +6400,12 @@ function togglePolicyActive(p: VenuePolicyItem) {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
+  background: var(--color-parlor-warning-100);
+  border: 1px solid var(--color-parlor-warning-300);
   border-radius: 8px;
   padding: 10px 12px;
   font-size: 12px;
-  color: #92400e;
+  color: var(--color-parlor-warning-700);
   margin-bottom: 12px;
   line-height: 1.4;
 }
@@ -6423,22 +6423,22 @@ function togglePolicyActive(p: VenuePolicyItem) {
   justify-content: space-between;
   align-items: center;
   padding: 8px 12px;
-  border: 1.5px solid #e6dfd3;
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 8px;
   cursor: pointer;
-  background: #ffffff;
+  background: var(--color-parlor-white);
 }
 
 .modal-game-choice-row.selected {
-  border-color: #c6ad7a;
-  background: #fbf6ec;
+  border-color: var(--color-parlor-gold-500);
+  background: var(--color-parlor-neutral-100);
 }
 
 .modal-game-choice-row.in-use {
   opacity: 0.55;
   cursor: not-allowed;
-  border-color: #fca5a5;
-  background: #fff5f5;
+  border-color: var(--color-parlor-danger-300);
+  background: var(--color-parlor-danger-100);
 }
 
 .game-choice-info {
@@ -6448,12 +6448,12 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .game-choice-name {
   font-size: 13px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .game-choice-sub {
   font-size: 11px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
 }
 
 .mini-status-tag {
@@ -6464,21 +6464,21 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .mini-status-tag.avail {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--color-parlor-success-100);
+  color: var(--color-parlor-success-700);
 }
 
 .mini-status-tag.unavail {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--color-parlor-danger-100);
+  color: var(--color-parlor-danger-700);
 }
 
 /* Table choice pill states in Assign Modal */
 .tbl-choice-pill.disabled {
   opacity: 0.45;
   cursor: not-allowed;
-  background: #f3f4f6;
-  border-color: #d1d5db;
+  background: var(--color-parlor-neutral-100);
+  border-color: var(--color-parlor-neutral-300);
 }
 
 .pill-reason {
@@ -6487,12 +6487,12 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .pill-reason.has-game {
-  color: #b45309;
+  color: var(--color-parlor-warning-600);
   font-weight: 700;
 }
 
 .pill-reason.ready {
-  color: #15803d;
+  color: var(--color-parlor-success-700);
   font-weight: 700;
 }
 
@@ -6507,8 +6507,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .stock-stat-box {
-  background: #fdfcf9;
-  border: 1.5px solid #e6dfd3;
+  background: var(--color-parlor-page);
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 12px;
   padding: 16px;
   display: flex;
@@ -6519,24 +6519,24 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
 }
 
 .stat-num {
   font-size: 24px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   line-height: 1.2;
   margin: 6px 0 2px;
 }
 
-.stat-num.text-green { color: #15803d; }
-.stat-num.text-amber { color: #b45309; }
-.stat-num.text-red { color: #b91c1c; }
+.stat-num.text-green { color: var(--color-parlor-success-700); }
+.stat-num.text-amber { color: var(--color-parlor-warning-600); }
+.stat-num.text-red { color: var(--color-parlor-danger-700); }
 
 .stat-sub {
   font-size: 12px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
 }
 
 .stock-filter-bar {
@@ -6547,9 +6547,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
   gap: 12px;
   margin-bottom: 16px;
   padding: 10px 14px;
-  background: #fbf9f4;
+  background: var(--color-parlor-page);
   border-radius: 10px;
-  border: 1px solid #e6dfd3;
+  border: 1px solid var(--color-parlor-neutral-300);
 }
 
 .filter-group {
@@ -6561,13 +6561,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .filter-lbl {
   font-size: 11.5px;
   font-weight: 700;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
 }
 
 .pill-tab {
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   border-radius: 14px;
   padding: 4px 10px;
   font-size: 11.5px;
@@ -6576,14 +6576,14 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .pill-tab.active {
-  background: #142b20;
-  color: #ffd98a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
 }
 
 .pill-tab.alert.active {
-  background: #b45309;
-  color: #ffffff;
-  border-color: #92400e;
+  background: var(--color-parlor-warning-600);
+  color: var(--color-parlor-white);
+  border-color: var(--color-parlor-warning-700);
 }
 
 .stock-table td {
@@ -6600,8 +6600,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
   font-size: 11px;
   font-weight: 700;
   text-transform: capitalize;
-  background: #f4ecdc;
-  color: #142b20;
+  background: var(--color-parlor-neutral-100);
+  color: var(--color-parlor-green-900);
   padding: 2px 7px;
   border-radius: 6px;
 }
@@ -6610,30 +6610,30 @@ function togglePolicyActive(p: VenuePolicyItem) {
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
-  background: #f0fdf4;
-  border: 1.5px solid #16a34a;
+  background: var(--color-parlor-success-100);
+  border: 1.5px solid var(--color-parlor-success-500);
   border-radius: 8px;
   padding: 4px 10px;
 }
 
 .stock-qty-badge.low {
-  background: #fefce8;
-  border-color: #ca8a04;
+  background: var(--color-parlor-warning-100);
+  border-color: var(--color-parlor-warning-600);
 }
 
 .stock-qty-badge.empty {
-  background: #fef2f2;
-  border-color: #dc2626;
+  background: var(--color-parlor-danger-100);
+  border-color: var(--color-parlor-danger-600);
 }
 
 .qty-big {
   font-size: 16px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .qty-unit {
   font-size: 11px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
 }
 
 .stock-status-tag {
@@ -6643,12 +6643,12 @@ function togglePolicyActive(p: VenuePolicyItem) {
   border-radius: 8px;
 }
 
-.stock-status-tag.healthy { background: #dcfce7; color: #15803d; }
-.stock-status-tag.low { background: #fef3c7; color: #92400e; }
-.stock-status-tag.out { background: #fee2e2; color: #991b1b; }
+.stock-status-tag.healthy { background: var(--color-parlor-success-100); color: var(--color-parlor-success-700); }
+.stock-status-tag.low { background: var(--color-parlor-warning-100); color: var(--color-parlor-warning-700); }
+.stock-status-tag.out { background: var(--color-parlor-danger-100); color: var(--color-parlor-danger-700); }
 
 .price-val {
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   font-size: 14px;
 }
 
@@ -6660,7 +6660,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .margin-pill {
-  color: #15803d;
+  color: var(--color-parlor-success-700);
   font-size: 11px;
 }
 
@@ -6670,9 +6670,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-batch-restock {
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1px solid var(--color-parlor-gold-500);
   border-radius: 6px;
   padding: 4px 8px;
   font-size: 11px;
@@ -6681,9 +6681,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-custom-restock {
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-900);
   border-radius: 6px;
   padding: 4px 8px;
   font-size: 11px;
@@ -6693,8 +6693,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .btn-delete-sku {
   background: transparent;
-  border: 1px solid #fca5a5;
-  color: #dc2626;
+  border: 1px solid var(--color-parlor-danger-300);
+  color: var(--color-parlor-danger-600);
   border-radius: 6px;
   padding: 3px 6px;
   font-size: 11px;
@@ -6703,23 +6703,23 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .btn-delete-sku:hover {
-  background: #fef2f2;
+  background: var(--color-parlor-danger-100);
 }
 
 .stock-current-preview, .new-stock-preview {
   display: flex;
   justify-content: space-between;
   padding: 8px 12px;
-  background: #fbf9f4;
+  background: var(--color-parlor-page);
   border-radius: 8px;
   font-size: 13px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .new-stock-preview {
   margin-top: 10px;
-  background: #f0fdf4;
-  border: 1px solid #86efac;
+  background: var(--color-parlor-success-100);
+  border: 1px solid var(--color-parlor-success-400);
 }
 
 /* Staff Roster Grid */
@@ -6730,10 +6730,10 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .staff-member-card {
-  border: 1.5px solid #e6dfd3;
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 12px;
   padding: 16px;
-  background: #ffffff;
+  background: var(--color-parlor-white);
 }
 
 .staff-card-header {
@@ -6747,9 +6747,9 @@ function togglePolicyActive(p: VenuePolicyItem) {
   width: 42px;
   height: 42px;
   border-radius: 50%;
-  background: #142b20;
-  color: #ffd98a;
-  border: 1.5px solid #c6ad7a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1.5px solid var(--color-parlor-gold-500);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6760,14 +6760,14 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .staff-name {
   margin: 0 0 2px;
   font-size: 16px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .staff-role-badge {
   font-size: 11px;
   font-weight: 700;
-  background: #f4ecdc;
-  color: #142b20;
+  background: var(--color-parlor-neutral-100);
+  color: var(--color-parlor-green-900);
   padding: 1px 8px;
   border-radius: 10px;
 }
@@ -6775,7 +6775,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .staff-card-body p {
   margin: 4px 0;
   font-size: 13px;
-  color: #554e42;
+  color: var(--color-parlor-neutral-600);
 }
 
 .duty-status-row {
@@ -6789,13 +6789,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #10b981;
+  background: var(--color-parlor-success-500);
 }
 
 .duty-lbl {
   font-size: 11.5px;
   font-weight: 700;
-  color: #15803d;
+  color: var(--color-parlor-success-700);
 }
 
 /* Analytics Ribbon Grid */
@@ -6806,30 +6806,30 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .analytics-card {
-  border: 1.5px solid #e6dfd3;
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 12px;
   padding: 18px;
-  background: #fdfcf9;
+  background: var(--color-parlor-page);
 }
 
 .analytics-label {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
 }
 
 .analytics-value {
   font-size: 24px;
   font-weight: 700;
   line-height: 1.2;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   margin: 6px 0 2px;
 }
 
 .analytics-sub {
   font-size: 12px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
 }
 
 /* Policies Cards */
@@ -6840,10 +6840,10 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .policy-card {
-  border: 1.5px solid #e6dfd3;
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 12px;
   padding: 18px;
-  background: #fdfcf9;
+  background: var(--color-parlor-page);
 }
 
 .policy-card-top {
@@ -6856,20 +6856,20 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .policy-card-title {
   margin: 0 0 6px;
   font-size: 16px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .policy-card-desc {
   margin: 0;
   font-size: 13.5px;
-  color: #554e42;
+  color: var(--color-parlor-neutral-600);
   line-height: 1.5;
 }
 
 .policy-active-tag {
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  border: 1px solid var(--color-parlor-gold-500);
   font-size: 11px;
   font-weight: 700;
   padding: 3px 10px;
@@ -6881,7 +6881,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(14, 30, 22, 0.7);
+  background: color-mix(in srgb, var(--color-parlor-green-950) 70%, transparent);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
@@ -6891,13 +6891,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .modal-card {
-  background: #ffffff;
-  border: 2px solid #c6ad7a;
+  background: var(--color-parlor-white);
+  border: 2px solid var(--color-parlor-gold-500);
   border-radius: 16px;
   padding: 24px;
   width: 100%;
   max-width: 520px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--color-parlor-green-950) 35%, transparent);
 }
 
 .modal-card.snack-card {
@@ -6910,34 +6910,34 @@ function togglePolicyActive(p: VenuePolicyItem) {
   align-items: flex-start;
   margin-bottom: 16px;
   padding-bottom: 12px;
-  border-bottom: 1.5px solid #e6dfd3;
+  border-bottom: 1.5px solid var(--color-parlor-neutral-300);
 }
 
 .eyebrow-sub {
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.08em;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
 }
 
 .modal-title {
   margin: 2px 0 4px;
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 20px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .modal-sub {
   margin: 0;
   font-size: 12.5px;
-  color: #60594a;
+  color: var(--color-parlor-neutral-600);
 }
 
 .close-x {
   background: transparent;
   border: none;
   font-size: 18px;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
   cursor: pointer;
 }
 
@@ -6949,8 +6949,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
 }
 
 .tbl-choice-pill {
-  background: #fbf9f4;
-  border: 1.5px solid #e6dfd3;
+  background: var(--color-parlor-page);
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 8px;
   padding: 8px 6px;
   display: flex;
@@ -6958,13 +6958,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
   align-items: center;
   cursor: pointer;
   font-size: 11px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .tbl-choice-pill.active {
-  background: #142b20;
-  border-color: #c6ad7a;
-  color: #ffd98a;
+  background: var(--color-parlor-green-900);
+  border-color: var(--color-parlor-gold-500);
+  color: var(--color-parlor-gold-300);
 }
 
 .tbl-choice-pill.occupied {
@@ -6987,16 +6987,16 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .modal-label, .parlor-label {
   font-size: 12px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .modal-input, .modal-select, .parlor-input {
-  border: 1.5px solid #c6ad7a;
+  border: 1.5px solid var(--color-parlor-gold-500);
   border-radius: 8px;
   padding: 8px 12px;
   font-size: 13.5px;
-  background: #ffffff;
-  color: #142b20;
+  background: var(--color-parlor-white);
+  color: var(--color-parlor-green-900);
   outline: none;
 }
 
@@ -7009,12 +7009,12 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .step-btn {
   width: 32px;
   height: 32px;
-  border: 1.5px solid #c6ad7a;
-  background: #ffffff;
+  border: 1.5px solid var(--color-parlor-gold-500);
+  background: var(--color-parlor-white);
   border-radius: 6px;
   font-size: 16px;
   cursor: pointer;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .step-val {
@@ -7030,7 +7030,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   gap: 10px;
   margin-top: 20px;
   padding-top: 14px;
-  border-top: 1.5px solid #e6dfd3;
+  border-top: 1.5px solid var(--color-parlor-neutral-300);
 }
 
 /* Snack Modal Body */
@@ -7048,13 +7048,13 @@ function togglePolicyActive(p: VenuePolicyItem) {
   justify-content: space-between;
   align-items: center;
   padding: 8px 10px;
-  border: 1px solid #e6dfd3;
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 8px;
 }
 
 .snack-row.out-of-stock-row {
   opacity: 0.55;
-  background: #fef2f2;
+  background: var(--color-parlor-danger-100);
 }
 
 .snack-info {
@@ -7065,21 +7065,21 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .snack-name {
   font-size: 13px;
   font-weight: 700;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .snack-price {
   font-size: 11.5px;
-  color: #8c7649;
+  color: var(--color-parlor-gold-700);
 }
 
 .stock-ok {
-  color: #15803d;
+  color: var(--color-parlor-success-700);
   font-size: 11px;
 }
 
 .stock-out {
-  color: #dc2626;
+  color: var(--color-parlor-danger-600);
   font-weight: 700;
   font-size: 11px;
 }
@@ -7088,19 +7088,19 @@ function togglePolicyActive(p: VenuePolicyItem) {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-top: 1.5px solid #e6dfd3;
+  border-top: 1.5px solid var(--color-parlor-neutral-300);
   padding-top: 12px;
   margin-top: 12px;
 }
 
 .snack-total {
   font-size: 13px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
 }
 
 .total-val {
   font-size: 18px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   margin-left: 6px;
 }
 
@@ -7120,61 +7120,61 @@ function togglePolicyActive(p: VenuePolicyItem) {
   flex-wrap: wrap;
   margin-bottom: 16px;
   padding: 12px 16px;
-  background: #ffffff;
-  border: 1px solid #e6dfd3;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 12px;
 }
 
 .parlor-select {
   height: 38px;
   padding: 0 12px;
-  background-color: #ffffff;
-  border: 1.5px solid #dcd3c4;
+  background-color: var(--color-parlor-white);
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 8px;
   font-size: 13px;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   outline: none;
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .parlor-select:focus {
-  border-color: #142b20;
-  box-shadow: 0 0 0 2px rgba(20, 43, 32, 0.1);
+  border-color: var(--color-parlor-green-900);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-parlor-green-900) 10%, transparent);
 }
 
 .btn-xs-secondary {
   padding: 4px 10px;
-  background: #f4efe6;
-  border: 1px solid #d8cdbc;
+  background: var(--color-parlor-neutral-150);
+  border: 1px solid var(--color-parlor-neutral-300);
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .btn-xs-secondary:hover {
-  background: #e9e0d1;
-  border-color: #c4b59f;
+  background: var(--color-parlor-neutral-150);
+  border-color: var(--color-parlor-neutral-400);
 }
 
 .btn-xs-danger {
   padding: 4px 10px;
-  background: #fee2e2;
-  border: 1px solid #fca5a5;
+  background: var(--color-parlor-danger-100);
+  border: 1px solid var(--color-parlor-danger-300);
   border-radius: 6px;
   font-size: 12px;
   font-weight: 600;
-  color: #b91c1c;
+  color: var(--color-parlor-danger-700);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .btn-xs-danger:hover {
-  background: #fecaca;
-  border-color: #f87171;
+  background: var(--color-parlor-danger-300);
+  border-color: var(--color-parlor-danger-300);
 }
 
 .form-row-2 {
@@ -7194,8 +7194,8 @@ function togglePolicyActive(p: VenuePolicyItem) {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: #fbf9f5;
-  border: 1.5px solid #e7ded0;
+  background: var(--color-parlor-page);
+  border: 1.5px solid var(--color-parlor-neutral-300);
   border-radius: 8px;
   padding: 10px 14px;
 }
@@ -7210,7 +7210,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
 .day-label {
   font-size: 13px;
   font-weight: 600;
-  color: #142b20;
+  color: var(--color-parlor-green-900);
   min-width: 130px;
 }
 
@@ -7222,22 +7222,22 @@ function togglePolicyActive(p: VenuePolicyItem) {
 
 .time-field {
   padding: 5px 8px;
-  border: 1.5px solid #c6ad7a;
+  border: 1.5px solid var(--color-parlor-gold-500);
   border-radius: 6px;
   font-size: 13px;
-  background: #ffffff;
-  color: #142b20;
+  background: var(--color-parlor-white);
+  color: var(--color-parlor-green-900);
   font-family: inherit;
   outline: none;
 }
 
 .time-field:focus {
-  border-color: #142b20;
+  border-color: var(--color-parlor-green-900);
 }
 
 .time-sep {
   font-size: 12px;
-  color: #7d8b82;
+  color: var(--color-parlor-neutral-500);
   font-weight: 500;
 }
 
@@ -7279,7 +7279,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
   .num-col {
     padding: 10px 14px;
     border-right: none;
-    border-bottom: 1px solid #f0e9df;
+    border-bottom: 1px solid var(--color-parlor-neutral-150);
   }
 
   .num-col:last-child {
@@ -7305,7 +7305,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
     display: block;
     position: fixed;
     inset: 0;
-    background: rgba(10, 20, 15, 0.65);
+    background: color-mix(in srgb, var(--color-parlor-green-950) 65%, transparent);
     backdrop-filter: blur(2px);
     z-index: 998;
   }
@@ -7324,7 +7324,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
     left: 0;
     bottom: 0;
     z-index: 999;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+    box-shadow: 4px 0 24px color-mix(in srgb, var(--color-parlor-green-950) 50%, transparent);
     transform: translateX(0);
     transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     width: 250px;
@@ -7410,7 +7410,7 @@ function togglePolicyActive(p: VenuePolicyItem) {
     align-items: flex-start;
     gap: 6px;
     padding-bottom: 8px;
-    border-bottom: 1px dashed #e6dfd3;
+    border-bottom: 1px dashed var(--color-parlor-neutral-300);
   }
 
   .operating-hours-editor .day-hours-row:last-child {

@@ -85,7 +85,7 @@ function rentalText(branchId: string) {
 <style scoped>
 .branch-hint {
   font-size: 12px;
-  color: #4e5b53;
+  color: var(--color-parlor-neutral-600);
   margin-top: 10px;
 }
 .branch-table {
@@ -98,7 +98,7 @@ function rentalText(branchId: string) {
   margin-top: 12px;
 }
 .availability-search input {
-  border: 1px solid #829087;
+  border: 1px solid var(--color-parlor-neutral-500);
   padding: 9px;
   border-radius: 3px;
   background: white;
@@ -106,7 +106,7 @@ function rentalText(branchId: string) {
 }
 .branch-table:focus-visible,
 input:focus-visible {
-  outline: 2px solid #244c38;
+  outline: 2px solid var(--color-parlor-green-700);
   outline-offset: 3px;
 }
 table {
@@ -121,11 +121,11 @@ td {
   text-align: left;
   vertical-align: top;
   padding: 9px 8px 9px 0;
-  border-bottom: 1px solid #d3d9d4;
+  border-bottom: 1px solid var(--color-parlor-neutral-300);
   overflow-wrap: anywhere;
 }
 thead th {
-  color: #4e5b53;
+  color: var(--color-parlor-neutral-600);
   font-weight: 400;
 }
 tbody th {

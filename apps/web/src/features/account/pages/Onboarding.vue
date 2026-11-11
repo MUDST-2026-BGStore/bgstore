@@ -111,12 +111,12 @@ async function handleSubmit(payload: CreateAccountRequest) {
   align-items: center;
   gap: 14px;
   padding: 20px 24px;
-  border: 1px solid #c6ad7a;
-  background: #244435;
-  color: #f3ead8;
+  border: 1px solid var(--color-parlor-gold-500);
+  background: var(--color-parlor-green-700);
+  color: var(--color-parlor-cream);
   box-shadow:
-    0 14px 40px #00000066,
-    0 0 0 4px #0e1d1680;
+    0 14px 40px color-mix(in srgb, var(--color-parlor-green-950) 40%, transparent),
+    0 0 0 4px color-mix(in srgb, var(--color-parlor-green-950) 50%, transparent);
   font-family:
     'Plus Jakarta Sans',
     -apple-system,
@@ -127,7 +127,7 @@ async function handleSubmit(payload: CreateAccountRequest) {
 .onboarding-toast::before {
   position: absolute;
   inset: 5px;
-  border: 1px solid #c6ad7a40;
+  border: 1px solid color-mix(in srgb, var(--color-parlor-gold-500) 25%, transparent);
   pointer-events: none;
   content: '';
 }
@@ -138,8 +138,8 @@ async function handleSubmit(payload: CreateAccountRequest) {
   width: 40px;
   height: 28px;
   padding-right: 14px;
-  border-right: 1px solid #c6ad7a55;
-  color: #dfc48d;
+  border-right: 1px solid color-mix(in srgb, var(--color-parlor-gold-500) 33%, transparent);
+  color: var(--color-parlor-gold-300);
 }
 .is-error .toast-icon {
   color: var(--color-danger);

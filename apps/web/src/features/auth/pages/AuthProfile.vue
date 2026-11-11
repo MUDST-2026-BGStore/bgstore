@@ -366,11 +366,11 @@ const copy = computed(() =>
 
 <style scoped>
 .profile-page {
-  --ink: #f3ead8;
-  --muted: #c9bea7;
-  --line: #c6ad7a40;
-  --profile-gold: #c6ad7a;
-  --profile-green: #152c21;
+  --ink: var(--color-parlor-cream);
+  --muted: var(--color-parlor-neutral-400);
+  --line: color-mix(in srgb, var(--color-parlor-gold-500) 25%, transparent);
+  --profile-gold: var(--color-parlor-gold-500);
+  --profile-green: var(--color-parlor-green-900);
   color-scheme: dark;
   min-height: 70vh;
   padding: 32px 24px 48px;
@@ -427,8 +427,8 @@ h1 {
   padding: 28px;
   border: 1px solid var(--line);
   border-radius: 18px;
-  background: #0e1d16;
-  box-shadow: 0 3px 14px rgb(0 0 0 / 12%);
+  background: var(--color-parlor-green-950);
+  box-shadow: 0 3px 14px color-mix(in srgb, var(--color-parlor-green-950) 12%, transparent);
 }
 .card-heading {
   display: flex;
@@ -527,20 +527,20 @@ dd {
 .badge--verified {
   display: flex;
   margin-top: 7px;
-  background: #193528;
-  color: #b9d3ad;
+  background: var(--color-parlor-green-850);
+  color: var(--color-parlor-success-300);
 }
 .badge--pending {
   display: flex;
   margin-top: 7px;
-  background: #c6ad7a1a;
-  color: #ddc18c;
+  background: color-mix(in srgb, var(--color-parlor-gold-500) 10%, transparent);
+  color: var(--color-parlor-gold-300);
 }
 .badge--role {
   white-space: normal;
   word-break: break-word;
   background: var(--profile-green);
-  color: #ddc18c;
+  color: var(--color-parlor-gold-300);
 }
 .role-list {
   display: flex;
@@ -560,9 +560,9 @@ dd {
 .phone-form :deep(.number-input),
 select {
   min-height: 48px;
-  border: 1px solid #c6ad7a80;
+  border: 1px solid color-mix(in srgb, var(--color-parlor-gold-500) 50%, transparent);
   border-radius: 9px;
-  background: #0e1d16;
+  background: var(--color-parlor-green-950);
   color: var(--ink);
   font: inherit;
   font-size: 15px;
@@ -570,9 +570,9 @@ select {
 .phone-form :deep(.phone-control) {
   height: 48px;
   padding: 0 12px 0 4px;
-  border: 1px solid #c6ad7a80;
+  border: 1px solid color-mix(in srgb, var(--color-parlor-gold-500) 50%, transparent);
   border-radius: 9px;
-  background: #0e1d16;
+  background: var(--color-parlor-green-950);
 }
 .phone-form :deep(.phone-control:focus-within) {
   outline: 2px solid var(--profile-gold);
@@ -592,7 +592,7 @@ select {
 .phone-form :deep(.country-popup),
 .phone-form :deep(.country-trigger.is-open) {
   color-scheme: light;
-  color: #14241c;
+  color: var(--color-parlor-green-900);
 }
 .phone-form :deep(.country-trigger) {
   color: var(--ink);
@@ -614,14 +614,14 @@ select {
   border: 1px solid var(--profile-gold);
   border-radius: 9px;
   background: var(--profile-gold);
-  color: #152c21;
+  color: var(--color-parlor-green-900);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 .primary-button:hover:not(:disabled) {
-  background: #ddc18c;
+  background: var(--color-parlor-gold-300);
 }
 button:disabled,
 select:disabled {
@@ -642,10 +642,10 @@ select:disabled {
   margin: 0;
 }
 .feedback--success {
-  color: #b9d3ad;
+  color: var(--color-parlor-success-300);
 }
 .feedback--error {
-  color: #f0aaa4;
+  color: var(--color-parlor-danger-300);
 }
 .locale-error {
   display: flex;
@@ -681,12 +681,12 @@ select:disabled {
   padding: 24px;
   border: 1px solid var(--line);
   border-radius: 14px;
-  background: #0e1d16;
+  background: var(--color-parlor-green-950);
 }
 .notice--error {
-  border-color: #f0aaa466;
-  background: #3b2020;
-  color: #f0aaa4;
+  border-color: color-mix(in srgb, var(--color-parlor-danger-300) 40%, transparent);
+  background: var(--color-parlor-danger-700);
+  color: var(--color-parlor-danger-300);
 }
 @media (max-width: 720px) {
   .profile-page {
