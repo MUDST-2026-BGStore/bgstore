@@ -163,6 +163,7 @@ onBeforeUnmount(() => observer?.disconnect());
 }
 
 .parlor-brand {
+  white-space: nowrap;
   gap: 10px;
   color: #fff3dc;
   font:

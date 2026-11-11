@@ -132,8 +132,9 @@ it('supports keyboard navigation, Escape, outside dismissal and tabbing away', a
   await items[0].trigger('keydown', { key: 'ArrowDown' });
   expect(document.activeElement).toBe(items[1].element);
   await items[1].trigger('keydown', { key: 'End' });
-  expect(document.activeElement).toBe(items[2].element);
-  await items[2].trigger('keydown', { key: 'ArrowDown' });
+  const lastItem = page.get('#account-panel .sign-out');
+  expect(document.activeElement).toBe(lastItem.element);
+  await lastItem.trigger('keydown', { key: 'ArrowDown' });
   expect(document.activeElement).toBe(items[0].element);
   await items[0].trigger('keydown', { key: 'Escape' });
   expect(trigger.attributes('aria-expanded')).toBe('false');

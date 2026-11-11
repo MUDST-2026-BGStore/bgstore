@@ -4,7 +4,6 @@ import { RouterLink } from 'vue-router';
 import { useAuthStore } from '../../../shared/stores/auth';
 import { useHello, useWhoami } from '@theparlor/api-client';
 import { BButton, BCard } from '@theparlor/ui';
-import CustomerLayout from '../../../app/layouts/CustomerLayout.vue';
 
 import { useLocale } from '../../../shared/lib/locale';
 
@@ -85,132 +84,133 @@ const copy = computed(() =>
 </script>
 
 <template>
-  <CustomerLayout class="workspace-theme" hide-header-sign-out>
-    <section class="workspace-page" aria-labelledby="workspace-title">
-      <div class="workspace-shell">
-        <header class="workspace-heading">
-          <h1 id="workspace-title">{{ copy.title }}</h1>
-          <p class="page-description">{{ copy.description }}</p>
-        </header>
-        <nav class="workspace-navigation" :aria-label="copy.workspace">
-          <RouterLink class="navigation-card" :to="{ name: 'HomeIndex' }">
-            <div>
-              <span class="navigation-title">{{ copy.home }}</span>
-              <span class="navigation-description">{{ copy.homeHint }}</span>
-            </div>
-            <span class="navigation-arrow" aria-hidden="true">→</span>
-          </RouterLink>
-          <RouterLink class="navigation-card" :to="{ name: 'AuthProfile' }">
-            <div>
-              <span class="navigation-title">{{ copy.profile }}</span>
-              <span class="navigation-description">{{ copy.profileHint }}</span>
-            </div>
-            <span class="navigation-arrow" aria-hidden="true">→</span>
-          </RouterLink>
-          <RouterLink
-            class="navigation-card"
-            :to="{ name: 'WorkspaceManagement' }"
-          >
-            <span class="navigation-title">{{
-              locale === 'th-TH'
-                ? 'จัดการสาขาและการจอง'
-                : 'Branch Management & Reservations'
-            }}</span>
-            <span class="navigation-arrow" aria-hidden="true">→</span>
-          </RouterLink>
-        </nav>
+  <section
+    class="workspace-theme workspace-page"
+    aria-labelledby="workspace-title"
+  >
+    <div class="workspace-shell">
+      <header class="workspace-heading">
+        <h1 id="workspace-title">{{ copy.title }}</h1>
+        <p class="page-description">{{ copy.description }}</p>
+      </header>
+      <nav class="workspace-navigation" :aria-label="copy.workspace">
+        <RouterLink class="navigation-card" :to="{ name: 'HomeIndex' }">
+          <div>
+            <span class="navigation-title">{{ copy.home }}</span>
+            <span class="navigation-description">{{ copy.homeHint }}</span>
+          </div>
+          <span class="navigation-arrow" aria-hidden="true">→</span>
+        </RouterLink>
+        <RouterLink class="navigation-card" :to="{ name: 'AuthProfile' }">
+          <div>
+            <span class="navigation-title">{{ copy.profile }}</span>
+            <span class="navigation-description">{{ copy.profileHint }}</span>
+          </div>
+          <span class="navigation-arrow" aria-hidden="true">→</span>
+        </RouterLink>
+        <RouterLink
+          class="navigation-card"
+          :to="{ name: 'WorkspaceManagement' }"
+        >
+          <span class="navigation-title">{{
+            locale === 'th-TH'
+              ? 'จัดการสาขาและการจอง'
+              : 'Branch Management & Reservations'
+          }}</span>
+          <span class="navigation-arrow" aria-hidden="true">→</span>
+        </RouterLink>
+      </nav>
 
-        <div class="workspace-grid">
-          <section :aria-label="copy.account">
-            <BCard class="workspace-card">
-              <div class="card-heading">
-                <span class="section-number" aria-hidden="true">01</span>
-                <div>
-                  <h2>{{ copy.account }}</h2>
-                  <p>{{ copy.accountHint }}</p>
-                </div>
+      <div class="workspace-grid">
+        <section :aria-label="copy.account">
+          <BCard class="workspace-card">
+            <div class="card-heading">
+              <span class="section-number" aria-hidden="true">01</span>
+              <div>
+                <h2>{{ copy.account }}</h2>
+                <p>{{ copy.accountHint }}</p>
               </div>
-              <dl v-if="auth.authenticated" class="detail-list">
-                <div class="detail-row">
-                  <dt>{{ copy.username }}</dt>
-                  <dd>{{ auth.username }}</dd>
-                </div>
-                <div class="detail-row">
-                  <dt>{{ copy.roles }}</dt>
-                  <dd>
-                    <ul
-                      v-if="auth.roles.length"
-                      class="role-list"
-                      :aria-label="copy.realmRoles"
+            </div>
+            <dl v-if="auth.authenticated" class="detail-list">
+              <div class="detail-row">
+                <dt>{{ copy.username }}</dt>
+                <dd>{{ auth.username }}</dd>
+              </div>
+              <div class="detail-row">
+                <dt>{{ copy.roles }}</dt>
+                <dd>
+                  <ul
+                    v-if="auth.roles.length"
+                    class="role-list"
+                    :aria-label="copy.realmRoles"
+                  >
+                    <li
+                      v-for="role in auth.roles"
+                      :key="role"
+                      class="role-badge"
                     >
-                      <li
-                        v-for="role in auth.roles"
-                        :key="role"
-                        class="role-badge"
-                      >
-                        {{ role }}
-                      </li>
-                    </ul>
-                    <span v-else class="muted">{{ copy.noRoles }}</span>
-                  </dd>
-                </div>
-              </dl>
-              <p v-else class="muted" role="status">
-                {{ copy.authenticating }}
-              </p>
-            </BCard>
-          </section>
+                      {{ role }}
+                    </li>
+                  </ul>
+                  <span v-else class="muted">{{ copy.noRoles }}</span>
+                </dd>
+              </div>
+            </dl>
+            <p v-else class="muted" role="status">
+              {{ copy.authenticating }}
+            </p>
+          </BCard>
+        </section>
 
-          <section :aria-label="copy.api">
-            <BCard class="workspace-card">
-              <div class="card-heading">
-                <span class="section-number" aria-hidden="true">02</span>
-                <div>
-                  <h2>{{ copy.api }}</h2>
-                  <p>{{ copy.apiHint }}</p>
-                </div>
+        <section :aria-label="copy.api">
+          <BCard class="workspace-card">
+            <div class="card-heading">
+              <span class="section-number" aria-hidden="true">02</span>
+              <div>
+                <h2>{{ copy.api }}</h2>
+                <p>{{ copy.apiHint }}</p>
               </div>
-              <dl class="detail-list">
-                <template v-if="apiStatus">
-                  <div class="detail-row">
-                    <dt>{{ copy.service }}</dt>
-                    <dd data-testid="api-service">{{ apiStatus.service }}</dd>
-                  </div>
-                  <div class="detail-row">
-                    <dt>{{ copy.status }}</dt>
-                    <dd class="service-status">{{ apiStatus.status }}</dd>
-                  </div>
-                </template>
-                <div v-if="identity" class="detail-row">
-                  <dt>{{ copy.apiIdentity }}</dt>
-                  <dd data-testid="api-identity">{{ identity.username }}</dd>
+            </div>
+            <dl class="detail-list">
+              <template v-if="apiStatus">
+                <div class="detail-row">
+                  <dt>{{ copy.service }}</dt>
+                  <dd data-testid="api-service">{{ apiStatus.service }}</dd>
                 </div>
-              </dl>
-              <p v-if="apiError" class="error-message" role="alert">
-                {{ apiError.message }}
-              </p>
-              <p v-if="isPending" class="muted" role="status">
-                {{ copy.checking }}
-              </p>
-              <div class="card-actions">
-                <BButton
-                  type="button"
-                  variant="secondary"
-                  @click="checkApiHealth()"
-                  >{{ copy.refresh }}</BButton
-                >
+                <div class="detail-row">
+                  <dt>{{ copy.status }}</dt>
+                  <dd class="service-status">{{ apiStatus.status }}</dd>
+                </div>
+              </template>
+              <div v-if="identity" class="detail-row">
+                <dt>{{ copy.apiIdentity }}</dt>
+                <dd data-testid="api-identity">{{ identity.username }}</dd>
               </div>
-            </BCard>
-          </section>
-        </div>
-        <footer v-if="auth.authenticated" class="workspace-footer">
-          <BButton type="button" variant="secondary" @click="auth.logout()">{{
-            copy.signOut
-          }}</BButton>
-        </footer>
+            </dl>
+            <p v-if="apiError" class="error-message" role="alert">
+              {{ apiError.message }}
+            </p>
+            <p v-if="isPending" class="muted" role="status">
+              {{ copy.checking }}
+            </p>
+            <div class="card-actions">
+              <BButton
+                type="button"
+                variant="secondary"
+                @click="checkApiHealth()"
+                >{{ copy.refresh }}</BButton
+              >
+            </div>
+          </BCard>
+        </section>
       </div>
-    </section>
-  </CustomerLayout>
+      <footer v-if="auth.authenticated" class="workspace-footer">
+        <BButton type="button" variant="secondary" @click="auth.logout()">{{
+          copy.signOut
+        }}</BButton>
+      </footer>
+    </div>
+  </section>
 </template>
 
 <style scoped>

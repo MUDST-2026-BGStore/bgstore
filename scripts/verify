@@ -62,7 +62,11 @@ fi
 cleanup_workers() {
   # Nx's Gradle plugin can start a daemon even when direct Gradle invocations
   # use --no-daemon. Verification is finite, so do not leave that worker idle.
-  apps/api/gradlew -p apps/api --stop >/dev/null 2>&1 || true
+  case "$scope" in
+    api | contract | full)
+      apps/api/gradlew -p apps/api --stop >/dev/null 2>&1 || true
+      ;;
+  esac
 }
 trap cleanup_workers EXIT
 
@@ -95,7 +99,7 @@ run_step() {
 
 verify_web() {
   run_step 'Web lint, typecheck, and tests' \
-    pnpm nx run-many -t lint,typecheck,test -p @mudst-2026-bgstore/web
+    pnpm nx run-many -t lint,typecheck,test -p web,@theparlor/ui,@theparlor/auth,@theparlor/account,@theparlor/api-client
 }
 
 verify_api() {

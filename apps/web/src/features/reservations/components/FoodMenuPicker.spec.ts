@@ -46,11 +46,8 @@ describe('FoodMenuPicker Component', () => {
     const firstAddBtn = wrapper.find('.step-btn.plus');
     await firstAddBtn.trigger('click');
 
-    const emitted = wrapper.emitted('update:modelValue');
-    expect(emitted).toBeTruthy();
-    const updatedList = emitted![0][0] as FoodOrderItem[];
-    expect(updatedList.length).toBe(1);
-    expect(updatedList[0].item.id).toBe(initialItem.id);
-    expect(updatedList[0].quantity).toBe(1);
+    expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toEqual([
+      { item: initialItem, quantity: 1 },
+    ]);
   });
 });

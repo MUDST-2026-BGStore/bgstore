@@ -14,8 +14,8 @@ import FoodMenuPicker from '../components/FoodMenuPicker.vue';
 import QrPaymentDialog from '../components/QrPaymentDialog.vue';
 import type { FoodOrderItem, ReservationPreOrder } from '../types';
 import { calculatePreOrderDiscount } from '../data/payment';
-import { useStoreText } from '../../home/data/store-text';
-import { useStoreContextStore } from '../../home/stores/store-context';
+import { useStoreText } from '../../../shared/lib/store-text';
+import { useStoreContextStore } from '../../../shared/stores/store-context';
 import { useCustomerReservationsStore } from '../data/reservations-store';
 
 const route = useRoute();

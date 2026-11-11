@@ -5,7 +5,7 @@ import {
   type PromptPayQrDetails,
 } from '../data/payment';
 import type { FoodOrderItem } from '../types';
-import { useStoreText } from '../../home/data/store-text';
+import { useStoreText } from '../../../shared/lib/store-text';
 
 const props = defineProps<{
   totalAmount: number;

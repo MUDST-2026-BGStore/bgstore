@@ -33,9 +33,6 @@ const response = await fetch(
     },
     body: JSON.stringify({
       loginTheme: realm.loginTheme,
-      internationalizationEnabled: realm.internationalizationEnabled,
-      supportedLocales: realm.supportedLocales,
-      defaultLocale: realm.defaultLocale,
       registrationAllowed: realm.registrationAllowed,
       resetPasswordAllowed: realm.resetPasswordAllowed,
       // This command targets the local Compose realm, never a deployed realm.

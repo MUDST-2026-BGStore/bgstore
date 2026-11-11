@@ -5,7 +5,7 @@ import {
   useCustomerReservationsStore,
   type CustomerReservation,
 } from '../data/reservations-store';
-import { useStoreText } from '../../home/data/store-text';
+import { useStoreText } from '../../../shared/lib/store-text';
 
 const props = defineProps<{
   reservation: CustomerReservation;

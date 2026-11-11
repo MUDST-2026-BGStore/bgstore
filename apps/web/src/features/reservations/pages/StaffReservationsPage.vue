@@ -14,7 +14,7 @@ import {
 } from '@theparlor/api-client';
 import TableBillModal from '../components/TableBillModal.vue';
 import { useCustomerReservationsStore } from '../data/reservations-store';
-import { games, type CatalogGame } from '../../home/data/catalog';
+import { games, type CatalogGame } from '../../../shared/data/catalog';
 import { useAuthStore } from '../../../shared/stores/auth';
 
 const queryClient = useQueryClient();
@@ -1238,9 +1238,9 @@ const venuePolicies = ref({
       <button
         type="button"
         class="sidebar-collapse-btn"
-        @click="toggleSidebar"
         :aria-label="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
         :title="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+        @click="toggleSidebar"
       >
         <span class="collapse-icon-box">
           <svg
@@ -2361,7 +2361,12 @@ const venuePolicies = ref({
               </p>
             </div>
 
-            <div v-else class="sessions-table-wrap">
+            <div
+              v-else
+              class="sessions-table-wrap"
+              tabindex="0"
+              aria-label="Live sessions"
+            >
               <table class="parlor-table">
                 <thead>
                   <tr>
@@ -2472,7 +2477,7 @@ const venuePolicies = ref({
               </div>
             </div>
 
-            <div class="bookings-list-wrap">
+            <div class="bookings-list-wrap" tabindex="0" aria-label="Bookings">
               <table class="parlor-table">
                 <thead>
                   <tr>
@@ -2800,7 +2805,11 @@ const venuePolicies = ref({
             </div>
 
             <!-- Stock Table -->
-            <div class="inventory-table-wrap">
+            <div
+              class="inventory-table-wrap"
+              tabindex="0"
+              aria-label="Inventory"
+            >
               <table class="parlor-table stock-table">
                 <thead>
                   <tr>
@@ -6194,5 +6203,141 @@ const venuePolicies = ref({
 .modal-buttons {
   display: flex;
   gap: 8px;
+}
+
+/* Keep operational cards in the document flow on tablet and phone screens. */
+.console-block,
+.gl-content,
+.two-column-service-row > * {
+  min-width: 0;
+}
+
+.sessions-table-wrap,
+.bookings-list-wrap,
+.inventory-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.sessions-table-wrap:focus-visible,
+.bookings-list-wrap:focus-visible,
+.inventory-table-wrap:focus-visible {
+  outline: 2px solid #203c30;
+  outline-offset: 2px;
+}
+
+@media (max-width: 1100px) {
+  .two-column-service-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gl-topbar,
+  .topbar-left,
+  .topbar-actions {
+    flex-wrap: wrap;
+  }
+
+  .gl-topbar {
+    height: auto;
+    min-height: 60px;
+    padding: 12px;
+  }
+
+  .topbar-search {
+    width: min(100%, 320px);
+  }
+
+  .numbers-card-ribbon,
+  .stock-stats-ribbon,
+  .analytics-ribbon-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .floor-tables-grid,
+  .floor-tables-grid.expanded,
+  .games-library-grid,
+  .staff-roster-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .gl-sidebar:not(.collapsed) {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 80;
+  }
+
+  .gl-content {
+    padding: 16px 12px 40px;
+  }
+
+  .console-block {
+    padding: 16px 12px;
+    overflow-wrap: anywhere;
+  }
+
+  .topbar-left,
+  .branch-selector-capsule {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .branch-select {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .title-row,
+  .needs-you-header,
+  .section-card-header,
+  .needs-item-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .needs-item-row {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+  }
+
+  .needs-item-left {
+    min-width: 0;
+  }
+
+  .alert-icon-square {
+    flex-shrink: 0;
+  }
+
+  .num-col {
+    padding: 8px;
+    border: 0;
+  }
+
+  .timeline-card {
+    flex-direction: column;
+  }
+
+  .timeline-time-col {
+    align-items: flex-start;
+  }
+
+  .timeline-card-content {
+    min-width: 0;
+  }
+
+  .timeline-actions,
+  .view-header-row,
+  .library-filter-ribbon,
+  .stock-filter-bar,
+  .filter-group {
+    flex-wrap: wrap;
+  }
+
+  .console-block button {
+    overflow-wrap: normal;
+    max-width: 100%;
+  }
 }
 </style>

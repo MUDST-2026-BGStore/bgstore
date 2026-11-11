@@ -877,8 +877,8 @@ onUnmounted(() => {
             :class="{ 'is-active': selectedPaymentMethod === 'promptpay' }"
           >
             <input
-              type="radio"
               v-model="selectedPaymentMethod"
+              type="radio"
               value="promptpay"
               class="sr-only"
             />
@@ -912,8 +912,8 @@ onUnmounted(() => {
             :class="{ 'is-active': selectedPaymentMethod === 'card' }"
           >
             <input
-              type="radio"
               v-model="selectedPaymentMethod"
+              type="radio"
               value="card"
               class="sr-only"
             />
@@ -1033,8 +1033,8 @@ onUnmounted(() => {
             :class="{ 'is-active': selectedPaymentMethod === 'bank_transfer' }"
           >
             <input
-              type="radio"
               v-model="selectedPaymentMethod"
+              type="radio"
               value="bank_transfer"
               class="sr-only"
             />
@@ -1098,8 +1098,8 @@ onUnmounted(() => {
             :class="{ 'is-active': selectedPaymentMethod === 'cod' }"
           >
             <input
-              type="radio"
               v-model="selectedPaymentMethod"
+              type="radio"
               value="cod"
               class="sr-only"
             />

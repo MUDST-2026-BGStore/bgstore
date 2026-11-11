@@ -108,109 +108,14 @@ export interface RetailOrder {
 
 const ORDERS_STORAGE_KEY = 'theparlor.retail_orders.v2';
 
-const INITIAL_DEMO_ORDERS: RetailOrder[] = [
-  {
-    id: 'ORD-2026-1024',
-    createdAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    items: [
-      {
-        variantId: 'azul-th',
-        gameId: 'azul',
-        gameName: 'Azul',
-        edition: 'Thai edition',
-        quantity: 1,
-        unitPrice: 1490,
-        totalPrice: 1490,
-        imageUrl: '/images/games/azul.jpg',
-      },
-    ],
-    itemSubtotal: 1490,
-    fulfillmentMethod: 'shipping',
-    carrier: 'flash',
-    carrierName: 'Flash Express',
-    shippingFee: 50,
-    totalAmount: 1540,
-    shippingAddress: {
-      name: 'Somchai Prasert',
-      phone: '081-456-7890',
-      email: 'developer@theparlor.example',
-      address: '128/4 Sukhumvit Soi 21, Khlong Toei Nuea',
-      city: 'Watthana',
-      region: 'Bangkok',
-      postal: '10110',
-      country: 'Thailand',
-      note: 'Please leave with condo security juristic office.',
-    },
-    paymentStatus: 'PAID',
-    paymentReference: 'PP-ORD-948123',
-    paidAtTimestamp: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    fulfillmentStatus: 'SHIPPED',
-    trackingNumber: 'TH0109283741F',
-    shippedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    estimatedDeliveryDate: 'Tomorrow, by 18:00',
-  },
-  {
-    id: 'ORD-2026-0988',
-    createdAt: new Date(Date.now() - 120 * 60 * 60 * 1000).toISOString(),
-    items: [
-      {
-        variantId: 'catan-en',
-        gameId: 'catan',
-        gameName: 'Catan',
-        edition: 'English edition',
-        quantity: 1,
-        unitPrice: 1890,
-        totalPrice: 1890,
-        imageUrl: '/images/games/catan.jpg',
-      },
-      {
-        variantId: 'love-letter-th',
-        gameId: 'love-letter',
-        gameName: 'Love Letter',
-        edition: 'Thai edition',
-        quantity: 1,
-        unitPrice: 690,
-        totalPrice: 690,
-        imageUrl: '/images/games/love-letter.jpg',
-      },
-    ],
-    itemSubtotal: 2580,
-    fulfillmentMethod: 'shipping',
-    carrier: 'kerry',
-    carrierName: 'Kerry Express',
-    shippingFee: 60,
-    totalAmount: 2640,
-    shippingAddress: {
-      name: 'Somchai Prasert',
-      phone: '081-456-7890',
-      email: 'developer@theparlor.example',
-      address: '128/4 Sukhumvit Soi 21, Khlong Toei Nuea',
-      city: 'Watthana',
-      region: 'Bangkok',
-      postal: '10110',
-      country: 'Thailand',
-    },
-    paymentStatus: 'PAID',
-    paymentReference: 'PP-ORD-882194',
-    paidAtTimestamp: new Date(Date.now() - 120 * 60 * 60 * 1000).toISOString(),
-    fulfillmentStatus: 'DELIVERED',
-    trackingNumber: 'KEX9482710382TH',
-    shippedAt: new Date(Date.now() - 96 * 60 * 60 * 1000).toISOString(),
-    deliveredAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    estimatedDeliveryDate: 'Delivered',
-  },
-];
-
 function loadSavedOrders(): RetailOrder[] {
   try {
     const raw = localStorage.getItem(ORDERS_STORAGE_KEY);
-    if (!raw) return INITIAL_DEMO_ORDERS;
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0
-      ? parsed
-      : INITIAL_DEMO_ORDERS;
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
   } catch {
-    return INITIAL_DEMO_ORDERS;
+    return [];
   }
 }
 

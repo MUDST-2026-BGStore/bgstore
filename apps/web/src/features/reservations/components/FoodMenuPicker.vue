@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { FOOD_MENU_ITEMS, FOOD_CATEGORIES } from '../data/food-menu';
 import type { FoodMenuItem, FoodOrderItem } from '../types';
 import { calculatePreOrderDiscount } from '../data/payment';
-import { useStoreText } from '../../home/data/store-text';
+import { useStoreText } from '../../../shared/lib/store-text';
 
 const props = defineProps<{
   modelValue: FoodOrderItem[];

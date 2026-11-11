@@ -5,7 +5,7 @@ import {
   type CustomerReservation,
   type InPlayOrder,
 } from '../data/reservations-store';
-import { useStoreText } from '../../home/data/store-text';
+import { useStoreText } from '../../../shared/lib/store-text';
 import QRCode from 'qrcode';
 
 const props = withDefaults(
@@ -478,8 +478,8 @@ function confirmCustomerQrPayment() {
                     :class="{ active: selectedStaffPaymentMethod === 'cash' }"
                   >
                     <input
-                      type="radio"
                       v-model="selectedStaffPaymentMethod"
+                      type="radio"
                       value="cash"
                       class="sr-only"
                     />
@@ -492,8 +492,8 @@ function confirmCustomerQrPayment() {
                     }"
                   >
                     <input
-                      type="radio"
                       v-model="selectedStaffPaymentMethod"
+                      type="radio"
                       value="promptpay_qr"
                       class="sr-only"
                     />
@@ -504,8 +504,8 @@ function confirmCustomerQrPayment() {
                     :class="{ active: selectedStaffPaymentMethod === 'card' }"
                   >
                     <input
-                      type="radio"
                       v-model="selectedStaffPaymentMethod"
+                      type="radio"
                       value="card"
                       class="sr-only"
                     />

@@ -4,7 +4,7 @@ import { RouterLink } from 'vue-router';
 import { useQuery } from '@tanstack/vue-query';
 import { listBranches, type Branch } from '@theparlor/api-client';
 import { useAuthStore } from '../../../shared/stores/auth';
-import { useStoreText } from '../../home/data/store-text';
+import { useStoreText } from '../../../shared/lib/store-text';
 import {
   useCustomerReservationsStore,
   type CustomerReservation,

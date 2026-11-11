@@ -116,43 +116,6 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
     </template>
 
     <template #header-right>
-      <RouterLink
-        v-if="auth.authenticated"
-        to="/reservations"
-        class="header-history-btn"
-      >
-        {{ t('My Reservations') }}
-      </RouterLink>
-      <RouterLink to="/reservations/new" class="header-reserve-btn">
-        {{ t('Reserve Table') }}
-      </RouterLink>
-
-      <button
-        type="button"
-        class="header-orders-btn"
-        :title="t('Track your orders and parcels')"
-        @click="ordersStore.openOrdersModal()"
-      >
-        <svg
-          width="15"
-          height="15"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.8"
-          aria-hidden="true"
-        >
-          <path
-            d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
-          />
-          <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-          <line x1="12" y1="22.08" x2="12" y2="12" />
-        </svg>
-        <span class="btn-text">{{ t('Orders') }}</span>
-        <span v-if="ordersStore.orders.length > 0" class="header-orders-badge">
-          {{ ordersStore.orders.length }}
-        </span>
-      </button>
       <StoreCartButton />
       <div
         ref="accountRoot"
@@ -226,8 +189,23 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
                   >{{ t('Open your workspace') }}
                   <span aria-hidden="true">↗</span></RouterLink
                 >
+                <RouterLink to="/reservations/new">{{
+                  t('Reserve Table')
+                }}</RouterLink>
+                <RouterLink to="/reservations">{{
+                  t('My Reservations')
+                }}</RouterLink>
                 <button
-                  v-if="!hideHeaderSignOut"
+                  type="button"
+                  @click="
+                    close();
+                    ordersStore.openOrdersModal();
+                  "
+                >
+                  {{ t('My Orders') }}
+                </button>
+                <button
+                  v-if="!hideHeaderSignOut && route.name !== 'WorkspaceIndex'"
                   type="button"
                   class="sign-out"
                   @click="signOut"
@@ -251,6 +229,11 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
 </template>
 
 <style scoped>
+.customer-shell :deep(.parlor-header) {
+  background: #203c30;
+  border-bottom: 2px solid #c6ad7a;
+}
+
 .catalog-shell {
   background: #fafbf9;
   background-image: none;
@@ -280,21 +263,6 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
 .catalog-shell.cart-shell :deep(> div.relative > header + div) {
   padding: 0;
   background: #f4f5f7;
-}
-.catalog-shell
-  :deep(> div.relative > header > :nth-child(2) > span:first-child),
-.catalog-shell
-  :deep(> div.relative > header > :nth-child(2) > span:last-child) {
-  display: inline;
-  color: #ddc18c;
-  font-size: 13px;
-}
-.catalog-shell
-  :deep(> div.relative > header > :nth-child(2) > span:nth-child(2)) {
-  color: #fff3dc;
-  font-size: 13px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
 }
 /* Branch map page: the map fills the viewport below the header, edge to edge. */
 .catalog-shell.map-shell :deep(> div.relative) {
@@ -461,7 +429,7 @@ button:focus-visible {
 }
 @media (max-width: 1024px) {
   .customer-shell :deep(> div.relative > header) {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     padding: 10px 18px;
     gap: 12px;
   }
@@ -503,7 +471,7 @@ button:focus-visible {
     padding: 18px 16px;
   }
   .customer-shell :deep(> div.relative > header) {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     padding: 12px;
     gap: 8px;
   }

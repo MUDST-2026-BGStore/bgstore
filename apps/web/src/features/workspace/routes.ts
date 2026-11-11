@@ -4,7 +4,7 @@ export const workspaceRoutes: RouteRecordRaw[] = [
   {
     path: '/workspace',
     name: 'WorkspaceIndex',
-    meta: { requiresAuth: true },
+    meta: { requiresAuth: true, layout: 'customer' },
     component: () => import('./pages/WorkspaceIndex.vue'),
   },
   {
