@@ -13,6 +13,7 @@ import {
   type Reservation,
 } from '@theparlor/api-client';
 import TableBillModal from '../components/TableBillModal.vue';
+import ManagementInventory from '../components/ManagementInventory.vue';
 import { useCustomerReservationsStore } from '../data/reservations-store';
 import { games, type CatalogGame } from '../../../shared/data/catalog';
 import { useAuthStore } from '../../../shared/stores/auth';
@@ -130,9 +131,8 @@ watch(activeTab, (tab) => {
   }
 });
 
-// Branch & Search
+// Branch
 const selectedBranchId = ref<string>('');
-const searchQuery = ref<string>('');
 const currentTimeStr = ref(
   new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
 );
@@ -1230,7 +1230,7 @@ const venuePolicies = ref({
           </svg>
         </div>
         <div class="brand-text-col">
-          <span class="brand-sub">✦ {{ roleBadgeLabel }}</span>
+          <span class="brand-sub">{{ roleBadgeLabel }}</span>
           <span class="brand-name">The Parlor</span>
         </div>
       </div>
@@ -1406,7 +1406,7 @@ const venuePolicies = ref({
           href="#inventory"
           class="nav-item"
           :class="{ active: activeTab === 'inventory' }"
-          :title="isSidebarCollapsed ? 'Refreshments & Stock' : undefined"
+          :title="isSidebarCollapsed ? 'Inventory & Fulfillment' : undefined"
           @click.prevent="activeTab = 'inventory'"
         >
           <span class="nav-icon-box">
@@ -1426,7 +1426,7 @@ const venuePolicies = ref({
               <line x1="12" y1="22.08" x2="12" y2="12" />
             </svg>
           </span>
-          <span class="nav-label">Refreshments & Stock</span>
+          <span class="nav-label">Inventory & Fulfillment</span>
         </a>
 
         <!-- 2. Management (Manager & Admin only) -->
@@ -1599,8 +1599,11 @@ const venuePolicies = ref({
       <header class="gl-topbar">
         <div class="topbar-left">
           <div class="branch-selector-capsule">
-            <span class="pin-icon">✦</span>
-            <select v-model="selectedBranchId" class="branch-select">
+            <select
+              v-model="selectedBranchId"
+              class="branch-select"
+              aria-label="Branch"
+            >
               <option v-for="b in branches" :key="b.id" :value="b.id">
                 The Parlor · {{ b.name }} Branch
               </option>
@@ -1608,31 +1611,10 @@ const venuePolicies = ref({
           </div>
 
           <div class="console-role-pill">
-            <span class="pulse-indicator"></span>
-            <span>Central {{ userRoleTitle }} Hub</span>
+            <span>{{ userRoleTitle }}</span>
           </div>
         </div>
 
-        <div class="topbar-search">
-          <svg
-            class="search-icon"
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-          >
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            v-model="searchQuery"
-            type="search"
-            placeholder="Search games, guests, or tables..."
-            class="topbar-search-input"
-          />
-        </div>
 
         <div class="topbar-actions">
           <button
@@ -1680,6 +1662,7 @@ const venuePolicies = ref({
       </header>
 
       <!-- Main Operational Console Body -->
+      <div class="gl-content-scroll" tabindex="0" aria-label="Management workspace">
       <main class="gl-content">
         <!-- ========================================== -->
         <!-- VIEW 1: DASHBOARD TAB                      -->
@@ -1688,19 +1671,13 @@ const venuePolicies = ref({
           <!-- Block 1: Service Greeting Hero -->
           <section class="console-block hero-block">
             <div class="eyebrow-row">
-              <span class="gold-sparkle">✦</span>
               <span class="hero-eyebrow">
-                TONIGHT AT THE PARLOR ·
-                {{ selectedBranch?.name.toUpperCase() || 'SIAM' }} BRANCH
+                {{ selectedBranch?.name || 'Siam' }} branch · Overview
               </span>
             </div>
 
             <div class="title-row">
               <h1 class="hero-title">{{ greeting }}</h1>
-              <span class="live-pill">
-                <span class="live-pulse"></span>
-                Bookings: Live
-              </span>
             </div>
 
             <p class="hero-subtitle">
@@ -1787,7 +1764,7 @@ const venuePolicies = ref({
           <!-- Block 2: 4-Column Metric Ribbon Block -->
           <section class="console-block numbers-card-ribbon">
             <div class="num-col">
-              <span class="col-label">TONIGHT</span>
+              <span class="col-label">Tonight</span>
               <div class="col-value">{{ allReservations.length }}</div>
               <div class="col-sub">
                 party ·
@@ -1799,31 +1776,33 @@ const venuePolicies = ref({
             </div>
 
             <div class="num-col">
-              <span class="col-label">TABLES IN USE</span>
+              <span class="col-label">Tables in use</span>
               <div class="col-value">
                 {{ occupiedTablesCount }} / {{ branchFloorTables.length }}
-              </div>
-              <div class="segmented-progress">
-                <span
-                  v-for="(_, i) in branchFloorTables"
-                  :key="i"
-                  class="progress-seg"
-                  :class="{ active: i < occupiedTablesCount }"
-                ></span>
               </div>
               <div class="col-sub">{{ freeTablesCount }} free now</div>
             </div>
 
             <div class="num-col">
-              <span class="col-label">ARRIVING</span>
+              <span class="col-label">Arriving</span>
               <div class="col-value">{{ upcomingReservations.length }}</div>
               <div class="col-sub">in the next hour</div>
             </div>
 
             <div class="num-col">
-              <span class="col-label">ACTIVE TABS</span>
+              <span class="col-label">Active tabs</span>
               <div class="col-value">{{ activeFloorReservations.length }}</div>
               <div class="col-sub">running refreshments on tab</div>
+            </div>
+          </section>
+
+          <section class="dashboard-stock-watch" aria-labelledby="stock-watch-title">
+            <div>
+              <h2 id="stock-watch-title">Stock & fulfillment</h2>
+            </div>
+            <div class="stock-watch-summary">
+              <span>Pantry: <strong>{{ lowStockCount }} low</strong> · <strong>{{ outOfStockCount }} out</strong></span>
+              <button type="button" class="btn-secondary-parlor" @click="activeTab = 'inventory'">Review inventory <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></button>
             </div>
           </section>
 
@@ -1834,7 +1813,6 @@ const venuePolicies = ref({
           >
             <div class="needs-you-header">
               <div class="needs-you-title">
-                <span class="gold-bullet">◆</span>
                 <span>Needs you now</span>
                 <span class="needs-count-pill">{{ needsYouItems.length }}</span>
               </div>
@@ -1883,7 +1861,7 @@ const venuePolicies = ref({
                     class="btn-primary-parlor small"
                     @click="openCheckBill(alert.reservation)"
                   >
-                    Check Bill →
+                    Check Bill <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                   </button>
 
                   <button
@@ -1907,7 +1885,6 @@ const venuePolicies = ref({
                 <div class="section-card-header">
                   <div class="header-left">
                     <h2 class="section-title">Floor</h2>
-                    <span class="live-tag">✦ Live</span>
                   </div>
                   <span class="usage-text"
                     >{{ occupiedTablesCount }} of
@@ -1940,7 +1917,7 @@ const venuePolicies = ref({
                         class="tile-action-link"
                         @click="openWalkInForTable(table)"
                       >
-                        + Seat walk-in here →
+                        + Seat walk-in here <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                       </button>
                     </template>
 
@@ -1980,7 +1957,8 @@ const venuePolicies = ref({
                       >
                         <div class="assigned-chips-wrap">
                           <span class="game-chip-capsule">
-                            🎲 {{ getTableAssignedGames(table.id)[0] }}
+                            <i class="fa-solid fa-dice" aria-hidden="true"></i>
+                            {{ getTableAssignedGames(table.id)[0] }}
                             <button
                               type="button"
                               class="btn-chip-unassign"
@@ -1992,7 +1970,7 @@ const venuePolicies = ref({
                                 )
                               "
                             >
-                              ✕
+                              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                             </button>
                           </span>
                         </div>
@@ -2060,7 +2038,7 @@ const venuePolicies = ref({
                           handleCheckIn(getTableStatus(table).reservation)
                         "
                       >
-                        Check-in & Seat →
+                        Check-in & Seat <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                       </button>
                     </template>
                   </article>
@@ -2082,7 +2060,6 @@ const venuePolicies = ref({
                 </div>
 
                 <div class="policy-rule-banner">
-                  <span class="gold-bullet">◆</span>
                   <span
                     >15-Minute Auto No-Show: Tables auto-release if customer is
                     >15m late.</span
@@ -2126,7 +2103,7 @@ const venuePolicies = ref({
                           :disabled="actionInProgress === res.id"
                           @click="handleCheckIn(res)"
                         >
-                          ✦ Arrived
+                          Arrived
                         </button>
                         <button
                           type="button"
@@ -2134,7 +2111,7 @@ const venuePolicies = ref({
                           :disabled="actionInProgress === res.id"
                           @click="handleCheckIn(res)"
                         >
-                          Seat Table →
+                          Seat Table <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                         </button>
                         <button
                           type="button"
@@ -2159,7 +2136,7 @@ const venuePolicies = ref({
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ REAL-TIME VENUE FLOOR PLAN</div>
+                <div class="view-eyebrow">Venue</div>
                 <h1 class="view-title">Tables & Floor Management</h1>
                 <p class="view-subtitle">
                   Live table occupancy, assigned games, guest seating, and floor
@@ -2238,7 +2215,7 @@ const venuePolicies = ref({
                   <!-- Assigned Game Box on Occupied Table -->
                   <div class="tile-assigned-games-box" style="margin: 8px 0">
                     <div class="assigned-header-row">
-                      <span class="assigned-label">🎲 Assigned Game:</span>
+                      <span class="assigned-label">Assigned game:</span>
                       <!-- Only show + Assign Game if table has no game yet -->
                       <button
                         v-if="getTableAssignedGames(table.id).length === 0"
@@ -2254,6 +2231,7 @@ const venuePolicies = ref({
                       class="assigned-chips-wrap"
                     >
                       <span class="game-chip-capsule">
+                        <i class="fa-solid fa-dice" aria-hidden="true"></i>
                         {{ getTableAssignedGames(table.id)[0] }}
                         <button
                           type="button"
@@ -2266,7 +2244,7 @@ const venuePolicies = ref({
                             )
                           "
                         >
-                          ✕ Return
+                         <i class="fa-solid fa-xmark" aria-hidden="true"></i> Return
                         </button>
                       </span>
                     </div>
@@ -2318,7 +2296,7 @@ const venuePolicies = ref({
                     class="btn-primary-parlor small full"
                     @click="handleCheckIn(getTableStatus(table).reservation)"
                   >
-                    Check-in & Seat Table →
+                    Check-in & Seat Table <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
                   </button>
                 </template>
               </article>
@@ -2333,7 +2311,7 @@ const venuePolicies = ref({
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ IN-PLAY TABLE MONITORING</div>
+                <div class="view-eyebrow">Table monitoring</div>
                 <h1 class="view-title">Active Play Sessions & Tabs</h1>
                 <p class="view-subtitle">
                   Monitor played time, assigned games, refreshments, and settle
@@ -2353,7 +2331,7 @@ const venuePolicies = ref({
               v-if="activeFloorReservations.length === 0"
               class="empty-state-box"
             >
-              <div class="empty-icon">☕</div>
+              <div class="empty-icon" aria-hidden="true"><i class="fa-regular fa-clock"></i></div>
               <h3>No Active Play Sessions</h3>
               <p>
                 There are no tables currently playing. Seat a walk-in guest or
@@ -2373,7 +2351,7 @@ const venuePolicies = ref({
                     <th>Table</th>
                     <th>Customer</th>
                     <th>Assigned Game</th>
-                    <th>Checked-In</th>
+                    <th>Checked in</th>
                     <th>Time Played</th>
                     <th>Hourly Rate</th>
                     <th>Table Fee</th>
@@ -2397,7 +2375,7 @@ const venuePolicies = ref({
                           class="session-chips-wrap"
                         >
                           <span class="game-chip-capsule">
-                            🎲 {{ getTableAssignedGames(res.tableId)[0] }}
+                            {{ getTableAssignedGames(res.tableId)[0] }}
                             <button
                               type="button"
                               class="btn-chip-unassign"
@@ -2409,7 +2387,7 @@ const venuePolicies = ref({
                                 )
                               "
                             >
-                              ✕
+                              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
                             </button>
                           </span>
                         </div>
@@ -2468,7 +2446,7 @@ const venuePolicies = ref({
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ SHIFT SCHEDULE</div>
+                <div class="view-eyebrow">Shift schedule</div>
                 <h1 class="view-title">Bookings & Reservations Timeline</h1>
                 <p class="view-subtitle">
                   Automatic 15-minute no-show policy releases tables to walk-ins
@@ -2503,7 +2481,7 @@ const venuePolicies = ref({
                         class="status-tag"
                         :class="res.status.toLowerCase()"
                       >
-                        {{ res.status }}
+                        {{ res.status === "CHECKED_IN" ? "Checked in" : res.status === "CONFIRMED" ? "Confirmed" : res.status === "CANCELLED" ? "Cancelled" : res.status === "COMPLETED" ? "Completed" : res.status === "NO_SHOW" ? "No show" : res.status === "PENDING" ? "Pending" : res.status }}
                       </span>
                     </td>
                     <td>{{ getCustomerPhone(res.customer) || '—' }}</td>
@@ -2549,9 +2527,7 @@ const venuePolicies = ref({
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">
-                  ✦ THE PARLOR COLLECTION & SHELF INVENTORY
-                </div>
+                <div class="view-eyebrow">Collection & shelf inventory</div>
                 <h1 class="view-title">Board Game Library</h1>
                 <p class="view-subtitle">
                   Check game availability in real time, see which table is
@@ -2584,7 +2560,7 @@ const venuePolicies = ref({
                 :class="{ active: gameStatusFilter === 'AVAILABLE' }"
                 @click="gameStatusFilter = 'AVAILABLE'"
               >
-                🟢 Available on Shelf ({{
+                On shelf ({{
                   games.filter((g) => !getGameLocation(g.name)).length
                 }})
               </button>
@@ -2594,7 +2570,7 @@ const venuePolicies = ref({
                 :class="{ active: gameStatusFilter === 'IN_USE' }"
                 @click="gameStatusFilter = 'IN_USE'"
               >
-                🔴 In Use at Tables ({{
+                In use ({{
                   games.filter((g) => !!getGameLocation(g.name)).length
                 }})
               </button>
@@ -2611,16 +2587,13 @@ const venuePolicies = ref({
                   class="game-status-strip"
                   :class="getGameLocation(game.name) ? 'unavail' : 'avail'"
                 >
-                  <span class="status-dot"></span>
                   <span
                     v-if="getGameLocation(game.name)"
                     class="status-strip-text"
                   >
-                    UNAVAILABLE · In use at {{ getGameLocation(game.name) }}
+                    In use at {{ getGameLocation(game.name) }}
                   </span>
-                  <span v-else class="status-strip-text">
-                    AVAILABLE · Ready on shelf
-                  </span>
+                  <span v-else class="status-strip-text"> On shelf </span>
                 </div>
 
                 <div class="game-card-header">
@@ -2632,13 +2605,13 @@ const venuePolicies = ref({
                 <p class="game-designer">Designed by {{ game.designer }}</p>
                 <div class="game-meta-row">
                   <span
-                    >👥 {{ game.players[0] }}–{{
+                    ><i class="fa-solid fa-user-group" aria-hidden="true"></i> {{ game.players[0] }}–{{
                       game.players[1]
                     }}
                     Players</span
                   >
                   <span
-                    >⏱ {{ game.playMinutes[0] }}–{{
+                    ><i class="fa-regular fa-clock" aria-hidden="true"></i> {{ game.playMinutes[0] }}–{{
                       game.playMinutes[1]
                     }}
                     min</span
@@ -2653,7 +2626,8 @@ const venuePolicies = ref({
                     class="btn-return-shelf full"
                     @click="returnGameFromAnyTable(game.name)"
                   >
-                    Return to Shelf ↩ (From {{ getGameLocation(game.name) }})
+                    <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+                    Return to Shelf (From {{ getGameLocation(game.name) }})
                   </button>
                   <button
                     v-else
@@ -2661,7 +2635,7 @@ const venuePolicies = ref({
                     class="btn-primary-parlor small full"
                     @click="openAssignGame(game)"
                   >
-                    ✦ Assign to Playing Table →
+                    Assign to table
                   </button>
                 </div>
               </article>
@@ -2675,23 +2649,13 @@ const venuePolicies = ref({
         <!-- Higher roles (Manager/Admin) can add types -->
         <!-- ========================================== -->
         <template v-else-if="activeTab === 'inventory'">
-          <section class="console-block">
+          <ManagementInventory :key="selectedBranchId" :branch-name="selectedBranch?.name || 'Select a branch'">
+            <template #slot>
+              <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">
-                  ✦ KITCHEN & BEVERAGE INVENTORY CONTROL
-                </div>
+                <div class="view-eyebrow">Kitchen & beverages</div>
                 <h1 class="view-title">Food & Drink Stock Management</h1>
-                <p class="view-subtitle">
-                  <span v-if="isManager"
-                    >Manager Access · Full stock control, menu item creation,
-                    profit margins, and supplier batch restocks.</span
-                  >
-                  <span v-else
-                    >Floor Staff Stock Access · Daily pantry counts and stock
-                    intake adjustments.</span
-                  >
-                </p>
               </div>
 
               <!-- Higher Role Action: Add New Food/Drink Type -->
@@ -2702,14 +2666,7 @@ const venuePolicies = ref({
                   class="btn-primary-parlor"
                   @click="openAddFoodModal"
                 >
-                  ✦ Add New Food / Drink Item
-                </button>
-                <button
-                  type="button"
-                  class="btn-secondary-parlor"
-                  @click="openRestockModal(branchStockItems[0])"
-                >
-                  + Restock Delivery Batch
+                  Add food / drink item
                 </button>
               </div>
             </div>
@@ -2717,24 +2674,24 @@ const venuePolicies = ref({
             <!-- Stock Metrics Ribbon -->
             <div class="stock-stats-ribbon">
               <div class="stock-stat-box">
-                <span class="stat-lbl">TOTAL UNITS IN STOCK</span>
+                <span class="stat-lbl">Total units in stock</span>
                 <div class="stat-num">{{ totalStockUnits }}</div>
                 <span class="stat-sub"
                   >{{ branchStockItems.length }} tracked menu items</span
                 >
               </div>
               <div class="stock-stat-box">
-                <span class="stat-lbl">HEALTHY STOCK</span>
+                <span class="stat-lbl">Healthy stock</span>
                 <div class="stat-num text-green">{{ healthyStockCount }}</div>
                 <span class="stat-sub">Sufficient pantry levels</span>
               </div>
               <div class="stock-stat-box">
-                <span class="stat-lbl">LOW STOCK ALERT</span>
+                <span class="stat-lbl">Low stock alert</span>
                 <div class="stat-num text-amber">{{ lowStockCount }}</div>
                 <span class="stat-sub">Below threshold, reorder soon</span>
               </div>
               <div class="stock-stat-box">
-                <span class="stat-lbl">OUT OF STOCK</span>
+                <span class="stat-lbl">Out of stock</span>
                 <div class="stat-num text-red">{{ outOfStockCount }}</div>
                 <span class="stat-sub">Requires supplier delivery</span>
               </div>
@@ -2758,7 +2715,7 @@ const venuePolicies = ref({
                   :class="{ active: stockCategoryFilter === 'beverages' }"
                   @click="stockCategoryFilter = 'beverages'"
                 >
-                  🥤 Beverages
+                  <i class="fa-solid fa-whiskey-glass" aria-hidden="true"></i> Beverages
                 </button>
                 <button
                   type="button"
@@ -2766,7 +2723,7 @@ const venuePolicies = ref({
                   :class="{ active: stockCategoryFilter === 'snacks' }"
                   @click="stockCategoryFilter = 'snacks'"
                 >
-                  🍿 Snacks & Fries
+                  <i class="fa-solid fa-cookie-bite" aria-hidden="true"></i> Snacks & Fries
                 </button>
                 <button
                   type="button"
@@ -2774,7 +2731,7 @@ const venuePolicies = ref({
                   :class="{ active: stockCategoryFilter === 'tea_coffee' }"
                   @click="stockCategoryFilter = 'tea_coffee'"
                 >
-                  ☕ Tea & Coffee
+                  <i class="fa-solid fa-mug-hot" aria-hidden="true"></i> Tea & Coffee
                 </button>
                 <button
                   type="button"
@@ -2782,7 +2739,7 @@ const venuePolicies = ref({
                   :class="{ active: stockCategoryFilter === 'bakery_desserts' }"
                   @click="stockCategoryFilter = 'bakery_desserts'"
                 >
-                  🥐 Bakery
+                  <i class="fa-solid fa-cake-candles" aria-hidden="true"></i> Bakery
                 </button>
               </div>
 
@@ -2799,7 +2756,7 @@ const venuePolicies = ref({
                         : 'NEED_REORDER'
                   "
                 >
-                  ⚠️ Needs Reorder ({{ lowStockCount + outOfStockCount }})
+                  <i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Needs reorder ({{ lowStockCount + outOfStockCount }})
                 </button>
               </div>
             </div>
@@ -2830,6 +2787,8 @@ const venuePolicies = ref({
                       <div class="stock-item-info">
                         <strong>{{ item.name }}</strong>
                         <div class="item-th-sub">{{ item.nameTh }}</div>
+                        <!-- TODO: replace with real SKU codes once editions expose SKU identifiers -->
+                        <code class="pantry-sku">{{ item.id.toUpperCase() }}</code>
                       </div>
                     </td>
                     <td>
@@ -2856,16 +2815,16 @@ const venuePolicies = ref({
                         v-if="item.currentStock === 0"
                         class="stock-status-tag out"
                       >
-                        ● Out of Stock
+                        Out of stock
                       </span>
                       <span
                         v-else-if="item.currentStock <= item.lowStockThreshold"
                         class="stock-status-tag low"
                       >
-                        ● Low Stock (&le;{{ item.lowStockThreshold }})
+                        Low stock (&le;{{ item.lowStockThreshold }})
                       </span>
                       <span v-else class="stock-status-tag healthy">
-                        ● In Stock
+                        In stock
                       </span>
                     </td>
                     <td>
@@ -2933,7 +2892,8 @@ const venuePolicies = ref({
                         title="Remove SKU from branch catalog"
                         @click="removeStockItem(item.id)"
                       >
-                        🗑 Remove
+                        <i class="fa-regular fa-trash-can" aria-hidden="true"></i>
+                        Remove
                       </button>
                     </td>
                   </tr>
@@ -2941,6 +2901,8 @@ const venuePolicies = ref({
               </table>
             </div>
           </section>
+            </template>
+          </ManagementInventory>
         </template>
 
         <!-- ========================================== -->
@@ -2950,7 +2912,7 @@ const venuePolicies = ref({
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ BRANCH ROSTER & TEAM</div>
+                <div class="view-eyebrow">Branch team</div>
                 <h1 class="view-title">Staff & Shift Attendance</h1>
                 <p class="view-subtitle">
                   Active shift supervision, table zone allocations, and roster
@@ -2981,7 +2943,6 @@ const venuePolicies = ref({
                     <strong>Assigned Zone:</strong> {{ staff.assignedZone }}
                   </p>
                   <div class="duty-status-row">
-                    <span class="pulse-green"></span>
                     <span class="duty-lbl">On Duty · Clocked in</span>
                   </div>
                 </div>
@@ -2997,9 +2958,7 @@ const venuePolicies = ref({
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">
-                  ✦ FINANCIAL & OCCUPANCY TELEMETRY
-                </div>
+                <div class="view-eyebrow">Revenue & occupancy</div>
                 <h1 class="view-title">Revenue & Branch Analytics</h1>
                 <p class="view-subtitle">
                   Today's real-time financial gross, hourly table time, and
@@ -3011,26 +2970,26 @@ const venuePolicies = ref({
 
             <div class="analytics-ribbon-grid">
               <div class="analytics-card">
-                <span class="analytics-label">TODAY'S GROSS REVENUE</span>
+                <span class="analytics-label">Today's gross revenue</span>
                 <div class="analytics-value">฿{{ todayTotalGross }}</div>
                 <span class="analytics-sub"
                   >Table time + Counter refreshments</span
                 >
               </div>
               <div class="analytics-card">
-                <span class="analytics-label">TABLE PLAYTIME FEES</span>
+                <span class="analytics-label">Table playtime fees</span>
                 <div class="analytics-value">฿{{ totalTableFeesToday }}</div>
                 <span class="analytics-sub"
                   >Based on actual elapsed playtime</span
                 >
               </div>
               <div class="analytics-card">
-                <span class="analytics-label">F&B REFRESHMENTS</span>
+                <span class="analytics-label">F&B refreshments</span>
                 <div class="analytics-value">฿{{ todayFoodDrinkRevenue }}</div>
                 <span class="analytics-sub">Snacks & drinks tabs</span>
               </div>
               <div class="analytics-card">
-                <span class="analytics-label">PEAK UTILIZATION</span>
+                <span class="analytics-label">Peak utilization</span>
                 <div class="analytics-value">
                   {{
                     Math.round(
@@ -3054,7 +3013,7 @@ const venuePolicies = ref({
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ SYSTEM CONFIGURATION</div>
+                <div class="view-eyebrow">Configuration</div>
                 <h1 class="view-title">Venue Settings</h1>
                 <p class="view-subtitle">
                   Manage branch identity, operating hours, and capacity limits.
@@ -3099,6 +3058,11 @@ const venuePolicies = ref({
                 </div>
               </div>
             </div>
+
+            <!-- TODO: wire to a real venue settings update endpoint; local-only state right now -->
+            <div class="settings-actions">
+              <button type="button" class="btn-primary-parlor">Save changes</button>
+            </div>
           </section>
         </template>
 
@@ -3109,7 +3073,7 @@ const venuePolicies = ref({
           <section class="console-block">
             <div class="view-header-row">
               <div>
-                <div class="view-eyebrow">✦ GOVERNANCE & RULES</div>
+                <div class="view-eyebrow">Branch rules</div>
                 <h1 class="view-title">Venue Operational Policies</h1>
                 <p class="view-subtitle">
                   Configure 15-minute automatic no-show table releases,
@@ -3179,6 +3143,7 @@ const venuePolicies = ref({
           </section>
         </template>
       </main>
+      </div>
 
       <!-- Assign Game to Table Modal (Enforces: 1. Only started session can receive game; 2. Cannot assign to already assigned table) -->
       <div
@@ -3189,7 +3154,7 @@ const venuePolicies = ref({
         <div class="modal-card">
           <div class="walkin-header">
             <div>
-              <div class="eyebrow-sub">TABLE GAME SERVICE</div>
+              <div class="eyebrow-sub">Table service</div>
               <h3 class="modal-title">Assign Game to Table</h3>
               <p class="modal-sub">
                 Rule: Only tables with an active started session can receive a
@@ -3201,7 +3166,7 @@ const venuePolicies = ref({
               class="close-x"
               @click="showAssignGameModal = false"
             >
-              ✕
+              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
           </div>
 
@@ -3211,7 +3176,7 @@ const venuePolicies = ref({
               v-if="eligibleTablesForGame.length === 0"
               class="rule-warning-box"
             >
-              <span class="gold-bullet">⚠️</span>
+              <span class="gold-bullet"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i></span>
               <span>
                 No tables eligible right now. Games can only be assigned to
                 tables with an <strong>active started session</strong> that do
@@ -3289,8 +3254,8 @@ const venuePolicies = ref({
                   <div class="game-choice-info">
                     <strong class="game-choice-name">{{ g.name }}</strong>
                     <span class="game-choice-sub">
-                      👥 {{ g.players[0] }}-{{ g.players[1] }}p · ⏱
-                      {{ g.playMinutes[0] }}-{{ g.playMinutes[1] }}m
+                      <i class="fa-solid fa-user-group" aria-hidden="true"></i> {{ g.players[0] }}-{{ g.players[1] }} players ·
+                      <i class="fa-regular fa-clock" aria-hidden="true"></i> {{ g.playMinutes[0] }}-{{ g.playMinutes[1] }}m
                     </span>
                   </div>
                   <div class="game-choice-status">
@@ -3325,7 +3290,7 @@ const venuePolicies = ref({
               @click="confirmAssignGame"
             >
               Assign {{ selectedGameToAssign?.name || 'Game' }} to Table
-              {{ assignGameTargetTableId }} →
+              {{ assignGameTargetTableId }} <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
             </button>
           </div>
         </div>
@@ -3340,7 +3305,7 @@ const venuePolicies = ref({
         <div class="modal-card">
           <div class="walkin-header">
             <div>
-              <div class="eyebrow-sub">MANAGER CATALOG CONFIGURATION</div>
+              <div class="eyebrow-sub">Catalog management</div>
               <h3 class="modal-title">Add New Food / Drink Item</h3>
               <p class="modal-sub">
                 Define a new refreshment item, retail price, cost margins, and
@@ -3352,7 +3317,7 @@ const venuePolicies = ref({
               class="close-x"
               @click="showAddFoodModal = false"
             >
-              ✕
+              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
           </div>
 
@@ -3382,10 +3347,10 @@ const venuePolicies = ref({
               <div class="form-group">
                 <label class="modal-label">Category:</label>
                 <select v-model="newFoodForm.category" class="modal-select">
-                  <option value="beverages">🥤 Beverages</option>
-                  <option value="snacks">🍿 Snacks & Fries</option>
-                  <option value="tea_coffee">☕ Tea & Coffee</option>
-                  <option value="bakery_desserts">🥐 Bakery & Desserts</option>
+                  <option value="beverages">Beverages</option>
+                  <option value="snacks">Snacks & Fries</option>
+                  <option value="tea_coffee">Tea & Coffee</option>
+                  <option value="bakery_desserts">Bakery & Desserts</option>
                 </select>
               </div>
 
@@ -3461,7 +3426,7 @@ const venuePolicies = ref({
               :disabled="!newFoodForm.name.trim()"
               @click="submitAddNewFood"
             >
-              Add Item to Menu & Stock →
+              Add Item to Menu & Stock <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
             </button>
           </div>
         </div>
@@ -3476,7 +3441,7 @@ const venuePolicies = ref({
         <div class="modal-card">
           <div class="walkin-header">
             <div>
-              <div class="eyebrow-sub">PANTRY INTAKE</div>
+              <div class="eyebrow-sub">Pantry intake</div>
               <h3 class="modal-title">Restock Inventory Batch</h3>
               <p class="modal-sub">
                 Add incoming shipment to
@@ -3489,7 +3454,7 @@ const venuePolicies = ref({
               class="close-x"
               @click="showRestockModal = false"
             >
-              ✕
+              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
           </div>
 
@@ -3520,7 +3485,7 @@ const venuePolicies = ref({
                   type="number"
                   min="1"
                   class="modal-input"
-                  style="width: 100px; text-align: center; font-weight: 800"
+                  style="width: 100px; text-align: center; font-weight: 600"
                 />
                 <button
                   type="button"
@@ -3562,7 +3527,7 @@ const venuePolicies = ref({
               @click="submitRestock"
             >
               Confirm Intake (+{{ restockBatchQty }}
-              {{ restockTargetItem.unit }}) →
+              {{ restockTargetItem.unit }}) <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
             </button>
           </div>
         </div>
@@ -3636,7 +3601,7 @@ const venuePolicies = ref({
         <div class="modal-card">
           <div class="walkin-header">
             <div>
-              <div class="eyebrow-sub">FAST COUNTER SEATING</div>
+              <div class="eyebrow-sub">Counter seating</div>
               <h3 class="modal-title">Seat Walk-in Guests</h3>
               <p class="modal-sub">
                 Select table and seat immediately. Refreshments can be added on
@@ -3648,7 +3613,7 @@ const venuePolicies = ref({
               class="close-x"
               @click="showWalkInModal = false"
             >
-              ✕
+              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
           </div>
 
@@ -3743,7 +3708,7 @@ const venuePolicies = ref({
               <span v-if="staffCreateMutation.isPending.value"
                 >Seating Table…</span
               >
-              <span v-else>Seat & Start Playing Now →</span>
+              <span v-else>Seat & Start Playing Now <i class="fa-solid fa-arrow-right" aria-hidden="true"></i></span>
             </button>
           </div>
         </div>
@@ -3758,7 +3723,7 @@ const venuePolicies = ref({
         <div class="modal-card snack-card">
           <div class="walkin-header">
             <div>
-              <div class="eyebrow-sub">TABLE TAB SERVICE</div>
+              <div class="eyebrow-sub">Table tab</div>
               <h3 class="modal-title">Add Refreshments</h3>
               <p class="modal-sub">
                 Table {{ staffSnackReservation.tableId }} ·
@@ -3770,7 +3735,7 @@ const venuePolicies = ref({
               class="close-x"
               @click="staffSnackReservation = null"
             >
-              ✕
+              <i class="fa-solid fa-xmark" aria-hidden="true"></i>
             </button>
           </div>
 
@@ -3850,361 +3815,284 @@ const venuePolicies = ref({
 </template>
 
 <style scoped>
-/* ========================================================= */
-/* THE PARLOR CENTRAL MANAGEMENT CONSOLE STYLES              */
-/* Palette: Deep Forest Green (#142b20), Champagne Gold      */
-/* (#c6ad7a / #ffd98a), and Crisp White (#ffffff) blocks    */
-/* ========================================================= */
+/* Fortinet-derived dense ops system. Tokens first, then chrome, panels, tables. */
 
 .gl-admin-layout {
+  --canvas: #f0f3f0;
+  --surface: #ffffff;
+  --line: #d3d9d4;
+  --line-soft: #e6ebe6;
+  --ink: #1c2a22;
+  --body: #33413a;
+  --muted: #5a675f;
+  --accent: #244c38;
+  --accent-hover: #1d4030;
+  --accent-soft: #e3ebe6;
+  --accent-ink: #1a3a29;
+  --chrome: #1c2e24;
+  --chrome-2: #243a2d;
+  --chrome-hover: #2a4232;
+  --chrome-line: #31493a;
+  --gold: #c6ad7a;
+  --gold-soft: #f4ecd9;
+  --gold-ink: #7a5a24;
+  --ok: #1e5631;
+  --ok-bg: #e2efe6;
+  --warn: #8a5a1c;
+  --warn-bg: #f6ecd9;
+  --err: #9c3526;
+  --err-bg: #f7e5e1;
+  --r: 3px;
+  --shadow: 0 1px 2px rgba(20, 43, 32, 0.06);
+
   display: flex;
-  min-height: 100vh;
-  background-color: #142b20;
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial,
-    sans-serif;
-  color: #142b20;
+  height: 100dvh;
+  overflow: hidden;
+  background: var(--canvas);
+  color: var(--body);
+  font-size: 13px;
+  line-height: 1.45;
 }
 
-/* SIDEBAR */
+/* ------------------------------------------------------------------ */
+/* Sidebar chrome                                                      */
+/* ------------------------------------------------------------------ */
+
 .gl-sidebar {
-  width: 220px;
-  background: #0d1e16;
-  border-right: 1.5px solid #234635;
+  width: 236px;
+  flex: 0 0 auto;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  padding: 18px 12px;
-  flex-shrink: 0;
-  box-sizing: border-box;
-  overflow-x: hidden;
-  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--chrome);
+  color: #cfe0d5;
 }
 
 .gl-sidebar.collapsed {
-  width: 68px;
+  width: 64px;
 }
 
 .gl-sidebar-brand {
   display: flex;
   align-items: center;
-  margin-bottom: 16px;
-  padding: 0 10px;
-  box-sizing: border-box;
-  width: 100%;
-}
-
-.brand-dice-icon {
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  gap: 10px;
+  padding: 14px 12px;
+  border-bottom: 1px solid var(--chrome-line);
 }
 
 .brand-text-col {
   display: flex;
   flex-direction: column;
-  margin-left: 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  opacity: 1;
   min-width: 0;
-  transition:
-    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-    margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gl-sidebar.collapsed .brand-text-col {
-  opacity: 0;
-  max-width: 0;
-  margin-left: 0;
-  pointer-events: none;
-  visibility: hidden;
-}
-
-.brand-sub {
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  color: #c6ad7a;
 }
 
 .brand-name {
-  font-size: 16px;
-  font-weight: 800;
   color: #ffffff;
-  letter-spacing: -0.01em;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.brand-sub {
+  color: #8fa697;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.gl-sidebar.collapsed .brand-text-col,
+.gl-sidebar.collapsed .collapse-text,
+.gl-sidebar.collapsed .sidebar-footer,
+.gl-sidebar.collapsed .nav-section-title {
+  opacity: 0;
+  max-width: 0;
+  max-height: 0;
+  margin: 0;
+  padding: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 .sidebar-collapse-btn {
-  background: transparent;
-  border: none;
-  font-size: 11px;
-  color: #c6ad7a;
-  text-align: left;
-  padding: 6px 10px;
-  margin-bottom: 16px;
-  cursor: pointer;
-  transition:
-    color 0.15s ease,
-    background-color 0.15s ease;
   display: flex;
   align-items: center;
-  border-radius: 8px;
-  box-sizing: border-box;
+  gap: 8px;
   width: 100%;
+  padding: 7px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--chrome-line);
+  background: transparent;
+  color: #8fa697;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
 }
 
 .sidebar-collapse-btn:hover {
-  color: #ffd98a;
-  background: rgba(35, 70, 53, 0.35);
+  background: var(--chrome-2);
+  color: #ffffff;
 }
 
-.collapse-icon-box {
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
+.gl-sidebar.collapsed .sidebar-collapse-btn {
   justify-content: center;
 }
 
 .collapse-arrow-icon {
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.15s ease;
 }
 
 .collapse-arrow-icon.is-collapsed {
   transform: rotate(180deg);
 }
 
-.collapse-text {
-  margin-left: 10px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  opacity: 1;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  transition:
-    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-    margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gl-sidebar.collapsed .collapse-text {
-  opacity: 0;
-  max-width: 0;
-  margin-left: 0;
-  pointer-events: none;
-  visibility: hidden;
-}
-
 .sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: #234635 transparent;
+  padding: 10px 0;
 }
 
 .nav-section-title {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 10px 4px;
+  gap: 8px;
+  padding: 12px 12px 5px;
+  color: #6f8a7a;
   font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  color: #c6ad7a;
-  white-space: nowrap;
-  overflow: hidden;
-  max-height: 36px;
-  opacity: 1;
-  transition:
-    opacity 0.15s ease,
-    max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-    padding 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.gl-sidebar.collapsed .nav-section-title {
-  opacity: 0;
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  margin: 0;
-  pointer-events: none;
-  visibility: hidden;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .role-pill-tiny {
+  padding: 1px 6px;
+  border: 1px solid var(--chrome-line);
+  border-radius: var(--r);
+  color: #8fa697;
   font-size: 9px;
-  padding: 1px 5px;
-  border-radius: 10px;
-  background: #1e3a2b;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
+  font-weight: 500;
+  letter-spacing: 0.05em;
 }
 
 .role-pill-tiny.admin {
-  background: #3b2a1a;
-  color: #ffd98a;
-  border-color: #ffd98a;
+  color: var(--gold);
+  border-color: #54685a;
 }
 
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
-  padding: 8px 10px 8px 7px;
-  border-left: 3px solid transparent;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #d1c7b7;
+  gap: 10px;
+  padding: 8px 12px;
+  color: #c2d4c8;
+  font-size: 12.5px;
+  font-weight: 400;
   text-decoration: none;
-  position: relative;
-  box-sizing: border-box;
-  overflow: hidden;
-  width: 100%;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease,
-    border-color 0.15s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: transparent;
 }
 
 .nav-item:hover {
-  background: #1b3829;
+  background: var(--chrome-hover);
   color: #ffffff;
 }
 
 .nav-item.active {
-  background: #234635;
-  color: #ffd98a;
-  font-weight: 700;
-  border-left-color: #c6ad7a;
+  background: var(--chrome-2);
+  color: #ffffff;
+  font-weight: 500;
+}
+
+.nav-item.active::before {
+  background: var(--gold);
 }
 
 .nav-icon-box {
-  width: 24px;
-  min-width: 24px;
-  height: 24px;
-  flex-shrink: 0;
-  display: flex;
+  display: inline-flex;
+  flex: 0 0 18px;
   align-items: center;
   justify-content: center;
 }
 
 .nav-icon {
-  flex-shrink: 0;
+  display: block;
 }
 
 .nav-label {
-  margin-left: 10px;
+  flex: 1;
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  opacity: 1;
-  min-width: 0;
-  flex: 1;
-  transition:
-    opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
-    max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-    margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  max-width: 160px;
 }
 
 .gl-sidebar.collapsed .nav-label {
-  opacity: 0;
-  max-width: 0;
-  margin-left: 0;
-  pointer-events: none;
-  visibility: hidden;
+  display: none;
 }
 
 .nav-badge-gold {
-  margin-left: auto;
-  background: #c6ad7a;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--gold);
   color: #142b20;
-  font-size: 10.5px;
-  font-weight: 800;
-  border-radius: 10px;
-  padding: 1px 6px;
-  white-space: nowrap;
-  flex-shrink: 0;
-  opacity: 1;
-  transition:
-    opacity 0.2s ease,
-    max-width 0.25s ease;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
 }
 
 .gl-sidebar.collapsed .nav-badge-gold {
-  opacity: 0;
-  max-width: 0;
-  padding: 0;
-  margin: 0;
-  pointer-events: none;
-  visibility: hidden;
+  display: none;
 }
 
 .nav-divider {
   height: 1px;
-  background: #234635;
-  margin: 10px 0;
-  transition: margin 0.25s ease;
+  margin: 10px 12px;
+  background: var(--chrome-line);
 }
 
 .sidebar-footer {
-  border-top: 1.5px solid #234635;
-  padding-top: 14px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  overflow: hidden;
-  white-space: nowrap;
-  max-height: 120px;
-  opacity: 1;
-  transition:
-    opacity 0.15s ease,
-    max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-    padding 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 0.25s ease;
-}
-
-.gl-sidebar.collapsed .sidebar-footer {
-  opacity: 0;
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
-  border-top-color: transparent;
-  pointer-events: none;
-  visibility: hidden;
+  padding: 12px;
+  border-top: 1px solid var(--chrome-line);
 }
 
 .user-profile-row {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
+  min-width: 0;
 }
 
 .user-avatar-gold {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #142b20;
-  color: #ffd98a;
-  border: 1.5px solid #c6ad7a;
-  display: flex;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 800;
-  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--gold);
+  color: #142b20;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .user-info-text {
@@ -4214,1092 +4102,590 @@ const venuePolicies = ref({
 }
 
 .user-name {
-  font-size: 12.5px;
   color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .user-role-label {
+  color: #8fa697;
   font-size: 10.5px;
-  color: #c6ad7a;
 }
 
 .btn-signout {
+  padding: 6px 10px;
+  border: 1px solid var(--chrome-line);
+  border-radius: var(--r);
   background: transparent;
-  border: 1px solid #365b45;
-  color: #d1c7b7;
-  border-radius: 6px;
-  padding: 5px 8px;
-  font-size: 11px;
-  font-weight: 600;
+  color: #c2d4c8;
+  font-size: 11.5px;
+  font-weight: 500;
   cursor: pointer;
-  text-align: center;
-  transition: all 0.12s ease;
 }
 
 .btn-signout:hover {
-  background: #1e3a2b;
-  color: #ffd98a;
-  border-color: #c6ad7a;
+  background: var(--chrome-hover);
+  border-color: #4a6350;
+  color: #ffffff;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .gl-sidebar,
-  .nav-item,
-  .nav-label,
-  .nav-badge-gold,
-  .brand-text-col,
-  .collapse-text,
-  .collapse-arrow-icon,
-  .nav-section-title,
-  .sidebar-footer {
-    transition: none !important;
-  }
-}
+/* ------------------------------------------------------------------ */
+/* Main shell & topbar                                                 */
+/* ------------------------------------------------------------------ */
 
-/* MAIN CONTENT WRAPPER & TOPBAR */
 .gl-main-wrapper {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  min-width: 0;
 }
 
 .gl-topbar {
-  height: 60px;
-  background: #142b20;
-  border-bottom: 1.5px solid #284c37;
-  padding: 0 28px;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
+  padding: 0 16px;
+  height: 46px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
 }
 
 .topbar-left {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.branch-selector-capsule {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #1b3829;
-  border: 1px solid #c6ad7a;
-  border-radius: 20px;
-  padding: 4px 12px;
-}
-
-.pin-icon {
-  font-size: 11px;
-  color: #ffd98a;
+  min-width: 0;
 }
 
 .branch-select {
-  border: none;
-  background: transparent;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: #ffd98a;
-  outline: none;
+  height: 28px;
+  padding: 0 26px 0 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235a675f' fill='none' stroke-width='1.5'/%3E%3C/svg%3E")
+    no-repeat right 9px center;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  appearance: none;
   cursor: pointer;
 }
 
-.branch-select option {
-  background: #142b20;
-  color: #ffffff;
+.branch-select:focus-visible {
+  outline: none;
+  border-color: var(--accent);
 }
 
 .console-role-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #0d1e16;
-  border: 1px solid #335942;
-  border-radius: 20px;
-  padding: 4px 10px;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #c6ad7a;
-}
-
-.pulse-indicator {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #10b981;
-}
-
-.topbar-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #0e1e16;
-  border: 1px solid #284c37;
-  border-radius: 20px;
-  padding: 6px 14px;
-  width: 320px;
-}
-
-.search-icon {
-  color: #c6ad7a;
-}
-
-.topbar-search-input {
-  border: none;
-  background: transparent;
-  font-size: 13px;
-  color: #ffffff;
-  outline: none;
-  width: 100%;
-}
-
-.topbar-search-input::placeholder {
-  color: #7b8c82;
+  padding: 3px 9px;
+  border-radius: var(--r);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .topbar-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
 }
 
 .icon-circle-btn {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  border: 1px solid #335942;
-  background: #1b3829;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #ffd98a;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--muted);
   cursor: pointer;
   text-decoration: none;
-  transition: all 0.12s ease;
 }
 
 .icon-circle-btn:hover {
-  background: #234635;
-  border-color: #c6ad7a;
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent-ink);
 }
 
 .topbar-avatar {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: #142b20;
-  border: 1.5px solid #c6ad7a;
-  color: #ffd98a;
-  font-size: 12px;
-  font-weight: 800;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 600;
 }
 
-/* MAIN CONTENT BLOCKS */
-.gl-content {
-  padding: 24px 28px 60px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  max-width: 1340px;
+.gl-content-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
+
+.gl-content-scroll:focus-visible {
+  outline: none;
+}
+
+.gl-content {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 18px 20px 56px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Panel system (Fortinet widget pattern)                              */
+/* ------------------------------------------------------------------ */
 
 .console-block {
-  background: #ffffff;
-  border: 1.5px solid #c6ad7a;
-  border-radius: 16px;
-  padding: 24px 26px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  margin-bottom: 16px;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
 }
 
-/* Hero Block */
-.hero-block {
+.view-header-row,
+.section-card-header {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.eyebrow-row {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.gold-sparkle {
-  color: #c6ad7a;
-  font-size: 14px;
-}
-
-.gold-bullet {
-  color: #c6ad7a;
-  font-size: 12px;
-}
-
-.hero-eyebrow {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  color: #8c7649;
-}
-
-.title-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.hero-title {
-  margin: 0;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 32px;
-  font-weight: 700;
-  color: #142b20;
-}
-
-.live-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #eef7f2;
-  color: #142b20;
-  border: 1px solid #a7d3bc;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 12px;
-}
-
-.live-pulse {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #10b981;
-}
-
-.hero-subtitle {
-  margin: 0 0 10px;
-  font-size: 14px;
-  color: #554e42;
-}
-
-.hero-actions-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding-top: 10px;
-  border-top: 1px solid #f0e9df;
-}
-
-.btn-primary-parlor {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #142b20;
-  color: #ffd98a;
-  border: 1.5px solid #c6ad7a;
-  border-radius: 20px;
-  padding: 8px 20px;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 3px 8px rgba(20, 43, 32, 0.25);
-  transition: all 0.12s ease;
-}
-
-.btn-primary-parlor:hover {
-  background: #1b3829;
-  border-color: #ffd98a;
-}
-
-.btn-primary-parlor.small {
-  padding: 5px 14px;
-  font-size: 12px;
-}
-
-.btn-primary-parlor.full {
-  width: 100%;
-  justify-content: center;
-}
-
-.btn-secondary-parlor {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #ffffff;
-  border: 1.5px solid #c6ad7a;
-  color: #142b20;
-  border-radius: 20px;
-  padding: 8px 18px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.12s ease;
-}
-
-.btn-secondary-parlor:hover {
-  background: #fbf6ec;
-}
-
-.btn-secondary-parlor.small {
-  padding: 5px 12px;
-  font-size: 12px;
-}
-
-.actions-right {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.updated-time {
-  font-size: 12px;
-  color: #8c7649;
-}
-
-.btn-refresh-parlor {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
-  border-radius: 20px;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-refresh-parlor:hover {
-  background: #fbf6ec;
-}
-
-/* 4-Column Metric Ribbon Block */
-.numbers-card-ribbon {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  padding: 18px 24px;
-}
-
-.num-col {
-  display: flex;
-  flex-direction: column;
-  padding: 0 16px;
-  border-right: 1px solid #f0e9df;
-}
-
-.num-col:last-child {
-  border-right: none;
-}
-
-.col-label {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  color: #8c7649;
-  margin-bottom: 2px;
-}
-
-.col-value {
-  font-size: 28px;
-  font-weight: 800;
-  color: #142b20;
-  line-height: 1.1;
-}
-
-.segmented-progress {
-  display: flex;
-  gap: 3px;
-  margin: 6px 0 4px;
-}
-
-.progress-seg {
-  height: 5px;
-  flex: 1;
-  background: #e6dfd3;
-  border-radius: 2px;
-}
-
-.progress-seg.active {
-  background: #142b20;
-}
-
-.col-sub {
-  font-size: 12px;
-  color: #554e42;
-}
-
-/* Needs You Now Queue */
-.needs-you-card {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.needs-you-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.needs-you-title {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 19px;
-  font-weight: 700;
-  color: #142b20;
-}
-
-.needs-count-pill {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
-  font-size: 11px;
-  font-weight: 800;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: sans-serif;
-}
-
-.most-urgent {
-  font-size: 11.5px;
-  color: #8c7649;
-}
-
-.needs-items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.needs-item-row {
-  display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
   padding: 12px 16px;
-  border: 1.5px solid #e6dfd3;
-  border-radius: 12px;
-  background: #fdfcf9;
-}
-
-.needs-item-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.alert-icon-square {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  background: #fbf6ec;
-  border: 1px solid #c6ad7a;
-  color: #8c7649;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.needs-item-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #142b20;
-}
-
-.needs-item-sub {
-  margin: 2px 0 0;
-  font-size: 12.5px;
-  color: #60594a;
-}
-
-.needs-item-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-gold-pill {
-  background: #fbf6ec;
-  border: 1.5px solid #c6ad7a;
-  color: #142b20;
-  border-radius: 18px;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-gold-pill:hover {
-  background: #f4ecdc;
-}
-
-/* Two-Column Lower Split */
-.two-column-service-row {
-  display: grid;
-  grid-template-columns: 1.35fr 1fr;
-  gap: 20px;
-}
-
-.section-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1.5px solid #e6dfd3;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.section-title {
-  margin: 0;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 20px;
-  font-weight: 700;
-  color: #142b20;
-}
-
-.live-tag {
-  font-size: 11px;
-  font-weight: 700;
-  color: #10b981;
-}
-
-.usage-text,
-.timeline-span {
-  font-size: 12px;
-  color: #60594a;
-}
-
-.count-bubble {
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
-  font-size: 11px;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-
-/* Floor Grid */
-.floor-tables-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-}
-
-.floor-tables-grid.expanded {
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-top: 16px;
-}
-
-.floor-table-tile {
-  border: 1.5px solid #e6dfd3;
-  border-radius: 12px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  background: #ffffff;
-  transition: all 0.12s ease;
-}
-
-.floor-table-tile.big {
-  padding: 18px;
-}
-
-.floor-table-tile.free {
-  border-color: #10b981;
-  background: #f0fdf4;
-}
-
-.floor-table-tile.occupied {
-  border-color: #c6ad7a;
-  background: #fffdfa;
-}
-
-.floor-table-tile.reserved {
-  border-color: #94a3b8;
-  background: #f8fafc;
-}
-
-.tile-top-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.table-num-lbl {
-  font-size: 15px;
-  font-weight: 800;
-  color: #142b20;
-}
-
-.table-seats-lbl {
-  font-size: 11.5px;
-  color: #60594a;
-}
-
-/* Assigned Game Chips on Tables */
-.tile-assigned-games-box {
-  background: #fbf6ec;
-  border: 1px solid #c6ad7a;
-  border-radius: 8px;
-  padding: 6px 8px;
-  margin: 4px 0;
-}
-
-.assigned-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
-.assigned-label {
-  font-size: 10.5px;
-  font-weight: 800;
-  color: #8c7649;
-  display: block;
-}
-
-.assigned-chips-wrap {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.game-chip-capsule {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  background: #142b20;
-  color: #ffd98a;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 12px;
-}
-
-.btn-chip-unassign {
-  background: transparent;
-  border: none;
-  color: #ffd98a;
-  cursor: pointer;
-  font-size: 10px;
-  padding: 0;
-  margin-left: 2px;
-  opacity: 0.8;
-}
-
-.btn-chip-unassign:hover {
-  opacity: 1;
-  color: #ef4444;
-}
-
-.btn-tile-assign-game {
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
-  font-size: 10.5px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-.btn-tile-assign-game:hover {
-  background: #fbf6ec;
-}
-
-.btn-tile-assign-game.small {
-  padding: 1px 6px;
-  font-size: 10px;
-}
-
-.no-game-text {
-  font-size: 11px;
-  color: #8c7649;
-  font-style: italic;
-}
-
-.tile-status-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 2px 0;
-}
-
-.state-badge {
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  padding: 2px 7px;
-  border-radius: 6px;
-}
-
-.state-badge.badge-free {
-  background: #dcfce7;
-  color: #142b20;
-  border: 1px solid #16a34a;
-}
-
-.state-badge.badge-occupied {
-  background: #fef3c7;
-  color: #92400e;
-  border: 1px solid #c6ad7a;
-}
-
-.state-badge.badge-reserved {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
-}
-
-.tile-time-pill {
-  font-size: 10px;
-  font-weight: 700;
-  background: #f4ecdc;
-  color: #142b20;
-  padding: 2px 6px;
-  border-radius: 10px;
-}
-
-.tile-guest-name,
-.guest-name-large {
-  margin: 0;
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #142b20;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.guest-name-large {
-  font-size: 16px;
-  margin: 4px 0 2px;
-}
-
-.tile-helper,
-.tile-sub-info,
-.tile-due-time {
-  margin: 0;
-  font-size: 11.5px;
-  color: #60594a;
-}
-
-.tile-due-time {
-  color: #475569;
-}
-
-.tile-action-link {
-  background: transparent;
-  border: none;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #142b20;
-  cursor: pointer;
-  text-align: left;
-  padding: 4px 0 0;
-  text-decoration: underline;
-}
-
-.tile-actions-row {
-  display: flex;
-  gap: 6px;
-  margin-top: 4px;
-  flex-wrap: wrap;
-}
-
-.tile-btn-small {
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
-  border-radius: 6px;
-  padding: 4px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.tile-btn-assign {
-  background: #fbf6ec;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
-  border-radius: 6px;
-  padding: 4px 6px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.tile-btn-gold {
-  background: #142b20;
-  border: 1px solid #c6ad7a;
-  color: #ffd98a;
-  border-radius: 6px;
-  padding: 4px 10px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-/* Coming Up Timeline */
-.policy-rule-banner {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #fbf6ec;
-  border: 1px solid #c6ad7a;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 11.5px;
-  color: #60594a;
-  margin-bottom: 12px;
-}
-
-.empty-timeline {
-  text-align: center;
-  padding: 28px 16px;
-  color: #8c7649;
-  font-size: 13px;
-}
-
-.timeline-cards-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.timeline-card {
-  display: flex;
-  gap: 14px;
-  background: #fdfcf9;
-  border: 1.5px solid #e6dfd3;
-  border-radius: 12px;
-  padding: 12px 14px;
-}
-
-.timeline-time-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.time-bold {
-  font-size: 13.5px;
-  font-weight: 800;
-  color: #142b20;
-}
-
-.timeline-card-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.timeline-card-top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.timeline-guest-name {
-  font-size: 13.5px;
-  color: #142b20;
-}
-
-.party-tag,
-.table-tag {
-  font-size: 12px;
-  color: #60594a;
-}
-
-.table-tag {
-  background: #f4ecdc;
-  color: #142b20;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 6px;
-  font-size: 11px;
-}
-
-.timeline-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-parlor-pill {
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
-  border-radius: 14px;
-  padding: 3px 10px;
-  font-size: 11.5px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.btn-cancel-link {
-  background: transparent;
-  border: none;
-  font-size: 11.5px;
-  color: #991b1b;
-  cursor: pointer;
-  text-decoration: underline;
-  padding: 0 4px;
-}
-
-/* GENERIC VIEW HEADERS & TABLES */
-.view-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1.5px solid #e6dfd3;
-  gap: 16px;
-  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line-soft);
+  background: #f7f9f7;
+  border-radius: var(--r) var(--r) 0 0;
 }
 
 .view-eyebrow {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  color: #8c7649;
-  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
 }
 
 .view-title {
-  margin: 0 0 4px;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 26px;
-  font-weight: 700;
-  color: #142b20;
+  margin: 1px 0 2px;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .view-subtitle {
   margin: 0;
-  font-size: 13.5px;
-  color: #554e42;
-}
-
-.header-mgmt-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.role-pill-gold {
-  background: #fbf6ec;
-  border: 1.5px solid #c6ad7a;
-  color: #142b20;
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 4px 12px;
-  border-radius: 20px;
-}
-
-.role-pill-gold.admin {
-  background: #142b20;
-  color: #ffd98a;
-}
-
-/* Parlor Table */
-.parlor-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13.5px;
-}
-
-.parlor-table th {
-  text-align: left;
-  padding: 10px 14px;
-  background: #fbf9f4;
-  color: #8c7649;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  border-bottom: 1.5px solid #e6dfd3;
-}
-
-.parlor-table td {
-  padding: 12px 14px;
-  border-bottom: 1px solid #f0e9df;
-  color: #142b20;
-}
-
-.table-badge {
-  background: #f4ecdc;
-  color: #142b20;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 6px;
+  color: var(--muted);
   font-size: 12px;
 }
 
-.session-games-cell {
+.section-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.header-left {
   display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.header-mgmt-actions,
+.timeline-span,
+.usage-text {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.count-bubble {
+  padding: 1px 8px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.role-pill-gold {
+  padding: 3px 9px;
+  border: 1px solid #e0d3b3;
+  border-radius: var(--r);
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Body content inside panels gets horizontal padding */
+.view-header-row + .stock-stats-ribbon,
+.view-header-row + .library-filter-ribbon,
+.view-header-row + .settings-form-grid,
+.view-header-row + .policies-cards-list,
+.view-header-row + .staff-roster-grid,
+.view-header-row + .analytics-ribbon-grid {
+  padding: 14px 16px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Buttons — Fortinet primary/secondary/link semantics                 */
+/* ------------------------------------------------------------------ */
+
+.btn-primary-parlor,
+.btn-secondary-parlor,
+.btn-refresh-parlor,
+.btn-batch-restock,
+.btn-custom-restock,
+.btn-delete-sku,
+.btn-return-shelf,
+.tile-btn-small,
+.tile-btn-assign,
+.tile-btn-gold,
+.btn-tile-assign-game,
+.btn-assign-mini,
+.btn-parlor-pill,
+.btn-gold-pill {
+  display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  flex-wrap: wrap;
-}
-
-.session-chips-wrap {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.btn-assign-mini {
-  background: #fbf6ec;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
-  font-size: 10.5px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 10px;
+  padding: 0 12px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.time-elapsed-badge {
-  background: #dcfce7;
+.btn-primary-parlor {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.btn-primary-parlor:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.btn-secondary-parlor,
+.btn-refresh-parlor,
+.btn-parlor-pill {
+  background: var(--surface);
+  border-color: #a9b5aa;
+  color: var(--ink);
+}
+
+.btn-secondary-parlor:hover,
+.btn-refresh-parlor:hover,
+.btn-parlor-pill:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+.btn-primary-parlor.small,
+.btn-secondary-parlor.small,
+.btn-primary-parlor.small,
+.btn-batch-restock,
+.btn-custom-restock,
+.btn-assign-mini,
+.btn-tile-assign-game {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+
+.btn-primary-parlor:disabled,
+.btn-secondary-parlor:disabled,
+.btn-parlor-pill:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-cancel-link {
+  border: 0;
+  background: none;
+  padding: 0 6px;
+  color: var(--err);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-cancel-link:hover {
+  text-decoration: underline;
+}
+
+.btn-gold-pill {
+  background: var(--gold);
+  border-color: var(--gold);
   color: #142b20;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 12px;
+}
+
+.btn-gold-pill:hover {
+  background: #b89b66;
+}
+
+.btn-delete-sku {
+  height: 26px;
+  padding: 0 10px;
+  background: var(--surface);
+  border-color: #d8b7af;
+  color: var(--err);
+  font-size: 11.5px;
+}
+
+.btn-delete-sku:hover {
+  background: var(--err-bg);
+  border-color: var(--err);
+}
+
+.btn-refresh-parlor {
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+
+.btn-primary-parlor i,
+.btn-secondary-parlor i,
+.btn-batch-restock i,
+.btn-custom-restock i,
+.btn-delete-sku i,
+.btn-return-shelf i,
+.pill-tab i,
+.filter-pill i {
+  font-size: 10px;
+}
+
+.tile-action-link,
+.btn-return-shelf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tile-action-link:hover,
+.btn-return-shelf:hover {
+  background: #d6e2da;
+}
+
+.btn-assign-mini {
+  height: 24px;
+  padding: 0 10px;
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent-ink);
+  font-size: 11.5px;
+}
+
+.btn-assign-mini:hover {
+  background: #d6e2da;
+}
+
+.tile-btn-small {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent-ink);
+}
+
+.tile-btn-small:hover {
+  background: #d6e2da;
+}
+
+.tile-btn-gold {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.tile-btn-gold:hover {
+  background: var(--accent-hover);
+}
+
+.tile-btn-assign {
+  background: var(--surface);
+  border-color: #a9b5aa;
+  color: var(--ink);
+}
+
+.tile-btn-assign:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.btn-tile-assign-game {
+  background: var(--surface);
+  border-color: #a9b5aa;
+  color: var(--ink);
+}
+
+.btn-tile-assign-game:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.search-games-input-wrap .parlor-input {
+  width: 100%;
+}
+
+/* Alert / empty states ------------------------------------------------ */
+
+.alert-banner {
+  padding: 8px 12px;
+  border: 1px solid #ecc8c1;
+  border-radius: var(--r);
+  background: var(--err-bg);
+  color: var(--err);
+  font-size: 12px;
+}
+
+.empty-state-box {
+  margin: 0;
+  padding: 44px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: #f4f6f4;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.empty-state-box h3 {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.empty-state-box p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.empty-timeline {
+  padding: 26px 16px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ------------------------------------------------------------------ */
+/* Tables — nu-table pattern                                           */
+/* ------------------------------------------------------------------ */
+
+.sessions-table-wrap,
+.bookings-list-wrap,
+.inventory-table-wrap {
+  overflow-x: auto;
+}
+
+.parlor-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.parlor-table th {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+  background: #f4f6f4;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.parlor-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--line-soft);
+  color: var(--body);
+  vertical-align: middle;
+}
+
+.parlor-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.parlor-table tbody tr:hover td {
+  background: #f7f9f7;
+}
+
+.table-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: #f4f6f4;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.time-elapsed-badge {
+  padding: 2px 8px;
+  border-radius: var(--r);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.party-muted {
+  margin-left: 4px;
+  color: var(--muted);
   font-size: 11px;
 }
 
 .fee-text {
-  color: #142b20;
-  font-size: 14px;
+  color: var(--ink);
+  font-size: 13px;
 }
 
 .actions-cell {
@@ -5308,689 +4694,1149 @@ const venuePolicies = ref({
   gap: 6px;
 }
 
-.status-tag {
-  font-size: 11px;
-  font-weight: 800;
+/* Status tags --------------------------------------------------------- */
+
+.status-tag,
+.stock-status-tag,
+.mini-status-tag {
+  display: inline-block;
   padding: 2px 8px;
-  border-radius: 6px;
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.status-tag.confirmed {
-  background: #dcfce7;
-  color: #15803d;
+.status-tag.checked_in,
+.status-tag.confirmed,
+.stock-status-tag.healthy,
+.mini-status-tag.avail {
+  background: var(--ok-bg);
+  border-color: #c4d9ca;
+  color: var(--ok);
 }
-.status-tag.checked_in {
-  background: #fef3c7;
-  color: #92400e;
+
+.status-tag.no_show,
+.status-tag.cancelled,
+.stock-status-tag.out,
+.mini-status-tag.unavail {
+  background: var(--err-bg);
+  border-color: #e3c3bb;
+  color: var(--err);
 }
+
+.status-tag.pending,
 .status-tag.completed {
-  background: #f1f5f9;
-  color: #475569;
-}
-.status-tag.cancelled {
-  background: #fee2e2;
-  color: #991b1b;
-}
-.status-tag.no_show {
-  background: #fee2e2;
-  color: #991b1b;
+  background: #eef1ee;
+  border-color: var(--line);
+  color: var(--muted);
 }
 
-/* Game Library Ribbon & Cards */
-.library-filter-ribbon {
+.stock-status-tag.low {
+  background: var(--warn-bg);
+  border-color: #e3d3ac;
+  color: var(--warn);
+}
+
+/* ------------------------------------------------------------------ */
+/* Metric ribbons                                                      */
+/* ------------------------------------------------------------------ */
+
+.numbers-card-ribbon,
+.stock-stats-ribbon,
+.analytics-ribbon-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--line-soft);
+}
+
+.numbers-card-ribbon {
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.stock-stats-ribbon,
+.analytics-ribbon-grid {
+  border: 0;
+  background: transparent;
+  gap: 12px;
+}
+
+.num-col,
+.stock-stat-box,
+.analytics-card {
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.filter-pill {
-  background: #ffffff;
-  border: 1.5px solid #c6ad7a;
-  color: #142b20;
-  border-radius: 20px;
-  padding: 6px 14px;
-  font-size: 12px;
+.col-label,
+.stat-lbl,
+.analytics-label {
+  color: var(--muted);
+  font-size: 10.5px;
   font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.col-value,
+.stat-num,
+.analytics-value {
+  color: var(--ink);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.col-sub,
+.stat-sub,
+.analytics-sub {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.text-green {
+  color: var(--ok);
+}
+
+.text-amber {
+  color: var(--warn);
+}
+
+.text-red {
+  color: var(--err);
+}
+
+/* ------------------------------------------------------------------ */
+/* Dashboard                                                           */
+/* ------------------------------------------------------------------ */
+
+.hero-block {
+  margin-bottom: 16px;
+  padding: 16px 20px 14px;
+}
+
+.eyebrow-row {
+  margin-bottom: 2px;
+}
+
+.hero-eyebrow,
+.view-eyebrow {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+
+.hero-title {
+  margin: 0 0 2px;
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.hero-subtitle {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.hero-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hero-actions-bar .actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.updated-time {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.dashboard-stock-watch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+}
+
+.dashboard-stock-watch h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.stock-watch-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.stock-watch-summary strong {
+  color: var(--ink);
+}
+
+/* Needs-you queue ----------------------------------------------------- */
+
+.needs-you-card {
+  border-color: #e3d3ac;
+}
+
+.needs-you-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line-soft);
+  background: var(--gold-soft);
+  border-radius: var(--r) var(--r) 0 0;
+}
+
+.needs-you-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--gold-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.needs-count-pill {
+  padding: 0 7px;
+  border-radius: 9px;
+  background: var(--gold);
+  color: #142b20;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 16px;
+}
+
+.most-urgent {
+  color: var(--gold-ink);
+  font-size: 11px;
+}
+
+.needs-items-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.needs-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 9px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.needs-item-row:last-child {
+  border-bottom: 0;
+}
+
+.needs-item-left {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.alert-icon-square {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r);
+  background: var(--warn-bg);
+  border: 1px solid #e3d3ac;
+  color: var(--warn);
+}
+
+.needs-item-title {
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.needs-item-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.needs-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+/* Two-column lower area ---------------------------------------------- */
+
+.two-column-service-row {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.column-left,
+.column-right {
+  min-width: 0;
+}
+
+.policy-rule-banner {
+  margin: 12px 16px 0;
+  padding: 7px 10px;
+  border: 1px solid var(--line-soft);
+  border-left: 2px solid var(--accent);
+  border-radius: var(--r);
+  background: #f4f7f4;
+  color: var(--body);
+  font-size: 11.5px;
+}
+
+/* Floor tiles --------------------------------------------------------- */
+
+.floor-tables-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+  padding: 14px 16px;
+}
+
+.floor-tables-grid.expanded {
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+}
+
+.floor-table-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+
+.floor-table-tile.free {
+  border-left: 2px solid #a9b5aa;
+}
+
+.floor-table-tile.occupied {
+  border-left: 2px solid var(--accent);
+  background: #f6faf7;
+}
+
+.floor-table-tile.reserved {
+  border-left: 2px solid var(--gold);
+  background: #fdfbf5;
+}
+
+.tile-top-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.table-num-lbl {
+  color: var(--ink);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.table-seats-lbl {
+  color: var(--muted);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.tile-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.state-badge {
+  padding: 2px 7px;
+  border-radius: var(--r);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-free {
+  background: #eef1ee;
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+
+.badge-occupied {
+  background: var(--accent-soft);
+  border: 1px solid #c4d4c9;
+  color: var(--accent-ink);
+}
+
+.badge-reserved {
+  background: var(--gold-soft);
+  border: 1px solid #e0d3b3;
+  color: var(--gold-ink);
+}
+
+.tile-time-pill {
+  padding: 2px 7px;
+  border-radius: var(--r);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.tile-helper,
+.no-game-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.tile-guest-name,
+.guest-name-large {
+  margin: 0;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.guest-name-large {
+  font-size: 15px;
+}
+
+.tile-sub-info,
+.tile-due-time {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.tile-assigned-games-box {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.assigned-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.assigned-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.assigned-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.game-chip-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 8px;
+  border: 1px solid #c4d4c9;
+  border-radius: var(--r);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+.game-chip-capsule i {
+  font-size: 10px;
+}
+
+.btn-chip-unassign {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--accent-ink);
+  font-size: 10px;
   cursor: pointer;
 }
 
+.btn-chip-unassign:hover {
+  color: var(--err);
+}
+
+.tile-actions-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+
+/* Coming-up timeline -------------------------------------------------- */
+
+.timeline-cards-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.timeline-card {
+  display: flex;
+  gap: 14px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.timeline-card:last-child {
+  border-bottom: 0;
+}
+
+.timeline-time-col {
+  flex: 0 0 58px;
+  padding-top: 1px;
+}
+
+.time-bold {
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.timeline-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.timeline-card-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.timeline-guest-name {
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.party-tag,
+.table-tag {
+  color: var(--muted);
+  font-size: 11.5px;
+}
+
+.table-tag {
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: #f4f6f4;
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.timeline-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Game library                                                        */
+/* ------------------------------------------------------------------ */
+
+.search-games-input-wrap {
+  flex: 0 0 260px;
+}
+
+.library-filter-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--body);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.filter-pill:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
 .filter-pill.active {
-  background: #142b20;
-  color: #ffd98a;
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
 }
 
 .games-library-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  padding: 14px 16px;
 }
 
 .game-catalog-card {
-  border: 1.5px solid #e6dfd3;
-  border-radius: 12px;
-  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  background: #ffffff;
-  position: relative;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
 }
 
-/* Game Status Strip (Available / Unavailable) */
 .game-status-strip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 800;
-  margin-bottom: 6px;
+  padding: 3px 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .game-status-strip.avail {
-  background: #f0fdf4;
-  color: #15803d;
-  border: 1px solid #16a34a;
+  background: var(--ok-bg);
+  color: var(--ok);
 }
 
 .game-status-strip.unavail {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #dc2626;
-}
-
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.btn-return-shelf {
-  background: #fef2f2;
-  border: 1.5px solid #dc2626;
-  color: #991b1b;
-  border-radius: 16px;
-  padding: 6px 12px;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  width: 100%;
-}
-
-.btn-return-shelf:hover {
-  background: #fee2e2;
+  background: var(--warn-bg);
+  color: var(--warn);
 }
 
 .game-card-header {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
-  align-items: flex-start;
   gap: 8px;
+  padding: 10px 12px 0;
 }
 
 .game-name {
   margin: 0;
-  font-size: 16px;
-  font-weight: 800;
-  color: #142b20;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
 }
 
 .game-difficulty-pill {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: #f4f6f4;
+  color: var(--muted);
   font-size: 10px;
-  font-weight: 800;
-  background: #f4ecdc;
-  color: #142b20;
-  padding: 2px 6px;
-  border-radius: 6px;
+  font-weight: 500;
 }
 
 .game-designer {
   margin: 0;
-  font-size: 12px;
-  color: #60594a;
+  padding: 0 12px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .game-meta-row {
   display: flex;
   gap: 12px;
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #142b20;
-  margin: 4px 0;
+  padding: 6px 12px 0;
+  color: var(--body);
+  font-size: 11px;
+}
+
+.game-meta-row i {
+  color: var(--muted);
+  font-size: 10px;
 }
 
 .game-desc {
-  margin: 0;
-  font-size: 12px;
-  color: #60594a;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin: 6px 0 0;
+  padding: 0 12px;
+  color: var(--muted);
+  font-size: 11.5px;
   line-height: 1.4;
-  flex: 1;
 }
 
 .game-card-footer {
-  margin-top: 8px;
+  margin-top: auto;
+  padding: 10px 12px 12px;
 }
 
-/* Modal Games List for Assignment */
-.rule-warning-box {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #fffbeb;
-  border: 1px solid #fde68a;
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 12px;
-  color: #92400e;
-  margin-bottom: 12px;
-  line-height: 1.4;
+.game-card-footer .btn-primary-parlor,
+.game-card-footer .btn-return-shelf {
+  width: 100%;
 }
 
-.modal-games-list {
-  max-height: 200px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.modal-game-choice-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 12px;
-  border: 1.5px solid #e6dfd3;
-  border-radius: 8px;
-  cursor: pointer;
-  background: #ffffff;
-}
-
-.modal-game-choice-row.selected {
-  border-color: #c6ad7a;
-  background: #fbf6ec;
-}
-
-.modal-game-choice-row.in-use {
-  opacity: 0.55;
-  cursor: not-allowed;
-  border-color: #fca5a5;
-  background: #fff5f5;
-}
-
-.game-choice-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.game-choice-name {
-  font-size: 13px;
-  color: #142b20;
-}
-
-.game-choice-sub {
-  font-size: 11px;
-  color: #60594a;
-}
-
-.mini-status-tag {
-  font-size: 10.5px;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 6px;
-}
-
-.mini-status-tag.avail {
-  background: #dcfce7;
-  color: #15803d;
-}
-
-.mini-status-tag.unavail {
-  background: #fee2e2;
-  color: #991b1b;
-}
-
-/* Table choice pill states in Assign Modal */
-.tbl-choice-pill.disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  background: #f3f4f6;
-  border-color: #d1d5db;
-}
-
-.pill-reason {
-  font-size: 9.5px;
-  margin-top: 2px;
-}
-
-.pill-reason.has-game {
-  color: #b45309;
-  font-weight: 700;
-}
-
-.pill-reason.ready {
-  color: #15803d;
-  font-weight: 700;
-}
-
-/* ========================================================= */
-/* FOOD & DRINK STOCK MANAGEMENT STYLES                      */
-/* ========================================================= */
-.stock-stats-ribbon {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  margin-bottom: 20px;
-}
-
-.stock-stat-box {
-  background: #fdfcf9;
-  border: 1.5px solid #e6dfd3;
-  border-radius: 12px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-}
-
-.stat-lbl {
-  font-size: 10.5px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #8c7649;
-}
-
-.stat-num {
-  font-size: 28px;
-  font-weight: 800;
-  color: #142b20;
-  line-height: 1.1;
-  margin: 6px 0 2px;
-}
-
-.stat-num.text-green {
-  color: #15803d;
-}
-.stat-num.text-amber {
-  color: #b45309;
-}
-.stat-num.text-red {
-  color: #b91c1c;
-}
-
-.stat-sub {
-  font-size: 12px;
-  color: #60594a;
-}
+/* ------------------------------------------------------------------ */
+/* Inventory                                                           */
+/* ------------------------------------------------------------------ */
 
 .stock-filter-bar {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
   flex-wrap: wrap;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 10px 14px;
-  background: #fbf9f4;
-  border-radius: 10px;
-  border: 1px solid #e6dfd3;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--line-soft);
 }
 
 .filter-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .filter-lbl {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #8c7649;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .pill-tab {
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
-  border-radius: 14px;
-  padding: 4px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--body);
   font-size: 11.5px;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
+.pill-tab:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
 .pill-tab.active {
-  background: #142b20;
-  color: #ffd98a;
-}
-
-.pill-tab.alert.active {
-  background: #b45309;
+  background: var(--accent);
+  border-color: var(--accent);
   color: #ffffff;
-  border-color: #92400e;
-}
-
-.stock-table td {
-  padding: 12px 14px;
-  vertical-align: middle;
 }
 
 .stock-item-info {
   display: flex;
   flex-direction: column;
+  gap: 1px;
+}
+
+.stock-item-info strong {
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.item-th-sub {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.pantry-sku {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.04em;
 }
 
 .category-tag {
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: #f4f6f4;
+  color: var(--body);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   text-transform: capitalize;
-  background: #f4ecdc;
-  color: #142b20;
-  padding: 2px 7px;
-  border-radius: 6px;
 }
 
 .stock-qty-badge {
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
-  background: #f0fdf4;
-  border: 1.5px solid #16a34a;
-  border-radius: 8px;
-  padding: 4px 10px;
-}
-
-.stock-qty-badge.low {
-  background: #fefce8;
-  border-color: #ca8a04;
-}
-
-.stock-qty-badge.empty {
-  background: #fef2f2;
-  border-color: #dc2626;
 }
 
 .qty-big {
-  font-size: 16px;
-  color: #142b20;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.stock-qty-badge.empty .qty-big {
+  color: var(--err);
+}
+
+.stock-qty-badge.low .qty-big {
+  color: var(--warn);
 }
 
 .qty-unit {
+  color: var(--muted);
   font-size: 11px;
-  color: #60594a;
-}
-
-.stock-status-tag {
-  font-size: 11px;
-  font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 8px;
-}
-
-.stock-status-tag.healthy {
-  background: #dcfce7;
-  color: #15803d;
-}
-.stock-status-tag.low {
-  background: #fef3c7;
-  color: #92400e;
-}
-.stock-status-tag.out {
-  background: #fee2e2;
-  color: #991b1b;
 }
 
 .price-val {
-  color: #142b20;
-  font-size: 14px;
+  color: var(--ink);
+  font-size: 12.5px;
 }
 
 .margin-cell {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  font-size: 11.5px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 .margin-pill {
-  color: #15803d;
+  color: var(--ok);
   font-size: 11px;
+}
+
+.stepper-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid #a9b5aa;
+  border-radius: var(--r);
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.step-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: var(--surface);
+  color: var(--body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.step-btn:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+}
+
+.step-btn:disabled {
+  color: #b3bcb4;
+  cursor: not-allowed;
+}
+
+.step-val {
+  min-width: 30px;
+  text-align: center;
+  border-left: 1px solid var(--line-soft);
+  border-right: 1px solid var(--line-soft);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 26px;
+}
+
+.stepper-wrap.small .step-btn,
+.stepper-wrap.compact .step-btn {
+  width: 22px;
+  height: 22px;
+  font-size: 12px;
+}
+
+.stepper-wrap.small .step-val,
+.stepper-wrap.compact .step-val {
+  min-width: 26px;
+  line-height: 22px;
+  font-size: 11.5px;
 }
 
 .restock-actions-cell {
   display: flex;
+  align-items: center;
   gap: 6px;
 }
 
-.btn-batch-restock {
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-}
+/* ------------------------------------------------------------------ */
+/* Staff, settings, policies                                           */
+/* ------------------------------------------------------------------ */
 
-.btn-custom-restock {
-  background: #ffffff;
-  border: 1px solid #c6ad7a;
-  color: #142b20;
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-delete-sku {
-  background: transparent;
-  border: 1px solid #fca5a5;
-  color: #dc2626;
-  border-radius: 6px;
-  padding: 3px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn-delete-sku:hover {
-  background: #fef2f2;
-}
-
-.stock-current-preview,
-.new-stock-preview {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 12px;
-  background: #fbf9f4;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #142b20;
-}
-
-.new-stock-preview {
-  margin-top: 10px;
-  background: #f0fdf4;
-  border: 1px solid #86efac;
-}
-
-/* Staff Roster Grid */
 .staff-roster-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
 }
 
 .staff-member-card {
-  border: 1.5px solid #e6dfd3;
-  border-radius: 12px;
-  padding: 16px;
-  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
 }
 
 .staff-card-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 10px;
 }
 
 .staff-avatar-circle {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: #142b20;
-  color: #ffd98a;
-  border: 1.5px solid #c6ad7a;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 800;
-  font-size: 14px;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 600;
 }
 
 .staff-name {
-  margin: 0 0 2px;
-  font-size: 16px;
-  color: #142b20;
+  margin: 0;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .staff-role-badge {
+  color: var(--muted);
   font-size: 11px;
-  font-weight: 700;
-  background: #f4ecdc;
-  color: #142b20;
-  padding: 1px 8px;
-  border-radius: 10px;
 }
 
-.staff-card-body p {
-  margin: 4px 0;
-  font-size: 13px;
-  color: #554e42;
+.staff-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--body);
+  font-size: 12px;
 }
 
 .duty-status-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.pulse-green {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #10b981;
+  margin-top: 4px;
 }
 
 .duty-lbl {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #15803d;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: var(--r);
+  background: var(--ok-bg);
+  color: var(--ok);
+  font-size: 10.5px;
+  font-weight: 500;
 }
 
-/* Analytics Ribbon Grid */
-.analytics-ribbon-grid {
+.settings-form-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
 }
 
-.analytics-card {
-  border: 1.5px solid #e6dfd3;
-  border-radius: 12px;
-  padding: 18px;
-  background: #fdfcf9;
+.form-row-2 {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 18px;
 }
 
-.analytics-label {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #8c7649;
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
 }
 
-.analytics-value {
-  font-size: 28px;
-  font-weight: 800;
-  color: #142b20;
-  margin: 6px 0 2px;
+.parlor-label,
+.modal-label {
+  color: var(--body);
+  font-size: 11.5px;
+  font-weight: 500;
 }
 
-.analytics-sub {
-  font-size: 12px;
-  color: #60594a;
+.parlor-input,
+.modal-input,
+.modal-select {
+  height: 30px;
+  padding: 0 9px;
+  border: 1px solid #a9b5aa;
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: 12.5px;
 }
 
-/* Policies Cards */
+.parlor-input::placeholder,
+.modal-input::placeholder {
+  color: #97a49a;
+}
+
+.parlor-input:focus,
+.modal-input:focus,
+.modal-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(36, 76, 56, 0.12);
+}
+
+select.parlor-input,
+.modal-select {
+  appearance: auto;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-soft);
+}
+
 .policies-cards-list {
   display: flex;
   flex-direction: column;
-  gap: 14px;
 }
 
 .policy-card {
-  border: 1.5px solid #e6dfd3;
-  border-radius: 12px;
-  padding: 18px;
-  background: #fdfcf9;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.policy-card:last-child {
+  border-bottom: 0;
 }
 
 .policy-card-top {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 16px;
 }
 
 .policy-card-title {
-  margin: 0 0 6px;
-  font-size: 16px;
-  color: #142b20;
+  margin: 0 0 3px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .policy-card-desc {
   margin: 0;
-  font-size: 13.5px;
-  color: #554e42;
-  line-height: 1.5;
+  color: var(--muted);
+  font-size: 12px;
+  max-width: 72ch;
 }
 
 .policy-active-tag {
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
-  font-size: 11px;
-  font-weight: 800;
-  padding: 3px 10px;
-  border-radius: 12px;
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border: 1px solid #c4d9ca;
+  border-radius: var(--r);
+  background: var(--ok-bg);
+  color: var(--ok);
+  font-size: 10.5px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
-/* MODALS */
+/* ------------------------------------------------------------------ */
+/* Modals                                                              */
+/* ------------------------------------------------------------------ */
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(14, 30, 22, 0.7);
-  backdrop-filter: blur(4px);
+  z-index: 60;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
-  padding: 16px;
+  padding: 24px;
+  background: rgba(16, 26, 20, 0.55);
 }
 
 .modal-card {
-  background: #ffffff;
-  border: 2px solid #c6ad7a;
-  border-radius: 16px;
-  padding: 24px;
   width: 100%;
-  max-width: 520px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  max-width: 560px;
+  max-height: calc(100dvh - 64px);
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: 0 8px 28px rgba(16, 26, 20, 0.28);
 }
 
 .modal-card.snack-card {
@@ -5999,345 +5845,380 @@ const venuePolicies = ref({
 
 .walkin-header {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1.5px solid #e6dfd3;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #f7f9f7;
 }
 
 .eyebrow-sub {
+  color: var(--muted);
   font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  color: #8c7649;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
 }
 
 .modal-title {
-  margin: 2px 0 4px;
-  font-family: 'Playfair Display', Georgia, serif;
-  font-size: 20px;
-  color: #142b20;
+  margin: 2px 0 2px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
 }
 
 .modal-sub {
   margin: 0;
-  font-size: 12.5px;
-  color: #60594a;
+  color: var(--muted);
+  font-size: 11.5px;
 }
 
 .close-x {
-  background: transparent;
-  border: none;
-  font-size: 18px;
-  color: #8c7649;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 12px;
   cursor: pointer;
+}
+
+.close-x:hover {
+  border-color: var(--err);
+  color: var(--err);
+  background: var(--err-bg);
+}
+
+.modal-form-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+.modal-input,
+.modal-select {
+  width: 100%;
+}
+
+.rule-warning-box {
+  display: flex;
+  gap: 9px;
+  padding: 9px 11px;
+  border: 1px solid #e3d3ac;
+  border-left: 2px solid var(--gold);
+  border-radius: var(--r);
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.gold-bullet {
+  flex: 0 0 auto;
+  color: var(--gold-ink);
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
 }
 
 .tables-choice-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-top: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 6px;
 }
 
 .tbl-choice-pill {
-  background: #fbf9f4;
-  border: 1.5px solid #e6dfd3;
-  border-radius: 8px;
-  padding: 8px 6px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 11.5px;
   cursor: pointer;
-  font-size: 11px;
-  color: #142b20;
+  text-align: left;
+}
+
+.tbl-choice-pill strong {
+  font-weight: 600;
+}
+
+.tbl-choice-pill:hover:not(:disabled) {
+  border-color: var(--accent);
 }
 
 .tbl-choice-pill.active {
-  background: #142b20;
-  border-color: #c6ad7a;
-  color: #ffd98a;
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
-.tbl-choice-pill.occupied {
-  opacity: 0.45;
+.tbl-choice-pill:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 12px;
+.pill-reason {
+  color: var(--muted);
+  font-size: 10.5px;
 }
 
-.form-row-2 {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+.pill-reason.ready {
+  color: var(--ok);
 }
 
-.modal-label,
-.parlor-label {
-  font-size: 12px;
-  font-weight: 700;
-  color: #142b20;
+.pill-reason.has-game {
+  color: var(--warn);
 }
 
-.modal-input,
-.modal-select,
-.parlor-input {
-  border: 1.5px solid #c6ad7a;
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-size: 13.5px;
-  background: #ffffff;
-  color: #142b20;
-  outline: none;
+.modal-games-list {
+  max-height: 230px;
+  overflow-y: auto;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
 }
 
-.stepper-wrap {
+.modal-game-choice-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.step-btn {
-  width: 32px;
-  height: 32px;
-  border: 1.5px solid #c6ad7a;
-  background: #ffffff;
-  border-radius: 6px;
-  font-size: 16px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--line-soft);
   cursor: pointer;
-  color: #142b20;
 }
 
-.step-val {
-  font-size: 14px;
-  font-weight: 800;
-  min-width: 24px;
-  text-align: center;
+.modal-game-choice-row:last-child {
+  border-bottom: 0;
+}
+
+.modal-game-choice-row:hover {
+  background: #f7f9f7;
+}
+
+.modal-game-choice-row.selected {
+  background: var(--accent-soft);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.modal-game-choice-row.in-use {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.game-choice-info {
+  min-width: 0;
+}
+
+.game-choice-name {
+  display: block;
+  color: var(--ink);
+  font-size: 12.5px;
+}
+
+.game-choice-sub {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.game-choice-sub i {
+  font-size: 9.5px;
+}
+
+.mini-status-tag {
+  flex: 0 0 auto;
 }
 
 .modal-footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  gap: 10px;
-  margin-top: 20px;
-  padding-top: 14px;
-  border-top: 1.5px solid #e6dfd3;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  background: #f7f9f7;
 }
 
-/* Snack Modal Body */
-.snack-list-body {
-  max-height: 280px;
-  overflow-y: auto;
+.stock-current-preview,
+.new-stock-preview {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 12px 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 11px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r);
+  background: #f4f6f4;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.stock-current-preview strong,
+.new-stock-preview strong {
+  color: var(--ink);
+  font-size: 13px;
+}
+
+/* Snack modal --------------------------------------------------------- */
+
+.snack-list-body {
+  max-height: 340px;
+  overflow-y: auto;
 }
 
 .snack-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 8px 10px;
-  border: 1px solid #e6dfd3;
-  border-radius: 8px;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.snack-row:last-child {
+  border-bottom: 0;
 }
 
 .snack-row.out-of-stock-row {
   opacity: 0.55;
-  background: #fef2f2;
 }
 
 .snack-info {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .snack-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: #142b20;
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 500;
 }
 
 .snack-price {
-  font-size: 11.5px;
-  color: #8c7649;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .stock-ok {
-  color: #15803d;
-  font-size: 11px;
+  color: var(--ok);
 }
 
 .stock-out {
-  color: #dc2626;
-  font-weight: 700;
-  font-size: 11px;
+  color: var(--err);
 }
 
 .snack-modal-footer {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border-top: 1.5px solid #e6dfd3;
-  padding-top: 12px;
-  margin-top: 12px;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  background: #f7f9f7;
 }
 
 .snack-total {
-  font-size: 13px;
-  color: #142b20;
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .total-val {
-  font-size: 18px;
-  color: #142b20;
-  margin-left: 6px;
+  color: var(--ink);
+  font-size: 15px;
 }
 
 .modal-buttons {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
-/* Keep operational cards in the document flow on tablet and phone screens. */
-.console-block,
-.gl-content,
-.two-column-service-row > * {
-  min-width: 0;
-}
+/* ------------------------------------------------------------------ */
+/* Responsive & motion                                                 */
+/* ------------------------------------------------------------------ */
 
-.sessions-table-wrap,
-.bookings-list-wrap,
-.inventory-table-wrap {
-  max-width: 100%;
-  overflow-x: auto;
-}
-
-.sessions-table-wrap:focus-visible,
-.bookings-list-wrap:focus-visible,
-.inventory-table-wrap:focus-visible {
-  outline: 2px solid #203c30;
-  outline-offset: 2px;
-}
-
-@media (max-width: 1100px) {
+@media (max-width: 1080px) {
   .two-column-service-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .gl-topbar,
-  .topbar-left,
-  .topbar-actions {
-    flex-wrap: wrap;
-  }
-
-  .gl-topbar {
-    height: auto;
-    min-height: 60px;
-    padding: 12px;
-  }
-
-  .topbar-search {
-    width: min(100%, 320px);
+    grid-template-columns: 1fr;
   }
 
   .numbers-card-ribbon,
   .stock-stats-ribbon,
   .analytics-ribbon-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .floor-tables-grid,
-  .floor-tables-grid.expanded,
-  .games-library-grid,
-  .staff-roster-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
-@media (max-width: 700px) {
-  .gl-sidebar:not(.collapsed) {
-    position: fixed;
-    inset: 0 auto 0 0;
-    z-index: 80;
+@media (max-width: 720px) {
+  .gl-sidebar {
+    width: 64px;
+  }
+
+  .brand-text-col,
+  .collapse-text,
+  .sidebar-footer,
+  .nav-section-title,
+  .nav-label,
+  .nav-badge-gold {
+    display: none;
   }
 
   .gl-content {
-    padding: 16px 12px 40px;
+    padding: 14px 12px 48px;
   }
 
-  .console-block {
-    padding: 16px 12px;
-    overflow-wrap: anywhere;
+  .numbers-card-ribbon,
+  .stock-stats-ribbon,
+  .analytics-ribbon-grid,
+  .settings-form-grid,
+  .form-row-2 {
+    grid-template-columns: 1fr;
   }
 
-  .topbar-left,
-  .branch-selector-capsule {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .branch-select {
-    min-width: 0;
-    max-width: 100%;
-  }
-
-  .title-row,
-  .needs-you-header,
-  .section-card-header,
-  .needs-item-actions {
-    flex-wrap: wrap;
+  .view-header-row,
+  .section-card-header {
+    flex-direction: column;
+    align-items: flex-start;
     gap: 8px;
   }
 
   .needs-item-row {
     flex-direction: column;
-    align-items: stretch;
-    padding: 12px;
-  }
-
-  .needs-item-left {
-    min-width: 0;
-  }
-
-  .alert-icon-square {
-    flex-shrink: 0;
-  }
-
-  .num-col {
-    padding: 8px;
-    border: 0;
-  }
-
-  .timeline-card {
-    flex-direction: column;
-  }
-
-  .timeline-time-col {
     align-items: flex-start;
   }
+}
 
-  .timeline-card-content {
-    min-width: 0;
+@media (prefers-reduced-motion: reduce) {
+  .gl-sidebar,
+  .nav-item,
+  .collapse-arrow-icon {
+    transition: none !important;
   }
+}
 
-  .timeline-actions,
-  .view-header-row,
-  .library-filter-ribbon,
-  .stock-filter-bar,
-  .filter-group {
-    flex-wrap: wrap;
-  }
-
-  .console-block button {
-    overflow-wrap: normal;
-    max-width: 100%;
-  }
+.nav-item,
+.filter-pill,
+.pill-tab,
+.btn-primary-parlor,
+.btn-secondary-parlor,
+.icon-circle-btn {
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 </style>
