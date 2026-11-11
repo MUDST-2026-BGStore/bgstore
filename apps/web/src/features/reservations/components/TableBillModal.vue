@@ -6,6 +6,7 @@ import {
   type InPlayOrder,
 } from '../data/reservations-store';
 import { useStoreText } from '../../home/data/store-text';
+import QRCode from 'qrcode';
 
 const props = withDefaults(
   defineProps<{
@@ -124,6 +125,46 @@ function handleSettleBill() {
     emit('settled');
     emit('close');
   }, 1400);
+}
+
+// Customer Self-Payment QR
+const showCustomerQr = ref(false);
+const customerQrDataUrl = ref('');
+const isVerifyingCustomerPayment = ref(false);
+
+async function openCustomerQr() {
+  const qrPayload = JSON.stringify({
+    service: 'PromptPay-QR',
+    merchant: 'The Parlor Session Bill',
+    reservationId: props.reservation.id,
+    table: props.reservation.tableLabel,
+    amount: outstandingBalanceDue.value,
+    currency: 'THB',
+  });
+  try {
+    customerQrDataUrl.value = await QRCode.toDataURL(qrPayload, {
+      width: 220,
+      margin: 1,
+      color: { dark: '#142a1f', light: '#ffffff' },
+    });
+  } catch (err) {
+    console.error(err);
+  }
+  showCustomerQr.value = true;
+}
+
+function confirmCustomerQrPayment() {
+  isVerifyingCustomerPayment.value = true;
+  setTimeout(() => {
+    isVerifyingCustomerPayment.value = false;
+    showCustomerQr.value = false;
+    reservationsStore.settleSessionBill(props.reservation.id, 'promptpay_qr');
+    settlementSuccess.value = true;
+    setTimeout(() => {
+      emit('settled');
+      emit('close');
+    }, 1400);
+  }, 800);
 }
 </script>
 
@@ -482,8 +523,46 @@ function handleSettleBill() {
               </button>
             </template>
 
-            <!-- Customer Counter Notice -->
+            <!-- Customer Counter Notice & Self QR Option -->
             <template v-else>
+              <div
+                v-if="outstandingBalanceDue > 0"
+                class="customer-pay-actions"
+              >
+                <button
+                  type="button"
+                  class="btn-customer-qr"
+                  @click="openCustomerQr"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="14" y="14" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
+                  </svg>
+                  <span>{{
+                    locale === 'th-TH'
+                      ? 'สแกนชำระผ่าน พร้อมเพย์ (PromptPay QR) ทันที'
+                      : 'Scan & Pay via PromptPay QR'
+                  }}</span>
+                </button>
+                <div class="pay-method-sep">
+                  <span>{{
+                    locale === 'th-TH'
+                      ? 'หรือเลือกชำระที่เคาน์เตอร์'
+                      : 'Or pay with staff at counter'
+                  }}</span>
+                </div>
+              </div>
+
               <div class="counter-pay-box">
                 <svg
                   class="gold-icon"
@@ -502,11 +581,89 @@ function handleSettleBill() {
                   <strong>{{ t('Pay at Counter with Staff') }}</strong>
                   <p>
                     {{
-                      t(
-                        'Please show this bill or quote your table number at the counter when you finish playing.',
-                      )
+                      locale === 'th-TH'
+                        ? 'สามารถชำระด้วย เงินสด, พร้อมเพย์ QR หรือ บัตรเครดิต/เดบิต ได้ที่เคาน์เตอร์'
+                        : t(
+                            'Please show this bill or quote your table number at the counter when you finish playing.',
+                          )
                     }}
                   </p>
+                </div>
+              </div>
+
+              <!-- Customer PromptPay QR Modal (Centered) -->
+              <div
+                v-if="showCustomerQr"
+                class="bill-qr-backdrop"
+                @click.self="showCustomerQr = false"
+              >
+                <div class="bill-qr-card">
+                  <div class="qr-head">
+                    <div class="brand-eyebrow">
+                      ✦ THE PARLOR · TABLE SETTLEMENT ✦
+                    </div>
+                    <h3>
+                      {{
+                        locale === 'th-TH'
+                          ? 'สแกนชำระบิลค่าเล่นและอาหาร'
+                          : 'Scan PromptPay QR to Settle Bill'
+                      }}
+                    </h3>
+                    <p class="qr-desc">
+                      {{
+                        locale === 'th-TH'
+                          ? 'สแกนจ่ายได้ด้วยแอปพลิเคชันทุกธนาคารในไทย'
+                          : 'Pay with any Thai mobile banking app'
+                      }}
+                    </p>
+                  </div>
+
+                  <div class="qr-img-wrap">
+                    <img
+                      v-if="customerQrDataUrl"
+                      :src="customerQrDataUrl"
+                      alt="PromptPay QR"
+                      width="220"
+                      height="220"
+                    />
+                  </div>
+
+                  <div class="qr-amount-pill">
+                    <span>{{
+                      locale === 'th-TH' ? 'ยอดที่ต้องชำระ' : 'Amount Due'
+                    }}</span>
+                    <strong>฿{{ outstandingBalanceDue }}</strong>
+                  </div>
+
+                  <p class="qr-ref-tag">
+                    {{ locale === 'th-TH' ? 'โต๊ะ:' : 'Table:' }}
+                    <strong>{{ reservation.tableLabel }}</strong> · Ref:
+                    <code>{{ reservation.id }}</code>
+                  </p>
+
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-confirm-table-paid"
+                    :disabled="isVerifyingCustomerPayment"
+                    @click="confirmCustomerQrPayment"
+                  >
+                    <span v-if="isVerifyingCustomerPayment">{{
+                      locale === 'th-TH' ? 'กำลังตรวจสอบยอดเงิน…' : 'Verifying…'
+                    }}</span>
+                    <span v-else>{{
+                      locale === 'th-TH'
+                        ? 'ฉันได้โอนเงินเรียบร้อยแล้ว'
+                        : 'I Have Paid / Simulate Transfer'
+                    }}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn-close-qr"
+                    @click="showCustomerQr = false"
+                  >
+                    {{ locale === 'th-TH' ? 'ย้อนกลับ' : 'Back' }}
+                  </button>
                 </div>
               </div>
             </template>
@@ -1052,5 +1209,178 @@ function handleSettleBill() {
 .gold-icon {
   color: #c6ad7a;
   flex-shrink: 0;
+}
+
+.customer-pay-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.btn-customer-qr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 20px;
+  background: #142a1f;
+  border: 1px solid #c6ad7a;
+  border-radius: 6px;
+  color: #f6eedb;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 140ms ease;
+  box-shadow: 0 2px 8px rgba(20, 42, 31, 0.2);
+}
+
+.btn-customer-qr:hover {
+  background: #244c38;
+  border-color: #dfc999;
+  color: #ffffff;
+}
+
+.pay-method-sep {
+  text-align: center;
+  position: relative;
+  font-size: 11px;
+  color: #8c7e63;
+}
+
+.pay-method-sep::before,
+.pay-method-sep::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 25%;
+  height: 1px;
+  background: #e3d9c5;
+}
+
+.pay-method-sep::before {
+  left: 0;
+}
+.pay-method-sep::after {
+  right: 0;
+}
+
+.bill-qr-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(12, 28, 20, 0.75);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.bill-qr-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #c6ad7a;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  padding: 28px 24px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  margin: auto;
+  animation: modalCenterPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.qr-head h3 {
+  font-size: 18px;
+  font-weight: 800;
+  color: #142a1f;
+  margin: 6px 0;
+}
+
+.brand-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  color: #c6ad7a;
+  letter-spacing: 0.1em;
+}
+
+.qr-desc {
+  font-size: 13px;
+  color: #556b60;
+  margin: 0;
+}
+
+.qr-img-wrap {
+  display: inline-block;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid #d4c5a6;
+  border-radius: 8px;
+  margin: 16px 0 12px;
+  box-shadow: 0 4px 12px rgba(20, 42, 31, 0.08);
+}
+
+.qr-amount-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #fffaf0;
+  border: 1px solid #e8dbbe;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.qr-amount-pill span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5a4b2c;
+}
+
+.qr-amount-pill strong {
+  font-size: 20px;
+  font-weight: 800;
+  color: #142a1f;
+}
+
+.qr-ref-tag {
+  font-size: 12px;
+  color: #7d6e52;
+  margin-bottom: 16px;
+}
+
+.btn-confirm-table-paid {
+  width: 100%;
+  height: 44px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.btn-close-qr {
+  background: none;
+  border: none;
+  color: #777;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 12px;
+}
+
+.btn-close-qr:hover {
+  color: #142a1f;
+  text-decoration: underline;
+}
+
+@keyframes modalCenterPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 </style>
