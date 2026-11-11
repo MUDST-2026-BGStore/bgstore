@@ -75,7 +75,8 @@ onBeforeUnmount(() => observer?.disconnect());
           :is="brandHref ? 'a' : 'div'"
           :href="brandHref"
           :aria-label="brandHref ? 'The Parlor' : undefined"
-          class="flex items-center justify-center gap-2 text-[#efe5d0] focus-visible:outline-2 focus-visible:outline-[#c6ad7a] focus-visible:outline-offset-4"
+          lang="en"
+          class="parlor-brand flex items-center justify-center gap-2 text-[#efe5d0] focus-visible:outline-2 focus-visible:outline-[#c6ad7a] focus-visible:outline-offset-4"
         >
           <span class="text-xs text-[#c6ad7a]" aria-hidden="true">♠</span>
           <span class="text-xs font-semibold uppercase tracking-[0.22em]"
@@ -102,6 +103,11 @@ onBeforeUnmount(() => observer?.disconnect());
 </template>
 
 <style scoped>
+.parlor-brand,
+.parlor-brand span {
+  font-family: 'Plus Jakarta Sans', Arial, sans-serif;
+}
+
 .parlor-root {
   font-family:
     'Plus Jakarta Sans',

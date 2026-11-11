@@ -75,6 +75,10 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
     :class="{
       'catalog-shell':
         route.name === 'HomeIndex' || route.name === 'GameProduct',
+      'reservation-history-shell': route.name === 'CustomerReservationsList',
+      'reservation-shell':
+        route.name === 'CustomerReservationsList' ||
+        route.name === 'CustomerReservePage',
     }"
   >
     <template #header-left>
@@ -208,45 +212,36 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
 </template>
 
 <style scoped>
-.catalog-shell {
+:is(.catalog-shell, .reservation-shell) {
   background: #fafbf9;
   background-image: none;
   color: #202e27;
+}
+.catalog-shell {
   font-family: Arial, Helvetica, sans-serif;
 }
-.catalog-shell :deep(.felt-noise) {
+:is(.catalog-shell, .reservation-shell) :deep(.felt-noise) {
   display: none;
 }
-.catalog-shell :deep(> div.relative) {
+:is(.catalog-shell, .reservation-shell) :deep(> div.relative) {
   margin: 0;
   min-height: 100svh;
   border: 0;
 }
-.catalog-shell :deep(> div.relative > header) {
+:is(.catalog-shell, .reservation-shell) :deep(> div.relative > header) {
+  min-height: 64px;
   background: #203c30;
   border-bottom: 2px solid #c6ad7a;
   padding: 10px max(32px, calc((100vw - 1440px) / 2));
   font-family: 'Plus Jakarta Sans', Arial, sans-serif;
 }
+.reservation-history-shell :deep(> div.relative > header + div) {
+  padding-top: 0;
+}
 .catalog-shell :deep(> div.relative > header + div) {
   padding: 20px 32px 24px;
 }
-.catalog-shell
-  :deep(> div.relative > header > :nth-child(2) > span:first-child),
-.catalog-shell
-  :deep(> div.relative > header > :nth-child(2) > span:last-child) {
-  display: inline;
-  color: #ddc18c;
-  font-size: 13px;
-}
-.catalog-shell
-  :deep(> div.relative > header > :nth-child(2) > span:nth-child(2)) {
-  color: #fff3dc;
-  font-size: 13px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-.catalog-shell .header-language {
+:is(.catalog-shell, .reservation-shell) .header-language {
   position: relative;
 }
 .language-feedback {
@@ -411,30 +406,6 @@ button:focus-visible {
     gap: 8px;
     justify-content: flex-end;
   }
-  .header-history-btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 12px;
-  background: transparent;
-  border: 1px solid rgba(198, 173, 122, 0.4);
-  color: #efe5d0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  border-radius: 4px;
-  text-decoration: none;
-  transition: all 140ms ease;
-  white-space: nowrap;
-}
-.header-history-btn:hover {
-  background: rgba(198, 173, 122, 0.15);
-  border-color: #c6ad7a;
-  color: #ffffff;
-}
-.header-reserve-btn {
-    padding: 6px 10px;
-    font-size: 10.5px;
-  }
   .account-trigger {
     padding: 8px 10px;
     gap: 6px;
@@ -445,26 +416,22 @@ button:focus-visible {
     padding: 18px 16px;
   }
   .customer-shell :deep(> div.relative > header) {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    min-height: 110px;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     padding: 12px;
     gap: 8px;
   }
+  .customer-shell :deep(> div.relative > header > :nth-child(2)) {
+    grid-column: 2;
+    grid-row: 1;
+  }
   .customer-shell :deep(> div.relative > header > :nth-child(3)) {
-    gap: 0;
-  }
-  .catalog-shell :deep(> div.relative > header > :nth-child(2)) {
-    gap: 4px;
-  }
-  .catalog-shell
-    :deep(> div.relative > header > :nth-child(2) > span:nth-child(2)) {
-    font-size: 11px;
-    letter-spacing: 0.08em;
-  }
-  .catalog-shell
-    :deep(> div.relative > header > :nth-child(2) > span:first-child),
-  .catalog-shell
-    :deep(> div.relative > header > :nth-child(2) > span:last-child) {
-    font-size: 10px;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
   }
   .account-trigger {
     padding: 10px 6px;
@@ -488,20 +455,30 @@ button:focus-visible {
     transform: none;
   }
 }
-.header-history-btn {
+.header-history-btn,
+.header-reserve-btn {
   display: inline-flex;
   align-items: center;
-  padding: 8px 12px;
-  background: transparent;
-  border: 1px solid rgba(198, 173, 122, 0.4);
-  color: #efe5d0;
+  justify-content: center;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  height: 34px;
+  padding: 6px 10px;
+  border: 1px solid #ddc28c;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.05em;
-  border-radius: 4px;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
   text-decoration: none;
-  transition: all 140ms ease;
+  transition: background 140ms ease, color 140ms ease;
   white-space: nowrap;
+}
+.header-history-btn {
+  background: transparent;
+  border-color: rgba(198, 173, 122, 0.4);
+  color: #efe5d0;
 }
 .header-history-btn:hover {
   background: rgba(198, 173, 122, 0.15);
@@ -509,30 +486,19 @@ button:focus-visible {
   color: #ffffff;
 }
 .header-reserve-btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 14px;
   background: #c6ad7a;
+  border-color: #c6ad7a;
   color: #14281f;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: normal;
-  text-transform: none;
-  border-radius: 4px;
-  text-decoration: none;
-  transition: all 140ms ease;
-  white-space: nowrap;
 }
 .header-reserve-btn:hover {
   background: #e0d0ac;
+  border-color: #e0d0ac;
   color: #0b1a13;
 }
 @media (max-width: 600px) {
-  .header-history-btn {
-    padding: 6px 8px;
-    font-size: 10px;
-  }
+  .header-history-btn,
   .header-reserve-btn {
+    height: 32px;
     padding: 6px 8px;
     font-size: 10px;
   }

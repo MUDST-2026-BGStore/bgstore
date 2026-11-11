@@ -139,11 +139,6 @@ function confirmCancel() {
             {{ t('Manage your booked gaming tables and pre-ordered food & refreshments.') }}
           </p>
         </div>
-        <div class="header-actions">
-          <RouterLink to="/reservations/new" class="btn btn-primary add-res-btn">
-            + {{ t('Reserve Table') }}
-          </RouterLink>
-        </div>
       </header>
 
       <!-- Auth Gate Check -->
@@ -484,10 +479,10 @@ function confirmCancel() {
 
 <style scoped>
 .my-reservations-page {
-  background: #fbf9f4;
+  background: #fafbf9;
   min-height: calc(100vh - 120px);
-  padding: 36px 16px 80px;
-  color: #172b21;
+  padding: 24px 0 64px;
+  color: #202e27;
   font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
 }
 
@@ -501,9 +496,9 @@ function confirmCancel() {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  margin-bottom: 28px;
-  border-bottom: 2px solid #c6ad7a;
-  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #d3d9d4;
+  padding-bottom: 16px;
   gap: 20px;
   flex-wrap: wrap;
 }
@@ -512,10 +507,10 @@ function confirmCancel() {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  color: #8c7649;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #4e5b53;
   margin-bottom: 6px;
 }
 
@@ -535,12 +530,8 @@ function confirmCancel() {
 .page-subtitle {
   margin: 0;
   font-size: 14.5px;
-  color: #554e42;
+  color: #4e5b53;
   line-height: 1.5;
-}
-
-.add-res-btn {
-  white-space: nowrap;
 }
 
 /* Auth Required Box */
@@ -577,7 +568,7 @@ function confirmCancel() {
 .auth-text {
   margin: 0 0 24px;
   font-size: 14px;
-  color: #60594a;
+  color: #4e5b53;
   line-height: 1.6;
 }
 
@@ -587,7 +578,7 @@ function confirmCancel() {
   align-items: center;
   justify-content: space-between;
   background: #ffffff;
-  border: 1px solid #ded5c3;
+  border: 1px solid #d3d9d4;
   border-radius: 10px;
   padding: 14px 18px;
   margin-bottom: 24px;
@@ -604,6 +595,10 @@ function confirmCancel() {
 }
 
 .filter-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  line-height: 1.4;
   font-size: 13px;
   font-weight: 700;
   color: #142b20;
@@ -616,32 +611,38 @@ function confirmCancel() {
 }
 
 .pill-btn {
-  background: #f7f3ea;
-  border: 1px solid #dcd1be;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  line-height: 1.4;
+  background: #fafbf9;
+  border: 1px solid #d3d9d4;
   border-radius: 20px;
   padding: 5px 12px;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  color: #4b4435;
+  color: #4e5b53;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .pill-btn:hover {
-  background: #eee4d1;
-  border-color: #baa67c;
+  background: #e9ede9;
+  border-color: #829087;
 }
 
 .pill-btn.active {
-  background: #142b20;
-  border-color: #c6ad7a;
-  color: #ffd98a;
-  box-shadow: 0 2px 8px rgba(20, 43, 32, 0.25);
+  background: #dce7df;
+  border-color: #829087;
+  color: #244c38;
 }
 
 .branch-select-input {
+  min-height: 36px;
+  line-height: 1.4;
   padding: 6px 12px;
-  border: 1px solid #dcd1be;
+  border: 1px solid #829087;
   border-radius: 6px;
   background: #ffffff;
   font-size: 13px;
@@ -674,7 +675,7 @@ function confirmCancel() {
 .empty-text {
   margin: 0 0 20px;
   font-size: 14px;
-  color: #655e4e;
+  color: #4e5b53;
 }
 
 /* Reservations Grid & Cards */
@@ -686,7 +687,7 @@ function confirmCancel() {
 
 .reservation-card {
   background: #ffffff;
-  border: 1.5px solid #ded5c3;
+  border: 1.5px solid #d3d9d4;
   border-radius: 12px;
   padding: 22px 24px;
   box-shadow: 0 4px 16px rgba(20, 43, 32, 0.05);
@@ -706,7 +707,7 @@ function confirmCancel() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid #f0e8db;
+  border-bottom: 1px solid #e9ede9;
   padding-bottom: 14px;
   gap: 12px;
   flex-wrap: wrap;
@@ -734,10 +735,10 @@ function confirmCancel() {
 
 .ref-badge {
   font-size: 11px;
-  color: #6a6252;
+  color: #4e5b53;
   font-family: monospace;
-  background: #f4ecdc;
-  border: 1px solid #dcd1be;
+  background: #e9ede9;
+  border: 1px solid #d3d9d4;
   padding: 3px 8px;
   border-radius: 4px;
   font-weight: 600;
@@ -766,9 +767,9 @@ function confirmCancel() {
 }
 
 .badge-completed {
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86d7a1;
 }
 
 .badge-cancelled {
@@ -785,8 +786,8 @@ function confirmCancel() {
 
 /* Schedule and ISO Timestamps */
 .schedule-block {
-  background: #fcfaf6;
-  border: 1px solid #ded5c3;
+  background: #fafbf9;
+  border: 1px solid #d3d9d4;
   border-radius: 8px;
   padding: 12px 16px;
   display: flex;
@@ -823,7 +824,7 @@ function confirmCancel() {
 .iso-label {
   font-size: 11px;
   font-weight: 700;
-  color: #7a705e;
+  color: #4e5b53;
 }
 
 .iso-codes {
@@ -835,11 +836,11 @@ function confirmCancel() {
 
 .iso-codes code {
   font-size: 11px;
-  background: #f0e8db;
-  color: #383226;
+  background: #e9ede9;
+  color: #202e27;
   padding: 2px 6px;
   border-radius: 4px;
-  border: 1px solid #ded5c3;
+  border: 1px solid #d3d9d4;
   font-family: monospace;
 }
 
@@ -865,7 +866,7 @@ function confirmCancel() {
 }
 
 .detail-lbl {
-  color: #6a6252;
+  color: #4e5b53;
   font-weight: 600;
 }
 
@@ -881,8 +882,8 @@ function confirmCancel() {
 
 /* Pre-order Breakdown */
 .preorder-section {
-  background: #fdfcf9;
-  border: 1px solid #e0d5c1;
+  background: #fafbf9;
+  border: 1px solid #d3d9d4;
   border-radius: 8px;
   padding: 14px 16px;
   display: flex;
@@ -910,9 +911,9 @@ function confirmCancel() {
 .discount-pill {
   font-size: 10.5px;
   font-weight: 800;
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
+  background: #f4e8cd;
+  color: #244c38;
+  border: 1px solid #dfc998;
   padding: 2px 8px;
   border-radius: 10px;
 }
@@ -940,7 +941,7 @@ function confirmCancel() {
 .qty-badge {
   font-weight: 800;
   color: #142b20;
-  background: #f0e7d5;
+  background: #e9ede9;
   padding: 1px 6px;
   border-radius: 4px;
   font-size: 11.5px;
@@ -955,7 +956,7 @@ function confirmCancel() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px dashed #e0d5c1;
+  border-top: 1px dashed #d3d9d4;
   padding-top: 10px;
   margin-top: 2px;
   gap: 12px;
@@ -979,7 +980,7 @@ function confirmCancel() {
 
 .original-sum {
   font-size: 12px;
-  color: #8c8371;
+  color: #4e5b53;
   text-decoration: line-through;
 }
 
@@ -991,7 +992,7 @@ function confirmCancel() {
 
 /* Notes & Cancelled Reason */
 .notes-box {
-  background: #fcf9f2;
+  background: #fafbf9;
   border-left: 3px solid #c6ad7a;
   padding: 8px 12px;
   border-radius: 0 6px 6px 0;
@@ -1000,7 +1001,7 @@ function confirmCancel() {
 .notes-tag {
   font-size: 11.5px;
   font-weight: 700;
-  color: #6a6252;
+  color: #4e5b53;
   display: block;
   margin-bottom: 2px;
 }
@@ -1037,7 +1038,7 @@ function confirmCancel() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-top: 1px solid #f0e8db;
+  border-top: 1px solid #e9ede9;
   padding-top: 14px;
   gap: 12px;
   flex-wrap: wrap;
@@ -1090,27 +1091,27 @@ function confirmCancel() {
 }
 
 .btn-primary {
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
+  background: #ddc28c;
+  color: #14281f;
+  border: 1px solid #ddc28c;
   box-shadow: 0 2px 8px rgba(20, 43, 32, 0.2);
 }
 
 .btn-primary:hover {
-  background: #1e3f2f;
+  background: #e8d2a7;
   box-shadow: 0 4px 14px rgba(20, 43, 32, 0.3), 0 0 10px rgba(198, 173, 122, 0.4);
   transform: translateY(-1px);
 }
 
 .btn-secondary {
   background: #ffffff;
-  border: 1px solid #ded5c3;
-  color: #383226;
+  border: 1px solid #d3d9d4;
+  color: #202e27;
 }
 
 .btn-secondary:hover {
-  background: #f7f3eb;
-  border-color: #baa67c;
+  background: #e9ede9;
+  border-color: #829087;
 }
 
 .btn-danger {
@@ -1156,7 +1157,7 @@ function confirmCancel() {
 .modal-desc {
   margin: 0 0 18px;
   font-size: 13.5px;
-  color: #554e42;
+  color: #4e5b53;
   line-height: 1.5;
 }
 
@@ -1175,7 +1176,7 @@ function confirmCancel() {
 .form-select {
   width: 100%;
   padding: 9px 12px;
-  border: 1px solid #ded5c3;
+  border: 1px solid #d3d9d4;
   border-radius: 6px;
   font-size: 13.5px;
   color: #142b20;
@@ -1191,29 +1192,34 @@ function confirmCancel() {
 
 /* Active Ongoing Session Banner */
 .active-session-banner {
-  background: radial-gradient(ellipse at 50% 20%, #1f4232 0%, #142b20 70%, #0d1e16 100%);
-  border: 2px solid #c6ad7a;
-  border-radius: 14px;
-  padding: 24px 28px;
-  margin-bottom: 24px;
-  color: #fffaf0;
+  background: radial-gradient(ellipse at 50% 25%, #1d3e2f 0%, #142b20 70%, #0d1e16 100%);
+  box-shadow: inset 0 0 16px rgba(10, 22, 16, 0.7);
+  border: 1px solid #365647;
+  border-radius: 10px;
+  padding: 24px;
+  margin-bottom: 20px;
+  color: #f2f5f2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35), 0 0 20px rgba(198, 173, 122, 0.25);
   flex-wrap: wrap;
+}
+
+.active-session-left {
+  flex: 1 1 320px;
+  min-width: 0;
 }
 
 .session-eyebrow {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   color: #ffd98a;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .live-pulse-dot {
@@ -1221,22 +1227,29 @@ function confirmCancel() {
   height: 8px;
   background: #22c55e;
   border-radius: 50%;
-  box-shadow: 0 0 8px #22c55e;
-  animation: pulseLive 1.8s infinite;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+  animation: pulseLive 1.8s ease-in-out infinite;
 }
 
 @keyframes pulseLive {
-  0% { transform: scale(0.95); opacity: 0.8; }
+  0%, 100% { transform: scale(0.95); opacity: 0.8; }
   50% { transform: scale(1.3); opacity: 1; }
-  100% { transform: scale(0.95); opacity: 0.8; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-pulse-dot {
+    animation: none;
+  }
 }
 
 .active-table-name {
-  margin: 0 0 10px;
-  font-size: 24px;
-  font-weight: 800;
+  margin: 0 0 12px;
+  font-size: 22px;
+  font-weight: 700;
   color: #ffffff;
-  letter-spacing: -0.01em;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .active-meta-chips {
@@ -1250,9 +1263,9 @@ function confirmCancel() {
   background: rgba(198, 173, 122, 0.2);
   border: 1px solid rgba(198, 173, 122, 0.4);
   color: #fff8e7;
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
   border-radius: 12px;
 }
 
@@ -1260,6 +1273,10 @@ function confirmCancel() {
   background: rgba(34, 197, 94, 0.2);
   border-color: #22c55e;
   color: #bbf7d0;
+}
+
+.active-session-banner .gold-bullet {
+  color: #c6ad7a;
 }
 
 .active-session-actions {
@@ -1270,40 +1287,70 @@ function confirmCancel() {
 }
 
 .btn-order-table {
-  background: #c6ad7a;
+  background: #ddc28c;
   color: #14281f;
-  font-size: 13.5px;
-  font-weight: 800;
-  padding: 11px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 16px;
   border-radius: 8px;
-  border: none;
-  box-shadow: 0 4px 14px rgba(198, 173, 122, 0.4);
+  border: 1px solid #ddc28c;
+  box-shadow: 0 4px 14px rgba(198, 173, 122, 0.25);
 }
 
 .btn-order-table:hover {
-  background: #e0d0ac;
-  transform: translateY(-2px);
+  background: #e8d2a7;
+  border-color: #e8d2a7;
 }
 
 .btn-view-bill {
   background: transparent;
   color: #fff8e7;
-  border: 1.5px solid #c6ad7a;
-  font-size: 13.5px;
-  font-weight: 800;
-  padding: 10px 18px;
+  border: 1.5px solid #ddc28c;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 16px;
   border-radius: 8px;
 }
 
 .btn-view-bill:hover {
   background: rgba(198, 173, 122, 0.2);
-  transform: translateY(-2px);
+  border-color: #ddc28c;
+}
+
+@media (max-width: 600px) {
+  .page-header {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .page-title {
+    font-size: 26px;
+  }
+
+  .active-session-banner {
+    padding: 16px;
+    gap: 16px;
+  }
+
+  .active-table-name {
+    font-size: 20px;
+  }
+
+  .active-session-actions {
+    width: 100%;
+  }
+
+  .active-session-actions .btn {
+    flex: 1 1 100%;
+    white-space: normal;
+    text-align: center;
+  }
 }
 
 /* In-Play Orders within Card */
 .inplay-history-section {
-  background: #fdfaf4;
-  border: 1px solid #ded5c3;
+  background: #fafbf9;
+  border: 1px solid #d3d9d4;
   border-radius: 8px;
   padding: 12px 16px;
   display: flex;
@@ -1327,7 +1374,7 @@ function confirmCancel() {
 
 .inplay-mini-card {
   background: #ffffff;
-  border: 1px solid #e2d7c5;
+  border: 1px solid #d3d9d4;
   border-radius: 6px;
   padding: 10px 12px;
   display: flex;
@@ -1379,7 +1426,7 @@ function confirmCancel() {
 }
 
 .pay-pill.tab {
-  background: #f4ecdc;
+  background: #e9ede9;
   color: #8c7649;
 }
 
@@ -1390,7 +1437,7 @@ function confirmCancel() {
 
 .mini-items {
   font-size: 12px;
-  color: #383226;
+  color: #202e27;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -1422,9 +1469,9 @@ function confirmCancel() {
 }
 
 .btn-live-order {
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
+  background: #ddc28c;
+  color: #14281f;
+  border: 1px solid #ddc28c;
   padding: 6px 14px;
   border-radius: 6px;
   font-size: 12.5px;
@@ -1434,12 +1481,12 @@ function confirmCancel() {
 }
 
 .btn-live-order:hover {
-  background: #1e3f2f;
+  background: #e8d2a7;
 }
 
 .btn-live-bill {
   background: #ffffff;
-  border: 1px solid #c6ad7a;
+  border: 1px solid #ddc28c;
   color: #142b20;
   padding: 6px 14px;
   border-radius: 6px;
@@ -1450,7 +1497,7 @@ function confirmCancel() {
 }
 
 .btn-live-bill:hover {
-  background: #f7f3ea;
+  background: #fafbf9;
 }
 
 </style>

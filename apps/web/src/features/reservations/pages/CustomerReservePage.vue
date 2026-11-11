@@ -532,22 +532,22 @@ async function onPaymentCompleted(paymentMeta: {
       <!-- Stepper Indicator -->
       <nav class="stepper-nav" aria-label="Reservation Progress">
         <div class="step-indicator" :class="{ active: currentStep === 1, completed: currentStep > 1 }">
-          <span class="step-num">1</span>
+          <span class="step-num" lang="en">1</span>
           <span class="step-text">{{ t('When & Where') }}</span>
         </div>
         <div class="step-divider" />
         <div class="step-indicator" :class="{ active: currentStep === 2, completed: currentStep > 2 }">
-          <span class="step-num">2</span>
+          <span class="step-num" lang="en">2</span>
           <span class="step-text">{{ t('Table & Info') }}</span>
         </div>
         <div class="step-divider" />
         <div class="step-indicator" :class="{ active: currentStep === 3, completed: currentStep > 3 }">
-          <span class="step-num">3</span>
+          <span class="step-num" lang="en">3</span>
           <span class="step-text">{{ t('Food & Drinks (-10%)') }}</span>
         </div>
         <div class="step-divider" />
         <div class="step-indicator" :class="{ active: currentStep === 4, completed: currentStep > 4 }">
-          <span class="step-num">4</span>
+          <span class="step-num" lang="en">4</span>
           <span class="step-text">{{ t('Review & Pay') }}</span>
         </div>
       </nav>
@@ -565,7 +565,9 @@ async function onPaymentCompleted(paymentMeta: {
         <!-- Registered Member Verification Callout -->
         <div v-if="auth.authenticated" class="member-status-bar">
           <div class="member-meta">
-            <span class="gold-icon">✦</span>
+            <svg class="gold-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 1 15.5 8.5 23 12 15.5 15.5 12 23 8.5 15.5 1 12 8.5 8.5Z" />
+            </svg>
             <span class="member-text">{{ t('Reserving as Registered Member:') }}</span>
             <strong class="member-name">{{ auth.displayName || auth.username }}</strong>
           </div>
@@ -1140,10 +1142,13 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .step-num {
+  flex-shrink: 0;
+  font-family: Arial, sans-serif;
+  line-height: 1;
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #e9dec9;
+  background: #dce7df;
   color: #203c30;
   display: flex;
   align-items: center;
@@ -1158,7 +1163,7 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .step-indicator.completed .step-num {
-  background: #2e6022;
+  background: #244c38;
   color: #ffffff;
 }
 
@@ -1169,7 +1174,7 @@ async function onPaymentCompleted(paymentMeta: {
 .step-divider {
   flex: 1;
   height: 1px;
-  background: #d5c8b2;
+  background: #d3d9d4;
   margin: 0 12px;
   min-width: 16px;
 }
@@ -1177,7 +1182,7 @@ async function onPaymentCompleted(paymentMeta: {
 /* Wizard Step Layout */
 .wizard-step {
   background: #ffffff;
-  border: 1px solid #d5c8b2;
+  border: 1px solid #d3d9d4;
   border-radius: 10px;
   padding: 28px 24px;
   box-shadow: 0 4px 16px rgba(20, 43, 32, 0.04);
@@ -1185,7 +1190,7 @@ async function onPaymentCompleted(paymentMeta: {
 
 .step-header {
   margin-bottom: 22px;
-  border-bottom: 1px solid #eee4d1;
+  border-bottom: 1px solid #e9ede9;
   padding-bottom: 16px;
 }
 
@@ -1199,7 +1204,7 @@ async function onPaymentCompleted(paymentMeta: {
 .step-subtitle {
   margin: 0;
   font-size: 14px;
-  color: #60594a;
+  color: #4e5b53;
   line-height: 1.5;
 }
 
@@ -1230,7 +1235,7 @@ async function onPaymentCompleted(paymentMeta: {
 .form-input,
 .form-select {
   padding: 10px 14px;
-  border: 1px solid #c9bda7;
+  border: 1px solid #829087;
   border-radius: 6px;
   background: #ffffff;
   color: #1e2e25;
@@ -1251,9 +1256,9 @@ async function onPaymentCompleted(paymentMeta: {
 
 .country-code-select {
   padding: 10px 12px;
-  border: 1px solid #c9bda7;
+  border: 1px solid #829087;
   border-radius: 6px;
-  background: #fffaf1;
+  background: #ffffff;
   color: #203c30;
   font-size: 13px;
   font-weight: 600;
@@ -1266,7 +1271,7 @@ async function onPaymentCompleted(paymentMeta: {
 
 .field-hint {
   font-size: 11px;
-  color: #6a6252;
+  color: #4e5b53;
 }
 
 /* Glamorous Brief Reservation Summary with Running Gold Shine Border */
@@ -1434,36 +1439,34 @@ async function onPaymentCompleted(paymentMeta: {
 /* Tables grid */
 .tables-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
   gap: 16px;
   margin-bottom: 28px;
 }
 
 .table-card {
   background: #ffffff;
-  border: 1.5px solid #ded5c3;
+  border: 1.5px solid #d3d9d4;
   border-radius: 12px;
   padding: 16px 18px;
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 4;
   gap: 10px;
   transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 2px 8px rgba(32, 60, 48, 0.04);
 }
 
 .table-card:hover {
-  border-color: #baa67c;
+  border-color: #829087;
   box-shadow: 0 8px 20px rgba(20, 43, 32, 0.08), 0 0 12px rgba(198, 173, 122, 0.15);
-  transform: translateY(-2px);
 }
 
 .table-card.is-selected {
-  transform: translateY(-3px);
-  border-color: #f7e7c4;
-  background: radial-gradient(ellipse at 50% 15%, #244b39 0%, #173224 70%, #0f2219 100%);
-  color: #fffaf0;
-  box-shadow: 0 0 0 2px #c6ad7a, 0 12px 28px rgba(0, 0, 0, 0.35), 0 0 20px rgba(198, 173, 122, 0.3);
+  border-color: #244c38;
+  background: #dce7df;
+  box-shadow: 0 0 0 1px #244c38;
 }
 
 .table-top {
@@ -1475,6 +1478,7 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .table-label {
+  overflow-wrap: anywhere;
   font-size: 15.5px;
   font-weight: 700;
   color: #142b20;
@@ -1483,9 +1487,9 @@ async function onPaymentCompleted(paymentMeta: {
 
 .capacity-pill {
   font-size: 11.5px;
-  background: #f4ecdc;
+  background: #e9ede9;
   color: #142b20;
-  border: 1px solid rgba(198, 173, 122, 0.4);
+  border: 1px solid #d3d9d4;
   padding: 4px 10px;
   border-radius: 14px;
   font-weight: 700;
@@ -1510,12 +1514,12 @@ async function onPaymentCompleted(paymentMeta: {
 
 .rate-unit {
   font-size: 12px;
-  color: #6a6252;
+  color: #4e5b53;
 }
 
 .table-subtotal {
   font-size: 12.5px;
-  color: #555044;
+  color: #4e5b53;
   font-weight: 500;
 }
 
@@ -1528,40 +1532,16 @@ async function onPaymentCompleted(paymentMeta: {
   color: #142b20;
   margin-top: 4px;
   padding-top: 8px;
-  border-top: 1px solid rgba(198, 173, 122, 0.25);
-}
-
-/* HIGH-CONTRAST GOLD & CREAM WHEN SELECTED - ENSURES TEXT NEVER DISAPPEARS */
-.table-card.is-selected .table-label {
-  color: #fffaf0 !important;
-}
-
-.table-card.is-selected .rate-num {
-  color: #ffd98a !important;
-}
-
-.table-card.is-selected .rate-unit {
-  color: #e5d8b8 !important;
-}
-
-.table-card.is-selected .table-subtotal {
-  color: #ddc18c !important;
-}
-
-.table-card.is-selected .select-radio {
-  color: #fff8e7 !important;
-  border-top-color: rgba(198, 173, 122, 0.4);
+  border-top: 1px solid #d3d9d4;
 }
 
 .table-card.is-selected .capacity-pill {
-  background: rgba(198, 173, 122, 0.25) !important;
-  border-color: #c6ad7a !important;
-  color: #fff8e7 !important;
+  background: #ffffff;
 }
 
 .table-card.is-selected .gold-icon {
-  color: #ffd98a !important;
-  filter: drop-shadow(0 0 6px rgba(255, 217, 138, 0.6));
+  color: #244c38;
+  filter: none;
 }
 
 .phone-error-hint {
@@ -1578,7 +1558,7 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .contact-section {
-  border-top: 1px solid #eee4d1;
+  border-top: 1px solid #e9ede9;
   padding-top: 20px;
   margin-top: 10px;
 }
@@ -1600,8 +1580,8 @@ async function onPaymentCompleted(paymentMeta: {
 
 .review-card,
 .pricing-card {
-  background: #fffaf1;
-  border: 1px solid #d5c8b2;
+  background: #fafbf9;
+  border: 1px solid #d3d9d4;
   border-radius: 8px;
   padding: 18px;
 }
@@ -1611,7 +1591,7 @@ async function onPaymentCompleted(paymentMeta: {
   font-size: 16px;
   font-weight: 700;
   color: #1a382a;
-  border-bottom: 1px solid #e5dac6;
+  border-bottom: 1px solid #d3d9d4;
   padding-bottom: 8px;
 }
 
@@ -1621,7 +1601,7 @@ async function onPaymentCompleted(paymentMeta: {
   justify-content: space-between;
   font-size: 13px;
   margin-bottom: 10px;
-  color: #4b4435;
+  color: #4e5b53;
 }
 
 .review-row .val {
@@ -1654,7 +1634,7 @@ async function onPaymentCompleted(paymentMeta: {
 
 .food-summary-block {
   margin-top: 14px;
-  border-top: 1px dashed #d5c8b2;
+  border-top: 1px dashed #d3d9d4;
   padding-top: 12px;
 }
 
@@ -1678,7 +1658,7 @@ async function onPaymentCompleted(paymentMeta: {
 .food-item-line {
   display: flex;
   justify-content: space-between;
-  color: #443e32;
+  color: #4e5b53;
 }
 
 .inplay-callout {
@@ -1712,7 +1692,7 @@ async function onPaymentCompleted(paymentMeta: {
 .pay-note {
   margin: 8px 0 0;
   font-size: 11px;
-  color: #6a6252;
+  color: #4e5b53;
   text-align: center;
 }
 
@@ -1756,12 +1736,12 @@ async function onPaymentCompleted(paymentMeta: {
 .receipt-sub {
   margin: 0 0 24px;
   font-size: 14px;
-  color: #60594a;
+  color: #4e5b53;
 }
 
 .receipt-meta-box {
-  background: #fffaf1;
-  border: 1px solid #d5c8b2;
+  background: #fafbf9;
+  border: 1px solid #d3d9d4;
   border-radius: 8px;
   padding: 16px;
   text-align: left;
@@ -1778,7 +1758,7 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .meta-line .lbl {
-  color: #60594a;
+  color: #4e5b53;
 }
 
 .meta-line .v {
@@ -1788,13 +1768,13 @@ async function onPaymentCompleted(paymentMeta: {
 
 .meta-line .code {
   font-family: monospace;
-  background: #e9dec9;
+  background: #dce7df;
   padding: 1px 6px;
   border-radius: 3px;
 }
 
 .receipt-food-box {
-  background: #fbf9f4;
+  background: #fafbf9;
   border: 1px dashed #c6ad7a;
   border-radius: 8px;
   padding: 14px;
@@ -1814,7 +1794,7 @@ async function onPaymentCompleted(paymentMeta: {
   justify-content: space-between;
   font-size: 13px;
   margin-bottom: 6px;
-  color: #4b4435;
+  color: #4e5b53;
 }
 
 .receipt-actions {
@@ -1828,7 +1808,7 @@ async function onPaymentCompleted(paymentMeta: {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
-  border-top: 1px solid #eee4d1;
+  border-top: 1px solid #e9ede9;
   padding-top: 20px;
   margin-top: 20px;
 }
@@ -1847,13 +1827,13 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .btn-primary {
-  background: #203c30;
-  color: #fffaf1;
+  background: #ddc28c;
+  color: #14281f;
   border: none;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #142820;
+  background: #e8d2a7;
 }
 
 .btn-primary:disabled {
@@ -1862,13 +1842,13 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .btn-secondary {
-  background: #fffaf1;
-  border: 1px solid #c9bda7;
-  color: #3b362c;
+  background: #ffffff;
+  border: 1px solid #829087;
+  color: #202e27;
 }
 
 .btn-secondary:hover {
-  background: #eee4d1;
+  background: #e9ede9;
 }
 
 /* Modal Backdrop */
@@ -1903,7 +1883,7 @@ async function onPaymentCompleted(paymentMeta: {
 .empty-sub {
   margin: 0 0 16px;
   font-size: 13px;
-  color: #6a6252;
+  color: #4e5b53;
 }
 
 @media (max-width: 768px) {
@@ -1973,6 +1953,7 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .table-label-row {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1995,8 +1976,7 @@ async function onPaymentCompleted(paymentMeta: {
 }
 .btn-secondary:hover:not(:disabled) {
   transform: translateY(-2px);
-  border-color: #c6ad7a;
-  color: #ddc18c;
+  border-color: #244c38;
 }
 
 
@@ -2005,17 +1985,20 @@ async function onPaymentCompleted(paymentMeta: {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #142b20;
+  background: radial-gradient(ellipse at 50% 25%, #1d3e2f 0%, #142b20 70%, #0d1e16 100%);
   border: 1px solid #c6ad7a;
   border-radius: 8px;
   padding: 10px 16px;
   margin-bottom: 20px;
   gap: 12px;
-  box-shadow: 0 4px 14px rgba(20, 43, 32, 0.15);
+  box-shadow: inset 0 0 16px rgba(10, 22, 16, 0.7);
   flex-wrap: wrap;
 }
 
 .member-meta {
+  flex-wrap: wrap;
+  min-width: 0;
+  line-height: 1.5;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2028,6 +2011,7 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .member-name {
+  overflow-wrap: anywhere;
   color: #ffffff;
   font-weight: 800;
 }
@@ -2098,7 +2082,7 @@ async function onPaymentCompleted(paymentMeta: {
   margin-top: 2px;
 }
 .muted-val {
-  color: #7a705e;
+  color: #4e5b53;
   font-weight: 700;
 }
 

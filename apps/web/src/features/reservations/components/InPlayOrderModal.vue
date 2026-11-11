@@ -340,7 +340,7 @@ function submitOrder() {
 .search-input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #ded5c3;
+  border: 1px solid #d5c8b2;
   border-radius: 6px;
   font-size: 13px;
   box-sizing: border-box;
@@ -354,26 +354,26 @@ function submitOrder() {
 }
 
 .cat-btn {
-  background: #f7f3ea;
-  border: 1px solid #ded5c3;
+  background: #fffaf1;
+  border: 1px solid #d5c8b2;
   border-radius: 16px;
   padding: 4px 12px;
   font-size: 11.5px;
   font-weight: 700;
-  color: #4b4435;
+  color: #3b362c;
   white-space: nowrap;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .cat-btn:hover {
-  background: #eee4d1;
+  background: #eee3ce;
 }
 
 .cat-btn.active {
-  background: #142b20;
-  border-color: #c6ad7a;
-  color: #ffd98a;
+  background: #203c30;
+  border-color: #203c30;
+  color: #fff3dc;
 }
 
 .menu-items-scroll {
@@ -422,23 +422,23 @@ function submitOrder() {
 }
 
 .popular-tag {
-  font-size: 10px;
-  font-weight: 800;
-  color: #c6ad7a;
-  background: #142b20;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #8c4e0b;
+  background: #fde8cf;
   padding: 2px 7px;
-  border-radius: 10px;
-  border: 1px solid #c6ad7a;
+  border-radius: 4px;
+  border: 1px solid transparent;
   text-transform: lowercase;
 }
 
 .dietary-tag {
-  font-size: 10px;
-  font-weight: 700;
-  color: #2b613a;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #2e6022;
   background: #e2f0d9;
   padding: 2px 7px;
-  border-radius: 10px;
+  border-radius: 4px;
 }
 
 .item-desc {
@@ -465,9 +465,9 @@ function submitOrder() {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  border: 1px solid #c6ad7a;
-  background: #142b20;
-  color: #ffd98a;
+  border: 1px solid #203c30;
+  background: #203c30;
+  color: #fffaf1;
   font-weight: 800;
   font-size: 14px;
   display: flex;
@@ -521,7 +521,7 @@ function submitOrder() {
 .notes-input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #ded5c3;
+  border: 1px solid #d5c8b2;
   border-radius: 6px;
   font-size: 12.5px;
   box-sizing: border-box;
@@ -532,9 +532,9 @@ function submitOrder() {
   align-items: center;
   gap: 6px;
   font-size: 11.5px;
-  color: #6a6252;
+  color: #243e32;
   background: #f4ecdc;
-  border: 1px solid #ded5c3;
+  border: 1px solid #c6ad7a;
   padding: 6px 10px;
   border-radius: 6px;
 }
@@ -549,16 +549,16 @@ function submitOrder() {
   padding: 12px;
   font-size: 14px;
   font-weight: 800;
-  background: #142b20;
-  color: #ffd98a;
-  border: 1px solid #c6ad7a;
+  background: #203c30;
+  color: #fffaf1;
+  border: 1px solid #203c30;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .submit-order-btn:hover:not(:disabled) {
-  background: #1e3f2f;
+  background: #172c23;
   transform: translateY(-1px);
 }
 
