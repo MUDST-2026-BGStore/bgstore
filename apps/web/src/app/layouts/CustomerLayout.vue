@@ -75,6 +75,9 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
     :class="{
       'catalog-shell':
         route.name === 'HomeIndex' || route.name === 'GameProduct',
+      'reservation-shell':
+        route.name === 'CustomerReservePage' ||
+        route.name === 'CustomerReservationsList',
     }"
   >
     <template #header-left>
@@ -232,6 +235,17 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
 }
 .catalog-shell :deep(> div.relative > header + div) {
   padding: 20px 32px 24px;
+}
+/* Reservation pages paint their own ivory page edge to edge. */
+.reservation-shell {
+  background: var(--color-parlor-ivory-100);
+  background-image: none;
+}
+.reservation-shell :deep(.felt-noise) {
+  display: none;
+}
+.reservation-shell :deep(> div.relative > header + div) {
+  padding: 0;
 }
 .customer-shell
   :deep(> div.relative > header > :nth-child(2) > span:first-child),

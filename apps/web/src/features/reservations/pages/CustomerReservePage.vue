@@ -27,6 +27,12 @@ const reservationsStore = useCustomerReservationsStore();
 
 // Step wizard: 1 = Time & Branch, 2 = Table & Guest Info, 3 = Food & Drinks, 4 = Review & QR Payment, 5 = Receipt
 const currentStep = ref<number>(1);
+const reservationSteps = [
+  'When & Where',
+  'Table & Info',
+  'Food & Drinks (-10%)',
+  'Review & Pay',
+] as const;
 
 // Step 1 State: When & Where (Timestamp based)
 const selectedBranchId = ref<string>('');
@@ -531,25 +537,32 @@ async function onPaymentCompleted(paymentMeta: {
     <div class="container">
       <!-- Stepper Indicator -->
       <nav class="stepper-nav" aria-label="Reservation Progress">
-        <div class="step-indicator" :class="{ active: currentStep === 1, completed: currentStep > 1 }">
-          <span class="step-num">1</span>
-          <span class="step-text">{{ t('When & Where') }}</span>
-        </div>
-        <div class="step-divider" />
-        <div class="step-indicator" :class="{ active: currentStep === 2, completed: currentStep > 2 }">
-          <span class="step-num">2</span>
-          <span class="step-text">{{ t('Table & Info') }}</span>
-        </div>
-        <div class="step-divider" />
-        <div class="step-indicator" :class="{ active: currentStep === 3, completed: currentStep > 3 }">
-          <span class="step-num">3</span>
-          <span class="step-text">{{ t('Food & Drinks (-10%)') }}</span>
-        </div>
-        <div class="step-divider" />
-        <div class="step-indicator" :class="{ active: currentStep === 4, completed: currentStep > 4 }">
-          <span class="step-num">4</span>
-          <span class="step-text">{{ t('Review & Pay') }}</span>
-        </div>
+        <ol class="stepper-list">
+          <li
+            v-for="(label, index) in reservationSteps"
+            :key="label"
+            class="step-indicator"
+            :class="{
+              active: currentStep === index + 1,
+              completed: currentStep > index + 1,
+            }"
+            :aria-current="currentStep === index + 1 ? 'step' : undefined"
+          >
+            <span class="step-num" aria-hidden="true">
+              <svg
+                v-if="currentStep > index + 1"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ><polyline points="20 6 9 17 4 12" /></svg>
+              <template v-else>{{ index + 1 }}</template>
+            </span>
+            <span class="step-text">{{ t(label) }}</span>
+          </li>
+        </ol>
       </nav>
 
       <Transition name="glam-step" mode="out-in">
@@ -565,7 +578,6 @@ async function onPaymentCompleted(paymentMeta: {
         <!-- Registered Member Verification Callout -->
         <div v-if="auth.authenticated" class="member-status-bar">
           <div class="member-meta">
-            <span class="gold-icon">✦</span>
             <span class="member-text">{{ t('Reserving as Registered Member:') }}</span>
             <strong class="member-name">{{ auth.displayName || auth.username }}</strong>
           </div>
@@ -659,12 +671,9 @@ async function onPaymentCompleted(paymentMeta: {
 
         <!-- Glamorous Brief Reservation Summary Card (No raw timestamps here) -->
         <div v-if="startTimestamp && endTimestamp && !isDateTimeInvalid" class="glamorous-summary-card">
-          <div class="glamorous-summary-border-base" aria-hidden="true"></div>
           <div class="summary-card-header">
             <span class="parlor-crest">
-              <svg class="gold-icon mini-crest" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"></path></svg>
               The Parlor · {{ selectedBranch?.name }}
-              <svg class="gold-icon mini-crest" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"></path></svg>
             </span>
             <span class="party-badge">
               <svg class="gold-icon micro" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle></svg>
@@ -1093,11 +1102,27 @@ async function onPaymentCompleted(paymentMeta: {
 </template>
 
 <style scoped>
+/*
+ * Reservation surfaces: ivory page, ivory panels, deep green for highlights,
+ * gold only for rules, icons and the primary action. One scale for radii
+ * (12 card / 8 block & control / 999 pill), 1px borders, 44px fields & buttons.
+ */
 .reservation-page {
-  background: var(--color-parlor-page);
-  min-height: calc(100vh - 120px);
-  padding: 32px 16px 64px;
-  color: var(--color-parlor-neutral-800);
+  --surface: var(--color-parlor-ivory-50);
+  --sunken: var(--color-parlor-ivory-200);
+  --line: var(--color-parlor-ivory-300);
+  --control-border: var(--color-parlor-ivory-400);
+  --ink: var(--color-parlor-green-900);
+  --muted: var(--color-parlor-neutral-600);
+  --radius-card: 12px;
+  --radius: 8px;
+  --control-h: 44px;
+  --shadow: 0 1px 2px color-mix(in srgb, var(--color-parlor-green-950) 6%, transparent);
+
+  background: var(--color-parlor-ivory-100);
+  min-height: calc(100svh - var(--parlor-header-height, 64px));
+  padding: 40px 24px 80px;
+  color: var(--ink);
   font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
 }
 
@@ -1106,115 +1131,214 @@ async function onPaymentCompleted(paymentMeta: {
   margin: 0 auto;
 }
 
-/* Stepper Bar */
+/* ---------- Step indicator ---------- */
 .stepper-nav {
+  margin-bottom: 24px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow);
+}
+
+.stepper-list {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  background: var(--color-parlor-white);
-  border: 1px solid var(--color-parlor-gold-500);
-  border-radius: 8px;
-  padding: 14px 20px;
-  margin-bottom: 28px;
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-parlor-green-800) 5%, transparent);
-  overflow-x: auto;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .step-indicator {
   display: flex;
   align-items: center;
-  gap: 8px;
-  opacity: 0.55;
-  white-space: nowrap;
+  flex: 1 1 0;
+  gap: 10px;
+  min-width: 0;
+  color: var(--muted);
 }
 
-.step-indicator.active {
-  opacity: 1;
-  font-weight: 700;
-  color: var(--color-parlor-green-800);
+/* Connector before every step except the first */
+.step-indicator + .step-indicator::before {
+  content: '';
+  flex: 0 1 40px;
+  min-width: 12px;
+  height: 2px;
+  margin-right: 2px;
+  border-radius: 2px;
+  background: var(--line);
 }
-
-.step-indicator.completed {
-  opacity: 0.9;
-  color: var(--color-parlor-green-800);
+.step-indicator.completed + .step-indicator::before {
+  background: var(--color-parlor-green-700);
 }
 
 .step-num {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--color-parlor-neutral-300);
-  color: var(--color-parlor-green-800);
-  display: flex;
+  display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--control-border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--muted);
   font-size: 13px;
   font-weight: 700;
 }
 
-.step-indicator.active .step-num {
-  background: var(--color-parlor-green-800);
-  color: var(--color-parlor-white);
-}
-
-.step-indicator.completed .step-num {
-  background: var(--color-parlor-success-700);
-  color: var(--color-parlor-white);
+.step-num svg {
+  width: 14px;
+  height: 14px;
 }
 
 .step-text {
-  font-size: 13px;
+  overflow: hidden;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.step-divider {
-  flex: 1;
-  height: 1px;
-  background: var(--color-parlor-neutral-300);
-  margin: 0 12px;
-  min-width: 16px;
+.step-indicator.completed {
+  color: var(--color-parlor-green-700);
+}
+.step-indicator.completed .step-num {
+  border-color: var(--color-parlor-green-700);
+  background: var(--color-parlor-green-700);
+  color: var(--color-parlor-cream);
 }
 
-/* Wizard Step Layout */
+.step-indicator.active {
+  color: var(--ink);
+}
+.step-indicator.active .step-num {
+  border-color: var(--color-parlor-green-900);
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-gold-300);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-parlor-gold-500) 35%, transparent);
+}
+.step-indicator.active .step-text {
+  font-weight: 800;
+}
+
+/* ---------- Step panel ---------- */
 .wizard-step {
-  background: var(--color-parlor-white);
-  border: 1px solid var(--color-parlor-neutral-300);
-  border-radius: 10px;
-  padding: 28px 24px;
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-parlor-green-900) 4%, transparent);
+  padding: 28px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow);
 }
 
 .step-header {
-  margin-bottom: 22px;
-  border-bottom: 1px solid var(--color-parlor-neutral-150);
-  padding-bottom: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
 }
 
 .step-title {
   margin: 0 0 6px;
-  font-size: 22px;
+  font-size: 24px;
+  line-height: 1.2;
   font-weight: 800;
-  color: var(--color-parlor-green-850);
+  color: var(--ink);
 }
 
 .step-subtitle {
   margin: 0;
-  font-size: 14px;
-  color: var(--color-parlor-neutral-600);
+  font-size: 14.5px;
   line-height: 1.5;
+  color: var(--muted);
 }
 
-/* Form Grid */
+/* ---------- Member / sign-in callouts ---------- */
+.member-status-bar,
+.auth-gate-callout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-bottom: 24px;
+  padding: 12px 16px;
+  background: var(--sunken);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.member-meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  min-width: 0;
+  font-size: 14px;
+}
+
+.member-text {
+  color: var(--muted);
+}
+
+.member-name {
+  font-weight: 800;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.member-badge-perk {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--color-parlor-green-900);
+  color: var(--color-parlor-cream);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.auth-gate-callout {
+  border-color: color-mix(in srgb, var(--color-parlor-gold-500) 60%, transparent);
+}
+
+.auth-gate-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  flex: 1 1 320px;
+}
+
+.auth-gate-heading {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 14.5px;
+  color: var(--ink);
+}
+
+.auth-gate-sub {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.auth-signin-btn {
+  white-space: nowrap;
+}
+
+/* ---------- Form ---------- */
 .form-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  margin-bottom: 20px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 18px 20px;
+  margin-bottom: 24px;
 }
 
 .form-field {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .form-field.full-width {
@@ -1222,26 +1346,53 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .form-label {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
-  color: var(--color-parlor-neutral-800);
+  line-height: 1.3;
+  color: var(--ink);
 }
 
 .form-input,
-.form-select {
-  padding: 10px 14px;
-  border: 1px solid var(--color-parlor-neutral-400);
-  border-radius: 6px;
-  background: var(--color-parlor-white);
-  color: var(--color-parlor-green-900);
-  font-size: 14px;
-  outline: none;
+.form-select,
+.country-code-select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--control-h);
+  padding: 0 14px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  background-color: var(--color-parlor-white);
+  color: var(--ink);
+  font: inherit;
+  font-size: 14.5px;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+textarea.form-input {
+  min-height: 88px;
+  padding: 12px 14px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.form-input::placeholder {
+  color: color-mix(in srgb, var(--muted) 80%, transparent);
+}
+
+.form-input:hover,
+.form-select:hover,
+.country-code-select:hover {
+  border-color: var(--color-parlor-neutral-500);
 }
 
 .form-input:focus,
-.form-select:focus {
-  border-color: var(--color-parlor-green-800);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-parlor-green-800) 15%, transparent);
+.form-select:focus,
+.country-code-select:focus {
+  outline: none;
+  border-color: var(--color-parlor-green-700);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-parlor-green-700) 18%, transparent);
 }
 
 .phone-input-group {
@@ -1250,250 +1401,227 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .country-code-select {
-  padding: 10px 12px;
-  border: 1px solid var(--color-parlor-neutral-400);
-  border-radius: 6px;
-  background: var(--color-parlor-white);
-  color: var(--color-parlor-green-800);
-  font-size: 13px;
-  font-weight: 600;
+  flex: 0 0 auto;
+  width: auto;
   max-width: 220px;
+  font-weight: 600;
 }
 
 .phone-number-field {
   flex: 1;
+  min-width: 0;
+}
+
+.field-hint,
+.phone-error-hint {
+  font-size: 12.5px;
+  line-height: 1.4;
 }
 
 .field-hint {
-  font-size: 11px;
-  color: var(--color-parlor-neutral-600);
+  color: var(--muted);
 }
 
-/* Glamorous Brief Reservation Summary with Running Gold Shine Border */
+.phone-error-hint {
+  font-weight: 600;
+  color: var(--color-parlor-danger-700);
+}
+
+.form-input.phone-number-field.is-invalid {
+  border-color: var(--color-parlor-danger-600);
+  background: var(--color-parlor-danger-100);
+}
+
+.validation-alert,
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--color-parlor-danger-300);
+  border-radius: var(--radius);
+  background: var(--color-parlor-danger-100);
+  color: var(--color-parlor-danger-700);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.error-banner {
+  margin: 16px 0 0;
+}
+
+/* ---------- Reservation summary (deep green, flat) ---------- */
 .glamorous-summary-card {
-  position: relative;
-  background: var(--color-parlor-green-900);
-  border-radius: 14px;
-  padding: 22px 24px;
   margin-bottom: 24px;
-  color: var(--color-parlor-page);
-  box-shadow: 0 8px 30px color-mix(in srgb, var(--color-parlor-green-950) 45%, transparent), 0 0 20px color-mix(in srgb, var(--color-parlor-gold-500) 20%, transparent);
-  overflow: hidden;
-  z-index: 1;
-}
-
-/* Base static gold outline */
-.glamorous-summary-border-base {
-  position: absolute;
-  inset: 0;
-  border-radius: 14px;
-  border: 1.5px solid color-mix(in srgb, var(--color-parlor-gold-500) 40%, transparent);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Continuous running gold shine animation around the perimeter */
-.glamorous-summary-card::before {
-  content: '';
-  position: absolute;
-  top: -100%;
-  left: -100%;
-  width: 300%;
-  height: 300%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    transparent 65deg,
-    color-mix(in srgb, var(--color-parlor-gold-500) 30%, transparent) 78deg,
-    var(--color-parlor-gold-500) 84deg,
-    var(--color-parlor-page) 89deg,
-    var(--color-parlor-white) 90deg,
-    var(--color-parlor-page) 91deg,
-    var(--color-parlor-gold-300) 96deg,
-    color-mix(in srgb, var(--color-parlor-gold-500) 40%, transparent) 102deg,
-    transparent 115deg,
-    transparent 360deg
-  );
-  animation: goldBorderSpin 4s linear infinite;
-  z-index: -2;
-  pointer-events: none;
-}
-
-/* Inner deep emerald parlor core to reveal only the 2px running gold border */
-.glamorous-summary-card::after {
-  content: '';
-  position: absolute;
-  inset: 2px;
-  background: radial-gradient(ellipse at 50% 25%, var(--color-parlor-green-800) 0%, var(--color-parlor-green-900) 70%, var(--color-parlor-green-950) 100%);
-  border-radius: 12px;
-  z-index: -1;
-  pointer-events: none;
-  box-shadow: inset 0 0 16px color-mix(in srgb, var(--color-parlor-green-950) 70%, transparent);
-}
-
-.glamorous-summary-card > *:not(.glamorous-summary-border-base) {
-  position: relative;
-  z-index: 1;
-}
-
-@keyframes goldBorderSpin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+  padding: 20px 24px;
+  background: var(--color-parlor-green-900);
+  border: 1px solid color-mix(in srgb, var(--color-parlor-gold-500) 45%, transparent);
+  border-radius: var(--radius-card);
+  color: var(--color-parlor-cream);
 }
 
 .summary-card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-parlor-gold-500) 30%, transparent);
-  padding-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-parlor-gold-500) 25%, transparent);
 }
 
 .parlor-crest {
   font-family: 'Plus Jakarta Sans', Arial, sans-serif;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
   color: var(--color-parlor-gold-300);
 }
 
 .party-badge {
-  background: color-mix(in srgb, var(--color-parlor-gold-500) 20%, transparent);
-  border: 1px solid var(--color-parlor-gold-500);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border: 1px solid color-mix(in srgb, var(--color-parlor-cream) 25%, transparent);
+  border-radius: 999px;
   color: var(--color-parlor-cream);
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 12px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
 }
 
 .summary-card-body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 16px;
+  gap: 16px 24px;
 }
 
 .summary-item {
   display: flex;
   align-items: flex-start;
   gap: 12px;
+  min-width: 0;
 }
 
 .summary-icon {
-  font-size: 18px;
-  line-height: 1.2;
+  display: inline-flex;
+  padding-top: 2px;
 }
 
 .summary-label {
   display: block;
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--color-parlor-gold-500);
-  margin-bottom: 3px;
+  margin-bottom: 2px;
+  font-size: 12.5px;
+  color: color-mix(in srgb, var(--color-parlor-cream) 72%, transparent);
 }
 
 .summary-value {
   display: block;
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 700;
-  color: var(--color-parlor-white);
   line-height: 1.4;
+  color: var(--color-parlor-white);
 }
 
 .game-item {
   grid-column: 1 / -1;
-  background: color-mix(in srgb, var(--color-parlor-gold-500) 12%, transparent);
-  border: 1px dashed color-mix(in srgb, var(--color-parlor-gold-500) 50%, transparent);
-  border-radius: 6px;
-  padding: 8px 12px;
+  padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--color-parlor-gold-500) 25%, transparent);
 }
 
-.validation-alert {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--color-parlor-danger-100);
-  border: 1px solid var(--color-parlor-danger-600);
-  color: var(--color-parlor-danger-700);
-  border-radius: 6px;
-  padding: 12px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  margin-bottom: 18px;
+/* ---------- Tables ---------- */
+.state-message,
+.empty-tables-box {
+  margin-bottom: 24px;
+  padding: 32px 16px;
+  background: var(--sunken);
+  border: 1px dashed var(--control-border);
+  border-radius: var(--radius);
+  text-align: center;
+  color: var(--muted);
 }
 
-/* Tables grid */
+.empty-title {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.empty-sub {
+  margin: 0 0 16px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
 .tables-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 14px;
   margin-bottom: 28px;
 }
 
 .table-card {
-  background: var(--color-parlor-white);
-  border: 1.5px solid var(--color-parlor-neutral-300);
-  border-radius: 12px;
-  padding: 16px 18px;
-  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-parlor-green-800) 4%, transparent);
+  gap: 8px;
+  padding: 16px 18px;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-card);
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease;
 }
 
 .table-card:hover {
   border-color: var(--color-parlor-gold-500);
-  box-shadow: 0 8px 20px color-mix(in srgb, var(--color-parlor-green-900) 8%, transparent), 0 0 12px color-mix(in srgb, var(--color-parlor-gold-500) 15%, transparent);
-  transform: translateY(-2px);
 }
 
 .table-card.is-selected {
-  transform: translateY(-3px);
-  border-color: var(--color-parlor-neutral-150);
-  background: radial-gradient(ellipse at 50% 15%, var(--color-parlor-green-700) 0%, var(--color-parlor-green-900) 70%, var(--color-parlor-green-950) 100%);
-  color: var(--color-parlor-page);
-  box-shadow: 0 0 0 2px var(--color-parlor-gold-500), 0 12px 28px color-mix(in srgb, var(--color-parlor-green-950) 35%, transparent), 0 0 20px color-mix(in srgb, var(--color-parlor-gold-500) 30%, transparent);
+  background: var(--color-parlor-green-900);
+  border-color: var(--color-parlor-green-900);
+  box-shadow: 0 0 0 2px var(--color-parlor-gold-500);
+  color: var(--color-parlor-cream);
 }
 
 .table-top {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 2px;
+  gap: 10px;
+}
+
+.table-label-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .table-label {
-  font-size: 15.5px;
+  font-size: 16px;
   font-weight: 700;
-  color: var(--color-parlor-green-900);
-  letter-spacing: -0.01em;
+  color: var(--ink);
 }
 
 .capacity-pill {
-  font-size: 11.5px;
-  background: var(--color-parlor-neutral-100);
-  color: var(--color-parlor-green-900);
-  border: 1px solid color-mix(in srgb, var(--color-parlor-gold-500) 40%, transparent);
-  padding: 4px 10px;
-  border-radius: 14px;
-  font-weight: 700;
   display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
   flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--sunken);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .table-rate {
@@ -1503,603 +1631,543 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .rate-num {
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 800;
-  color: var(--color-parlor-green-900);
+  color: var(--ink);
 }
 
-.rate-unit {
-  font-size: 12px;
-  color: var(--color-parlor-neutral-600);
-}
-
+.rate-unit,
 .table-subtotal {
-  font-size: 12.5px;
-  color: var(--color-parlor-neutral-600);
-  font-weight: 500;
+  font-size: 13px;
+  color: var(--muted);
 }
 
 .select-radio {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 13.5px;
   font-weight: 700;
-  color: var(--color-parlor-green-900);
-  margin-top: 4px;
-  padding-top: 8px;
-  border-top: 1px solid color-mix(in srgb, var(--color-parlor-gold-500) 25%, transparent);
+  color: var(--ink);
 }
 
-/* HIGH-CONTRAST GOLD & CREAM WHEN SELECTED - ENSURES TEXT NEVER DISAPPEARS */
-.table-card.is-selected .table-label {
-  color: var(--color-parlor-page) !important;
+.select-radio input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--color-parlor-gold-500);
 }
 
-.table-card.is-selected .rate-num {
-  color: var(--color-parlor-gold-300) !important;
-}
-
-.table-card.is-selected .rate-unit {
-  color: var(--color-parlor-neutral-300) !important;
-}
-
-.table-card.is-selected .table-subtotal {
-  color: var(--color-parlor-gold-300) !important;
-}
-
+.table-card.is-selected .table-label,
 .table-card.is-selected .select-radio {
-  color: var(--color-parlor-page) !important;
-  border-top-color: color-mix(in srgb, var(--color-parlor-gold-500) 40%, transparent);
+  color: var(--color-parlor-white);
 }
-
+.table-card.is-selected .rate-num {
+  color: var(--color-parlor-gold-300);
+}
+.table-card.is-selected .rate-unit,
+.table-card.is-selected .table-subtotal {
+  color: color-mix(in srgb, var(--color-parlor-cream) 80%, transparent);
+}
+.table-card.is-selected .select-radio {
+  border-top-color: color-mix(in srgb, var(--color-parlor-gold-500) 30%, transparent);
+}
 .table-card.is-selected .capacity-pill {
-  background: color-mix(in srgb, var(--color-parlor-gold-500) 25%, transparent) !important;
-  border-color: var(--color-parlor-gold-500) !important;
-  color: var(--color-parlor-page) !important;
-}
-
-.table-card.is-selected .gold-icon {
-  color: var(--color-parlor-gold-300) !important;
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-parlor-gold-300) 60%, transparent));
-}
-
-.phone-error-hint {
-  font-size: 11.5px;
-  color: var(--color-parlor-danger-600);
-  margin-top: 4px;
-  display: block;
-  font-weight: 600;
-}
-
-.form-input.phone-number-field.is-invalid {
-  border-color: var(--color-parlor-danger-600);
-  background: var(--color-parlor-danger-100);
+  background: transparent;
+  border-color: color-mix(in srgb, var(--color-parlor-cream) 30%, transparent);
+  color: var(--color-parlor-cream);
 }
 
 .contact-section {
-  border-top: 1px solid var(--color-parlor-neutral-150);
-  padding-top: 20px;
-  margin-top: 10px;
+  margin-top: 4px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
 }
 
 .section-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-parlor-green-850);
-  margin: 0 0 14px;
+  margin: 0 0 16px;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--ink);
 }
 
-/* Review step */
+/* ---------- Review ---------- */
 .review-grid {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  align-items: start;
   gap: 20px;
-  margin-bottom: 22px;
 }
 
 .review-card,
 .pricing-card {
+  padding: 20px;
   background: var(--color-parlor-white);
-  border: 1px solid var(--color-parlor-neutral-300);
-  border-radius: 8px;
-  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
 }
 
 .card-heading {
   margin: 0 0 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
   font-size: 16px;
-  font-weight: 700;
-  color: var(--color-parlor-green-850);
-  border-bottom: 1px solid var(--color-parlor-neutral-300);
-  padding-bottom: 8px;
+  font-weight: 800;
+  color: var(--ink);
 }
 
 .review-row,
 .cost-row {
   display: flex;
   justify-content: space-between;
-  font-size: 13px;
+  gap: 16px;
   margin-bottom: 10px;
-  color: var(--color-parlor-neutral-800);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.review-row .label {
+  flex: none;
+  color: var(--muted);
 }
 
 .review-row .val {
-  font-weight: 600;
-  color: var(--color-parlor-green-900);
+  min-width: 0;
+  font-weight: 700;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .discount-row {
-  color: var(--color-parlor-warning-600);
   font-weight: 700;
+  color: var(--color-parlor-success-700);
+}
+
+.pay-counter-pill,
+.due-sub-text {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-parlor-gold-700);
+}
+
+.muted-val {
+  font-weight: 700;
+  color: var(--muted);
 }
 
 .grand-total-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border-top: 2px solid var(--color-parlor-gold-500);
-  padding-top: 12px;
-  margin-top: 14px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--color-parlor-gold-500);
   font-size: 16px;
   font-weight: 800;
-  color: var(--color-parlor-green-900);
+  color: var(--ink);
 }
 
 .total-amount {
-  font-size: 24px;
-  color: var(--color-parlor-green-800);
+  font-size: 26px;
+  color: var(--ink);
 }
 
 .food-summary-block {
-  margin-top: 14px;
-  border-top: 1px dashed var(--color-parlor-neutral-300);
-  padding-top: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 
 .food-summary-title {
   margin: 0 0 8px;
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 700;
-  color: var(--color-parlor-green-800);
+  color: var(--ink);
 }
 
 .food-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13.5px;
 }
 
 .food-item-line {
   display: flex;
   justify-content: space-between;
-  color: var(--color-parlor-neutral-800);
+  gap: 12px;
+  color: var(--ink);
 }
 
 .inplay-callout {
-  background: var(--color-parlor-success-100);
-  border: 1px solid var(--color-parlor-success-300);
-  border-radius: 6px;
-  padding: 12px 14px;
-  margin-top: 16px;
   display: flex;
   gap: 10px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  background: var(--sunken);
+  border-radius: var(--radius);
 }
 
 .callout-icon {
-  font-size: 16px;
+  display: inline-flex;
+  padding-top: 1px;
 }
 
 .callout-text {
   margin: 0;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
-  color: var(--color-parlor-green-700);
+  color: var(--ink);
 }
 
 .pay-btn {
   width: 100%;
-  margin-top: 16px;
-  padding: 13px;
+  min-height: 48px;
+  margin-top: 18px;
   font-size: 15px;
 }
 
 .pay-note {
-  margin: 8px 0 0;
-  font-size: 11px;
-  color: var(--color-parlor-neutral-600);
+  margin: 10px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
   text-align: center;
+  color: var(--muted);
 }
 
-/* Receipt step */
+/* ---------- Receipt ---------- */
 .receipt-step {
   display: flex;
   justify-content: center;
 }
 
 .receipt-card {
-  max-width: 580px;
   width: 100%;
-  background: var(--color-parlor-white);
-  border: 2px solid var(--color-parlor-gold-500);
-  border-radius: 12px;
-  padding: 32px 24px;
+  max-width: 580px;
   text-align: center;
-  box-shadow: 0 10px 30px color-mix(in srgb, var(--color-parlor-green-900) 8%, transparent);
 }
 
 .receipt-badge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 14px;
+  padding: 6px 14px;
+  border-radius: 999px;
   background: var(--color-parlor-success-100);
   color: var(--color-parlor-success-700);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 800;
-  padding: 6px 14px;
-  border-radius: 20px;
-  margin-bottom: 14px;
 }
 
 .receipt-title {
   margin: 0 0 6px;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 800;
-  color: var(--color-parlor-green-900);
+  color: var(--ink);
 }
 
 .receipt-sub {
   margin: 0 0 24px;
-  font-size: 14px;
-  color: var(--color-parlor-neutral-600);
+  font-size: 14.5px;
+  color: var(--muted);
 }
 
-.receipt-meta-box {
-  background: var(--color-parlor-white);
-  border: 1px solid var(--color-parlor-neutral-300);
-  border-radius: 8px;
-  padding: 16px;
-  text-align: left;
+.receipt-meta-box,
+.receipt-food-box {
   display: flex;
   flex-direction: column;
   gap: 10px;
   margin-bottom: 20px;
-}
-
-.meta-line {
-  display: flex;
-  justify-content: space-between;
-  font-size: 13px;
-}
-
-.meta-line .lbl {
-  color: var(--color-parlor-neutral-600);
-}
-
-.meta-line .v {
-  font-weight: 600;
-  color: var(--color-parlor-green-900);
-}
-
-.meta-line .code {
-  font-family: monospace;
-  background: var(--color-parlor-neutral-300);
-  padding: 1px 6px;
-  border-radius: 3px;
-}
-
-.receipt-food-box {
-  background: var(--color-parlor-page);
-  border: 1px dashed var(--color-parlor-gold-500);
-  border-radius: 8px;
-  padding: 14px;
-  margin-bottom: 24px;
+  padding: 16px 18px;
+  background: var(--color-parlor-white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   text-align: left;
 }
 
-.food-h {
-  margin: 0 0 10px;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--color-parlor-green-800);
+.receipt-food-box {
+  background: var(--sunken);
+  gap: 6px;
+  margin-bottom: 24px;
 }
 
+.meta-line,
 .receipt-food-item {
   display: flex;
   justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+}
+
+.meta-line .lbl {
+  flex: none;
+  color: var(--muted);
+}
+
+.meta-line .v {
+  min-width: 0;
+  font-weight: 600;
+  text-align: right;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.meta-line .v.bold {
+  font-weight: 800;
+}
+
+.meta-line .code {
+  padding: 1px 8px;
+  border-radius: 4px;
+  background: var(--sunken);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 13px;
-  margin-bottom: 6px;
-  color: var(--color-parlor-neutral-800);
+}
+
+.food-h {
+  margin: 0 0 4px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.receipt-food-item {
+  color: var(--ink);
 }
 
 .receipt-actions {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
   justify-content: center;
+  gap: 10px;
 }
 
-/* Actions buttons */
+/* ---------- Actions & buttons ---------- */
 .wizard-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 12px;
-  border-top: 1px solid var(--color-parlor-neutral-150);
+  margin-top: 24px;
   padding-top: 20px;
-  margin-top: 20px;
+  border-top: 1px solid var(--line);
 }
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 18px;
-  border-radius: 6px;
+  gap: 6px;
+  min-height: var(--control-h);
+  padding: 0 20px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font: inherit;
   font-size: 14px;
   font-weight: 700;
-  cursor: pointer;
+  line-height: 1.2;
+  text-align: center;
   text-decoration: none;
-  transition: all 140ms ease;
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.btn:focus-visible,
+.table-card:focus-within {
+  outline: 2px solid var(--color-parlor-gold-500);
+  outline-offset: 2px;
 }
 
 .btn-primary {
-  background: var(--color-parlor-green-800);
-  color: var(--color-parlor-white);
-  border: none;
+  background: var(--color-parlor-gold-500);
+  border-color: var(--color-parlor-gold-500);
+  color: var(--color-parlor-green-950);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--color-parlor-green-900);
+  background: var(--color-parlor-gold-300);
+  border-color: var(--color-parlor-gold-300);
 }
 
 .btn-primary:disabled {
-  opacity: 0.5;
+  background: var(--sunken);
+  border-color: var(--line);
+  color: var(--muted);
   cursor: not-allowed;
 }
 
 .btn-secondary {
-  background: var(--color-parlor-white);
-  border: 1px solid var(--color-parlor-neutral-400);
-  color: var(--color-parlor-neutral-800);
+  background: var(--surface);
+  border-color: var(--control-border);
+  color: var(--ink);
 }
 
-.btn-secondary:hover {
-  background: var(--color-parlor-neutral-150);
+.btn-secondary:hover:not(:disabled) {
+  background: var(--sunken);
+  border-color: var(--color-parlor-gold-500);
 }
 
-/* Modal Backdrop */
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background: color-mix(in srgb, var(--color-parlor-green-950) 65%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  padding: 16px;
-}
-
-.state-message,
-.empty-tables-box {
-  padding: 32px 16px;
-  text-align: center;
-  background: var(--color-parlor-white);
-  border: 1px dashed var(--color-parlor-gold-500);
-  border-radius: 8px;
-  margin-bottom: 24px;
-}
-
-.empty-title {
-  margin: 0 0 6px;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-parlor-danger-700);
-}
-
-.empty-sub {
-  margin: 0 0 16px;
-  font-size: 13px;
-  color: var(--color-parlor-neutral-600);
-}
-
-@media (max-width: 768px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-  .review-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Smooth Glam Transition between Wizard Steps */
-.glam-step-enter-active,
-.glam-step-leave-active {
-  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1), transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.glam-step-enter-from {
-  opacity: 0;
-  transform: translateY(14px) scale(0.99);
-}
-.glam-step-leave-to {
-  opacity: 0;
-  transform: translateY(-10px) scale(0.99);
-}
-
-/* Gold Layout Icons styling */
+/* ---------- Icons ---------- */
 .gold-icon {
+  display: inline-block;
+  flex-shrink: 0;
   width: 18px;
   height: 18px;
-  color: var(--color-parlor-gold-300);
-  display: inline-block;
+  color: var(--color-parlor-gold-700);
   vertical-align: middle;
-  flex-shrink: 0;
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--color-parlor-gold-500) 35%, transparent));
 }
-.gold-icon.mini-crest {
-  width: 14px;
-  height: 14px;
-  margin: 0 4px;
+/* Pale gold only where the background is deep green */
+.glamorous-summary-card .gold-icon,
+.table-card.is-selected .gold-icon {
+  color: var(--color-parlor-gold-300);
 }
 .gold-icon.micro {
   width: 13px;
   height: 13px;
-  margin-right: 3px;
 }
 .gold-icon.table-icon {
   width: 22px;
   height: 22px;
-  color: var(--color-parlor-gold-300);
 }
 .gold-icon.warning-icon {
   width: 20px;
   height: 20px;
-  color: var(--color-parlor-gold-300);
+  color: currentColor;
 }
 .gold-icon.empty-icon {
   width: 32px;
   height: 32px;
   margin-bottom: 8px;
-  color: var(--color-parlor-gold-500);
 }
 .gold-icon.check-icon {
-  width: 20px;
-  height: 20px;
-  color: var(--color-parlor-success-500);
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--color-parlor-success-500) 40%, transparent));
+  width: 18px;
+  height: 18px;
+  color: var(--color-parlor-success-700);
 }
 
-.table-label-row {
+/* ---------- Modal ---------- */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  padding: 16px;
+  background: color-mix(in srgb, var(--color-parlor-green-950) 55%, transparent);
 }
 
-
-
-/* Smooth Button Hover Elevation */
-.btn-primary {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-parlor-gold-500) 25%, transparent);
+/* ---------- Step transition ---------- */
+.glam-step-enter-active,
+.glam-step-leave-active {
+  transition:
+    opacity 200ms ease,
+    transform 200ms ease;
 }
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--color-parlor-gold-500) 45%, transparent);
-  filter: brightness(1.08);
+.glam-step-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
 }
-.btn-secondary {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.btn-secondary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  border-color: var(--color-parlor-gold-500);
-  color: var(--color-parlor-gold-300);
+.glam-step-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
 }
 
-
-/* Member Status Bar & Auth Gate Banner */
-.member-status-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--color-parlor-green-900);
-  border: 1px solid var(--color-parlor-gold-500);
-  border-radius: 8px;
-  padding: 10px 16px;
-  margin-bottom: 20px;
-  gap: 12px;
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--color-parlor-green-900) 15%, transparent);
-  flex-wrap: wrap;
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+  .form-grid,
+  .review-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
-.member-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13.5px;
-  color: var(--color-parlor-page);
+@media (max-width: 700px) {
+  .reservation-page {
+    padding: 24px 16px 64px;
+  }
+  .stepper-nav {
+    padding: 14px 16px;
+  }
+  /* Numbers for every step, the label only for the current one */
+  .step-indicator {
+    flex: 0 0 auto;
+  }
+  .step-indicator.active {
+    flex: 1 1 auto;
+  }
+  .step-indicator:not(.active) .step-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .step-indicator + .step-indicator::before {
+    flex-basis: 16px;
+  }
+  .wizard-step {
+    padding: 22px 16px;
+  }
+  .step-title {
+    font-size: 21px;
+  }
+  .glamorous-summary-card {
+    padding: 18px 16px;
+  }
+  .phone-input-group {
+    flex-direction: column;
+  }
+  .country-code-select {
+    width: 100%;
+    max-width: none;
+  }
+  .wizard-actions,
+  .receipt-actions {
+    flex-direction: column-reverse;
+  }
+  .wizard-actions > .btn,
+  .receipt-actions > .btn,
+  .auth-signin-btn {
+    width: 100%;
+  }
+  .review-row,
+  .meta-line {
+    flex-wrap: wrap;
+  }
+  .review-row .val,
+  .meta-line .v {
+    text-align: left;
+  }
 }
 
-.member-text {
-  color: var(--color-parlor-gold-300);
+@media (prefers-reduced-motion: reduce) {
+  .glam-step-enter-active,
+  .glam-step-leave-active,
+  .btn,
+  .table-card,
+  .form-input,
+  .form-select,
+  .country-code-select {
+    transition: none;
+  }
+  .glam-step-enter-from,
+  .glam-step-leave-to {
+    transform: none;
+  }
 }
-
-.member-name {
-  color: var(--color-parlor-white);
-  font-weight: 800;
-}
-
-.member-badge-perk {
-  font-size: 11px;
-  font-weight: 800;
-  background: color-mix(in srgb, var(--color-parlor-gold-500) 20%, transparent);
-  border: 1px solid var(--color-parlor-gold-300);
-  color: var(--color-parlor-gold-300);
-  padding: 3px 10px;
-  border-radius: 12px;
-}
-
-.auth-gate-callout {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--color-parlor-page);
-  border: 1.5px solid var(--color-parlor-gold-500);
-  border-radius: 10px;
-  padding: 14px 18px;
-  margin-bottom: 22px;
-  gap: 16px;
-  flex-wrap: wrap;
-}
-
-.auth-gate-info {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.auth-gate-icon {
-  font-size: 20px;
-}
-
-.auth-gate-heading {
-  font-size: 14.5px;
-  color: var(--color-parlor-warning-700);
-  display: block;
-  margin-bottom: 2px;
-}
-
-.auth-gate-sub {
-  margin: 0;
-  font-size: 12.5px;
-  color: var(--color-parlor-gold-700);
-  line-height: 1.4;
-}
-
-.auth-signin-btn {
-  white-space: nowrap;
-}
-
-
-.pay-counter-pill {
-  display: block;
-  font-size: 10.5px;
-  color: var(--color-parlor-gold-700);
-  font-weight: 700;
-  margin-top: 2px;
-}
-.due-sub-text {
-  display: block;
-  font-size: 10.5px;
-  color: var(--color-parlor-gold-700);
-  margin-top: 2px;
-}
-.muted-val {
-  color: var(--color-parlor-neutral-600);
-  font-weight: 700;
-}
-
 </style>

@@ -49,6 +49,13 @@
   --color-parlor-gold-300: #ddc18c;
   --color-parlor-cream: #efe5d0;
 
+  /* Warm ivory surfaces (reservation flows: calmer than white on green) */
+  --color-parlor-ivory-50: #fcfaf5; /* content panel */
+  --color-parlor-ivory-100: #f6f2e9; /* page */
+  --color-parlor-ivory-200: #efe9dc; /* sunken block */
+  --color-parlor-ivory-300: #e3dccd; /* line */
+  --color-parlor-ivory-400: #cdc3ad; /* control border */
+
   /* Neutrals */
   --color-parlor-white: #ffffff;
   --color-parlor-page: #fafbf9;
