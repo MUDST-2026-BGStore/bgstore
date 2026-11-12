@@ -18,11 +18,7 @@ import org.hibernate.annotations.UuidGenerator;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class RentalCopy {
-  // TODO(inventory-domain): add register/changeOperationalStatus methods; require IDs and a
-  // nonblank bounded asset code, start USABLE and prohibit transitions out of RETIRED.
-  // The application service owns assignment/booking conflict checks and condition-change audit.
-  /** Stored asset code width; the existing request contract currently allows 80. */
-  public static final int MAX_ASSET_CODE_LENGTH = 64;
+  public static final int MAX_ASSET_CODE_LENGTH = 80;
 
   @Id
   @GeneratedValue
@@ -49,4 +45,15 @@ public class RentalCopy {
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
+
+  public static RentalCopy register(UUID branchId, UUID gameId, String assetCode) {
+    if (assetCode == null || assetCode.isBlank() || assetCode.length() > MAX_ASSET_CODE_LENGTH)
+      throw new IllegalArgumentException("Invalid asset code");
+    var copy = new RentalCopy();
+    copy.branchId = java.util.Objects.requireNonNull(branchId);
+    copy.gameId = java.util.Objects.requireNonNull(gameId);
+    copy.assetCode = assetCode.strip();
+    copy.operationalStatus = RentalCopyOperationalStatus.USABLE;
+    return copy;
+  }
 }

@@ -172,6 +172,10 @@ public final class ReferenceDataSeed {
             connection.prepareStatement(
                 "INSERT INTO branch_editions (branch_id, edition_id, sale_price_minor, "
                     + "stock_on_hand) VALUES (?, ?, ?, ?)");
+        var insertStockAdjustment =
+            connection.prepareStatement(
+                "INSERT INTO sale_stock_adjustments (branch_id, edition_id, delta, reason, "
+                    + "operator_subject) VALUES (?, ?, ?, 'Development seed', 'development-seed')");
         var insertTable =
             connection.prepareStatement(
                 "INSERT INTO branch_tables (branch_id, label, seats, hourly_rate_minor) "
@@ -204,13 +208,25 @@ public final class ReferenceDataSeed {
         }
         for (var stockKey : data.path("retailStock").path(branchKey).properties()) {
           var gameKey = gameKeyOfStock(stockKey.getKey());
+          var editions = editionIds.get(gameKey);
+          var editionId = editions == null ? null : editions.get(languageOf(stockKey.getKey()));
+          if (editionId == null)
+            throw new IllegalArgumentException("Unknown stock edition: " + stockKey.getKey());
+          int quantity = stockKey.getValue().asInt();
+          if (quantity < 0)
+            throw new IllegalArgumentException("Negative stock: " + stockKey.getKey());
           insertBranchEdition.setObject(1, branchId);
-          insertBranchEdition.setObject(
-              2, editionIds.get(gameKey).get(languageOf(stockKey.getKey())));
+          insertBranchEdition.setObject(2, editionId);
           insertBranchEdition.setLong(3, gamePriceMinor(data, gameKey));
-          insertBranchEdition.setInt(4, stockKey.getValue().asInt());
+          insertBranchEdition.setInt(4, quantity);
           int updated = insertBranchEdition.executeUpdate();
           branchEditions += updated;
+          if (quantity > 0) {
+            insertStockAdjustment.setObject(1, branchId);
+            insertStockAdjustment.setObject(2, editionId);
+            insertStockAdjustment.setInt(3, quantity);
+            insertStockAdjustment.executeUpdate();
+          }
         }
         for (var table : data.path("tables").path(branchKey)) {
           insertTable.setObject(1, branchId);
@@ -272,10 +288,12 @@ public final class ReferenceDataSeed {
     for (var game : data.path("games")) {
       if (game.path("key").asString("").equals(gameKey)) {
         var thb = game.path("retailPriceThb");
-        return thb.isNumber() ? thb.asInt() * 100L : 0L;
+        if (!thb.isIntegralNumber() || thb.asLong() < 0)
+          throw new IllegalArgumentException("Missing or invalid retail price for " + gameKey);
+        return Math.multiplyExact(thb.asLong(), 100L);
       }
     }
-    return 0L;
+    throw new IllegalArgumentException("Unknown game: " + gameKey);
   }
 
   static Map<String, Integer> insertNames(
