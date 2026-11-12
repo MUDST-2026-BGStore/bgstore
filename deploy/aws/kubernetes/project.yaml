@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: theparlor
+  namespace: argocd
+spec:
+  description: The Parlor application and AWS sandbox routing
+  sourceRepos:
+    - https://github.com/MUDST-2026-BGStore/bgstore.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: theparlor-dev
+    - server: https://kubernetes.default.svc
+      namespace: gateway
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: gateway.networking.k8s.io
+      kind: GatewayClass
+    - group: cert-manager.io
+      kind: ClusterIssuer

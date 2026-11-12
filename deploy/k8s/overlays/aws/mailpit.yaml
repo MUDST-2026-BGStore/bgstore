@@ -1,0 +1,40 @@
+# Sandbox mail stays inside the cluster. Access the UI with an SSH/kubectl
+# port-forward; no public Mailpit route or SMTP port is exposed.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mailpit
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: mailpit }
+  template:
+    metadata:
+      labels: { app: mailpit }
+    spec:
+      containers:
+        - name: mailpit
+          image: axllent/mailpit:v1.27.4
+          ports:
+            - { name: http, containerPort: 8025 }
+            - { name: smtp, containerPort: 1025 }
+          env:
+            - { name: MP_MAX_MESSAGES, value: '100' }
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { cpu: 100m, memory: 128Mi }
+          readinessProbe:
+            httpGet: { path: /readyz, port: http }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mailpit
+spec:
+  selector: { app: mailpit }
+  ports:
+    - { name: http, port: 8025, targetPort: http }
+    - { name: smtp, port: 1025, targetPort: smtp }

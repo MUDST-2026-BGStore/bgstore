@@ -1,0 +1,9 @@
+# Managed by Ansible. Single server also runs the agent/containerd and workloads.
+write-kubeconfig-mode: "0600"
+disable: {{ k3s_disable | to_json }}
+node-taint: []
+secrets-encryption: true
+{% if enable_ecr_credentials %}
+image-credential-provider-bin-dir: /var/lib/rancher/credentialprovider/bin
+image-credential-provider-config: /var/lib/rancher/credentialprovider/config.yaml
+{% endif %}

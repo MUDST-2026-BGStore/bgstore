@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+data:
+  SPRING_PROFILES_ACTIVE: dev
+  THEPARLOR_PUBLIC_ORIGIN: https://theparlor.devopsandbox.chanakanlabs.com
+  SESSION_COOKIE_SECURE: 'true'
+  KEYCLOAK_ISSUER_URI: https://auth.devopsandbox.chanakanlabs.com/realms/theparlor
+  KEYCLOAK_BACKCHANNEL_ISSUER_URI: http://keycloak:8080/realms/theparlor
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo-distributor.observability.svc:4318/v1/traces
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+spec:
+  template:
+    spec:
+      containers:
+        - name: api
+          env:
+            - { name: SERVER_FORWARD_HEADERS_STRATEGY, value: framework }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+spec:
+  template:
+    spec:
+      securityContext:
+        fsGroup: 1000
+      initContainers:
+        - name: prepare-realm
+          image: python:3.14-alpine
+          command: [python3, -c]
+          args:
+            - |
+              import json, os
+              with open('/input/realm-theparlor.json') as source:
+                  realm = json.load(source)
+              origin = os.environ['THEPARLOR_PUBLIC_ORIGIN'].rstrip('/')
+              client = next(item for item in realm['clients'] if item['clientId'] == 'theparlor-bff')
+              client['redirectUris'] = [origin + '/api/auth/callback/keycloak']
+              client['attributes']['post.logout.redirect.uris'] = origin + '/'
+              realm['smtpServer'] = {
+                  'host': 'mailpit', 'port': '1025', 'from': 'no-reply@theparlor.test',
+                  'fromDisplayName': 'The Parlor', 'auth': 'false',
+                  'ssl': 'false', 'starttls': 'false'
+              }
+              with open('/output/theparlor-realm.json', 'w') as output:
+                  json.dump(realm, output)
+          env:
+            - name: THEPARLOR_PUBLIC_ORIGIN
+              valueFrom:
+                configMapKeyRef:
+                  { name: api-config, key: THEPARLOR_PUBLIC_ORIGIN }
+          volumeMounts:
+            - { name: realm, mountPath: /input, readOnly: true }
+            - { name: prepared-realm, mountPath: /output }
+          resources:
+            requests: { cpu: 25m, memory: 32Mi }
+            limits: { cpu: 100m, memory: 128Mi }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+      containers:
+        - name: keycloak
+          env:
+            - {
+                name: KC_HOSTNAME,
+                value: 'https://auth.devopsandbox.chanakanlabs.com',
+              }
+          volumeMounts:
+            - name: prepared-realm
+              mountPath: /opt/keycloak/data/import
+              readOnly: true
+      volumes:
+        - name: prepared-realm
+          emptyDir: {}
+---
+# The live node uses Envoy Gateway rather than an ingress-nginx namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-ingress
+spec:
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+        - podSelector: { matchLabels: { app: web } }
+      ports: [{ port: 8080, protocol: TCP }]
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports: [{ port: 8082, protocol: TCP }]
