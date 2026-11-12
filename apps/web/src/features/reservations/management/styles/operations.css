@@ -1,0 +1,71 @@
+:where(.gl-admin-layout) {
+  .workspace-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .workspace-count {
+    color: var(--ui-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .workspace-results {
+    margin-left: auto;
+    color: var(--ui-muted);
+    font-size: 12px;
+  }
+  .record-primary {
+    display: block;
+    color: var(--ui-text);
+  }
+  .record-secondary {
+    display: block;
+    margin-top: 2px;
+    color: var(--ui-muted);
+    font-size: 12px;
+  }
+  .record-details-description {
+    margin: 20px 0;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+
+  .workspace-view-enter-active,
+  .workspace-panel-enter-active {
+    transition:
+      opacity 140ms ease-out,
+      transform 140ms ease-out;
+  }
+  .workspace-view-leave-active,
+  .workspace-panel-leave-active {
+    transition: opacity 70ms ease-in;
+    pointer-events: none;
+  }
+  .workspace-view-enter-from,
+  .workspace-panel-enter-from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  .workspace-view-leave-to,
+  .workspace-panel-leave-to {
+    opacity: 0;
+  }
+  @media (max-width: 700px) {
+    .workspace-results {
+      margin-left: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .workspace-view-enter-active,
+    .workspace-view-leave-active,
+    .workspace-panel-enter-active,
+    .workspace-panel-leave-active {
+      transition: none;
+    }
+    .workspace-view-enter-from,
+    .workspace-panel-enter-from {
+      transform: none;
+    }
+  }
+}

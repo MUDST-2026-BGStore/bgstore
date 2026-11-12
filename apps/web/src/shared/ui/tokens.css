@@ -1,0 +1,40 @@
+:root {
+  /* Brand */
+  --ui-brand: #28543b;
+  --ui-brand-hover: #1b422d;
+  --ui-focus: var(--ui-brand);
+
+  /* Neutral foreground */
+  --ui-text: #242424;
+  --ui-muted: #616161;
+
+  /* Neutral strokes: strong for hovered controls, default for inputs,
+     subtle for panel outlines, divider for rules inside a surface. */
+  --ui-stroke-strong: #a8b2a9;
+  --ui-stroke: #d1d5d1;
+  --ui-stroke-subtle: #e2e6e1;
+  --ui-divider: #eceeec;
+
+  /* Neutral backgrounds */
+  --ui-canvas: #f5f6f5;
+  --ui-surface: #fff;
+  --ui-surface-subtle: #fafbf9;
+  --ui-surface-hover: #f5f7f4;
+  --ui-neutral-subtle: #f0f2ef;
+  --ui-selected: #edf3ec;
+
+  /* Status */
+  --ui-success: var(--ui-brand);
+  --ui-success-subtle: #edf4ec;
+  --ui-warning: #82551b;
+  --ui-warning-subtle: #fff4df;
+  --ui-warning-stroke: #dfd4b4;
+  --ui-danger: #a1372c;
+  --ui-danger-hover: #842a20;
+  --ui-danger-subtle: #fbf1ee;
+  --ui-danger-stroke: #d8b4ad;
+
+  /* Shape */
+  --ui-radius: 4px;
+  --ui-radius-lg: 8px;
+}

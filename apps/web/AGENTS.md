@@ -1,5 +1,19 @@
 # Frontend design
 
+For management/workspace UI, use the supplied Microsoft Fabric references and
+[Fluent 2](https://fluent2.microsoft.design/) for typography, spacing, surfaces and
+control hierarchy, retaining Parlor green. Also consult the saved FortiGate,
+FortiSIEM and FortiSOAR references in `~/fortinet-research`. Use their
+dense-content patterns for navigation, toolbars, tables, filters, forms and dialogs:
+compact spacing, readable hierarchy, restrained selection states and controls next
+to the data they affect. Avoid decorative accent rails and nested dashboard cards.
+Preserve sample data and its visibility during design-only changes.
+Keep management copy terse. Do not expose sample/demo labels, session-local storage,
+backend wiring, or other implementation details in user-facing text or accessible captions.
+Keep the management overview's summary metrics, floor table, upcoming arrivals,
+service queue and pantry watch visible together. Preserve their direct actions when
+polishing the layout; do not replace this overview with shortcut tiles or tabbed panels.
+
 Keep products immediately visible. Use readable, high-contrast type and factual
 copy. Do not reintroduce promotional heroes, decorative accent punctuation,
 sparkles, tiny tracked uppercase labels, arbitrary pastel card colors, or filler

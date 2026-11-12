@@ -197,7 +197,9 @@ function confirmCustomerQrPayment() {
               {{ t(reservation.branchName) }}</span
             >
           </div>
-          <h2 class="dialog-title">{{ t('Table Session Bill') }}</h2>
+          <h2 :id="`table-bill-title-${reservation.id}`" class="dialog-title">
+            {{ t('Table Session Bill') }}
+          </h2>
           <p class="dialog-sub">
             {{
               t('Party of {count} players • Session Ref: {ref}', {
