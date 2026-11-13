@@ -76,7 +76,7 @@ class PreOrderDesk {
             .toList();
     var preOrder =
         com.chanakanlabs.theparlor.reservations.internal.domain.ReservationPreOrder.price(
-            reservation.getId(), lines);
+            reservation.getId(), lines, now);
     preOrders.saveAndFlush(preOrder);
     items.saveAllAndFlush(lines);
     payments.authorizeCard(
@@ -92,7 +92,10 @@ class PreOrderDesk {
         .ifPresent(preOrder -> requireWindow(newStartsAt, preOrder.getCreatedAt()));
   }
 
-  /** The visit will not happen: return the stock and release the card authorization. */
+  /**
+   * The visit will not happen: return the stock and release the card authorization. The void cannot
+   * be rolled back, so call this after the reservation change has been flushed.
+   */
   void release(Reservation reservation) {
     var selections = selections(reservation.getId());
     if (selections.isEmpty()) return;
@@ -100,12 +103,20 @@ class PreOrderDesk {
     payments.cancel(Payable.reservation(reservation.getId()));
   }
 
-  /** The party arrived: the food is served from held stock and the money taken. */
+  /** The party arrived: the food is served from held stock. Capture the money with capture(). */
   void serve(Reservation reservation) {
     var selections = selections(reservation.getId());
     if (selections.isEmpty()) return;
     pantry.fulfill(reservation.getBranchId(), selections);
-    payments.capture(Payable.reservation(reservation.getId()));
+  }
+
+  /**
+   * Takes the pre-order money. A gateway capture cannot be rolled back with the database, so call
+   * this after every other check-in step that can fail.
+   */
+  void capture(Reservation reservation) {
+    if (preOrders.existsById(reservation.getId()))
+      payments.capture(Payable.reservation(reservation.getId()));
   }
 
   /** Pre-order views by reservation ID, with three reads for the whole page. */

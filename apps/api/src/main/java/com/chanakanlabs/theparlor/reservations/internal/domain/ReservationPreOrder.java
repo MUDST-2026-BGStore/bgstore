@@ -9,7 +9,6 @@ import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.CreationTimestamp;
 
 /**
  * Food and drink paid for with a reservation. The discount is fixed at booking and never
@@ -43,12 +42,13 @@ public class ReservationPreOrder {
   @Column(name = "total_minor", nullable = false, updatable = false)
   private long totalMinor;
 
-  @CreationTimestamp
+  /** When the card was authorized; the pre-order window is measured from here. */
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
   /** Prices the lines: the discount is DISCOUNT_PERCENT of the subtotal, rounded half up. */
-  public static ReservationPreOrder price(UUID reservationId, List<ReservationPreOrderItem> lines) {
+  public static ReservationPreOrder price(
+      UUID reservationId, List<ReservationPreOrderItem> lines, Instant now) {
     if (lines == null || lines.isEmpty())
       throw new IllegalArgumentException("A pre-order needs at least one line");
     long subtotal = 0;
@@ -60,6 +60,7 @@ public class ReservationPreOrder {
     if (subtotal <= 0) throw new IllegalArgumentException("A pre-order must cost something");
     var preOrder = new ReservationPreOrder();
     preOrder.reservationId = Objects.requireNonNull(reservationId);
+    preOrder.createdAt = Objects.requireNonNull(now);
     preOrder.subtotalMinor = subtotal;
     preOrder.discountMinor = discount(subtotal);
     preOrder.totalMinor = subtotal - preOrder.discountMinor;

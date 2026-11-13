@@ -42,7 +42,8 @@ function branchParts(instant: Date) {
     minute: '2-digit',
     hourCycle: 'h23',
   }).formatToParts(instant);
-  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  const part = (type: string) =>
+    parts.find((p) => p.type === type)?.value ?? '';
   return part;
 }
 
