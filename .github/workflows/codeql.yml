@@ -1,0 +1,51 @@
+# Security code scanning. Results appear under Security > Code scanning.
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '17 3 * * 1' # Mondays
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    # Job names (e.g. "analyze (java-kotlin, manual)") are required checks on main.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: java-kotlin
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+      - if: matrix.build-mode == 'manual'
+        uses: jdx/mise-action@v2
+      - if: matrix.build-mode == 'manual'
+        name: Build the API
+        run: |
+          JAVA_HOME="$(mise where java)"
+          export JAVA_HOME
+          pnpm install --frozen-lockfile
+          ./apps/api/gradlew -p apps/api --no-daemon classes
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}

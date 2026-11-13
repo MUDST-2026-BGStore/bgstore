@@ -71,12 +71,7 @@ function goToCart() {
     @mouseenter="handleMouseEnter"
     @mouseleave="handleMouseLeave"
   >
-    <RouterLink
-      to="/cart"
-      class="cart-trigger"
-      :aria-label="t('Cart ({count})', { count: cart.count })"
-      @click="isHovered = false"
-    >
+    <RouterLink to="/cart" class="cart-trigger" @click="isHovered = false">
       <svg
         viewBox="0 0 24 24"
         width="19"
@@ -89,7 +84,10 @@ function goToCart() {
         <path d="M5 7h14l1 14H4L5 7Z" />
         <path d="M8 8V6a4 4 0 0 1 8 0v2" />
       </svg>
+      <!-- The visible count is part of the link's name: "Cart 2 items". -->
+      <span class="sr-only">{{ t('Cart') }}</span>
       <span class="cart-count">{{ cart.count }}</span>
+      <span class="sr-only">{{ t('items') }}</span>
     </RouterLink>
 
     <!-- Shopee-style Cart Hover Dropdown (only on catalog/home pages) -->

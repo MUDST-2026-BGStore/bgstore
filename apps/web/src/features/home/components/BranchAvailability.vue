@@ -68,9 +68,12 @@ function retailText(variantId: string, branchId: string) {
   const count = retailStockAt(variantId, branchId);
   return count ? t('{count} in stock', { count }) : t('Sold out');
 }
+const accordion = ref<InstanceType<typeof StoreAccordion>>();
+defineExpose({ open: () => accordion.value?.open() });
 </script>
 <template>
   <StoreAccordion
+    ref="accordion"
     class="branch-availability"
     :title="t('Check other branches')"
   >

@@ -13,10 +13,12 @@
     "build": "nx build web",
     "format:check": "prettier --check .",
     "lint:contract": "redocly lint theparlor --lint-config=error",
-    "bundle:contract": "redocly bundle theparlor --output dist/openapi/theparlor.openapi.yaml --lint-config=error"
+    "bundle:contract": "redocly bundle theparlor --output dist/openapi/theparlor.openapi.yaml --lint-config=error",
+    "knip": "knip --include files,dependencies,unlisted,unresolved,binaries"
   },
   "private": true,
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^9.8.0",
     "@nx/devkit": "23.3.0",
     "@nx/eslint": "23.3.0",
@@ -45,9 +47,11 @@
     "eslint-config-prettier": "^10.0.0",
     "eslint-plugin-playwright": "^1.6.2",
     "eslint-plugin-vue": "^9.16.1",
+    "fast-check": "^4.10.2",
     "jiti": "2.4.2",
     "jsdom": "^27.1.0",
     "jsonc-eslint-parser": "^2.1.0",
+    "knip": "^5.88.1",
     "nx": "23.3.0",
     "orval": "8.43.0",
     "prettier": "~3.6.2",

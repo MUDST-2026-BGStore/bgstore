@@ -27,6 +27,7 @@ import {
   formatBaht,
   plusHours,
 } from '../data/booking';
+import { AppNumberStepper, AppSelect } from '../../../shared/ui';
 
 const auth = useAuthStore();
 const directory = useBranchDirectoryStore();
@@ -223,6 +224,22 @@ async function confirmCancel() {
 // another free table that seats the party.
 const reschedulingReservation = ref<Reservation | null>(null);
 const reschedule = reactive({ date: '', time: '', hours: 2, partySize: 2 });
+const branchFilterOptions = computed(() => [
+  { value: 'ALL', label: t('All Branches') },
+  ...directory.branches.map((b) => ({ value: b.id, label: b.name })),
+]);
+const rescheduleHourOptions = computed(() =>
+  [1, 2, 3, 4, 6].map((h) => ({
+    value: String(h),
+    label: t(h === 1 ? '1 Hour' : '{count} Hours', { count: h }),
+  })),
+);
+const rescheduleHours = computed({
+  get: () => String(reschedule.hours),
+  set: (value: string) => {
+    reschedule.hours = Number(value);
+  },
+});
 const isRescheduling = ref(false);
 const rescheduleError = ref('');
 const todayDate = computed(() => branchDate(new Date()));
@@ -407,16 +424,12 @@ function rentalOf(r: Reservation): Rental | undefined {
             <label for="branch-filter" class="filter-label"
               >{{ t('Branch') }}:</label
             >
-            <select
-              id="branch-filter"
+            <AppSelect
               v-model="selectedBranchFilter"
-              class="branch-select-input"
-            >
-              <option value="ALL">{{ t('All Branches') }}</option>
-              <option v-for="b in directory.branches" :key="b.id" :value="b.id">
-                {{ b.name }}
-              </option>
-            </select>
+              input-id="branch-filter"
+              :label="t('Branch')"
+              :options="branchFilterOptions"
+            />
           </div>
         </div>
 
@@ -794,28 +807,24 @@ function rentalOf(r: Reservation): Rental | undefined {
                 <label for="rs-hours" class="modal-label">{{
                   t('Duration')
                 }}</label>
-                <select
-                  id="rs-hours"
-                  v-model.number="reschedule.hours"
-                  class="form-select"
-                >
-                  <option v-for="h in [1, 2, 3, 4, 6]" :key="h" :value="h">
-                    {{ t(h === 1 ? '1 Hour' : '{count} Hours', { count: h }) }}
-                  </option>
-                </select>
+                <AppSelect
+                  v-model="rescheduleHours"
+                  input-id="rs-hours"
+                  block
+                  :label="t('Duration')"
+                  :options="rescheduleHourOptions"
+                />
               </div>
               <div class="modal-form-group">
                 <label for="rs-party" class="modal-label">{{
                   t('Party Size')
                 }}</label>
-                <input
-                  id="rs-party"
-                  v-model.number="reschedule.partySize"
-                  type="number"
-                  min="1"
-                  max="20"
-                  required
-                  class="form-select"
+                <AppNumberStepper
+                  v-model="reschedule.partySize"
+                  input-id="rs-party"
+                  :label="t('Party Size')"
+                  :min="1"
+                  :max="20"
                 />
               </div>
             </div>
@@ -846,6 +855,19 @@ function rentalOf(r: Reservation): Rental | undefined {
 </template>
 
 <style scoped>
+/* Shared selects and steppers match this page's cream-bordered fields. */
+.my-reservations-page {
+  --ui-brand: #203c30;
+  --ui-focus: #203c30;
+  --ui-text: #142b20;
+  --ui-stroke: #ded5c3;
+  --ui-stroke-strong: #203c30;
+  --ui-surface-hover: #fffaf1;
+  --ui-selected: #f3ead7;
+  --ui-radius: 6px;
+  --ui-control-height: 40px;
+}
+
 .my-reservations-page {
   background: #fbf9f4;
   min-height: calc(100vh - 120px);
@@ -1003,14 +1025,10 @@ function rentalOf(r: Reservation): Rental | undefined {
   box-shadow: 0 2px 8px rgba(20, 43, 32, 0.25);
 }
 
-.branch-select-input {
-  padding: 6px 12px;
-  border: 1px solid #dcd1be;
-  border-radius: 6px;
-  background: #ffffff;
-  font-size: 13px;
-  color: #142b20;
-  font-weight: 600;
+.branch-filter-group {
+  /* A compact filter beside the status chips. */
+  --ui-control-height: 34px;
+  --ui-control-font-size: 13px;
 }
 
 /* Empty Box */

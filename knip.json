@@ -1,0 +1,33 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignore": [
+    ".github/skills/**",
+    "**/*.d.ts",
+    "apps/web/src/features/reservations/management/styles/*.css"
+  ],
+  "ignoreDependencies": [
+    "@nx/.*",
+    "@swc/helpers",
+    "@theparlor/backend-tools",
+    "@eslint/js",
+    "@vue/eslint-config-.*",
+    "typescript-eslint",
+    "vite-plugin-dts",
+    "tslib"
+  ],
+  "workspaces": {
+    ".": {
+      "entry": [
+        "tools/*.mjs",
+        "deploy/keycloak/themes/theparlor/login/resources/js/*.js",
+        "orval.config.ts"
+      ]
+    },
+    "apps/web-e2e": {
+      "entry": ["playwright.config.mts", "src/**/*.spec.ts"]
+    },
+    "apps/web": {},
+    "libs/web/*": {},
+    "tools/backend-tools": {}
+  }
+}

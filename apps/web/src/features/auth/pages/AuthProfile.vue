@@ -8,6 +8,12 @@ import { updateAccountProfile } from '@theparlor/account';
 import { PhoneNumberInput } from '@theparlor/ui';
 import { useI18n } from 'vue-i18n';
 import { useLocale, type Locale } from '../../../shared/lib/locale';
+import { AppSelect } from '../../../shared/ui';
+
+const localeOptions = [
+  { value: 'en-US', label: 'English' },
+  { value: 'th-TH', label: 'ไทย' },
+];
 
 const { data: profile, error } = useMe();
 const identity = useAuth();
@@ -133,7 +139,7 @@ const copy = computed(() =>
 );
 </script>
 <template>
-  <main class="profile-page">
+  <div class="profile-page">
     <div class="profile-shell">
       <RouterLink class="back-link" :to="{ name: 'WorkspaceIndex' }">
         <span aria-hidden="true">←</span> {{ copy.back }}
@@ -273,17 +279,15 @@ const copy = computed(() =>
             <label class="field-label" for="profile-locale">{{
               t('locale.label')
             }}</label>
-            <select
-              id="profile-locale"
-              :value="locale"
+            <AppSelect
+              input-id="profile-locale"
+              block
+              :model-value="locale"
+              :label="t('locale.label')"
+              :options="localeOptions"
               :disabled="phoneSaving"
-              @change="
-                setLocale(($event.target as HTMLSelectElement).value as Locale)
-              "
-            >
-              <option value="en-US">English</option>
-              <option value="th-TH">ไทย</option>
-            </select>
+              @update:model-value="setLocale($event as Locale)"
+            />
             <p v-if="saveStatus === 'saving'" class="feedback" role="status">
               {{ t('locale.saving') }}
             </p>
@@ -361,7 +365,7 @@ const copy = computed(() =>
         </section>
       </div>
     </div>
-  </main>
+  </div>
 </template>
 
 <style scoped>
@@ -557,8 +561,23 @@ dd {
 .language-field {
   min-width: 0;
 }
-.phone-form :deep(.number-input),
-select {
+/* The shared select in this page's dark green and gold. */
+.language-field {
+  --ui-brand: var(--profile-gold);
+  --ui-focus: var(--profile-gold);
+  --ui-text: var(--ink);
+  --ui-stroke: #c6ad7a80;
+  --ui-stroke-strong: var(--profile-gold);
+  --ui-divider: #c6ad7a40;
+  --ui-surface: #0e1d16;
+  --ui-surface-hover: #132a1f;
+  --ui-selected: #1d3a2b;
+  --ui-radius: 9px;
+  --ui-radius-lg: 9px;
+  --ui-control-height: 48px;
+  --ui-control-font-size: 15px;
+}
+.phone-form :deep(.number-input) {
   min-height: 48px;
   border: 1px solid #c6ad7a80;
   border-radius: 9px;
@@ -597,10 +616,6 @@ select {
 .phone-form :deep(.country-trigger) {
   color: var(--ink);
 }
-select {
-  width: 100%;
-  padding: 10px 14px;
-}
 .form-footer {
   display: flex;
   flex-wrap: wrap;
@@ -623,12 +638,11 @@ select {
 .primary-button:hover:not(:disabled) {
   background: #ddc18c;
 }
-button:disabled,
-select:disabled {
+button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
 }
-.profile-page :is(button, select, a):focus-visible,
+.profile-page :is(button, a):focus-visible,
 .phone-form :deep(.country-trigger:focus-visible) {
   outline: 3px solid var(--profile-gold);
   outline-offset: 3px;

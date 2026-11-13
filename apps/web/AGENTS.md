@@ -50,8 +50,15 @@ price without redundant New copy captions or empty split-column price layouts.
 
 Product details live at `/games/:gameId`, with Savantia-inspired media/purchase
 columns and expandable details. Keep catalog filters on return. Branch selection
-uses a native dropdown (search for longer lists), not one repeated panel per
+uses the shared select (search for longer lists), not one repeated panel per
 branch; keep the selected branch while filtering and apply only on explicit save.
+
+Customer pages use the shared controls in `src/shared/ui` (AppSelect, AppNumberStepper, AppCheckbox,
+AppSearchField) instead of native or hand-built selects, steppers and checkboxes. The customer layout's
+`.ui-storefront` tokens theme them; a page with its own palette overrides the `--ui-*` tokens on its root.
+Designed choice cards (store mode, fulfillment, payment) stay as they are. Visiting must be reachable from
+shopping: product pages link to booking with `?game=` (and `?branch=` when that library has the game), the
+store bar links to booking at the chosen branch, and each branch location links to booking there.
 
 Cart edits must never change the catalog/product page behind the drawer. Product
 stock uses `stores/store-context.ts`, with no dependency on cart fulfillment,
@@ -71,4 +78,4 @@ Catalog scrolling uses sticky green
 navigation and compact search, normal document scrolling for location/results/cards,
 viewport-constrained desktop filters, and a native modal filter drawer at 700px or
 below. Do not create a separate scrolling game grid. Keep sidebar highlight/focus
-padding inside its scrollport and preserve native select semantics.
+padding inside its scrollport.

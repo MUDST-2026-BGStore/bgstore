@@ -11,6 +11,16 @@ import { useAuthStore } from '../../../shared/stores/auth';
 import { queryClient } from '../../../shared/lib/api';
 import HomeIndex from './HomeIndex.vue';
 import { useLocale } from '../../../shared/lib/locale';
+
+/** Picks an option from a shared listbox select by its visible text. */
+async function choose(label: string, option: string) {
+  const match = page
+    .get(`[role="listbox"][aria-label="${label}"]`)
+    .findAll('[role="option"]')
+    .find((item) => item.text().replace('✓', '').trim() === option);
+  if (!match) throw new Error(`No option "${option}" in ${label}`);
+  await match.trigger('click');
+}
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('../../../../../../libs/web/api-client/src/lib/transport.ts', () => ({
   apiRequest: request,
@@ -188,9 +198,9 @@ it('uses backend IDs/media, complete catalog filters and no fixture prices or av
   expect(page.findAll('.game-card')).toHaveLength(1);
   expect(page.get('.game-card').text()).toContain('Blood on the Clocktower');
   await page.get('.reset-link').trigger('click');
-  await page.get('select[name="players"]').setValue('4');
+  await choose('Players', '4 players');
   expect(page.findAll('.game-card')).toHaveLength(1);
-  await page.get('select[name="time"]').setValue('30');
+  await choose('Time at the table', 'Up to 30 minutes');
   expect(page.findAll('.game-card')).toHaveLength(0);
   await page.get('.empty-state button').trigger('click');
   expect(page.findAll('.game-card')).toHaveLength(2);
@@ -265,11 +275,11 @@ it('sorts names and durations without changing cached shelf order', async () => 
   const ids = () =>
     page.findAll('.game-card').map((card) => card.attributes('data-game'));
   expect(ids()).toEqual([apiGames[1].id, apiGames[0].id]);
-  await page.get('select[aria-label="Sort games"]').setValue('name');
+  await choose('Sort games', 'Name: A–Z');
   expect(ids()).toEqual([apiGames[0].id, apiGames[1].id]);
-  await page.get('select[aria-label="Sort games"]').setValue('time');
+  await choose('Sort games', 'Shortest playtime');
   expect(ids()).toEqual([apiGames[1].id, apiGames[0].id]);
-  await page.get('select[aria-label="Sort games"]').setValue('shelf');
+  await choose('Sort games', 'Shelf order');
   expect(ids()).toEqual([apiGames[1].id, apiGames[0].id]);
   expect(shelf.map((game) => game.id)).toEqual([
     apiGames[1].id,
@@ -339,8 +349,8 @@ it('filters catalog discovery by games sold at or in the library of the chosen b
 
   await render();
   expect(page.findAll('.game-card')).toHaveLength(2);
-  const soldCheck = page.get('input[name="sold-here"]');
-  const libraryCheck = page.get('input[name="in-library"]');
+  const soldCheck = page.get('input[aria-label="Sold here"]');
+  const libraryCheck = page.get('input[aria-label="In this library"]');
 
   await soldCheck.setValue(true);
   expect(

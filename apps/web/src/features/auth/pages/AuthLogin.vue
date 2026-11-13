@@ -1,5 +1,5 @@
 <template>
-  <main aria-busy="true" aria-live="polite">
+  <div aria-busy="true" aria-live="polite">
     <p>Redirecting to sign in…</p>
-  </main>
+  </div>
 </template>

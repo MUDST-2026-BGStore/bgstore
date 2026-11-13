@@ -25,6 +25,11 @@ const currentLabel = computed(() =>
       ? t('Online')
       : t('Browse all games'),
 );
+// Visiting is the other half of the store: book a table at the chosen branch.
+const reserveLink = computed(() => ({
+  path: '/reservations/new',
+  query: context.branch ? { branch: context.branch.id } : {},
+}));
 function open() {
   const current = context.branch?.id || context.choice || 'browse';
   intent.value = directory.byId(current) ? 'branch' : current;
@@ -68,7 +73,16 @@ defineExpose({ open });
       <span>{{ currentLabel }}</span
       ><span class="change">{{ t('Change') }}</span>
     </button>
-    <span class="source-label">{{ sourceLabel }}</span>
+    <div class="context-actions">
+      <RouterLink class="reserve-link" :to="reserveLink">{{
+        context.branch
+          ? t('Reserve a table at {branch}', {
+              branch: t(context.branch.name),
+            })
+          : t('Reserve a table')
+      }}</RouterLink>
+      <span class="source-label">{{ sourceLabel }}</span>
+    </div>
   </div>
   <dialog
     ref="dialog"
@@ -169,6 +183,24 @@ defineExpose({ open });
   gap: 12px;
   margin-bottom: 14px;
   font-size: 13px;
+}
+.context-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 18px;
+  min-width: 0;
+}
+.reserve-link {
+  color: #244c38;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.reserve-link:focus-visible {
+  outline: 2px solid #244c38;
+  outline-offset: 3px;
 }
 .context-trigger {
   min-width: 0;
@@ -339,12 +371,13 @@ input:focus-visible {
   .store-context {
     align-items: flex-start;
   }
-  .source-label {
-    max-width: 45%;
-    overflow-wrap: anywhere;
-    max-width: 45%;
-    text-align: right;
+  .context-actions {
+    flex-direction: column;
+    align-items: flex-end;
+    max-width: 55%;
     padding-top: 5px;
+    text-align: right;
+    overflow-wrap: anywhere;
   }
 }
 </style>

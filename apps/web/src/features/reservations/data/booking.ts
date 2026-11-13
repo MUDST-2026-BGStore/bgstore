@@ -22,14 +22,30 @@ export function branchInstant(date: string, time: string): string {
   const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
   const clock = /^(\d{2}):(\d{2})$/.exec(time);
   if (!day || !clock) return '';
-  const millis = Date.UTC(
+  const [year, month, dayOfMonth] = [
     Number(day[1]),
-    Number(day[2]) - 1,
+    Number(day[2]),
     Number(day[3]),
-    Number(clock[1]) - BRANCH_UTC_OFFSET_HOURS,
-    Number(clock[2]),
+  ];
+  const [hours, minutes] = [Number(clock[1]), Number(clock[2])];
+  // Reject impossible values (2026-02-31, 24:00) instead of rolling them over.
+  const calendar = new Date(Date.UTC(year, month - 1, dayOfMonth));
+  if (
+    calendar.getUTCFullYear() !== year ||
+    calendar.getUTCMonth() !== month - 1 ||
+    calendar.getUTCDate() !== dayOfMonth ||
+    hours > 23 ||
+    minutes > 59
+  )
+    return '';
+  const millis = Date.UTC(
+    year,
+    month - 1,
+    dayOfMonth,
+    hours - BRANCH_UTC_OFFSET_HOURS,
+    minutes,
   );
-  return Number.isNaN(millis) ? '' : new Date(millis).toISOString();
+  return new Date(millis).toISOString();
 }
 
 function branchParts(instant: Date) {

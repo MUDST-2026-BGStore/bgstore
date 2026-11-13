@@ -18,6 +18,7 @@ import { useStoreContextStore } from '../../../shared/stores/store-context';
 import { useStoreText } from '../../../shared/lib/store-text';
 import { collectPages } from '../../../shared/lib/pagination';
 import { httpStatus } from '../../../shared/lib/api-errors';
+import { AppNumberStepper, AppSelect } from '../../../shared/ui';
 import FoodMenuPicker from '../components/FoodMenuPicker.vue';
 import CardPaymentFields from '../components/CardPaymentFields.vue';
 import type { FoodOrderItem } from '../types';
@@ -79,9 +80,28 @@ const branches = computed(() => directory.branches);
 
 let userSelectedBranch = false;
 
-function onBranchChange(event: Event) {
+const branchOptions = computed(() =>
+  branches.value.map((b) => ({
+    value: b.id,
+    label: `${b.name} — ${b.address}`,
+  })),
+);
+const durationOptions = computed(() => [
+  { value: '1', label: t('1 Hour') },
+  { value: '2', label: t('2 Hours (Recommended)') },
+  { value: '3', label: t('3 Hours') },
+  { value: '4', label: t('4 Hours (Half Day)') },
+  { value: '6', label: t('6 Hours (Full Session)') },
+]);
+const durationValue = computed({
+  get: () => String(reservationDurationHours.value),
+  set: (value: string) => {
+    reservationDurationHours.value = Number(value);
+  },
+});
+
+function onBranchChange(id: string) {
   userSelectedBranch = true;
-  const id = (event.target as HTMLSelectElement).value;
   selectedBranchId.value = id;
   if (branches.value.some((b) => b.id === id)) storeContext.select(id);
 }
@@ -604,16 +624,14 @@ const receiptPaymentNote = computed(() => {
               <label for="branch-select" class="form-label">{{
                 t('Branch Location')
               }}</label>
-              <select
-                id="branch-select"
-                v-model="selectedBranchId"
-                class="form-select"
-                @change="onBranchChange"
-              >
-                <option v-for="b in branches" :key="b.id" :value="b.id">
-                  {{ b.name }} — {{ b.address }}
-                </option>
-              </select>
+              <AppSelect
+                input-id="branch-select"
+                block
+                :model-value="selectedBranchId"
+                :label="t('Branch Location')"
+                :options="branchOptions"
+                @update:model-value="onBranchChange"
+              />
             </div>
 
             <!-- Date Picker -->
@@ -652,17 +670,13 @@ const receiptPaymentNote = computed(() => {
               <label for="res-duration" class="form-label">{{
                 t('Duration')
               }}</label>
-              <select
-                id="res-duration"
-                v-model.number="reservationDurationHours"
-                class="form-select"
-              >
-                <option :value="1">{{ t('1 Hour') }}</option>
-                <option :value="2">{{ t('2 Hours (Recommended)') }}</option>
-                <option :value="3">{{ t('3 Hours') }}</option>
-                <option :value="4">{{ t('4 Hours (Half Day)') }}</option>
-                <option :value="6">{{ t('6 Hours (Full Session)') }}</option>
-              </select>
+              <AppSelect
+                v-model="durationValue"
+                input-id="res-duration"
+                block
+                :label="t('Duration')"
+                :options="durationOptions"
+              />
             </div>
 
             <!-- Party Size -->
@@ -670,14 +684,12 @@ const receiptPaymentNote = computed(() => {
               <label for="res-party" class="form-label">{{
                 t('Party Size')
               }}</label>
-              <input
-                id="res-party"
-                v-model.number="partySize"
-                type="number"
-                min="1"
-                max="20"
-                class="form-input"
-                required
+              <AppNumberStepper
+                v-model="partySize"
+                input-id="res-party"
+                :label="t('Party Size')"
+                :min="1"
+                :max="20"
               />
             </div>
           </div>
@@ -1480,6 +1492,18 @@ const receiptPaymentNote = computed(() => {
 </template>
 
 <style scoped>
+/* Shared selects and steppers match this page's cream-bordered fields. */
+.reservation-page {
+  --ui-brand: #203c30;
+  --ui-focus: #203c30;
+  --ui-stroke: #c9bda7;
+  --ui-stroke-strong: #203c30;
+  --ui-surface-hover: #fffaf1;
+  --ui-selected: #f3ead7;
+  --ui-radius: 6px;
+  --ui-control-height: 42px;
+}
+
 .reservation-page {
   background: #fafbf9;
   min-height: calc(100vh - 120px);
@@ -1627,8 +1651,7 @@ const receiptPaymentNote = computed(() => {
   color: #27382f;
 }
 
-.form-input,
-.form-select {
+.form-input {
   padding: 10px 14px;
   border: 1px solid #c9bda7;
   border-radius: 6px;
@@ -1638,8 +1661,7 @@ const receiptPaymentNote = computed(() => {
   outline: none;
 }
 
-.form-input:focus,
-.form-select:focus {
+.form-input:focus {
   border-color: #203c30;
   box-shadow: 0 0 0 2px rgba(32, 60, 48, 0.15);
 }
