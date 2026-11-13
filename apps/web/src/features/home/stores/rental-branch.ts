@@ -1,27 +1,34 @@
-// TODO(reservation-api): This legacy store saves a fixture branch preference only.
-// Before wiring a visit flow, use real branches and query interval availability
-// after date/time/duration selection; confirmation must allocate on the server.
+// Visiting preference is independent of purchase fulfillment. Never synchronize
+// this selection with cart.pickupBranchId or change cart contents when it changes.
 import { computed, ref, watch } from 'vue';
 import { defineStore } from 'pinia';
-import { branches } from '../data/branches';
+import { useBranchDirectoryStore } from './branch-directory';
 export const RENTAL_BRANCH_KEY = 'theparlor.rental-branch.v1';
 function restore() {
   try {
-    const id = localStorage.getItem(RENTAL_BRANCH_KEY);
-    return branches.some((branch) => branch.id === id) ? id || '' : '';
+    return localStorage.getItem(RENTAL_BRANCH_KEY) || '';
   } catch {
     return '';
   }
 }
-// Visiting preference is independent of purchase fulfillment. Never synchronize
-// this selection with cart.pickupBranchId or change cart contents when it changes.
 export const useRentalBranchStore = defineStore('rental-branch', () => {
+  const directory = useBranchDirectoryStore();
   const branchId = ref(restore());
-  const branch = computed(() =>
-    branches.find((item) => item.id === branchId.value),
+  const branch = computed(() => directory.byId(branchId.value));
+  watch(
+    () => directory.status,
+    (status) => {
+      if (
+        status === 'ready' &&
+        branchId.value &&
+        !directory.byId(branchId.value)
+      )
+        branchId.value = '';
+    },
+    { immediate: true },
   );
   function select(id: string) {
-    if (!id || branches.some((item) => item.id === id)) branchId.value = id;
+    if (!id || directory.byId(id)) branchId.value = id;
   }
   watch(
     branchId,

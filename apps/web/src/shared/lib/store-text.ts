@@ -57,7 +57,9 @@ const thai: Record<string, string> = {
 
   'Rental library': 'คลังเกมเช่าเล่น',
   'In the rental library': 'อยู่ในคลังเกมเช่าเล่น',
+  'In this library': 'มีในคลังเกมสาขานี้',
   'Not in this library': 'ไม่มีในคลังเกมสาขานี้',
+  'Sold here': 'มีจำหน่ายที่สาขานี้',
   Availability: 'สถานะ',
   Included: 'มีในคลังเกม',
   'Not offered': 'ไม่มีในคลังเกม',
