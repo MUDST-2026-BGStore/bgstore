@@ -5,7 +5,6 @@ import jakarta.persistence.LockModeType;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -15,10 +14,6 @@ import org.springframework.data.repository.query.Param;
 
 public interface RentalRepository
     extends JpaRepository<Rental, UUID>, JpaSpecificationExecutor<Rental> {
-
-  @Query(
-      "select (count(r) > 0) from Rental r where r.reservationId in :ids and r.status = com.chanakanlabs.theparlor.rentals.internal.domain.RentalStatus.ACTIVE")
-  boolean hasActiveReservation(@Param("ids") Set<UUID> ids);
 
   Optional<Rental> findByIdAndBranchId(UUID id, UUID branchId);
 

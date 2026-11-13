@@ -44,6 +44,12 @@ paths:
     $ref: ./paths/branches/collection.yaml
   /api/v1/branches/{branchId}:
     $ref: ./paths/branches/item.yaml
+  /api/v1/branches/{branchId}/staff-assignments:
+    $ref: ./paths/branches/staff-assignments.yaml
+  /api/v1/admin/branches/{branchId}/staff-assignments/{staffSubject}:
+    $ref: ./paths/branches/staff-assignment.yaml
+  /api/v1/admin/accounts:
+    $ref: ./paths/admin/accounts.yaml
   /api/v1/games:
     $ref: ./paths/games/collection.yaml
   /api/v1/games/{gameId}:
@@ -139,6 +145,14 @@ components:
       $ref: ./components/schemas/CreateBranchRequest.yaml
     UpdateBranchRequest:
       $ref: ./components/schemas/UpdateBranchRequest.yaml
+    StaffAssignment:
+      $ref: ./components/schemas/StaffAssignment.yaml
+    StaffAssignmentList:
+      $ref: ./components/schemas/StaffAssignmentList.yaml
+    AccountMatch:
+      $ref: ./components/schemas/AccountMatch.yaml
+    AccountMatchList:
+      $ref: ./components/schemas/AccountMatchList.yaml
     Game:
       $ref: ./components/schemas/Game.yaml
     CreateGameRequest:
@@ -364,6 +378,8 @@ components:
       $ref: ./components/parameters/CartToken.yaml
     MenuItemId:
       $ref: ./components/parameters/MenuItemId.yaml
+    StaffSubject:
+      $ref: ./components/parameters/StaffSubject.yaml
   responses:
     BadRequest:
       $ref: ./components/responses/BadRequest.yaml
@@ -388,6 +404,8 @@ tags:
     description: Existing authenticated profiles.
   - name: Branches
     description: Public branch discovery and administrator maintenance.
+  - name: Staff Assignments
+    description: Which staff accounts may operate which branch; administrators grant and revoke, managers read.
   - name: Games
     description: Shared board game catalog.
   - name: Taxonomy

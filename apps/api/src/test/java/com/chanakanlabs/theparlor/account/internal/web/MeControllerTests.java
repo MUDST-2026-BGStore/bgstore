@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.setup.MockMvcBuilders.standaloneSetup;
 
-import com.chanakanlabs.theparlor.account.AccountProvisioning;
 import com.chanakanlabs.theparlor.account.internal.application.AccountService;
 import com.chanakanlabs.theparlor.contracts.model.AccountPreferences;
 import com.chanakanlabs.theparlor.contracts.model.AccountSettings;
@@ -26,7 +25,7 @@ class MeControllerTests {
   @ValueSource(strings = {"+66898765432", "+442079460018"})
   void acceptsPhoneOnlyUpdates(String phone) throws Exception {
     var service = mock(AccountService.class);
-    var mvc = standaloneSetup(new MeController(service, mock(AccountProvisioning.class))).build();
+    var mvc = standaloneSetup(new MeController(service)).build();
     when(service.updateCurrentProfile(null, null, phone))
         .thenReturn(
             new Profile(
@@ -48,7 +47,7 @@ class MeControllerTests {
   @ValueSource(strings = {"", "0812345678", "+012345678", "+1234567890123456", "not a number"})
   void rejectsInvalidPhoneUpdates(String phone) throws Exception {
     var service = mock(AccountService.class);
-    var mvc = standaloneSetup(new MeController(service, mock(AccountProvisioning.class))).build();
+    var mvc = standaloneSetup(new MeController(service)).build();
     mvc.perform(
             patch("/api/v1/me")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -61,7 +60,7 @@ class MeControllerTests {
   @ValueSource(strings = {"en-US", "th-TH"})
   void acceptsSupportedLocaleUpdates(String locale) throws Exception {
     var service = mock(AccountService.class);
-    var mvc = standaloneSetup(new MeController(service, mock(AccountProvisioning.class))).build();
+    var mvc = standaloneSetup(new MeController(service)).build();
     when(service.updateCurrentSettings(java.util.Map.of("preferredLocale", locale)))
         .thenReturn(new AccountSettings(new AccountPreferences(PreferredLocale.fromValue(locale))));
 
@@ -85,7 +84,7 @@ class MeControllerTests {
       })
   void rejectsMissingOrUnsupportedLocalesBeforeCallingTheService(String body) throws Exception {
     var service = mock(AccountService.class);
-    var mvc = standaloneSetup(new MeController(service, mock(AccountProvisioning.class))).build();
+    var mvc = standaloneSetup(new MeController(service)).build();
 
     mvc.perform(patch("/api/v1/me/settings").contentType(MediaType.APPLICATION_JSON).content(body))
         .andExpect(status().isBadRequest());
@@ -104,7 +103,7 @@ class MeControllerTests {
       })
   void rejectsEmptyOrInvalidProfileUpdates(String body) throws Exception {
     var service = mock(AccountService.class);
-    var mvc = standaloneSetup(new MeController(service, mock(AccountProvisioning.class))).build();
+    var mvc = standaloneSetup(new MeController(service)).build();
     mvc.perform(patch("/api/v1/me").contentType(MediaType.APPLICATION_JSON).content(body))
         .andExpect(status().isBadRequest());
     verifyNoInteractions(service);
@@ -113,7 +112,7 @@ class MeControllerTests {
   @Test
   void acceptsANameOnlyUpdate() throws Exception {
     var service = mock(AccountService.class);
-    var mvc = standaloneSetup(new MeController(service, mock(AccountProvisioning.class))).build();
+    var mvc = standaloneSetup(new MeController(service)).build();
     when(service.updateCurrentProfile("Alice", null, null))
         .thenReturn(
             new Profile(
@@ -134,8 +133,7 @@ class MeControllerTests {
   @Test
   void onboardingPassesNestedPreferencesToProvisioning() throws Exception {
     var service = mock(AccountService.class);
-    var provisioning = mock(AccountProvisioning.class);
-    var mvc = standaloneSetup(new MeController(service, provisioning)).build();
+    var mvc = standaloneSetup(new MeController(service)).build();
     var profile =
         new Profile(
             UUID.randomUUID(),
@@ -157,7 +155,7 @@ class MeControllerTests {
         .andExpect(jsonPath("$.preferences.preferredLocale").value("en-US"))
         .andExpect(jsonPath("$.preferences.theme").value("dark"))
         .andExpect(jsonPath("$.preferredLocale").doesNotExist());
-    org.mockito.Mockito.verify(provisioning)
+    org.mockito.Mockito.verify(service)
         .provisionForCurrentIdentity(
             new com.chanakanlabs.theparlor.account.AccountRegistration(
                 "First",
@@ -177,8 +175,7 @@ class MeControllerTests {
       })
   void onboardingRequiresASupportedNestedLocale(String preferences) throws Exception {
     var service = mock(AccountService.class);
-    var provisioning = mock(AccountProvisioning.class);
-    var mvc = standaloneSetup(new MeController(service, provisioning)).build();
+    var mvc = standaloneSetup(new MeController(service)).build();
     mvc.perform(
             org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/api/v1/me")
                 .contentType(MediaType.APPLICATION_JSON)
@@ -187,13 +184,13 @@ class MeControllerTests {
                         + preferences
                         + "}"))
         .andExpect(status().isBadRequest());
-    verifyNoInteractions(service, provisioning);
+    verifyNoInteractions(service);
   }
 
   @Test
   void readsCurrentSettings() throws Exception {
     var service = mock(AccountService.class);
-    var mvc = standaloneSetup(new MeController(service, mock(AccountProvisioning.class))).build();
+    var mvc = standaloneSetup(new MeController(service)).build();
     when(service.getCurrentSettings())
         .thenReturn(new AccountSettings(new AccountPreferences(PreferredLocale.TH_TH)));
     mvc.perform(get("/api/v1/me/settings"))

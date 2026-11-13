@@ -26,6 +26,20 @@ test.beforeEach(async ({ page }) => {
       });
     } else if (path === '/api/v1/branches') {
       await route.fulfill({ json: { items: [{ id: 'siam', name: 'Siam' }] } });
+    } else if (path.endsWith('/staff-assignments')) {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              staffSubject: 'staff-1',
+              name: 'Krit Somchai',
+              phone: '+66812345678',
+              grantedBy: 'operator',
+              grantedAt: '2026-01-05T03:00:00Z',
+            },
+          ],
+        },
+      });
     } else {
       await route.fulfill({ json: { items: [] } });
     }
@@ -315,7 +329,7 @@ test('uses the same tables and visually blank action headers throughout manageme
     'Bookings',
     'Game library',
     'Inventory & fulfillment',
-    'Staff & shifts',
+    'Branch staff',
     'Revenue & analytics',
     'Venue policies',
   ]) {

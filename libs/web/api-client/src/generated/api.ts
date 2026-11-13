@@ -31,6 +31,7 @@ import type {
 } from 'vue';
 
 import type {
+  AccountMatchList,
   AccountSettings,
   AddCartItemRequest,
   BadRequestResponse,
@@ -104,7 +105,10 @@ import type {
   RescheduleReservationRequest,
   Reservation,
   ReservationPage,
+  SearchAccountsParams,
   SessionResponse,
+  StaffAssignment,
+  StaffAssignmentList,
   StockAdjustment,
   StockAdjustmentRequest,
   Table,
@@ -2031,6 +2035,289 @@ export const useUpdateBranch = <TError = ErrorType<BadRequestResponse | Unauthor
       > => {
       return useMutation(getUpdateBranchMutationOptions(options), queryClient);
     }
+
+/**
+ * Managers and administrators only. Inactive branches are included. Name and phone appear when the staff member completed onboarding.
+ * @summary List the staff assigned to a branch
+ */
+export const listStaffAssignments = (
+    branchId: MaybeRefOrGetter<string>,
+ options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
+) => {
+      branchId = toValue(branchId);
+
+      return apiRequest<StaffAssignmentList>(
+      {url: `/api/v1/branches/${branchId}/staff-assignments`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getListStaffAssignmentsQueryKey = (branchId: MaybeRefOrGetter<string>,) => {
+    return [
+    'api','v1','branches',branchId,'staff-assignments'
+    ] as const;
+    }
+
+
+export const getListStaffAssignmentsQueryOptions = <TData = Awaited<ReturnType<typeof listStaffAssignments>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(branchId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffAssignments>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  getListStaffAssignmentsQueryKey(branchId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStaffAssignments>>> = ({ signal }) => listStaffAssignments(branchId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStaffAssignments>>, TError, TData>
+}
+
+export type ListStaffAssignmentsQueryResult = NonNullable<Awaited<ReturnType<typeof listStaffAssignments>>>
+export type ListStaffAssignmentsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+
+
+/**
+ * @summary List the staff assigned to a branch
+ */
+
+export function useListStaffAssignments<TData = Awaited<ReturnType<typeof listStaffAssignments>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
+ branchId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffAssignments>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
+ , queryClient?: QueryClient
+ ): UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListStaffAssignmentsQueryOptions(branchId,options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
+
+  return query;
+}
+
+
+
+
+
+
+
+/**
+ * Idempotent; an existing assignment is returned unchanged. Roles stay in Keycloak.
+ * @summary Assign a staff member to a branch
+ */
+export const grantStaffAssignment = (
+    branchId: MaybeRefOrGetter<string>,
+    staffSubject: MaybeRefOrGetter<string>,
+ options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
+) => {
+      branchId = toValue(branchId);
+staffSubject = toValue(staffSubject);
+
+      return apiRequest<StaffAssignment>(
+      {url: `/api/v1/admin/branches/${branchId}/staff-assignments/${staffSubject}`, method: 'PUT', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGrantStaffAssignmentMutationKey = () => ['grantStaffAssignment'] as const;
+
+export const getGrantStaffAssignmentMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof grantStaffAssignment>>, TError,GrantStaffAssignmentMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+): UseMutationOptions<Awaited<ReturnType<typeof grantStaffAssignment>>, TError,GrantStaffAssignmentMutationVariables, TContext> => {
+
+const mutationKey = getGrantStaffAssignmentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof grantStaffAssignment>>, GrantStaffAssignmentMutationVariables> = (props) => {
+          const {branchId,staffSubject} = props ?? {};
+
+          return  grantStaffAssignment(branchId,staffSubject,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GrantStaffAssignmentMutationResult = NonNullable<Awaited<ReturnType<typeof grantStaffAssignment>>>
+
+    export type GrantStaffAssignmentMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type GrantStaffAssignmentMutationVariables = {branchId: string;staffSubject: string}
+
+    /**
+ * @summary Assign a staff member to a branch
+ */
+export const useGrantStaffAssignment = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof grantStaffAssignment>>, TError,GrantStaffAssignmentMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+ , queryClient?: QueryClient): UseMutationReturnType<
+        Awaited<ReturnType<typeof grantStaffAssignment>>,
+        TError,
+        GrantStaffAssignmentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGrantStaffAssignmentMutationOptions(options), queryClient);
+    }
+
+/**
+ * Succeeds whether or not the assignment existed.
+ * @summary Remove a staff member from a branch
+ */
+export const revokeStaffAssignment = (
+    branchId: MaybeRefOrGetter<string>,
+    staffSubject: MaybeRefOrGetter<string>,
+ options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
+) => {
+      branchId = toValue(branchId);
+staffSubject = toValue(staffSubject);
+
+      return apiRequest<void>(
+      {url: `/api/v1/admin/branches/${branchId}/staff-assignments/${staffSubject}`, method: 'DELETE', signal
+    },
+      options);
+    }
+
+
+
+
+export const getRevokeStaffAssignmentMutationKey = () => ['revokeStaffAssignment'] as const;
+
+export const getRevokeStaffAssignmentMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeStaffAssignment>>, TError,RevokeStaffAssignmentMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeStaffAssignment>>, TError,RevokeStaffAssignmentMutationVariables, TContext> => {
+
+const mutationKey = getRevokeStaffAssignmentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeStaffAssignment>>, RevokeStaffAssignmentMutationVariables> = (props) => {
+          const {branchId,staffSubject} = props ?? {};
+
+          return  revokeStaffAssignment(branchId,staffSubject,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeStaffAssignmentMutationResult = NonNullable<Awaited<ReturnType<typeof revokeStaffAssignment>>>
+
+    export type RevokeStaffAssignmentMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+    export type RevokeStaffAssignmentMutationVariables = {branchId: string;staffSubject: string}
+
+    /**
+ * @summary Remove a staff member from a branch
+ */
+export const useRevokeStaffAssignment = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeStaffAssignment>>, TError,RevokeStaffAssignmentMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+ , queryClient?: QueryClient): UseMutationReturnType<
+        Awaited<ReturnType<typeof revokeStaffAssignment>>,
+        TError,
+        RevokeStaffAssignmentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRevokeStaffAssignmentMutationOptions(options), queryClient);
+    }
+
+/**
+ * One result per identity. Queries shorter than 2 characters return no results; at most 20 results.
+ * @summary Search onboarded accounts by name or phone
+ */
+export const searchAccounts = (
+    params: MaybeRefOrGetter<SearchAccountsParams>,
+ options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
+) => {
+      params = toValue(params);
+
+      return apiRequest<AccountMatchList>(
+      {url: `/api/v1/admin/accounts`, method: 'GET',
+        params, signal
+    },
+      options);
+    }
+
+
+
+
+export const getSearchAccountsQueryKey = (params?: MaybeRefOrGetter<SearchAccountsParams>,) => {
+    return [
+    'api','v1','admin','accounts', ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchAccountsQueryOptions = <TData = Awaited<ReturnType<typeof searchAccounts>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(params: MaybeRefOrGetter<SearchAccountsParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchAccounts>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  getSearchAccountsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchAccounts>>> = ({ signal }) => searchAccounts(params, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchAccounts>>, TError, TData>
+}
+
+export type SearchAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof searchAccounts>>>
+export type SearchAccountsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Search onboarded accounts by name or phone
+ */
+
+export function useSearchAccounts<TData = Awaited<ReturnType<typeof searchAccounts>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(
+ params: MaybeRefOrGetter<SearchAccountsParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchAccounts>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
+ , queryClient?: QueryClient
+ ): UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getSearchAccountsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
+
+  return query;
+}
+
+
+
+
+
+
 
 /**
  * @summary Search the shared active game catalog

@@ -33,6 +33,7 @@ const {
   handleCheckIn,
   actionInProgress,
   openCancel,
+  openNoShow,
   openCheckBill,
   openAddSnacks,
 } = useManagementWorkspace();
@@ -156,6 +157,12 @@ function tableNumber(reservation: { id: string }): string {
                   @click="handleCheckIn(reservation)"
                   >Check in</AppButton
                 >
+                <AppButton
+                  v-if="Date.parse(reservation.startsAt) <= Date.now()"
+                  intent="danger"
+                  @click="openNoShow(reservation)"
+                  >No-show</AppButton
+                >
                 <AppButton intent="danger" @click="openCancel(reservation)"
                   >Cancel booking</AppButton
                 >
@@ -262,13 +269,20 @@ function tableNumber(reservation: { id: string }): string {
                   bill</AppButton
                 ></template
               >
-              <AppButton
-                v-else
-                appearance="primary"
-                :disabled="actionInProgress === item.reservation.id"
-                @click="handleCheckIn(item.reservation)"
-                >Check in</AppButton
-              >
+              <template v-else>
+                <AppButton
+                  appearance="primary"
+                  :disabled="actionInProgress === item.reservation.id"
+                  @click="handleCheckIn(item.reservation)"
+                  >Check in</AppButton
+                >
+                <AppButton intent="danger" @click="openNoShow(item.reservation)"
+                  >No-show</AppButton
+                >
+                <AppButton intent="danger" @click="openCancel(item.reservation)"
+                  >Cancel booking</AppButton
+                >
+              </template>
             </AppTableActions>
           </tr>
         </AppDataTable>

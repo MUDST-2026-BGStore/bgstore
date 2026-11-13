@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.5.0
  */
 
+export * from './accountMatch';
+export * from './accountMatchList';
 export * from './accountPreferences';
 export * from './accountSettings';
 export * from './addCartItemRequest';
@@ -145,8 +147,11 @@ export * from './reservationPreOrder';
 export * from './reservationPreOrderItem';
 export * from './reservationSource';
 export * from './reservationStatus';
+export * from './searchAccountsParams';
 export * from './sessionResponse';
 export * from './shippingAddress';
+export * from './staffAssignment';
+export * from './staffAssignmentList';
 export * from './staffBookingRequest';
 export * from './staffBookingRequestSource';
 export * from './startsAtParameter';

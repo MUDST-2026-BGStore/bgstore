@@ -34,3 +34,27 @@ it('searches a large branch directory without clearing or changing the selected 
   expect(choices()).toEqual(['Branch 000']);
   wrapper.unmount();
 });
+
+it('matches branch addresses while keeping the selected branch visible', async () => {
+  const options = Array.from({ length: 10 }, (_, index) => ({
+    id: `branch-${index}`,
+    name: `Branch ${index}`,
+    address: index === 5 ? '991 Rama I Rd, Pathum Wan' : `${index} Silom Rd`,
+  }));
+  const wrapper = mount(BranchSelect, {
+    props: {
+      modelValue: 'branch-0',
+      options,
+      name: 'store-branch',
+      label: 'Branch',
+    },
+    attachTo: document.body,
+  });
+  const choices = () =>
+    wrapper
+      .findAll('[role=option]')
+      .map((option) => option.text().replace('✓', ''));
+  await wrapper.get('input[type=search]').setValue('pathum wan');
+  expect(choices()).toEqual(['Branch 0', 'Branch 5']);
+  wrapper.unmount();
+});

@@ -1921,4 +1921,224 @@ class TheparlorApiApplicationTests {
     assertThat(get(browser, "/actuator/health/liveness").statusCode()).isEqualTo(200);
     assertThat(get(browser, "/actuator/prometheus").body()).contains("jvm_memory_used_bytes");
   }
+
+  @Test
+  void deactivatingGameIsRefusedWhileCommittedAndAllowedOnceReleased() throws Exception {
+    var manager = login("manager");
+    var branch = UUID.randomUUID();
+    var table = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Retire Branch', 'Addr')", branch);
+    for (int day = 1; day <= 7; day++) {
+      jdbc.update(
+          "INSERT INTO branch_opening_hours(branch_id,day_of_week,opens_at,closes_at) VALUES (?,?,'00:00','24:00')",
+          branch,
+          day);
+    }
+    jdbc.update(
+        "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor) VALUES (?,?,'T1',4,0)",
+        table,
+        branch);
+    var createdGame =
+        writeJson(
+            manager,
+            "POST",
+            "/api/v1/games",
+            "{\"name\":\"Retire-"
+                + UUID.randomUUID()
+                + "\",\"minPlayers\":1,\"maxPlayers\":4,\"playMinutesMin\":10,\"playMinutesMax\":20,\"active\":true}");
+    assertThat(createdGame.statusCode()).isEqualTo(201);
+    UUID gameId = UUID.fromString(JSON.readTree(createdGame.body()).get("id").asString());
+    var reservation =
+        jdbc.queryForObject(
+            "INSERT INTO reservations(branch_id,table_id,guest_name,source,status,starts_at,ends_at,party_size,table_hourly_rate_minor,created_by_subject)"
+                + " VALUES (?,?,'Guest','STAFF_BOOKING','CONFIRMED',now()+interval '1 day',now()+interval '26 hours',2,0,'staff') RETURNING id",
+            UUID.class,
+            branch,
+            table);
+    jdbc.update("INSERT INTO reservation_games VALUES (?,?,1,0)", reservation, gameId);
+
+    var refusedReservation =
+        writeJson(manager, "PATCH", "/api/v1/games/" + gameId, "{\"active\":false}");
+    assertThat(refusedReservation.statusCode()).isEqualTo(409);
+
+    jdbc.update("UPDATE reservations SET status='CANCELLED' WHERE id=?", reservation);
+    var edition =
+        jdbc.queryForObject(
+            "INSERT INTO game_editions(game_id,kind,language_code) VALUES (?,'BASE_GAME','en') RETURNING id",
+            UUID.class,
+            gameId);
+    var order =
+        jdbc.queryForObject(
+            "INSERT INTO orders(branch_id,contact_name,source,status,fulfillment_method,total_minor,created_by_subject)"
+                + " VALUES (?,'Guest','STAFF_COUNTER','PLACED','PICKUP',0,'staff') RETURNING id",
+            UUID.class,
+            branch);
+    jdbc.update(
+        "INSERT INTO order_items(order_id,edition_id,game_id,game_name,quantity,unit_price_minor,line_total_minor,edition_language_code)"
+            + " VALUES (?,?,?,'Game',1,0,0,'en')",
+        order,
+        edition,
+        gameId);
+
+    var refusedOrder = writeJson(manager, "PATCH", "/api/v1/games/" + gameId, "{\"active\":false}");
+    assertThat(refusedOrder.statusCode()).isEqualTo(409);
+
+    jdbc.update("UPDATE orders SET status='CANCELLED' WHERE id=?", order);
+    var deactivated = writeJson(manager, "PATCH", "/api/v1/games/" + gameId, "{\"active\":false}");
+    assertThat(deactivated.statusCode()).isEqualTo(200);
+    assertThat(JSON.readTree(deactivated.body()).get("active").asBoolean()).isFalse();
+
+    // Reactivating is always allowed even if an open commitment exists.
+    jdbc.update("UPDATE orders SET status='PLACED' WHERE id=?", order);
+    var reactivated = writeJson(manager, "PATCH", "/api/v1/games/" + gameId, "{\"active\":true}");
+    assertThat(reactivated.statusCode()).isEqualTo(200);
+    assertThat(JSON.readTree(reactivated.body()).get("active").asBoolean()).isTrue();
+    jdbc.update("UPDATE orders SET status='CANCELLED' WHERE id=?", order);
+  }
+
+  @Test
+  void accountDeletionRefusesOpenCommitmentsAndCascadesIdentityAndCartWhileKeepingHistory()
+      throws Exception {
+    var customer = login("other-customer");
+    var manager = login("manager");
+    var provisioned =
+        send(
+            customer,
+            "POST",
+            "/api/v1/me",
+            "{\"firstName\":\"Delete\",\"lastName\":\"Me\",\"phoneNumber\":\"+66812223333\","
+                + "\"preferences\":{\"preferredLocale\":\"en-US\"}}");
+    assertThat(provisioned.statusCode()).isIn(200, 201);
+    UUID accountId = UUID.fromString(JSON.readTree(provisioned.body()).get("id").asString());
+
+    var branch = UUID.randomUUID();
+    var table = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Delete Branch', 'Addr')", branch);
+    for (int day = 1; day <= 7; day++) {
+      jdbc.update(
+          "INSERT INTO branch_opening_hours(branch_id,day_of_week,opens_at,closes_at) VALUES (?,?,'00:00','24:00')",
+          branch,
+          day);
+    }
+    jdbc.update(
+        "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor) VALUES (?,?,'T1',4,0)",
+        table,
+        branch);
+    jdbc.update(
+        "INSERT INTO carts(id,account_id,branch_id) VALUES (?,?,?)",
+        UUID.randomUUID(),
+        accountId,
+        branch);
+
+    var startsAt = java.time.Instant.now().plus(java.time.Duration.ofDays(2));
+    String base = "/api/v1/branches/" + branch;
+    var booked =
+        send(
+            customer,
+            "POST",
+            base + "/reservations",
+            "{\"tableId\":\""
+                + table
+                + "\",\"partySize\":2,\"games\":[],\"startsAt\":\""
+                + startsAt
+                + "\",\"endsAt\":\""
+                + startsAt.plus(java.time.Duration.ofHours(2))
+                + "\"}",
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(booked.statusCode()).as(booked.body()).isEqualTo(201);
+    String reservationId = JSON.readTree(booked.body()).get("id").asString();
+    String reservationPath = base + "/reservations/" + reservationId;
+
+    var conflict = send(customer, "DELETE", "/api/v1/me", null);
+    assertThat(conflict.statusCode()).isEqualTo(409);
+
+    var cancelled = send(customer, "POST", reservationPath + "/cancel", "{\"reason\":\"Leaving\"}");
+    assertThat(cancelled.statusCode()).isEqualTo(200);
+
+    var deleted = send(customer, "DELETE", "/api/v1/me", null);
+    assertThat(deleted.statusCode()).isEqualTo(204);
+    assertThat(get(customer, "/api/v1/me").statusCode()).isEqualTo(404);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM account_identities WHERE account_id=?",
+                Integer.class,
+                accountId))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM carts WHERE account_id=?", Integer.class, accountId))
+        .isZero();
+    var staffRead = get(manager, reservationPath);
+    assertThat(staffRead.statusCode()).isEqualTo(200);
+    assertThat(JSON.readTree(staffRead.body()).get("status").asString()).isEqualTo("CANCELLED");
+  }
+
+  @Test
+  void staffBranchAssignmentsGateBranchAccessAndAdminSearchesOnboardedAccounts() throws Exception {
+    var admin = login("admin");
+    var manager = login("manager");
+    var staff = login("staff");
+
+    var branch = UUID.randomUUID();
+    jdbc.update("INSERT INTO branches(id,name,address) VALUES (?, 'Staff Branch', 'Addr')", branch);
+    String staffSubject =
+        JSON.readTree(get(staff, "/api/auth/session").body())
+            .get("profile")
+            .get("subject")
+            .asString();
+    assertThat(
+            send(
+                    staff,
+                    "POST",
+                    "/api/v1/me",
+                    "{\"firstName\":\"Floor\",\"lastName\":\"Operator\",\"phoneNumber\":\"+66833334444\","
+                        + "\"preferences\":{\"preferredLocale\":\"en-US\"}}")
+                .statusCode())
+        .isIn(200, 201);
+
+    // Search returns onboarded accounts only (admin/manager in this test were not onboarded).
+    var search = get(admin, "/api/v1/admin/accounts?q=Floor");
+    assertThat(search.statusCode()).isEqualTo(200);
+    assertThat(JSON.readTree(search.body()).get("items"))
+        .anySatisfy(item -> assertThat(item.get("subject").asString()).isEqualTo(staffSubject));
+
+    // Staff without assignment gets 403; manager can list but cannot grant.
+    assertThat(get(staff, "/api/v1/branches/" + branch + "/reservations").statusCode())
+        .isEqualTo(403);
+    assertThat(get(manager, "/api/v1/branches/" + branch + "/staff-assignments").statusCode())
+        .isEqualTo(200);
+    assertThat(
+            send(
+                    manager,
+                    "PUT",
+                    "/api/v1/admin/branches/" + branch + "/staff-assignments/" + staffSubject,
+                    null)
+                .statusCode())
+        .isEqualTo(403);
+
+    // Admin grants -> staff gets 200; admin revokes -> staff gets 403 again.
+    var granted =
+        send(
+            admin,
+            "PUT",
+            "/api/v1/admin/branches/" + branch + "/staff-assignments/" + staffSubject,
+            null);
+    assertThat(granted.statusCode()).as(granted.body()).isEqualTo(200);
+    assertThat(JSON.readTree(granted.body()).get("name").asString()).isEqualTo("Floor Operator");
+    assertThat(get(staff, "/api/v1/branches/" + branch + "/reservations").statusCode())
+        .isEqualTo(200);
+
+    var revoked =
+        send(
+            admin,
+            "DELETE",
+            "/api/v1/admin/branches/" + branch + "/staff-assignments/" + staffSubject,
+            null);
+    assertThat(revoked.statusCode()).isEqualTo(204);
+    assertThat(get(staff, "/api/v1/branches/" + branch + "/reservations").statusCode())
+        .isEqualTo(403);
+  }
 }

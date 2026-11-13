@@ -92,7 +92,7 @@ export function useWorkspaceNavigation() {
       bookings: 'Bookings & Timeline',
       library: 'Game Library',
       inventory: 'Inventory & Fulfillment',
-      'staff-roster': 'Staff & Shifts',
+      'staff-roster': 'Branch staff',
       analytics: 'Revenue & Analytics',
       settings: 'Venue Settings',
       policies: 'Venue Policies',

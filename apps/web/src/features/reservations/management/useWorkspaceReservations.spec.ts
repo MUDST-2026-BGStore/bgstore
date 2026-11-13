@@ -540,4 +540,121 @@ describe('reservations, rental checkout, and branch menu integration', () => {
 
     wrapper.unmount();
   });
+
+  it('keeps late confirmed bookings as CONFIRMED until staff manually submit no-show', async () => {
+    const startsAt = new Date(Date.now() - 30 * 60000).toISOString();
+    const endsAt = new Date(Date.now() + 90 * 60000).toISOString();
+    let status = 'CONFIRMED';
+
+    request.mockImplementation(
+      (config: { url: string; method?: string; data?: unknown }) => {
+        if (config.url === '/api/v1/branches') {
+          return Promise.resolve({
+            items: [{ id: BRANCH_ID, name: 'Siam' }],
+          });
+        }
+        if (config.url === `/api/v1/branches/${BRANCH_ID}/tables`) {
+          return Promise.resolve({
+            items: [
+              {
+                id: TABLE_ID,
+                branchId: BRANCH_ID,
+                label: 'Table 1',
+                capacity: 4,
+                hourlyRate: { amountMinor: 20000 },
+                operationalStatus: 'IN_SERVICE',
+              },
+            ],
+          });
+        }
+        if (config.url === `/api/v1/branches/${BRANCH_ID}/reservations`) {
+          return Promise.resolve({
+            items: [
+              {
+                id: RES_ID,
+                branchId: BRANCH_ID,
+                tableId: TABLE_ID,
+                customer: { kind: 'GUEST', displayName: 'Late Guest' },
+                source: 'ONLINE',
+                status,
+                startsAt,
+                endsAt,
+                partySize: 4,
+                games: [],
+                tableHourlyRate: { amountMinor: 20000 },
+                createdAt: startsAt,
+                createdBySubject: 'cust-1',
+              },
+            ],
+          });
+        }
+        if (
+          config.url ===
+            `/api/v1/branches/${BRANCH_ID}/reservations/${RES_ID}/no-show` &&
+          config.method === 'POST'
+        ) {
+          status = 'NO_SHOW';
+          return Promise.resolve({
+            id: RES_ID,
+            branchId: BRANCH_ID,
+            tableId: TABLE_ID,
+            customer: { kind: 'GUEST', displayName: 'Late Guest' },
+            source: 'ONLINE',
+            status,
+            startsAt,
+            endsAt,
+            partySize: 4,
+            games: [],
+            tableHourlyRate: { amountMinor: 20000 },
+            createdAt: startsAt,
+            createdBySubject: 'cust-1',
+          });
+        }
+        return Promise.resolve({ items: [] });
+      },
+    );
+
+    let workspace!: ReturnType<typeof useWorkspaceReservations>;
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          workspace = useWorkspaceReservations();
+          return () => null;
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } },
+    );
+    await flushPromises();
+    await flushPromises();
+
+    expect(workspace.allReservations.value[0].status).toBe('CONFIRMED');
+    expect(
+      request.mock.calls.some(([call]) => call.url?.endsWith('/no-show')),
+    ).toBe(false);
+    expect(workspace.needsYouItems.value[0]).toMatchObject({
+      type: 'LATE',
+      subtitle: expect.stringMatching(/^Scheduled /),
+    });
+    expect(workspace.needsYouItems.value[0].subtitle).not.toContain(
+      'Auto-released',
+    );
+
+    workspace.openNoShow(workspace.allReservations.value[0]);
+    expect(workspace.showNoShowModal.value).toBe(true);
+    workspace.noShowReason.value = 'Did not arrive after call';
+    await workspace.submitNoShow();
+    await flushPromises();
+
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: `/api/v1/branches/${BRANCH_ID}/reservations/${RES_ID}/no-show`,
+        method: 'POST',
+        data: { reason: 'Did not arrive after call' },
+      }),
+      undefined,
+    );
+    expect(workspace.showNoShowModal.value).toBe(false);
+    expect(workspace.allReservations.value[0].status).toBe('NO_SHOW');
+    wrapper.unmount();
+  });
 });

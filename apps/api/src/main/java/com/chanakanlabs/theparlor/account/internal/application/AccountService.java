@@ -12,6 +12,7 @@ import com.chanakanlabs.theparlor.account.internal.domain.AccountIdentity;
 import com.chanakanlabs.theparlor.account.internal.domain.AccountIdentityId;
 import com.chanakanlabs.theparlor.account.internal.persistence.AccountIdentityRepository;
 import com.chanakanlabs.theparlor.account.internal.persistence.AccountRepository;
+import com.chanakanlabs.theparlor.account.spi.AccountCommitments;
 import com.chanakanlabs.theparlor.contracts.model.AccountPreferences;
 import com.chanakanlabs.theparlor.contracts.model.AccountSettings;
 import com.chanakanlabs.theparlor.contracts.model.PreferredLocale;
@@ -21,10 +22,12 @@ import com.chanakanlabs.theparlor.identity.UserProfile;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class AccountService implements CurrentAccount, AccountProvisioning, AccountDirectory {
@@ -33,6 +36,7 @@ public class AccountService implements CurrentAccount, AccountProvisioning, Acco
   private final AccountRepository accounts;
   private final AccountIdentityRepository identities;
   private final JdbcTemplate jdbc;
+  private final List<AccountCommitments> commitments;
 
   @PersistenceContext private EntityManager entityManager;
 
@@ -40,11 +44,13 @@ public class AccountService implements CurrentAccount, AccountProvisioning, Acco
       CurrentUser currentUser,
       AccountRepository accounts,
       AccountIdentityRepository identities,
-      JdbcTemplate jdbc) {
+      JdbcTemplate jdbc,
+      List<AccountCommitments> commitments) {
     this.currentUser = currentUser;
     this.accounts = accounts;
     this.identities = identities;
     this.jdbc = jdbc;
+    this.commitments = commitments;
   }
 
   @Override
@@ -83,6 +89,31 @@ public class AccountService implements CurrentAccount, AccountProvisioning, Acco
             account.getId(),
             (account.getFirstName() + " " + account.getLastName()).strip(),
             account.getPhoneNumber()));
+  }
+
+  static final int MAX_SEARCH_RESULTS = 20;
+
+  @Override
+  @Transactional(readOnly = true)
+  public List<AccountMatch> search(String query, int limit) {
+    String text = query == null ? "" : query.strip();
+    if (text.length() < 2 || limit < 1) return List.of();
+    String escaped =
+        text.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    return identities
+        .search(
+            "%" + escaped + "%",
+            org.springframework.data.domain.PageRequest.of(0, Math.min(limit, MAX_SEARCH_RESULTS)))
+        .stream()
+        .map(
+            identity -> {
+              var account = identity.getAccount();
+              return new AccountMatch(
+                  identity.getSubject(),
+                  (account.getFirstName() + " " + account.getLastName()).strip(),
+                  account.getPhoneNumber());
+            })
+        .toList();
   }
 
   private Optional<UUID> lookupId(UserProfile user) {
@@ -149,6 +180,18 @@ public class AccountService implements CurrentAccount, AccountProvisioning, Acco
         lookupAccount(currentUser.require()).orElseThrow(AccountNotProvisionedException::new);
     account.updatePreferences(preferences);
     return toSettings(account);
+  }
+
+  @Transactional
+  public void deleteCurrent() {
+    var user = currentUser.require();
+    var account = lookupAccount(user).orElseThrow(AccountNotProvisionedException::new);
+    if (commitments.stream().anyMatch(c -> c.hasOpenCommitments(user.subject()))) {
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "Account has an open reservation or order");
+    }
+    accounts.delete(account);
+    accounts.flush();
   }
 
   private static AccountSettings toSettings(Account account) {
