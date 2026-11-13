@@ -2,7 +2,7 @@
 // A session with a server rental shows the rental's charges and checks out through
 // the API, which bills started hours (minimum one) and takes no payment. Sample
 // sessions keep the local bill, food tab and QR simulation, which have no backend.
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import { useQuery, useQueryClient } from '@tanstack/vue-query';
 import { checkOutRental, getRental, type Rental } from '@theparlor/api-client';
 import {
@@ -12,6 +12,12 @@ import {
 } from '../data/reservations-store';
 import { useStoreText } from '../../../shared/lib/store-text';
 import QRCode from 'qrcode';
+import {
+  computeSessionTiming,
+  formatClock,
+  formatStoreTime,
+  serverClockOffsetMs,
+} from '../data/session-timing';
 
 const props = withDefaults(
   defineProps<{
@@ -48,6 +54,9 @@ const rentalQuery = useQuery({
   enabled: computed(() =>
     Boolean(props.reservation.branchId && props.reservation.rentalId),
   ),
+  // Reconcile with the server while the session is open; it, not a timer, ends it.
+  refetchInterval: (query) =>
+    query.state.data?.status === 'ACTIVE' ? 30_000 : false,
 });
 
 const checkedOutRental = ref<Rental | null>(null);
@@ -58,6 +67,42 @@ const activeRental = computed<Rental | null>(() => {
   }
   return candidate;
 });
+
+// Display clock: ticks each second, shifted onto the server's clock by the offset
+// measured when the rental was last fetched. The device clock is never trusted alone.
+const tick = ref(Date.now());
+const ticker = setInterval(() => (tick.value = Date.now()), 1000);
+onBeforeUnmount(() => clearInterval(ticker));
+
+const serverNowMs = computed(() => {
+  const rental = rentalQuery.data.value;
+  const offset = rental?.serverNow
+    ? serverClockOffsetMs(rental.serverNow, rentalQuery.dataUpdatedAt.value)
+    : 0;
+  return tick.value + offset;
+});
+
+const timing = computed(() => {
+  const rental = activeRental.value;
+  if (!isLive.value || !rental) return null;
+  return computeSessionTiming({
+    checkedInAt: rental.startedAt,
+    scheduledEnd: rental.plannedEndsAt,
+    completedAt: rental.endedAt ?? props.reservation.completedAt,
+    serverNowMs: serverNowMs.value,
+  });
+});
+const isEstimate = computed(() => isLive.value && !timing.value?.completed);
+const checkedInDisplay = computed(() =>
+  formatStoreTime(
+    activeRental.value?.startedAt ?? props.reservation.checkedInAt ?? '',
+  ),
+);
+const scheduledEndDisplay = computed(() =>
+  formatStoreTime(
+    activeRental.value?.plannedEndsAt ?? props.reservation.endsAt,
+  ),
+);
 
 // Calculate actual playtime duration from checkedInAt (or rental.startedAt) to now (or completedAt / rental.endedAt)
 const checkInTime = computed(() => {
@@ -74,6 +119,7 @@ const finishTime = computed(() => {
 });
 
 const playDurationMinutes = computed(() => {
+  if (timing.value) return Math.floor(timing.value.elapsedSeconds / 60);
   const diffMs = finishTime.value - checkInTime.value;
   return Math.max(1, Math.round(diffMs / 60000));
 });
@@ -101,6 +147,7 @@ const effectiveHourlyRate = computed(() => {
 const billableHours = computed(
   () =>
     activeRental.value?.billableHours ??
+    timing.value?.billableHours ??
     Math.max(1, Math.ceil(playDurationMinutes.value / 60)),
 );
 
@@ -386,6 +433,58 @@ function confirmCustomerQrPayment() {
               </span>
             </div>
 
+            <dl v-if="timing" class="session-timing" data-testid="session-timing">
+              <div>
+                <dt>{{ t('Checked in') }}</dt>
+                <dd data-testid="checked-in-at">{{ checkedInDisplay }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('Scheduled end') }}</dt>
+                <dd data-testid="scheduled-end">{{ scheduledEndDisplay }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('Elapsed play time') }}</dt>
+                <dd data-testid="elapsed">{{ formatClock(timing.elapsedSeconds) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('Remaining play time') }}</dt>
+                <dd data-testid="remaining">{{ formatClock(timing.remainingSeconds) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('Rate') }}</dt>
+                <dd data-testid="rate">
+                  ฿{{ effectiveHourlyRate }}/{{ t('hr') }} ×
+                  {{ billableHours }} {{ t('billable hr') }}
+                </dd>
+              </div>
+              <div>
+                <dt data-testid="play-fee-label">
+                  {{ isEstimate ? t('Estimated play fee') : t('Final play fee') }}
+                </dt>
+                <dd>฿{{ tablePlayCost }}</dd>
+              </div>
+            </dl>
+            <p
+              v-if="timing?.expiringSoon"
+              class="session-warning"
+              role="alert"
+              data-testid="expiry-warning"
+            >
+              {{ t('Scheduled end is near. No time is added after it.') }}
+            </p>
+            <p
+              v-else-if="timing?.ended && !timing.completed"
+              class="session-warning"
+              role="status"
+              data-testid="ended-notice"
+            >
+              {{
+                t(
+                  'Scheduled end reached. The final amount is set when the session is closed.',
+                )
+              }}
+            </p>
+
             <!-- Late arrival notice (e.g. booked 9-10, arrived 9:15 -> billed for 45 mins) -->
             <div v-if="lateArrivalInfo" class="late-arrival-callout">
               <span class="callout-icon">✦</span>
@@ -535,7 +634,11 @@ function confirmCustomerQrPayment() {
         <!-- 4. Total Calculation Summary -->
         <div class="bill-summary-footer">
           <div class="summary-line">
-            <span>{{ t('Total Session Bill (Play + Food):') }}</span>
+            <span>{{
+              isEstimate
+                ? t('Estimated total (Play + Food):')
+                : t('Total Session Bill (Play + Food):')
+            }}</span>
             <strong class="val">฿{{ totalGrossBill }}</strong>
           </div>
           <div v-if="preOrderPaid > 0" class="summary-line text-muted">
@@ -1014,6 +1117,28 @@ function confirmCustomerQrPayment() {
   color: #142b20;
 }
 
+.session-timing {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px 16px;
+  margin: 8px 0 0;
+}
+.session-timing dt {
+  color: var(--ui-muted);
+  font-size: 12px;
+}
+.session-timing dd {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.session-warning {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--ui-stroke);
+  border-radius: var(--ui-radius);
+  font-size: 13px;
+}
 .section-meta {
   display: flex;
   justify-content: space-between;

@@ -47,7 +47,7 @@ const queueColumns = [
   { label: 'Table' },
   { label: 'Guest' },
   { label: 'Time' },
-  { label: 'Table fee', numeric: true },
+  { label: 'Est. table fee', numeric: true },
   { label: 'Actions', action: true },
 ];
 function tableNumber(reservation: { id: string }): string {

@@ -1,4 +1,11 @@
-import { computed, reactive, ref, watch } from 'vue';
+import {
+  computed,
+  getCurrentScope,
+  onScopeDispose,
+  reactive,
+  ref,
+  watch,
+} from 'vue';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import {
   listBranches,
@@ -18,6 +25,12 @@ import {
   useCustomerReservationsStore,
   type CustomerReservationPreOrder,
 } from '../data/reservations-store';
+import {
+  billableHoursFor,
+  computeSessionTiming,
+  formatStoreTime,
+  serverClockOffsetMs,
+} from '../data/session-timing';
 import { httpStatus } from '../../../shared/lib/api-errors';
 
 const baht = (amountMinor: number) => Math.round(amountMinor / 100);
@@ -389,12 +402,38 @@ export function useWorkspaceReservations() {
 
   // Helper functions
   function formatTime(iso: string): string {
-    if (!iso) return '';
-    const d = new Date(iso);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return formatStoreTime(iso);
+  }
+
+  // One-second display clock on the server's time: the offset is measured when the
+  // rentals were last fetched, so a wrong device clock does not skew play time.
+  const clockTick = ref(Date.now());
+  if (getCurrentScope()) {
+    const timer = setInterval(() => (clockTick.value = Date.now()), 1000);
+    onScopeDispose(() => clearInterval(timer));
+  }
+  const serverNowMs = computed(() => {
+    const serverNow = rentalsQuery.data.value?.items[0]?.serverNow;
+    const offset = serverNow
+      ? serverClockOffsetMs(serverNow, rentalsQuery.dataUpdatedAt.value)
+      : 0;
+    return clockTick.value + offset;
+  });
+
+  /** Timing for a live session; null for sample data, which keeps its local estimate. */
+  function getSessionTiming(res: any) {
+    if (!res.live || !res.checkedInAt) return null;
+    return computeSessionTiming({
+      checkedInAt: res.checkedInAt,
+      scheduledEnd: res.endsAt,
+      completedAt: res.completedAt,
+      serverNowMs: serverNowMs.value,
+    });
   }
 
   function getElapsedMinutes(res: any): number {
+    const timing = getSessionTiming(res);
+    if (timing) return Math.floor(timing.elapsedSeconds / 60);
     const start = new Date(res.checkedInAt || res.startsAt).getTime();
     const end = res.completedAt
       ? new Date(res.completedAt).getTime()
@@ -406,7 +445,9 @@ export function useWorkspaceReservations() {
     const mins = getElapsedMinutes(res);
     const rate = res.hourlyRate ?? 0;
     // The server bills started hours, minimum one; samples keep a running estimate.
-    if (res.live) return Math.max(1, Math.ceil(mins / 60)) * rate;
+    const timing = getSessionTiming(res);
+    if (timing) return timing.billableHours * rate;
+    if (res.live) return billableHoursFor(mins * 60) * rate;
     return Math.round((mins / 60) * rate);
   }
 
@@ -694,6 +735,7 @@ export function useWorkspaceReservations() {
     needsYouItems,
     formatTime,
     getElapsedMinutes,
+    getSessionTiming,
     calculateCurrentPlayFee,
     getCustomerName,
     getCustomerPhone,

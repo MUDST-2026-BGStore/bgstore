@@ -19,6 +19,7 @@ const {
   getTableStatus,
   formatTime,
   getElapsedMinutes,
+  getSessionTiming,
   calculateCurrentPlayFee,
   getCustomerName,
   openWalkInForTable,
@@ -34,9 +35,11 @@ const columns = [
   { label: 'Guest' },
   { label: 'Game' },
   { label: 'Checked in' },
+  { label: 'Scheduled end' },
   { label: 'Played' },
+  { label: 'Remaining' },
   { label: 'Hourly rate', numeric: true },
-  { label: 'Table fee', numeric: true },
+  { label: 'Est. table fee', numeric: true },
   { label: 'Actions', action: true },
 ];
 function sessionTableId(reservation: { id: string; tableId: string }): string {
@@ -177,7 +180,25 @@ watch([search, selectedBranchId], selection.clear);
             >
           </td>
           <td>{{ formatTime(res.checkedInAt || res.startsAt) }}</td>
+          <td>{{ formatTime(res.endsAt) }}</td>
           <td>{{ getElapsedMinutes(res) }} min</td>
+          <td>
+            <template v-if="getSessionTiming(res)">
+              <span
+                v-if="getSessionTiming(res)?.expiringSoon"
+                class="record-primary"
+                role="status"
+                >{{ Math.ceil(getSessionTiming(res)!.remainingSeconds / 60) }}
+                min · ending soon</span
+              >
+              <span v-else-if="getSessionTiming(res)?.ended">Ended</span>
+              <span v-else
+                >{{ Math.ceil(getSessionTiming(res)!.remainingSeconds / 60) }}
+                min</span
+              >
+            </template>
+            <template v-else>–</template>
+          </td>
           <td class="numeric">฿{{ res.hourlyRate || 200 }}</td>
           <td class="numeric">
             <strong class="record-primary"

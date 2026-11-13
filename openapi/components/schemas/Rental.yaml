@@ -13,6 +13,7 @@ required:
   - status
   - startedAt
   - plannedEndsAt
+  - serverNow
   - checkedInBySubject
   - charges
 properties:
@@ -39,6 +40,12 @@ properties:
   plannedEndsAt:
     type: string
     description: Reservation end; passing it does not release the table or copies.
+    format: date-time
+  serverNow:
+    type: string
+    description: >-
+      Server clock when this response was produced (UTC instant). Clients derive
+      elapsed and remaining play time from it, not from the device clock.
     format: date-time
   checkedInBySubject:
     type: string

@@ -25,7 +25,7 @@ const columns = [
   { label: 'Guest' },
   { label: 'Played' },
   { label: 'Hourly rate', numeric: true },
-  { label: 'Table fee', numeric: true },
+  { label: 'Est. table fee', numeric: true },
 ];
 const totalTableFeesToday = computed(() =>
   activeFloorReservations.value.reduce(

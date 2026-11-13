@@ -64,7 +64,7 @@ const assignedGames = computed(() => getTableAssignedGames(props.table.id));
           {{ getElapsedMinutes(status.reservation) }} min played
         </p>
         <dl class="floor-service-fee">
-          <dt>Table fee</dt>
+          <dt>Est. table fee</dt>
           <dd>฿{{ calculateCurrentPlayFee(status.reservation) }}</dd>
         </dl>
         <div class="floor-service-game">

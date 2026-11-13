@@ -691,6 +691,18 @@ const thai: Record<string, string> = {
   'ACTIVE ON-GOING SESSION': 'เซสชันเล่นเกมที่กำลังดำเนินอยู่',
   'Playing Now': 'กำลังเล่นอยู่',
   'Played Time:': 'เวลาเล่นจริง:',
+  'Checked in': 'เช็กอินเมื่อ',
+  'Scheduled end': 'เวลาสิ้นสุดตามกำหนด',
+  'Elapsed play time': 'เวลาที่เล่นไปแล้ว',
+  'Remaining play time': 'เวลาเล่นที่เหลือ',
+  'billable hr': 'ชม. ที่คิดเงิน',
+  'Estimated play fee': 'ค่าเล่นโดยประมาณ',
+  'Final play fee': 'ค่าเล่นสุดท้าย',
+  'Estimated total (Play + Food):': 'ยอดรวมโดยประมาณ (ค่าเล่น + อาหาร):',
+  'Scheduled end is near. No time is added after it.':
+    'ใกล้ถึงเวลาสิ้นสุดตามกำหนด จะไม่มีการคิดเวลาเพิ่มหลังจากนั้น',
+  'Scheduled end reached. The final amount is set when the session is closed.':
+    'ถึงเวลาสิ้นสุดตามกำหนดแล้ว ยอดสุดท้ายจะกำหนดเมื่อปิดเซสชัน',
   mins: 'นาที',
   'Walk-in Session': 'ลูกค้า Walk-in',
   'Reserved Client': 'ลูกค้าจองออนไลน์',
