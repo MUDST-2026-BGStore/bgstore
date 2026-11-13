@@ -86,6 +86,33 @@ it('loads the account preference over an older browser cache without echoing a s
   expect(mocks.update).not.toHaveBeenCalled();
 });
 
+it('keeps an anonymous language choice through login and saves it to the account', async () => {
+  localStorage.setItem('theparlor.locale', 'th-TH');
+  const preference = await load();
+  preference.setLocale('en-US');
+  expect(localStorage.getItem('theparlor.locale.loginSelection')).toBe('en-US');
+
+  signedIn('account-1', 'th-TH');
+  await flushPromises();
+
+  expect(preference.locale.value).toBe('en-US');
+  expect(mocks.update).toHaveBeenCalledExactlyOnceWith({
+    preferences: { preferredLocale: 'en-US' },
+  });
+  expect(localStorage.getItem('theparlor.locale.loginSelection')).toBeNull();
+});
+
+it('consumes an anonymous choice without saving when the account already matches', async () => {
+  const preference = await load();
+  preference.setLocale('en-US');
+  signedIn('account-1', 'en-US');
+  await flushPromises();
+
+  expect(preference.locale.value).toBe('en-US');
+  expect(mocks.update).not.toHaveBeenCalled();
+  expect(localStorage.getItem('theparlor.locale.loginSelection')).toBeNull();
+});
+
 it('preserves a selection made while the account is loading', async () => {
   mocks.auth.value = { authenticated: true, subject: 'account-1' };
   const preference = await load();
