@@ -45,8 +45,11 @@ class SessionController implements AuthenticationApi {
     } catch (IllegalArgumentException invalid) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST);
     }
+    // Compare the normalized path so "../" segments cannot leave the realm.
     if (!issuer.getScheme().equals(target.getScheme())
         || !issuer.getAuthority().equals(target.getAuthority())
+        || target.getRawPath() == null
+        || !target.getRawPath().equals(target.normalize().getRawPath())
         || !target.getPath().startsWith(issuer.getPath() + "/")
         || target.getRawFragment() != null
         || !locale.equals(

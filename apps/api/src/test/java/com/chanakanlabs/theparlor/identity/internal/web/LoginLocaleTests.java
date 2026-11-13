@@ -45,6 +45,10 @@ class LoginLocaleTests {
                 controller.loginLocale(
                     "th", "http://localhost:8081/realms/theparlor/?kc_locale=en"))
         .isInstanceOf(ResponseStatusException.class);
-    assertThat(request.getSession().getAttribute("theparlor.loginLocale")).isNull();
+    assertThatThrownBy(
+            () ->
+                controller.loginLocale(
+                    "th", "http://localhost:8081/realms/theparlor/../master/account?kc_locale=th"))
+        .isInstanceOf(ResponseStatusException.class);
   }
 }
