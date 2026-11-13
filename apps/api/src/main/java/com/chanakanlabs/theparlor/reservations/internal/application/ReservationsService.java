@@ -250,15 +250,16 @@ public class ReservationsService {
     boolean operator = requireOwnerOrOperator(reservation);
     if (!operator && reservation.isConfirmed() && !now.isBefore(reservation.getStartsAt()))
       throw conflict("A reservation that has started can only be cancelled by staff");
+    boolean released;
     try {
-      if (reservation.cancel(currentUser.require().subject(), reason, now)) {
-        holds.deleteOf(reservationId);
-        preOrders.release(reservation);
-      }
+      released = reservation.cancel(currentUser.require().subject(), reason, now);
     } catch (IllegalStateException exception) {
       throw conflict(exception.getMessage());
     }
+    if (released) holds.deleteOf(reservationId);
     reservations.flush();
+    // The card is voided last, once everything that can still fail has been written.
+    if (released) preOrders.release(reservation);
     return views.of(reservation);
   }
 
@@ -270,15 +271,15 @@ public class ReservationsService {
         reservations
             .lockByIdAndBranchId(reservationId, branchId)
             .orElseThrow(ReservationsService::missing);
+    boolean released;
     try {
-      if (reservation.markNoShow(staff, reason, clock.instant())) {
-        holds.deleteOf(reservationId);
-        preOrders.release(reservation);
-      }
+      released = reservation.markNoShow(staff, reason, clock.instant());
     } catch (IllegalStateException exception) {
       throw conflict(exception.getMessage());
     }
+    if (released) holds.deleteOf(reservationId);
     reservations.flush();
+    if (released) preOrders.release(reservation);
     return views.of(reservation);
   }
 
@@ -334,6 +335,8 @@ public class ReservationsService {
         rentalDesk.start(
             new RentalDesk.Arrival(
                 reservationId, branchId, now, reservation.getEndsAt(), staff, copyIds));
+    // A gateway capture cannot be rolled back, so it runs after the last step that can fail.
+    preOrders.capture(reservation);
     return new CheckInResult(views.of(reservation), rental);
   }
 

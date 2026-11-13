@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class ReservationPreOrderTests {
+  static final Instant NOW = Instant.parse("2026-11-13T03:00:00Z");
   final UUID reservationId = UUID.randomUUID();
 
   ReservationPreOrderItem line(long unitPriceMinor, int quantity) {
@@ -18,10 +19,12 @@ class ReservationPreOrderTests {
 
   @Test
   void takesTenPercentOffTheSubtotal() {
-    var preOrder = ReservationPreOrder.price(reservationId, List.of(line(3500, 2), line(2500, 1)));
+    var preOrder =
+        ReservationPreOrder.price(reservationId, List.of(line(3500, 2), line(2500, 1)), NOW);
     assertThat(preOrder.getSubtotalMinor()).isEqualTo(9500);
     assertThat(preOrder.getDiscountMinor()).isEqualTo(950);
     assertThat(preOrder.getTotalMinor()).isEqualTo(8550);
+    assertThat(preOrder.getCreatedAt()).isEqualTo(NOW);
   }
 
   @Test
@@ -35,12 +38,12 @@ class ReservationPreOrderTests {
   @Test
   void refusesEmptyFreeOrForeignLines() {
     assertThatIllegalArgumentException()
-        .isThrownBy(() -> ReservationPreOrder.price(reservationId, List.of()));
+        .isThrownBy(() -> ReservationPreOrder.price(reservationId, List.of(), NOW));
     assertThatIllegalArgumentException()
-        .isThrownBy(() -> ReservationPreOrder.price(reservationId, List.of(line(0, 1))));
+        .isThrownBy(() -> ReservationPreOrder.price(reservationId, List.of(line(0, 1)), NOW));
     var foreign = ReservationPreOrderItem.line(UUID.randomUUID(), UUID.randomUUID(), "X", 1, 100);
     assertThatIllegalArgumentException()
-        .isThrownBy(() -> ReservationPreOrder.price(reservationId, List.of(foreign)));
+        .isThrownBy(() -> ReservationPreOrder.price(reservationId, List.of(foreign), NOW));
   }
 
   @Test

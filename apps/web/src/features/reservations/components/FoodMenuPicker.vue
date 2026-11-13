@@ -199,11 +199,9 @@ const totalItemsCount = computed(() =>
             <span v-if="getQuantity(item.id) > 0" class="qty-count">{{
               getQuantity(item.id)
             }}</span>
-            <span
-              v-if="limit(item) === 0"
-              class="sold-out"
-              >{{ t('Sold out') }}</span
-            >
+            <span v-if="limit(item) === 0" class="sold-out">{{
+              t('Sold out')
+            }}</span>
             <button
               v-else
               type="button"
@@ -234,13 +232,11 @@ const totalItemsCount = computed(() =>
             <span class="discounted-sum"
               >฿{{ discountSummary.discountedTotal }}</span
             >
-            <span class="saved-pill"
-              >{{
-                t('Saved {amount}', {
-                  amount: `฿${discountSummary.discountAmount}`,
-                })
-              }}</span
-            >
+            <span class="saved-pill">{{
+              t('Saved {amount}', {
+                amount: `฿${discountSummary.discountAmount}`,
+              })
+            }}</span>
           </div>
         </div>
         <p class="tray-footnote">
