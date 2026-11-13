@@ -186,6 +186,7 @@ watch([search, selectedBranchId], selection.clear);
           </td>
           <AppTableActions
             ><AppButton
+              v-if="!res.live"
               :aria-label="`Add refreshments to Table ${sessionTableId(res)}`"
               @click="openAddSnacks(res)"
               >Refreshments</AppButton

@@ -19,6 +19,8 @@ const { queryClient, staffBillReservation } = useManagementWorkspace();
       @settled="
         staffBillReservation = null;
         queryClient.invalidateQueries({ queryKey: ['listBranchReservations'] });
+        queryClient.invalidateQueries({ queryKey: ['listBranchRentals'] });
+        queryClient.invalidateQueries({ queryKey: ['listBranchTables'] });
       "
     />
   </AppDialog>

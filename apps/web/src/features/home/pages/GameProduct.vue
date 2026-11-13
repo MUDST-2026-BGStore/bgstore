@@ -16,6 +16,7 @@ import {
 } from '../api/catalog';
 import StoreContext from '../components/StoreContext.vue';
 import StoreAccordion from '../components/StoreAccordion.vue';
+import BranchAvailability from '../components/BranchAvailability.vue';
 import { useBranchOffering } from '../api/inventory';
 import { useStoreContextStore } from '../stores/store-context';
 import { useCartStore } from '../stores/cart';
@@ -336,6 +337,13 @@ async function addToCart() {
           </p>
         </section>
         <div class="product-accordions">
+          <BranchAvailability
+            v-if="context.stockBranch"
+            :game-id="game.id"
+            :variant-id="
+              selected?.editionId || product.editions.data.value?.[0]?.id
+            "
+          />
           <StoreAccordion :key="game.id" :title="t('Game details')">
             <dl>
               <div v-if="game.minAge != null">

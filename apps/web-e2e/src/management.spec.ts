@@ -1238,3 +1238,540 @@ for (const viewport of [
     }
   });
 }
+
+test('wires branch games, pantry menu, rental copies, stock adjustments and order fulfillment to live API endpoints', async ({
+  page,
+}) => {
+  let azulOnHand = 9;
+  const saleAdjustments: { delta: number; reason: string }[] = [];
+  const menuAdjustments: { delta: number; reason: string }[] = [];
+  const fulfilledOrderIds: string[] = [];
+
+  await page.route('**/api/v1/branches/siam/**', async (route) => {
+    const url = new URL(route.request().url());
+    const { pathname } = url;
+    const method = route.request().method();
+
+    if (method === 'GET' && pathname === '/api/v1/branches/siam/games') {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              branchId: 'siam',
+              game: {
+                id: 'game-azul',
+                name: 'Azul',
+                designer: 'Michael Kiesling',
+                difficulty: 'EASY',
+                categories: ['Strategy', 'Quick & Light'],
+                mechanics: ['Tile placement'],
+                minPlayers: 2,
+                maxPlayers: 4,
+                playMinutesMin: 30,
+                playMinutesMax: 45,
+                teachMinutes: 5,
+                setupMinutes: 5,
+                descriptions: { 'en-US': 'Draft tiles from shared supplies.' },
+                active: true,
+              },
+              saleEnabled: true,
+              rentalEnabled: true,
+              staffCanTeach: true,
+              rentalHourlyRate: { amountMinor: 2000 },
+              editions: [
+                {
+                  editionId: 'ed-azul-en',
+                  editionKind: 'BASE_GAME',
+                  languageCode: 'en',
+                  active: true,
+                  salePrice: { amountMinor: 149000 },
+                  saleOnHand: azulOnHand,
+                  saleHeld: 2,
+                  saleAvailable: 7,
+                },
+              ],
+              rentalTotal: 1,
+              rentalUsable: 1,
+              rentalAvailableNow: 1,
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    if (
+      method === 'POST' &&
+      pathname === '/api/v1/branches/siam/editions/ed-azul-en/stock-adjustments'
+    ) {
+      const body = route.request().postDataJSON() as {
+        delta: number;
+        reason: string;
+      };
+      saleAdjustments.push(body);
+      await route.fulfill({
+        json: {
+          id: 'adj-1',
+          branchId: 'siam',
+          editionId: 'ed-azul-en',
+          delta: body.delta,
+          reason: body.reason,
+          saleOnHand: (azulOnHand += body.delta),
+          saleAvailable: 7 + body.delta,
+          createdAt: '2026-11-13T10:00:00Z',
+          operatorSubject: 'operator',
+        },
+      });
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/v1/branches/siam/menu') {
+      await route.fulfill({
+        json: {
+          branchId: 'siam',
+          items: [
+            {
+              item: {
+                id: 'menu-coke',
+                sku: 'bev-coca-cola',
+                category: 'BEVERAGES',
+                names: {
+                  'en-US': 'Coca-Cola Original (Can 325ml)',
+                  'th-TH': 'โคคา-โคล่า รสชาติต้นตำรับ (กระป๋อง)',
+                },
+                price: { amountMinor: 3500 },
+                popular: true,
+              },
+              available: 40,
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    if (
+      method === 'POST' &&
+      pathname === '/api/v1/branches/siam/menu/menu-coke/stock-adjustments'
+    ) {
+      const body = route.request().postDataJSON() as {
+        delta: number;
+        reason: string;
+      };
+      menuAdjustments.push(body);
+      await route.fulfill({
+        json: {
+          branchId: 'siam',
+          menuItemId: 'menu-coke',
+          onHand: 40 + body.delta,
+          held: 0,
+          available: 40 + body.delta,
+        },
+      });
+      return;
+    }
+
+    if (
+      method === 'GET' &&
+      pathname === '/api/v1/branches/siam/games/game-azul/rental-copies'
+    ) {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              id: 'copy-azul-1',
+              branchId: 'siam',
+              gameId: 'game-azul',
+              assetCode: 'AZ-LIVE-01',
+              operationalStatus: 'USABLE',
+              state: 'AVAILABLE',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/v1/branches/siam/orders') {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              id: '1042abcd-0000-0000-0000-000000000000',
+              branchId: 'siam',
+              customer: { kind: 'GUEST', displayName: 'Guest' },
+              source: 'CUSTOMER',
+              status: fulfilledOrderIds.includes(
+                '1042abcd-0000-0000-0000-000000000000',
+              )
+                ? 'FULFILLED'
+                : 'PLACED',
+              items: [
+                {
+                  editionId: 'ed-azul-en',
+                  gameName: 'Azul',
+                  editionLanguage: 'en',
+                  quantity: 2,
+                  unitPrice: { amountMinor: 149000 },
+                  lineTotal: { amountMinor: 298000 },
+                },
+              ],
+              total: { amountMinor: 298000 },
+              contact: { name: 'Guest', phone: '0812345678' },
+              fulfillmentMethod: 'PICKUP',
+              payment: {
+                method: 'CARD',
+                status: 'CAPTURED',
+                amount: { amountMinor: 298000 },
+              },
+              createdAt: '2026-11-13T10:00:00Z',
+              createdBySubject: 'guest',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    if (
+      method === 'POST' &&
+      pathname ===
+        '/api/v1/branches/siam/orders/1042abcd-0000-0000-0000-000000000000/fulfill'
+    ) {
+      fulfilledOrderIds.push('1042abcd-0000-0000-0000-000000000000');
+      await route.fulfill({
+        json: {
+          id: '1042abcd-0000-0000-0000-000000000000',
+          branchId: 'siam',
+          customer: { kind: 'GUEST', displayName: 'Guest' },
+          source: 'CUSTOMER',
+          status: 'FULFILLED',
+          items: [
+            {
+              editionId: 'ed-azul-en',
+              gameName: 'Azul',
+              editionLanguage: 'en',
+              quantity: 2,
+              unitPrice: { amountMinor: 149000 },
+              lineTotal: { amountMinor: 298000 },
+            },
+          ],
+          total: { amountMinor: 298000 },
+          contact: { name: 'Guest', phone: '0812345678' },
+          fulfillmentMethod: 'PICKUP',
+          payment: {
+            method: 'CARD',
+            status: 'CAPTURED',
+            amount: { amountMinor: 298000 },
+          },
+          createdAt: '2026-11-13T10:00:00Z',
+          createdBySubject: 'guest',
+          fulfilledAt: '2026-11-13T10:05:00Z',
+          fulfilledBySubject: 'operator',
+        },
+      });
+      return;
+    }
+
+    await route.fulfill({ json: { items: [] } });
+  });
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Game library', exact: true }).click();
+  await expect(page.locator('.workspace-records tbody tr')).toHaveCount(1);
+  await expect(
+    page.getByRole('button', { name: 'Azul', exact: true }),
+  ).toBeVisible();
+
+  await page
+    .getByRole('button', { name: 'Inventory & fulfillment', exact: true })
+    .click();
+  const stock = page.getByRole('region', {
+    name: 'Stock for sale table',
+    exact: true,
+  });
+  // Only live editions; food stock lives in its own panel.
+  await expect(stock.locator('tbody tr')).toHaveCount(1);
+  await stock
+    .getByRole('button', {
+      name: 'Receive stock for Azul, ED-AZUL-',
+      exact: true,
+    })
+    .click();
+  const receiveDialog = page.getByRole('dialog', {
+    name: 'Receive stock',
+    exact: true,
+  });
+  await receiveDialog
+    .getByRole('spinbutton', { name: 'Quantity for Azul', exact: true })
+    .fill('4');
+  await receiveDialog
+    .getByRole('button', { name: 'Receive stock', exact: true })
+    .click();
+  await expect
+    .poll(() => saleAdjustments)
+    .toEqual([{ delta: 4, reason: 'Stock receipt' }]);
+  // The row shows the server's balance after the adjustment.
+  await expect(
+    stock
+      .getByRole('row')
+      .filter({ hasText: 'ED-AZUL-' })
+      .locator('td.numeric'),
+  ).toHaveText(['13copies', '2', '11']);
+
+  const pantry = page.getByRole('region', { name: 'Food & drinks' });
+  await pantry.getByRole('button', { name: 'Adjust stock' }).click();
+  const pantryDialog = page.getByRole('dialog', {
+    name: 'Adjust Coca-Cola Original (Can 325ml)',
+  });
+  await pantryDialog.getByLabel('Change in units').fill('5');
+  await pantryDialog.getByLabel('Reason').fill('Delivery');
+  await pantryDialog.getByRole('button', { name: 'Save adjustment' }).click();
+  await expect
+    .poll(() => menuAdjustments)
+    .toEqual([{ delta: 5, reason: 'Delivery' }]);
+
+  await page
+    .getByRole('navigation', { name: 'Inventory views' })
+    .getByRole('button', { name: 'Rental assets', exact: true })
+    .click();
+  const rentalTable = page.getByRole('region', {
+    name: 'Rental assets table',
+    exact: true,
+  });
+  await expect(rentalTable.locator('tbody tr')).toHaveCount(1);
+  await expect(
+    rentalTable.getByText('AZ-LIVE-01', { exact: true }),
+  ).toBeVisible();
+
+  await page
+    .getByRole('navigation', { name: 'Inventory views' })
+    .getByRole('button', { name: 'Fulfillment', exact: true })
+    .click();
+  const fulfillmentTable = page.getByRole('region', {
+    name: 'Fulfillment orders table',
+    exact: true,
+  });
+  await expect(fulfillmentTable.locator('tbody tr')).toHaveCount(1);
+  await fulfillmentTable
+    .getByRole('button', { name: 'View details for 1042ABCD', exact: true })
+    .click();
+  const orderDetails = page.getByRole('complementary', {
+    name: '1042ABCD',
+    exact: true,
+  });
+  await orderDetails
+    .getByRole('button', { name: 'Fulfill order', exact: true })
+    .click();
+  await expect
+    .poll(() => fulfilledOrderIds)
+    .toEqual(['1042abcd-0000-0000-0000-000000000000']);
+  // Fulfilled orders leave the open queue once the server says so.
+  await expect(
+    fulfillmentTable.getByRole('button', { name: 'View details for 1042ABCD' }),
+  ).toHaveCount(0);
+});
+
+test('loads live branch tables, reservations and rentals and checks out the rental on bill settlement', async ({
+  page,
+}) => {
+  const branchId = 'siam';
+  const tableId = '00000000-0000-4000-8000-000000000101';
+  const reservationId = '00000000-0000-4000-8000-000000000201';
+  const rentalId = '00000000-0000-4000-8000-000000000301';
+  const startedAt = new Date(Date.now() - 60 * 60_000).toISOString();
+  const endsAt = new Date(Date.now() + 60 * 60_000).toISOString();
+  const checkedOutRentals: string[] = [];
+
+  await page.route(`**/api/v1/branches/${branchId}/tables*`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: tableId,
+            branchId,
+            label: 'The Emerald Salon (Table 1)',
+            capacity: 4,
+            hourlyRate: { amountMinor: 30000 },
+            operationalStatus: 'IN_SERVICE',
+            state: 'OCCUPIED',
+          },
+        ],
+      }),
+    }),
+  );
+
+  await page.route(`**/api/v1/branches/${branchId}/reservations*`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: reservationId,
+            branchId,
+            tableId,
+            customer: {
+              kind: 'GUEST',
+              displayName: 'Khun Ananda',
+              phone: '0811112222',
+            },
+            source: 'ONLINE',
+            status: 'CHECKED_IN',
+            startsAt: startedAt,
+            endsAt,
+            partySize: 4,
+            games: [],
+            tableHourlyRate: { amountMinor: 30000 },
+            createdAt: startedAt,
+            createdBySubject: 'cust-1',
+            checkedInAt: startedAt,
+            rentalId,
+          },
+        ],
+      }),
+    }),
+  );
+
+  await page.route(
+    `**/api/v1/branches/${branchId}/rentals**`,
+    async (route) => {
+      const url = new URL(route.request().url());
+      if (
+        route.request().method() === 'POST' &&
+        url.pathname.endsWith(`/rentals/${rentalId}/check-out`)
+      ) {
+        checkedOutRentals.push(rentalId);
+        const endedAt = new Date().toISOString();
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            reservation: {
+              id: reservationId,
+              branchId,
+              tableId,
+              customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+              source: 'ONLINE',
+              status: 'COMPLETED',
+              startsAt: startedAt,
+              endsAt,
+              partySize: 4,
+              games: [],
+              tableHourlyRate: { amountMinor: 30000 },
+              createdAt: startedAt,
+              createdBySubject: 'cust-1',
+              checkedInAt: startedAt,
+              completedAt: endedAt,
+              rentalId,
+            },
+            rental: {
+              id: rentalId,
+              branchId,
+              reservationId,
+              tableId,
+              customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+              status: 'COMPLETED',
+              startedAt,
+              plannedEndsAt: endsAt,
+              endedAt,
+              checkedInBySubject: 'staff-1',
+              checkedOutBySubject: 'staff-1',
+              billableHours: 1,
+              charges: [
+                {
+                  kind: 'TABLE',
+                  quantity: 1,
+                  unitHourlyRate: { amountMinor: 30000 },
+                  billableHours: 1,
+                  lineTotal: { amountMinor: 30000 },
+                },
+              ],
+              total: { amountMinor: 30000 },
+            },
+          }),
+        });
+        return;
+      }
+
+      if (url.pathname.endsWith(`/rentals/${rentalId}`)) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: rentalId,
+            branchId,
+            reservationId,
+            tableId,
+            customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+            status: 'ACTIVE',
+            startedAt,
+            plannedEndsAt: endsAt,
+            checkedInBySubject: 'staff-1',
+            charges: [
+              {
+                kind: 'TABLE',
+                quantity: 1,
+                unitHourlyRate: { amountMinor: 30000 },
+              },
+            ],
+          }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [
+            {
+              id: rentalId,
+              branchId,
+              reservationId,
+              tableId,
+              customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+              status: 'ACTIVE',
+              startedAt,
+              plannedEndsAt: endsAt,
+              checkedInBySubject: 'staff-1',
+              charges: [
+                {
+                  kind: 'TABLE',
+                  quantity: 1,
+                  unitHourlyRate: { amountMinor: 30000 },
+                },
+              ],
+            },
+          ],
+        }),
+      });
+    },
+  );
+
+  await page.reload();
+  await page
+    .getByRole('button', { name: 'Live sessions', exact: true })
+    .click();
+  await expect(page.getByText('Khun Ananda').first()).toBeVisible();
+  // In-play food ordering has no backend, so live sessions do not offer it.
+  await expect(
+    page.getByRole('button', { name: /^Add refreshments/ }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: /^Check bill for Table/ }).click();
+
+  const dialog = page.getByRole('dialog', {
+    name: 'Table Session Bill',
+    exact: true,
+  });
+  await expect(dialog).toBeVisible();
+  // One started hour at the table rate, as the server bills it.
+  await expect(dialog.locator('.section-cost').first()).toHaveText('฿300');
+  await dialog
+    .getByRole('button', { name: 'Settle Bill & Complete Session ✓' })
+    .click();
+
+  await expect.poll(() => checkedOutRentals).toEqual([rentalId]);
+});

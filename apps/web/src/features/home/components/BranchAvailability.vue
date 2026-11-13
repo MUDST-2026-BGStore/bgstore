@@ -1,37 +1,72 @@
 <script setup lang="ts">
-// TODO(branch-comparison): This comparison component is not mounted anywhere and
-// still reads fixture branches, libraries and stock. To use it on product pages,
-// read each branch's offering with useBranchOffering (api/inventory.ts) instead.
-// Library membership is not visit availability.
+// Read-only branch comparison for product pages: reads active branches from the
+// branch directory and each branch's offering from the inventory API. Library
+// membership is not visit availability.
 import StoreAccordion from './StoreAccordion.vue';
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { AppDataTable, AppField } from '../../../shared/ui';
-import { branches, rentalLibraryAt, retailStockAt } from '../data/branches';
+import { useBranchOfferings } from '../api/inventory';
+import { useBranchDirectoryStore } from '../stores/branch-directory';
 import { useStoreText } from '../data/store-text';
 const props = defineProps<{
   gameId: string;
   variantId?: string;
 }>();
 const { t } = useStoreText();
+const directory = useBranchDirectoryStore();
+onMounted(() => {
+  void directory.load();
+});
+const branches = computed(() => directory.branches);
+const offerings = useBranchOfferings(
+  () => branches.value.map((branch) => branch.id),
+  () => props.gameId,
+);
+const offeringByBranch = computed(
+  () =>
+    new Map(
+      branches.value.map((branch, index) => [
+        branch.id,
+        offerings.value[index],
+      ]),
+    ),
+);
 const query = ref('');
 const columns = computed(() => [
   { label: t('Branch') },
   { label: t('Rental library') },
   ...(props.variantId ? [{ label: t('New copy') }] : []),
 ]);
-const matchingBranches = computed(() =>
-  branches.filter((branch) =>
-    t(branch.name)
+const matchingBranches = computed(() => {
+  const needle = query.value.trim().toLocaleLowerCase();
+  if (!needle) return branches.value;
+  return branches.value.filter((branch) =>
+    [t(branch.name), branch.name, branch.address]
+      .join(' ')
       .toLocaleLowerCase()
-      .includes(query.value.trim().toLocaleLowerCase()),
-  ),
-);
-function rentalText(branchId: string) {
-  return t(
-    rentalLibraryAt(props.gameId, branchId).offered
-      ? 'Included'
-      : 'Not offered',
+      .includes(needle),
   );
+});
+function rentalText(branchId: string) {
+  const entry = offeringByBranch.value.get(branchId);
+  if (entry?.isPending) return t('Loading price and stock…');
+  if (entry?.isError) return '—';
+  return t(entry?.data?.rentalEnabled ? 'Included' : 'Not offered');
+}
+function retailStockAt(variantId: string, branchId: string) {
+  const entry = offeringByBranch.value.get(branchId);
+  if (!entry?.data?.saleEnabled) return 0;
+  const edition = entry.data.editions.find(
+    (item) => item.editionId === variantId,
+  );
+  return edition?.active ? edition.saleAvailable : 0;
+}
+function retailText(variantId: string, branchId: string) {
+  const entry = offeringByBranch.value.get(branchId);
+  if (entry?.isPending) return t('Loading price and stock…');
+  if (entry?.isError) return '—';
+  const count = retailStockAt(variantId, branchId);
+  return count ? t('{count} in stock', { count }) : t('Sold out');
 }
 </script>
 <template>
@@ -66,13 +101,7 @@ function rentalText(branchId: string) {
         <th scope="row">{{ t(branch.name) }}</th>
         <td>{{ rentalText(branch.id) }}</td>
         <td v-if="variantId">
-          {{
-            retailStockAt(variantId, branch.id)
-              ? t('{count} in stock', {
-                  count: retailStockAt(variantId, branch.id),
-                })
-              : t('Sold out')
-          }}
+          {{ retailText(variantId, branch.id) }}
         </td>
       </tr>
     </AppDataTable>

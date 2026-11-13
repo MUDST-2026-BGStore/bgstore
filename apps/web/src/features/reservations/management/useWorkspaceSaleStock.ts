@@ -1,52 +1,117 @@
-// TODO(workspace-inventory-api): Sale stock here is sample data. Branch edition
-// prices, stock adjustments and order fulfillment now have endpoints; wire this
-// composable and the fulfillment queue to them.
 import { computed, ref, type Ref } from 'vue';
-import { retailStockSamples } from '../components/management-inventory.samples';
+import { useQueryClient } from '@tanstack/vue-query';
+import { adjustSaleStock } from '@theparlor/api-client';
+import {
+  retailStockSamples,
+  toRetailStockRows,
+  type RetailStockSample,
+} from '../components/management-inventory.samples';
 import { saleStockItems } from '../components/inventory/sale-stock';
-import type { FoodDrinkStockItem } from './pantry.samples';
+import { branchGamesKey, useBranchGamesQuery } from './branch-games';
 
 export interface StockReceiptEntry {
   id: string;
   quantity: number;
 }
 
-// Workspace-owned sample balances, matching the existing pantry state lifetime.
-// Replace these commands with inventory transactions when those APIs are wired.
-export function useWorkspaceSaleStock(foodItems: Ref<FoodDrinkStockItem[]>) {
-  const retailItems = ref(retailStockSamples.map((item) => ({ ...item })));
-  const items = computed(() =>
-    saleStockItems(retailItems.value, foodItems.value),
+/**
+ * Retail sale stock for the selected branch. Live editions come from the branch
+ * games API and every change is a server stock adjustment; the screen shows the
+ * server's balance after each one. Sample rows remain only while the branch
+ * offers no editions.
+ */
+export function useWorkspaceSaleStock(selectedBranchId: Ref<string>) {
+  const queryClient = useQueryClient();
+  const branchGames = useBranchGamesQuery(selectedBranchId);
+  const samples = ref<RetailStockSample[]>(
+    retailStockSamples.map((item) => ({ ...item })),
   );
+  const liveRows = computed(() =>
+    toRetailStockRows(branchGames.data.value ?? []),
+  );
+  const isLive = computed(() => liveRows.value.length > 0);
+  const items = computed(() =>
+    saleStockItems(isLive.value ? liveRows.value : samples.value),
+  );
+  const saving = ref(false);
+  const error = ref('');
 
-  function setOnHand(id: string, quantity: number): boolean {
+  async function adjust(
+    changes: readonly { id: string; delta: number }[],
+    reason: string,
+  ): Promise<boolean> {
+    const branchId = selectedBranchId.value;
+    const rows = changes.map((change) => ({
+      ...change,
+      item: items.value.find((row) => row.id === change.id),
+    }));
+    if (rows.some((row) => !row.item)) return false;
+    if (!isLive.value) {
+      for (const { item, delta } of rows) item!.source.onHand += delta;
+      return true;
+    }
+    saving.value = true;
+    error.value = '';
+    let saved = 0;
+    try {
+      for (const { item, delta } of rows) {
+        await adjustSaleStock(branchId, item!.source.editionId!, {
+          delta,
+          reason,
+        });
+        saved += 1;
+      }
+      return true;
+    } catch {
+      error.value =
+        saved > 0
+          ? `Only ${saved} of ${rows.length} stock changes were saved. Review the balances and try again.`
+          : 'Stock could not be updated. Refresh and try again.';
+      return false;
+    } finally {
+      saving.value = false;
+      // Show the server's balances, including any changes made before a failure.
+      await queryClient.invalidateQueries({
+        queryKey: branchGamesKey(branchId),
+      });
+    }
+  }
+
+  function setOnHand(id: string, quantity: number): Promise<boolean> {
     const item = items.value.find((row) => row.id === id);
-    if (!item || !Number.isSafeInteger(quantity) || quantity < item.reserved)
-      return false;
-    if (item.type === 'retail') item.source.onHand = quantity;
-    else item.source.currentStock = quantity;
-    return true;
-  }
-
-  function receive(entries: readonly StockReceiptEntry[]): boolean {
     if (
-      !entries.length ||
-      new Set(entries.map((entry) => entry.id)).size !== entries.length
+      !item ||
+      saving.value ||
+      !Number.isSafeInteger(quantity) ||
+      quantity < item.reserved
     )
-      return false;
-    const updates = entries.map((entry) => {
-      const item = items.value.find((row) => row.id === entry.id);
-      if (!item || !Number.isSafeInteger(entry.quantity) || entry.quantity <= 0)
-        return null;
-      const quantity = item.onHand + entry.quantity;
-      return Number.isSafeInteger(quantity) ? { id: item.id, quantity } : null;
-    });
-    // Validate the whole batch before changing any balance.
-    if (updates.some((update) => update === null)) return false;
-    for (const update of updates)
-      if (update) setOnHand(update.id, update.quantity);
-    return true;
+      return Promise.resolve(false);
+    const delta = quantity - item.onHand;
+    if (delta === 0) return Promise.resolve(true);
+    return adjust([{ id, delta }], 'Inventory count adjustment');
   }
 
-  return { items, setOnHand, receive };
+  function receive(entries: readonly StockReceiptEntry[]): Promise<boolean> {
+    const valid =
+      !saving.value &&
+      entries.length > 0 &&
+      new Set(entries.map((entry) => entry.id)).size === entries.length &&
+      entries.every((entry) => {
+        const item = items.value.find((row) => row.id === entry.id);
+        return (
+          item &&
+          Number.isSafeInteger(entry.quantity) &&
+          entry.quantity > 0 &&
+          Number.isSafeInteger(item.onHand + entry.quantity)
+        );
+      });
+    // Validate the whole batch before changing any balance.
+    if (!valid) return Promise.resolve(false);
+    return adjust(
+      entries.map((entry) => ({ id: entry.id, delta: entry.quantity })),
+      'Stock receipt',
+    );
+  }
+
+  return { items, isLive, saving, error, setOnHand, receive };
 }

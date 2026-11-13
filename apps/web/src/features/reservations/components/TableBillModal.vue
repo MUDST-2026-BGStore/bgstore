@@ -1,8 +1,10 @@
 <script setup lang="ts">
-// TODO(table-bill-api): This bill is assembled locally from sample reservations and
-// food orders. Server rental checkout bills table and game hours only and takes no
-// payment; QR payment and food lines here have no backend.
+// A session with a server rental shows the rental's charges and checks out through
+// the API, which bills started hours (minimum one) and takes no payment. Sample
+// sessions keep the local bill, food tab and QR simulation, which have no backend.
 import { computed, ref } from 'vue';
+import { useQuery, useQueryClient } from '@tanstack/vue-query';
+import { checkOutRental, getRental, type Rental } from '@theparlor/api-client';
 import {
   useCustomerReservationsStore,
   type CustomerReservation,
@@ -27,23 +29,48 @@ const emit = defineEmits<{
 }>();
 
 const { t, locale } = useStoreText();
+const queryClient = useQueryClient();
 const reservationsStore = useCustomerReservationsStore();
 const settlementSuccess = ref(false);
+const isSettling = ref(false);
 const selectedStaffPaymentMethod = ref<'cash' | 'promptpay_qr' | 'card'>(
   'cash',
 );
 
-// Calculate actual playtime duration from checkedInAt to now (or completedAt)
+const isLive = computed(() => Boolean(props.reservation.rentalId));
+const checkoutError = ref('');
+const rentalBranchId = computed(() => props.reservation.branchId);
+const rentalId = computed(() => props.reservation.rentalId ?? '');
+const rentalQuery = useQuery({
+  queryKey: ['rental', rentalBranchId, rentalId],
+  queryFn: ({ signal }) =>
+    getRental(rentalBranchId.value, rentalId.value, undefined, signal),
+  enabled: computed(() =>
+    Boolean(props.reservation.branchId && props.reservation.rentalId),
+  ),
+});
+
+const checkedOutRental = ref<Rental | null>(null);
+const activeRental = computed<Rental | null>(() => {
+  const candidate = checkedOutRental.value ?? rentalQuery.data.value ?? null;
+  if (!candidate || typeof candidate.startedAt !== 'string') {
+    return null;
+  }
+  return candidate;
+});
+
+// Calculate actual playtime duration from checkedInAt (or rental.startedAt) to now (or completedAt / rental.endedAt)
 const checkInTime = computed(() => {
   return new Date(
-    props.reservation.checkedInAt || props.reservation.startsAt,
+    activeRental.value?.startedAt ||
+      props.reservation.checkedInAt ||
+      props.reservation.startsAt,
   ).getTime();
 });
 
 const finishTime = computed(() => {
-  return props.reservation.completedAt
-    ? new Date(props.reservation.completedAt).getTime()
-    : Date.now();
+  const endedAt = activeRental.value?.endedAt || props.reservation.completedAt;
+  return endedAt ? new Date(endedAt).getTime() : Date.now();
 });
 
 const playDurationMinutes = computed(() => {
@@ -61,28 +88,67 @@ const formattedPlayedDuration = computed(() => {
   return m > 0 ? `${h} ${t('hr')} ${m} ${t('mins')}` : `${h} ${t('Hours')}`;
 });
 
-// Table Play Cost based strictly on actual played duration: (minutes / 60) * rate
-// e.g. Booked 9-10 (฿300/hr) but arrived 9:15 -> played 45 min -> (45/60)*300 = ฿225
+const effectiveHourlyRate = computed(() => {
+  const tableCharge = activeRental.value?.charges?.find(
+    (c) => c.kind === 'TABLE',
+  );
+  if (tableCharge)
+    return Math.round(tableCharge.unitHourlyRate.amountMinor / 100);
+  return props.reservation.hourlyRate ?? 0;
+});
+
+// Server rule: started hours, minimum one; the completed rental states its own.
+const billableHours = computed(
+  () =>
+    activeRental.value?.billableHours ??
+    Math.max(1, Math.ceil(playDurationMinutes.value / 60)),
+);
+
+const gameRentalCost = computed(() =>
+  (activeRental.value?.charges ?? [])
+    .filter((charge) => charge.kind === 'GAME')
+    .reduce(
+      (sum, charge) =>
+        sum +
+        Math.round(
+          (charge.lineTotal?.amountMinor ??
+            charge.unitHourlyRate.amountMinor *
+              charge.quantity *
+              billableHours.value) / 100,
+        ),
+      0,
+    ),
+);
+
+// Live: table and game hours as the server bills them. Sample: a running estimate.
 const tablePlayCost = computed(() => {
-  const rate = props.reservation.hourlyRate || 200;
-  return Math.round((playDurationMinutes.value / 60) * rate);
+  if (activeRental.value?.total)
+    return Math.round(activeRental.value.total.amountMinor / 100);
+  if (isLive.value)
+    return (
+      effectiveHourlyRate.value * billableHours.value + gameRentalCost.value
+    );
+  return Math.round(
+    (playDurationMinutes.value / 60) * effectiveHourlyRate.value,
+  );
 });
 
 // Late arrival info (e.g. booked 9-10, arrived 9:15)
 const lateArrivalInfo = computed(() => {
-  if (!props.reservation.checkedInAt || !props.reservation.startsAt)
-    return null;
+  const actualStartIso =
+    activeRental.value?.startedAt || props.reservation.checkedInAt;
+  if (!actualStartIso || !props.reservation.startsAt) return null;
   const scheduledStart = new Date(props.reservation.startsAt).getTime();
-  const actualCheckIn = new Date(props.reservation.checkedInAt).getTime();
+  const actualCheckIn = new Date(actualStartIso).getTime();
   const lateMinutes = Math.round((actualCheckIn - scheduledStart) / 60000);
   if (lateMinutes >= 3) {
     return {
       lateMinutes,
       scheduledTime: `${new Date(props.reservation.startsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – ${new Date(props.reservation.endsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-      actualCheckIn: new Date(props.reservation.checkedInAt).toLocaleTimeString(
-        [],
-        { hour: '2-digit', minute: '2-digit' },
-      ),
+      actualCheckIn: new Date(actualStartIso).toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
     };
   }
   return null;
@@ -96,9 +162,9 @@ const preOrderPaid = computed(() => {
 });
 
 // In-play orders breakdown (paid at counter)
-const inPlayOrders = computed<InPlayOrder[]>(() => {
-  return props.reservation.inPlayOrders || [];
-});
+const inPlayOrders = computed<InPlayOrder[]>(
+  () => props.reservation.inPlayOrders || [],
+);
 
 const inPlayOrdersTotal = computed(() => {
   return inPlayOrders.value.reduce((sum, o) => sum + o.subtotal, 0);
@@ -117,12 +183,41 @@ const outstandingBalanceDue = computed(() => {
   return Math.max(0, totalGrossBill.value - preOrderPaid.value);
 });
 
+async function checkOutLiveRental() {
+  const { branchId, rentalId } = props.reservation;
+  if (!branchId || !rentalId || activeRental.value?.status === 'COMPLETED')
+    return;
+  const completed = await checkOutRental(branchId, rentalId);
+  checkedOutRental.value = completed.rental;
+  for (const queryKey of [
+    ['rental', branchId, rentalId],
+    ['listBranchRentals'],
+    ['listBranchReservations'],
+    ['listBranchTables'],
+    ['workspace'],
+  ])
+    void queryClient.invalidateQueries({ queryKey });
+}
+
 // Settle bill (staff action at counter)
-function handleSettleBill() {
-  reservationsStore.settleSessionBill(
-    props.reservation.id,
-    selectedStaffPaymentMethod.value,
-  );
+async function handleSettleBill() {
+  if (isSettling.value) return;
+  isSettling.value = true;
+  checkoutError.value = '';
+  try {
+    if (isLive.value) await checkOutLiveRental();
+    else
+      reservationsStore.settleSessionBill(
+        props.reservation.id,
+        selectedStaffPaymentMethod.value,
+      );
+  } catch {
+    checkoutError.value =
+      'Checkout failed. The session is still open; refresh and try again.';
+    return;
+  } finally {
+    isSettling.value = false;
+  }
   settlementSuccess.value = true;
   setTimeout(() => {
     emit('settled');
@@ -272,7 +367,7 @@ function confirmCustomerQrPayment() {
               <span
                 >{{ t('Played Time:') }}
                 <strong>{{ formattedPlayedDuration }}</strong> (@ ฿{{
-                  reservation.hourlyRate || 200
+                  effectiveHourlyRate
                 }}/{{ t('hr') }})</span
               >
               <span
@@ -363,7 +458,9 @@ function confirmCustomerQrPayment() {
               >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
-              <span>{{ t('Pre-paid via PromptPay QR') }}</span>
+              <span>{{
+                isLive ? t('Pre-paid by card') : t('Pre-paid via PromptPay QR')
+              }}</span>
             </div>
           </div>
 
@@ -442,7 +539,11 @@ function confirmCustomerQrPayment() {
             <strong class="val">฿{{ totalGrossBill }}</strong>
           </div>
           <div v-if="preOrderPaid > 0" class="summary-line text-muted">
-            <span>{{ t('Pre-paid Online (PromptPay QR):') }}</span>
+            <span>{{
+              isLive
+                ? t('Pre-paid by card:')
+                : t('Pre-paid Online (PromptPay QR):')
+            }}</span>
             <span class="val text-green">- ฿{{ preOrderPaid }}</span>
           </div>
 
@@ -491,6 +592,7 @@ function confirmCustomerQrPayment() {
                     <span>{{ t('Cash') }}</span>
                   </label>
                   <label
+                    v-if="!isLive"
                     class="pm-radio-btn"
                     :class="{
                       active: selectedStaffPaymentMethod === 'promptpay_qr',
@@ -519,9 +621,13 @@ function confirmCustomerQrPayment() {
                 </div>
               </div>
 
+              <p v-if="checkoutError" class="checkout-error" role="alert">
+                {{ checkoutError }}
+              </p>
               <button
                 type="button"
                 class="btn btn-primary settle-btn"
+                :disabled="isSettling"
                 @click="handleSettleBill"
               >
                 {{ t('Settle Bill & Complete Session ✓') }}
@@ -680,6 +786,11 @@ function confirmCustomerQrPayment() {
 </template>
 
 <style scoped>
+.checkout-error {
+  margin: 0 0 10px;
+  color: #a1372c;
+  font-size: 13px;
+}
 .modal-overlay {
   position: fixed;
   inset: 0;

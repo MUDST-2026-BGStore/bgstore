@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// TODO(branch-catalog-filters): Discovery lists the whole catalog whatever store is
-// chosen; the chosen store only decides prices and stock on product pages. Branch
-// games can now be read per branch (listBranchGames); use that to add "sold here"
-// and "in this library" filters. Cards deliberately show no price or availability.
-import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
+// Discovery lists the catalog; when a store is chosen, its offerings can filter
+// games sold there or included in its rental library. Cards deliberately show no
+// price or availability.
+import { computed, ref, watch, onMounted, onBeforeUnmount } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';
 import { useCatalogBrowseStore } from '../stores/catalog-browse';
+import { useStoreContextStore } from '../stores/store-context';
 import { useStoreText } from '../data/store-text';
 import StoreContext from '../components/StoreContext.vue';
 import { range } from '../data/catalog';
@@ -18,6 +18,7 @@ import {
   localizedDescription,
   taxonomyLabel,
 } from '../api/catalog';
+import { useBranchGames } from '../api/inventory';
 
 const compact = ref(false);
 const filterDialog = ref<HTMLDialogElement>();
@@ -76,10 +77,47 @@ const loginFailed = new URLSearchParams(window.location.search).has(
   'login_error',
 );
 const { t, locale } = useStoreText();
+const context = useStoreContextStore();
 const catalog = useCatalog();
 const taxonomy = useTaxonomy();
-const { query, category, players, time, difficulty, sort, view } = storeToRefs(
-  useCatalogBrowseStore(),
+const branchGames = useBranchGames(() => context.stockBranch?.id);
+const {
+  query,
+  category,
+  players,
+  time,
+  difficulty,
+  soldHere,
+  inLibrary,
+  sort,
+  view,
+} = storeToRefs(useCatalogBrowseStore());
+watch(
+  () => [context.stockBranch?.id, Boolean(context.branch)] as const,
+  ([stockBranchId, hasBranch]) => {
+    if (!stockBranchId) {
+      soldHere.value = false;
+      inLibrary.value = false;
+    } else if (!hasBranch) {
+      inLibrary.value = false;
+    }
+  },
+);
+const soldGameIds = computed(
+  () =>
+    new Set(
+      (branchGames.data.value ?? [])
+        .filter((item) => item.saleEnabled && item.editions.length > 0)
+        .map((item) => item.game.id),
+    ),
+);
+const libraryGameIds = computed(
+  () =>
+    new Set(
+      (branchGames.data.value ?? [])
+        .filter((item) => item.rentalEnabled)
+        .map((item) => item.game.id),
+    ),
 );
 const games = computed(() => catalog.data.value ?? []);
 const categories = computed(() => [
@@ -90,9 +128,14 @@ const categoryLabel = (key: string) =>
 const failedImages = ref(new Set<string>());
 const activeCount = computed(
   () =>
-    [category.value, players.value, time.value, difficulty.value].filter(
-      Boolean,
-    ).length,
+    [
+      category.value,
+      players.value,
+      time.value,
+      difficulty.value,
+      context.stockBranch && soldHere.value,
+      context.branch && inLibrary.value,
+    ].filter(Boolean).length,
 );
 const filtered = computed(() => {
   const needle = query.value.trim().toLocaleLowerCase();
@@ -118,7 +161,14 @@ const filtered = computed(() => {
           game.setupMinutes != null &&
           game.playMinutesMax + game.teachMinutes + game.setupMinutes <=
             Number(time.value))) &&
-      (!difficulty.value || game.difficulty === difficulty.value.toUpperCase()),
+      (!difficulty.value ||
+        game.difficulty === difficulty.value.toUpperCase()) &&
+      (!context.stockBranch ||
+        !soldHere.value ||
+        soldGameIds.value.has(game.id)) &&
+      (!context.branch ||
+        !inLibrary.value ||
+        libraryGameIds.value.has(game.id)),
   );
   if (sort.value === 'name')
     result.sort((a, b) => a.name.localeCompare(b.name, locale.value));
@@ -132,6 +182,8 @@ function reset() {
   players.value = '';
   time.value = '';
   difficulty.value = '';
+  soldHere.value = false;
+  inLibrary.value = false;
 }
 function markImageFailed(url: string) {
   failedImages.value = new Set([...failedImages.value, url]);
@@ -431,6 +483,22 @@ function markImageFailed(url: string) {
           </button>
         </nav>
         <div class="table-filters">
+          <div
+            v-if="context.stockBranch"
+            class="branch-filters"
+            role="group"
+            :aria-label="t('At this store')"
+          >
+            <h2>{{ t('At this store') }}</h2>
+            <label class="branch-filter-check">
+              <input v-model="soldHere" type="checkbox" name="sold-here" />
+              <span>{{ t('Sold here') }}</span>
+            </label>
+            <label v-if="context.branch" class="branch-filter-check">
+              <input v-model="inLibrary" type="checkbox" name="in-library" />
+              <span>{{ t('In this library') }}</span>
+            </label>
+          </div>
           <h2>{{ t('For your table') }}</h2>
           <label
             >{{ t('Players')
@@ -660,6 +728,25 @@ h1 {
   padding-top: 23px;
   border-top: 1px solid var(--line);
   margin-top: 22px;
+}
+.branch-filters {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.table-filters label.branch-filter-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+}
+.branch-filter-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 .table-filters label {
   display: grid;

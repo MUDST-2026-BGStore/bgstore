@@ -108,6 +108,26 @@ test('remembers a chosen branch without putting prices on catalog cards', async 
   await page.reload();
   await expect(page.locator('.context-trigger')).toContainText('Ari');
   await expect(page.locator('.game-availability, .game-price')).toHaveCount(0);
+
+  const soldFilter = page.locator('.filters input[name="sold-here"]');
+  const libraryFilter = page.locator('.filters input[name="in-library"]');
+  await expect(soldFilter).toBeVisible();
+  await expect(libraryFilter).toBeVisible();
+  await libraryFilter.check();
+  await expect(page.locator('.game-card').first()).toBeVisible();
+  await libraryFilter.uncheck();
+
+  await page.getByRole('link', { name: 'View Azul', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Azul', exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Check other branches', exact: true })
+    .click();
+  const branchTable = page.locator('.branch-table');
+  await expect(branchTable).toContainText('Siam');
+  await expect(branchTable).toContainText('Ari');
+  await expect(branchTable).toContainText('Riverside');
 });
 
 test('keeps Thai and English catalog and product layouts usable from mobile to desktop', async ({
