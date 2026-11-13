@@ -1767,3 +1767,195 @@ test('wires branch games, pantry menu, rental copies, stock adjustments and orde
     .poll(() => fulfilledOrderIds)
     .toEqual(['1042abcd-0000-0000-0000-000000000000']);
 });
+
+test('loads live branch tables, reservations and rentals and checks out the rental on bill settlement', async ({
+  page,
+}) => {
+  const branchId = '00000000-0000-0000-0000-000000000001';
+  const tableId = '00000000-0000-4000-8000-000000000101';
+  const reservationId = '00000000-0000-4000-8000-000000000201';
+  const rentalId = '00000000-0000-4000-8000-000000000301';
+  const startedAt = new Date(Date.now() - 60 * 60_000).toISOString();
+  const endsAt = new Date(Date.now() + 60 * 60_000).toISOString();
+  const checkedOutRentals: string[] = [];
+
+  await page.route(`**/api/v1/branches/${branchId}/tables*`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: tableId,
+            branchId,
+            label: 'The Emerald Salon (Table 1)',
+            capacity: 4,
+            hourlyRate: { amountMinor: 30000 },
+            operationalStatus: 'IN_SERVICE',
+            state: 'OCCUPIED',
+          },
+        ],
+      }),
+    }),
+  );
+
+  await page.route(`**/api/v1/branches/${branchId}/reservations*`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: reservationId,
+            branchId,
+            tableId,
+            customer: {
+              kind: 'GUEST',
+              displayName: 'Khun Ananda',
+              phone: '0811112222',
+            },
+            source: 'ONLINE',
+            status: 'CHECKED_IN',
+            startsAt: startedAt,
+            endsAt,
+            partySize: 4,
+            games: [],
+            tableHourlyRate: { amountMinor: 30000 },
+            createdAt: startedAt,
+            createdBySubject: 'cust-1',
+            checkedInAt: startedAt,
+            rentalId,
+          },
+        ],
+      }),
+    }),
+  );
+
+  await page.route(`**/api/v1/branches/${branchId}/rentals**`, async (route) => {
+    const url = new URL(route.request().url());
+    if (
+      route.request().method() === 'POST' &&
+      url.pathname.endsWith(`/rentals/${rentalId}/check-out`)
+    ) {
+      checkedOutRentals.push(rentalId);
+      const endedAt = new Date().toISOString();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          reservation: {
+            id: reservationId,
+            branchId,
+            tableId,
+            customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+            source: 'ONLINE',
+            status: 'COMPLETED',
+            startsAt: startedAt,
+            endsAt,
+            partySize: 4,
+            games: [],
+            tableHourlyRate: { amountMinor: 30000 },
+            createdAt: startedAt,
+            createdBySubject: 'cust-1',
+            checkedInAt: startedAt,
+            completedAt: endedAt,
+            rentalId,
+          },
+          rental: {
+            id: rentalId,
+            branchId,
+            reservationId,
+            tableId,
+            customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+            status: 'COMPLETED',
+            startedAt,
+            plannedEndsAt: endsAt,
+            endedAt,
+            checkedInBySubject: 'staff-1',
+            checkedOutBySubject: 'staff-1',
+            billableHours: 1,
+            charges: [
+              {
+                kind: 'TABLE',
+                quantity: 1,
+                unitHourlyRate: { amountMinor: 30000 },
+                billableHours: 1,
+                lineTotal: { amountMinor: 30000 },
+              },
+            ],
+            total: { amountMinor: 30000 },
+          },
+        }),
+      });
+      return;
+    }
+
+    if (url.pathname.endsWith(`/rentals/${rentalId}`)) {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: rentalId,
+          branchId,
+          reservationId,
+          tableId,
+          customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+          status: 'ACTIVE',
+          startedAt,
+          plannedEndsAt: endsAt,
+          checkedInBySubject: 'staff-1',
+          charges: [
+            {
+              kind: 'TABLE',
+              quantity: 1,
+              unitHourlyRate: { amountMinor: 30000 },
+            },
+          ],
+        }),
+      });
+      return;
+    }
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: rentalId,
+            branchId,
+            reservationId,
+            tableId,
+            customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+            status: 'ACTIVE',
+            startedAt,
+            plannedEndsAt: endsAt,
+            checkedInBySubject: 'staff-1',
+            charges: [
+              {
+                kind: 'TABLE',
+                quantity: 1,
+                unitHourlyRate: { amountMinor: 30000 },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.goto('/workspace/sessions');
+  await expect(page.getByText('Khun Ananda').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Settle bill' }).first().click();
+
+  const dialog = page.getByRole('dialog', {
+    name: 'Table Session Bill',
+    exact: true,
+  });
+  await expect(dialog).toBeVisible();
+  await dialog
+    .getByRole('button', { name: 'Settle Bill & Complete Session ✓' })
+    .click();
+
+  await expect.poll(() => checkedOutRentals).toEqual([rentalId]);
+});
