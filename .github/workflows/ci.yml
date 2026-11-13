@@ -1,0 +1,63 @@
+# Fast checks on every commit pushed to any branch (and on pull requests from forks,
+# which do not trigger push events here). Nothing here needs Docker.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web:
+    name: Web, contract and dead code
+    # Same-repo pull requests are already covered by the push run.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+        with:
+          install_args: node pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Check formatting
+        run: pnpm format:check
+      - name: Lint the OpenAPI contract
+        run: pnpm lint:contract
+      - name: Lint, typecheck and unit/property tests
+        run: pnpm nx run-many -t lint typecheck test --exclude=api --output-style=static
+      - name: Find unused files and dependencies
+        run: pnpm knip
+      - name: Build the web app
+        run: pnpm nx build web --output-style=static
+
+  api:
+    name: API unit and property tests
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: Install dependencies
+        # The Gradle build bundles the OpenAPI contract with Redocly from node_modules.
+        run: pnpm install --frozen-lockfile
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Check formatting and run tests without containers
+        working-directory: apps/api
+        run: ./gradlew spotlessCheck test -PskipIntegration --console=plain
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-unit-reports
+          retention-days: 14
+          path: apps/api/build/reports/tests

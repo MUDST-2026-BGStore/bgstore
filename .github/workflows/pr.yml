@@ -1,0 +1,99 @@
+# Slower checks that need Docker: on pull requests, on main, nightly, and on demand.
+name: Integration
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 19 * * *' # 02:00 Bangkok
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: integration-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api-integration:
+    name: API integration tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Run all API checks (Testcontainers, module boundaries, user maintenance)
+        working-directory: apps/api
+        run: ./gradlew check --console=plain
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-integration-reports
+          retention-days: 14
+          path: apps/api/build/reports/tests
+
+  e2e:
+    name: Full-stack end-to-end tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      COMPOSE: docker compose --env-file .env -f deploy/docker/compose/compose.yaml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v2
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Generate local credentials
+        run: node tools/configure.mjs
+      - name: Start PostgreSQL, Valkey, Keycloak and Mailpit
+        run: |
+          $COMPOSE up -d --wait --wait-timeout 300 postgres valkey keycloak mailpit
+          node tools/apply-keycloak-theme.mjs
+      - name: Start the API (applies migrations)
+        run: |
+          nohup node tools/run-api.mjs > api.log 2>&1 &
+          for _ in $(seq 1 150); do
+            curl -fsS http://localhost:8080/api/auth/session > /dev/null && exit 0
+            sleep 2
+          done
+          tail -n 200 api.log
+          exit 1
+      - name: Seed reference data and the test account
+        run: node tools/seed-dev.mjs
+      - name: Start the web app
+        run: |
+          nohup pnpm nx serve web --output-style=static > web.log 2>&1 &
+          for _ in $(seq 1 90); do
+            curl -fsS http://localhost:5173 > /dev/null && exit 0
+            sleep 2
+          done
+          tail -n 200 web.log
+          exit 1
+      - name: Install Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run Playwright (journeys and accessibility)
+        run: |
+          set -a; . ./.env; set +a
+          pnpm exec playwright test -c apps/web-e2e/playwright.config.mts
+      - name: Collect service logs
+        if: failure()
+        run: $COMPOSE logs --no-color > compose.log
+      - name: Upload report and logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          retention-days: 14
+          path: |
+            apps/web-e2e/playwright-report
+            apps/web-e2e/test-results
+            api.log
+            web.log
+            compose.log
