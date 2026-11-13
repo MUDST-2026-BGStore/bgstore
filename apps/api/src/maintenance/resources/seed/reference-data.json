@@ -3,7 +3,8 @@
     {
       "key": "siam",
       "name": "Siam",
-      "address": "483 Siam Square Soi 7, Pathum Wan, Bangkok 10330"
+      "address": "483 Siam Square Soi 7, Pathum Wan, Bangkok 10330",
+      "fulfillsDelivery": true
     },
     {
       "key": "ari",
@@ -590,5 +591,299 @@
         "seats": 6
       }
     ]
+  },
+  "menuItems": [
+    {
+      "sku": "bev-coca-cola",
+      "category": "BEVERAGES",
+      "names": {
+        "en-US": "Coca-Cola Original (Can 325ml)",
+        "th-TH": "โคคา-โคล่า รสชาติต้นตำรับ (กระป๋อง 325 มล.)"
+      },
+      "descriptions": {
+        "en-US": "Chilled refreshing Coca-Cola can.",
+        "th-TH": "โค้กกระป๋องแช่เย็น รสชาติต้นตำรับ ซ่าสดชื่น"
+      },
+      "priceThb": 35,
+      "popular": true
+    },
+    {
+      "sku": "bev-coke-zero",
+      "category": "BEVERAGES",
+      "names": {
+        "en-US": "Coca-Cola Zero Sugar (Can 325ml)",
+        "th-TH": "โค้กไม่มีน้ำตาล ซีโร่ (กระป๋อง 325 มล.)"
+      },
+      "descriptions": {
+        "en-US": "Chilled zero-calorie, zero-sugar Coca-Cola can.",
+        "th-TH": "โค้กไม่มีน้ำตาล แช่เย็น ซ่าเต็มรสชาติ 0 แคลอรี"
+      },
+      "priceThb": 35,
+      "popular": true,
+      "dietary": "Vegetarian"
+    },
+    {
+      "sku": "bev-sprite",
+      "category": "BEVERAGES",
+      "names": {
+        "en-US": "Sprite Lemon-Lime (Can 325ml)",
+        "th-TH": "สไปรท์ เลมอน-ไลม์ (กระป๋อง 325 มล.)"
+      },
+      "descriptions": {
+        "en-US": "Crisp, refreshing lemon-lime sparkling soda.",
+        "th-TH": "สไปรท์กระป๋องแช่เย็น รสเลมอนไลม์ หวานซ่าชื่นใจ"
+      },
+      "priceThb": 35,
+      "popular": false,
+      "dietary": "Vegetarian"
+    },
+    {
+      "sku": "bev-singha-soda",
+      "category": "BEVERAGES",
+      "names": {
+        "en-US": "Singha Soda Water (Glass Bottle 325ml)",
+        "th-TH": "สิงห์โซดา (ขวดแก้ว 325 มล.)"
+      },
+      "descriptions": {
+        "en-US": "Extra carbonated chilled bubbly sparkling soda water.",
+        "th-TH": "โซดาสิงห์ขวดแก้วแช่เย็น ซ่าสะใจ สะอาดสดชื่น"
+      },
+      "priceThb": 25,
+      "popular": false,
+      "dietary": "Vegetarian"
+    },
+    {
+      "sku": "bev-oishi-lemon",
+      "category": "BEVERAGES",
+      "names": {
+        "en-US": "Oishi Green Tea Honey Lemon (Bottle 350ml)",
+        "th-TH": "ชาเขียวโออิชิ น้ำผึ้งผสมมะนาว (ขวด 350 มล.)"
+      },
+      "descriptions": {
+        "en-US": "Ready-to-drink chilled green tea with honey and lemon.",
+        "th-TH": "ชาเขียวพร้อมดื่ม รสน้ำผึ้งผสมมะนาว หอมหวานอมเปรี้ยว สดชื่น"
+      },
+      "priceThb": 30,
+      "popular": true,
+      "dietary": "Vegetarian"
+    },
+    {
+      "sku": "bev-oishi-genmai",
+      "category": "BEVERAGES",
+      "names": {
+        "en-US": "Oishi Japanese Genmaicha (Bottle 350ml)",
+        "th-TH": "ชาเขียวโออิชิ ข้าวคั่วญี่ปุ่น ไม่มีน้ำตาล (ขวด 350 มล.)"
+      },
+      "descriptions": {
+        "en-US": "Aromatic roasted rice unsweetened Japanese green tea.",
+        "th-TH": "ชาเขียวข้าวคั่วญี่ปุ่นแท้ กลิ่นหอมกรุ่น สูตรไม่มีน้ำตาล 0 แคลอรี"
+      },
+      "priceThb": 30,
+      "popular": false,
+      "dietary": "Vegetarian"
+    },
+    {
+      "sku": "bev-lipton-tea",
+      "category": "BEVERAGES",
+      "names": {
+        "en-US": "Lipton Iced Lemon Tea (Can 325ml)",
+        "th-TH": "ชามะนาวลิปตัน (กระป๋อง 325 มล.)"
+      },
+      "descriptions": {
+        "en-US": "Chilled iced black tea with zesty lemon flavor.",
+        "th-TH": "ชาดำปรุงสำเร็จรสมะนาว แช่เย็น ดับกระหายคลายร้อน"
+      },
+      "priceThb": 30,
+      "popular": false,
+      "dietary": "Vegetarian"
+    },
+    {
+      "sku": "bev-mineral-water",
+      "category": "BEVERAGES",
+      "names": {
+        "en-US": "Minéré Natural Mineral Water (Bottle 500ml)",
+        "th-TH": "น้ำแร่ธรรมชาติมิเนเร่ (ขวด 500 มล.)"
+      },
+      "descriptions": {
+        "en-US": "Pure bottled natural mineral water, crisp and chilled.",
+        "th-TH": "น้ำแร่ธรรมชาติ 100% สะอาด บริสุทธิ์ อุดมด้วยแร่ธาตุ แช่เย็น"
+      },
+      "priceThb": 20,
+      "popular": false,
+      "dietary": "Vegetarian"
+    },
+    {
+      "sku": "snack-lays-classic",
+      "category": "SNACKS",
+      "names": {
+        "en-US": "Lay's Classic Rock Salt (Big Bag 73g)",
+        "th-TH": "เลย์ รสมันฝรั่งแท้ คลาสสิก (ซองใหญ่ 73 กรัม)"
+      },
+      "descriptions": {
+        "en-US": "Crispy golden potato chips lightly seasoned with rock salt.",
+        "th-TH": "มันฝรั่งทอดกรอบแผ่นเรียบ รสมันฝรั่งแท้กลมกล่อม เค็มกำลังดี"
+      },
+      "priceThb": 40,
+      "popular": true,
+      "dietary": "Vegetarian"
+    },
+    {
+      "sku": "snack-lays-seaweed",
+      "category": "SNACKS",
+      "names": {
+        "en-US": "Lay's Nori Seaweed (Big Bag 73g)",
+        "th-TH": "เลย์ รสโนริสาหร่าย (ซองใหญ่ 73 กรัม)"
+      },
+      "descriptions": {
+        "en-US": "Ridged potato chips coated with roasted Japanese nori seaweed.",
+        "th-TH": "มันฝรั่งแท้ทอดกรอบแผ่นหยัก คลุกเคล้าสาหร่ายโนริสไตล์ญี่ปุ่นแท้ๆ"
+      },
+      "priceThb": 40,
+      "popular": true,
+      "dietary": "Vegetarian"
+    },
+    {
+      "sku": "snack-lays-bbq",
+      "category": "SNACKS",
+      "names": {
+        "en-US": "Lay's Extra Barbecue (Big Bag 73g)",
+        "th-TH": "เลย์ รสบาร์บีคิว (ซองใหญ่ 73 กรัม)"
+      },
+      "descriptions": {
+        "en-US": "Smoky, sweet, and savory flame-grilled barbecue seasoned chips.",
+        "th-TH": "มันฝรั่งทอดกรอบ รสบาร์บีคิวเข้มข้น หอมกลิ่นรมควัน ยอดนิยม"
+      },
+      "priceThb": 40,
+      "popular": false
+    },
+    {
+      "sku": "snack-pringles-sour-cream",
+      "category": "SNACKS",
+      "names": {
+        "en-US": "Pringles Sour Cream & Onion (Canister 107g)",
+        "th-TH": "พริงเกิลส์ รสซาวครีมและหัวหอม (กระป๋อง 107 กรัม)"
+      },
+      "descriptions": {
+        "en-US": "Iconic crisps in a canister. Clean, gamer-friendly snack.",
+        "th-TH": "มันฝรั่งทอดกรอบพริงเกิลส์ รสซาวครีมและหัวหอม ทานง่าย ไม่เลอะนิ้วมือขณะเล่นเกม"
+      },
+      "priceThb": 65,
+      "popular": true,
+      "dietary": "Vegetarian"
+    },
+    {
+      "sku": "snack-pocky-chocolate",
+      "category": "SNACKS",
+      "names": {
+        "en-US": "Glico Pocky Chocolate (Box 45g)",
+        "th-TH": "กูลิโกะ ป๊อกกี้ บิสกิตแท่งเคลือบช็อกโกแลต (กล่อง 45 กรัม)"
+      },
+      "descriptions": {
+        "en-US": "Crisp biscuit sticks dipped in rich chocolate cream.",
+        "th-TH": "บิสกิตแท่งกรอบเคลือบช็อกโกแลตนมเข้มข้น ทานสะดวก จับถนัดมือ"
+      },
+      "priceThb": 25,
+      "popular": true,
+      "dietary": "Vegetarian"
+    },
+    {
+      "sku": "snack-taro-fish",
+      "category": "SNACKS",
+      "names": {
+        "en-US": "Taro Crispy Fish Snack Original (50g)",
+        "th-TH": "ทาโร เส้นปลาอบ รสดั้งเดิม (50 กรัม)"
+      },
+      "descriptions": {
+        "en-US": "Baked seasoned white fish meat ribbons. High protein, non-greasy gaming snack.",
+        "th-TH": "ปลาสวรรค์อบทรงเครื่อง เส้นยาวเคี้ยวเพลิน มีโปรตีนสูง ไม่เลอะนิ้ว"
+      },
+      "priceThb": 35,
+      "popular": false
+    },
+    {
+      "sku": "snack-bento-squid",
+      "category": "SNACKS",
+      "names": {
+        "en-US": "Bento Mixed Squid Snack Sweet & Spicy (20g)",
+        "th-TH": "เบนโตะ ปลาหมึกผสมเนื้อปลาหมึก รสหวานและเผ็ดจัด (20 กรัม)"
+      },
+      "descriptions": {
+        "en-US": "Crispy spicy seasoned squid sheet, bold Thai snack flavor.",
+        "th-TH": "ปลาหมึกอบทรงเครื่องรสหวานและเผ็ดจัดจ้าน กรอบอร่อยถึงใจ"
+      },
+      "priceThb": 25,
+      "popular": false
+    },
+    {
+      "sku": "snack-tong-garden-nuts",
+      "category": "SNACKS",
+      "names": {
+        "en-US": "Tong Garden Salted Mixed Nuts (40g)",
+        "th-TH": "ทองการ์เด้น ถั่วรวมอบเกลือ (40 กรัม)"
+      },
+      "descriptions": {
+        "en-US": "Roasted cashew nuts, almonds, and salted peanuts.",
+        "th-TH": "ถั่วรวมอบเกลือ เม็ดมะม่วงหิมพานต์ อัลมอนด์ และถั่วลิสง กรุบกรอบเคี้ยวมันส์"
+      },
+      "priceThb": 35,
+      "popular": false,
+      "dietary": "Vegetarian"
+    }
+  ],
+  "pantryStock": {
+    "siam": {
+      "bev-coca-cola": 48,
+      "bev-coke-zero": 36,
+      "bev-sprite": 24,
+      "bev-singha-soda": 30,
+      "bev-oishi-lemon": 18,
+      "bev-oishi-genmai": 20,
+      "bev-lipton-tea": 5,
+      "bev-mineral-water": 20,
+      "snack-lays-classic": 20,
+      "snack-lays-seaweed": 20,
+      "snack-lays-bbq": 20,
+      "snack-pringles-sour-cream": 20,
+      "snack-pocky-chocolate": 20,
+      "snack-taro-fish": 20,
+      "snack-bento-squid": 20,
+      "snack-tong-garden-nuts": 20
+    },
+    "ari": {
+      "bev-coca-cola": 24,
+      "bev-coke-zero": 18,
+      "bev-sprite": 12,
+      "bev-singha-soda": 15,
+      "bev-oishi-lemon": 9,
+      "bev-oishi-genmai": 10,
+      "bev-lipton-tea": 3,
+      "bev-mineral-water": 10,
+      "snack-lays-classic": 10,
+      "snack-lays-seaweed": 10,
+      "snack-lays-bbq": 10,
+      "snack-pringles-sour-cream": 10,
+      "snack-pocky-chocolate": 10,
+      "snack-taro-fish": 10,
+      "snack-bento-squid": 10,
+      "snack-tong-garden-nuts": 10
+    },
+    "riverside": {
+      "bev-coca-cola": 36,
+      "bev-coke-zero": 27,
+      "bev-sprite": 18,
+      "bev-singha-soda": 23,
+      "bev-oishi-lemon": 14,
+      "bev-oishi-genmai": 15,
+      "bev-lipton-tea": 4,
+      "bev-mineral-water": 15,
+      "snack-lays-classic": 15,
+      "snack-lays-seaweed": 15,
+      "snack-lays-bbq": 15,
+      "snack-pringles-sour-cream": 15,
+      "snack-pocky-chocolate": 15,
+      "snack-taro-fish": 15,
+      "snack-bento-squid": 15,
+      "snack-tong-garden-nuts": 15
+    }
   }
 }

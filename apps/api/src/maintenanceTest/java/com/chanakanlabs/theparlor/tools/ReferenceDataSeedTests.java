@@ -87,6 +87,21 @@ class ReferenceDataSeedTests {
             assertThat(rows.getInt(1)).isEqualTo(16);
           }
           try (var rows =
+              statement.executeQuery(
+                  "SELECT count(*), count(*) FILTER (WHERE names -> 'th-TH' IS NOT NULL) FROM menu_items")) {
+            assertThat(rows.next()).isTrue();
+            assertThat(rows.getInt(1)).isEqualTo(16);
+            assertThat(rows.getInt(2)).isEqualTo(16);
+          }
+          try (var rows =
+              statement.executeQuery(
+                  "SELECT count(*), count(DISTINCT branch_id), sum(held) FROM branch_menu_stock")) {
+            assertThat(rows.next()).isTrue();
+            assertThat(rows.getInt(1)).isEqualTo(48);
+            assertThat(rows.getInt(2)).isEqualTo(3);
+            assertThat(rows.getInt(3)).isZero();
+          }
+          try (var rows =
               statement.executeQuery("SELECT count(*) FROM accounts WHERE first_name='Seed'")) {
             rows.next();
             assertThat(rows.getInt(1)).isEqualTo(1);

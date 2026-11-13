@@ -48,16 +48,19 @@ public final class ReferenceDataSeed {
     // One business-data reset; application accounts and identity links are retained.
     try (var reset = connection.createStatement()) {
       reset.executeUpdate(
-          "TRUNCATE branches, games, game_categories, game_mechanics, idempotency_keys RESTART IDENTITY CASCADE");
+          "TRUNCATE branches, games, game_categories, game_mechanics, menu_items, idempotency_keys "
+              + "RESTART IDENTITY CASCADE");
     }
 
     var branchIds = new LinkedHashMap<String, UUID>();
     try (var insert =
         connection.prepareStatement(
-            "INSERT INTO branches (name, address) VALUES (?, ?) RETURNING id")) {
+            "INSERT INTO branches (name, address, fulfills_delivery) VALUES (?, ?, ?) RETURNING id")) {
       for (var branch : data.path("branches")) {
         insert.setString(1, branch.path("name").asString(""));
         insert.setString(2, branch.path("address").asString(""));
+        // At most one branch ships delivery orders; the database enforces it.
+        insert.setBoolean(3, branch.path("fulfillsDelivery").asBoolean(false));
         branchIds.put(branch.path("key").asString(""), insertOne(insert));
       }
     }
@@ -252,15 +255,77 @@ public final class ReferenceDataSeed {
       }
     }
 
+    long pantryRows = seedPantry(connection, data, branchIds);
+
     System.out.printf(
-        "Seeded %d branches, %d games, %d branch games, %d branch editions, %d tables and "
-            + "%d rental copies.%n",
+        "Seeded %d branches, %d games, %d branch games, %d branch editions, %d tables, "
+            + "%d rental copies and %d pantry stock rows.%n",
         branchIds.size(),
         gameIds.size(),
         branchGames,
         branchEditions,
         branchIds.size() * 4L,
-        rentalCopies);
+        rentalCopies,
+        pantryRows);
+  }
+
+  /** The shared menu, then each branch's pantry stock with a matching ledger receipt. */
+  static long seedPantry(java.sql.Connection connection, JsonNode data, Map<String, UUID> branchIds)
+      throws Exception {
+    var menuIds = new HashMap<String, UUID>();
+    try (var insert =
+        connection.prepareStatement(
+            "INSERT INTO menu_items (sku, category, names, descriptions, price_minor, dietary, "
+                + "popular) VALUES (?, ?, ?::jsonb, ?::jsonb, ?, ?, ?) RETURNING id")) {
+      for (var item : data.path("menuItems")) {
+        var sku = item.path("sku").asString("");
+        var thb = item.path("priceThb");
+        if (!thb.isIntegralNumber() || thb.asLong() < 0)
+          throw new IllegalArgumentException("Missing or invalid menu price for " + sku);
+        insert.setString(1, sku);
+        insert.setString(2, item.path("category").asString(""));
+        insert.setString(3, JSON.writeValueAsString(item.path("names")));
+        insert.setString(4, JSON.writeValueAsString(item.path("descriptions")));
+        insert.setLong(5, Math.multiplyExact(thb.asLong(), 100L));
+        var dietary = item.path("dietary");
+        insert.setString(6, dietary.isMissingNode() ? null : dietary.asString(""));
+        insert.setBoolean(7, item.path("popular").asBoolean(false));
+        menuIds.put(sku, insertOne(insert));
+      }
+    }
+    long rows = 0;
+    try (var insertStock =
+            connection.prepareStatement(
+                "INSERT INTO branch_menu_stock (branch_id, menu_item_id, on_hand) VALUES (?, ?, ?)");
+        var insertAdjustment =
+            connection.prepareStatement(
+                "INSERT INTO menu_stock_adjustments (branch_id, menu_item_id, delta, reason, "
+                    + "operator_subject) VALUES (?, ?, ?, 'Development seed', 'development-seed')")) {
+      for (var branch : data.path("pantryStock").properties()) {
+        var branchId = branchIds.get(branch.getKey());
+        if (branchId == null)
+          throw new IllegalArgumentException("Unknown pantry branch: " + branch.getKey());
+        for (var entry : branch.getValue().properties()) {
+          var menuItemId = menuIds.get(entry.getKey());
+          if (menuItemId == null)
+            throw new IllegalArgumentException("Unknown pantry item: " + entry.getKey());
+          int quantity = entry.getValue().asInt();
+          if (quantity < 0)
+            throw new IllegalArgumentException("Negative pantry stock: " + entry.getKey());
+          insertStock.setObject(1, branchId);
+          insertStock.setObject(2, menuItemId);
+          insertStock.setInt(3, quantity);
+          rows += insertStock.executeUpdate();
+          if (quantity > 0) {
+            insertAdjustment.setObject(1, branchId);
+            insertAdjustment.setObject(2, menuItemId);
+            insertAdjustment.setInt(3, quantity);
+            insertAdjustment.executeUpdate();
+          }
+        }
+      }
+    }
+    return rows;
   }
 
   /** Fixture stock keys are `<gameKey>-<language>`; the language block may hold a dash. */
