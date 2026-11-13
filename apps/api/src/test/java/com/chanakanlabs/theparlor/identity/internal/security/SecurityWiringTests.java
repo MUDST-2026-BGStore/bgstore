@@ -6,11 +6,42 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 
 class SecurityWiringTests {
+  @Test
+  void passesOnlySupportedStorefrontLocalesToTheIdentityProvider() {
+    var registrations =
+        new SecurityConfig()
+            .clientRegistrations(
+                "https://identity.example/realms/theparlor",
+                "https://identity.example/realms/theparlor",
+                "secret",
+                "https://store.example");
+    var resolver = SecurityConfig.authorizationRequests(registrations);
+
+    for (var entry : Map.of("en-US", "en", "th-TH", "th").entrySet()) {
+      var request = new MockHttpServletRequest("GET", "/api/auth/login/keycloak");
+      request.setServletPath("/api/auth/login/keycloak");
+      request.setParameter("ui_locales", entry.getKey());
+
+      var authorization = resolver.resolve(request);
+      assertThat(authorization.getAdditionalParameters())
+          .containsEntry("ui_locales", entry.getValue());
+      assertThat(authorization.getAuthorizationRequestUri())
+          .contains("ui_locales=" + entry.getValue());
+    }
+
+    var unsupported = new MockHttpServletRequest("GET", "/api/auth/login/keycloak");
+    unsupported.setServletPath("/api/auth/login/keycloak");
+    unsupported.setParameter("ui_locales", "fr-FR");
+    assertThat(resolver.resolve(unsupported).getAdditionalParameters())
+        .doesNotContainKey("ui_locales");
+  }
+
   @Test
   void mapsOnlyRealmRolesFromTheValidatedIdToken() {
     var token =

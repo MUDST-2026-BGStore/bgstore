@@ -3,6 +3,10 @@
 // server; move the reservation and visit state to them. Food and QR payment fields
 // have no backend.
 import { ref, computed } from 'vue';
+import {
+  ACCOUNT_STORAGE_PREFIX,
+  registerProtectedState,
+} from '../../../shared/lib/protected-state';
 
 export interface PreOrderItemRecord {
   item: {
@@ -62,7 +66,7 @@ export interface CustomerReservation {
   inPlayOrders?: InPlayOrder[];
 }
 
-const STORAGE_KEY = 'theparlor_customer_reservations_v3';
+const STORAGE_KEY = `${ACCOUNT_STORAGE_PREFIX}workspace-sample-reservations`;
 
 function getInitialReservations(): CustomerReservation[] {
   const now = new Date();
@@ -322,7 +326,26 @@ function loadReservations(): CustomerReservation[] {
       return initial;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : getInitialReservations();
+    if (!Array.isArray(parsed)) return getInitialReservations();
+    let repaired = false;
+    const reservations = (parsed as CustomerReservation[]).map(
+      (reservation) => {
+        if (
+          reservation.status !== 'CHECKED_IN' ||
+          !reservation.checkedInAt ||
+          !Number.isFinite(Date.parse(reservation.startsAt)) ||
+          Date.parse(reservation.checkedInAt) >=
+            Date.parse(reservation.startsAt)
+        )
+          return reservation;
+        const booking = { ...reservation, status: 'CONFIRMED' as const };
+        delete booking.checkedInAt;
+        repaired = true;
+        return booking;
+      },
+    );
+    if (repaired) saveReservations(reservations);
+    return reservations;
   } catch {
     return getInitialReservations();
   }
@@ -337,6 +360,12 @@ function saveReservations(list: CustomerReservation[]): void {
 }
 
 const reservationsList = ref<CustomerReservation[]>(loadReservations());
+
+// Staff add walk-in names, phones and orders here; none of it may reach the next
+// account. The storage key is removed by its account prefix; this resets memory.
+registerProtectedState(() => {
+  reservationsList.value = getInitialReservations();
+});
 
 export function useCustomerReservationsStore() {
   function autoCheckNoShows() {

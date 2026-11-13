@@ -1,276 +1,184 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { PhoneNumberInput } from '@theparlor/ui';
 import { useRoute, RouterLink } from 'vue-router';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
+import { useQuery, useQueryClient } from '@tanstack/vue-query';
 import {
-  listBranches,
-  getBranchAvailability,
   createMyReservation,
-  type Branch,
+  createPaymentToken,
+  getBranchAvailability,
+  getBranchMenu,
+  listBranchGames,
+  type CreateReservationRequest,
+  type Reservation,
   type TableAvailability,
 } from '@theparlor/api-client';
 import { useAuthStore } from '../../../shared/stores/auth';
-import FoodMenuPicker from '../components/FoodMenuPicker.vue';
-import QrPaymentDialog from '../components/QrPaymentDialog.vue';
-import type { FoodOrderItem, ReservationPreOrder } from '../types';
-import { calculatePreOrderDiscount } from '../data/payment';
-import { FOOD_MENU_ITEMS } from '../data/food-menu';
-import { useStoreText } from '../../../shared/lib/store-text';
+import { useBranchDirectoryStore } from '../../../shared/stores/branch-directory';
 import { useStoreContextStore } from '../../../shared/stores/store-context';
-import { useCustomerReservationsStore } from '../data/reservations-store';
+import { useStoreText } from '../../../shared/lib/store-text';
+import { collectPages } from '../../../shared/lib/pagination';
+import { httpStatus } from '../../../shared/lib/api-errors';
+import FoodMenuPicker from '../components/FoodMenuPicker.vue';
+import CardPaymentFields from '../components/CardPaymentFields.vue';
+import type { FoodOrderItem } from '../types';
+import { toFoodMenuItem } from '../data/menu';
+import {
+  BRANCH_TIME_ZONE,
+  PRE_ORDER_WINDOW_DAYS,
+  branchDate,
+  branchInstant,
+  branchTime,
+  canPreOrder,
+  formatBaht,
+  plusHours,
+  preOrderPreview,
+} from '../data/booking';
 
 const route = useRoute();
 const auth = useAuthStore();
 const queryClient = useQueryClient();
 const { t, locale } = useStoreText();
-const { t: phoneText } = useI18n({ useScope: 'global' });
 const storeContext = useStoreContextStore();
-const reservationsStore = useCustomerReservationsStore();
+const directory = useBranchDirectoryStore();
 
-// Step wizard: 1 = Time & Branch, 2 = Table & Guest Info, 3 = Food & Drinks, 4 = Review & QR Payment, 5 = Receipt
+// 1 When & where, 2 Table, 3 Games, 4 Food & drinks, 5 Review & pay, 6 Confirmation
 const currentStep = ref<number>(1);
+const steps = [
+  'When & Where',
+  'Table',
+  'Games',
+  'Food & Drinks (-10%)',
+  'Review & Pay',
+];
 
-// Step 1 State: When & Where (Timestamp based)
+// Step 1: when and where, on the branch clock.
 const selectedBranchId = ref<string>('');
 const reservationDate = ref<string>('');
 const reservationStartTime = ref<string>('14:00');
+// Open the native picker from anywhere in the date and time fields.
 function openNativePicker(event: MouseEvent) {
-  const input = event.currentTarget as HTMLInputElement;
-  input.showPicker?.();
+  (event.currentTarget as HTMLInputElement).showPicker?.();
 }
 const reservationDurationHours = ref<number>(2);
 const partySize = ref<number>(4);
+const specialNotes = ref<string>('');
 
-const requestedGame = ref<string>('');
+/** A game the customer arrived from, preselected once it is known to be free. */
+const requestedGameId = ref<string>('');
 
-// Local today date string (YYYY-MM-DD)
-const todayDateString = computed(() => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-});
+const todayDateString = computed(() => branchDate(new Date()));
 
-// Initialize default date to tomorrow
 onMounted(() => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const y = tomorrow.getFullYear();
-  const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
-  const d = String(tomorrow.getDate()).padStart(2, '0');
-  reservationDate.value = `${y}-${m}-${d}`;
-
-  if (typeof route.query.branch === 'string' && route.query.branch) {
-    selectedBranchId.value = route.query.branch;
-  }
-
-  if (typeof route.query.game === 'string' && route.query.game) {
-    requestedGame.value = route.query.game;
-    specialNotes.value = t('Requesting {game} from the rental library', {
-      game: route.query.game,
-    });
-  }
+  void directory.load();
+  reservationDate.value = branchDate(new Date(Date.now() + 86_400_000));
+  if (typeof route.query.game === 'string')
+    requestedGameId.value = route.query.game;
 });
 
-// Load Branches
-const branchesQuery = useQuery({
-  queryKey: ['branches'],
-  queryFn: ({ signal }) => listBranches({}, undefined, signal),
-});
-
-const DEFAULT_BRANCHES: Branch[] = [
-  {
-    id: 'siam',
-    name: 'Siam',
-    address: '483 Siam Square Soi 7, Pathum Wan, Bangkok 10330',
-    phone: '02-123-4567',
-    openingHours: [],
-    active: true,
-    fulfillsDelivery: true,
-  },
-  {
-    id: 'ari',
-    name: 'Ari',
-    address: '71 Phahon Yothin Soi 7, Phaya Thai, Bangkok 10400',
-    phone: '02-234-5678',
-    openingHours: [],
-    active: true,
-    fulfillsDelivery: false,
-  },
-  {
-    id: 'riverside',
-    name: 'Riverside',
-    address: '2194 Charoen Krung 42, Bang Rak, Bangkok 10500',
-    phone: '02-345-6789',
-    openingHours: [],
-    active: true,
-    fulfillsDelivery: false,
-  },
-];
-
-const branches = computed<Branch[]>(() => {
-  const items = branchesQuery.data.value?.items;
-  return items && items.length > 0 ? items : DEFAULT_BRANCHES;
-});
+const branches = computed(() => directory.branches);
 
 let userSelectedBranch = false;
 
 function onBranchChange(event: Event) {
   userSelectedBranch = true;
-  const target = event.target as HTMLSelectElement;
-  selectedBranchId.value = target.value;
-  const found = branches.value.find((b) => b.id === target.value);
-  if (found) {
-    storeContext.select(found.id);
-  }
+  const id = (event.target as HTMLSelectElement).value;
+  selectedBranchId.value = id;
+  if (branches.value.some((b) => b.id === id)) storeContext.select(id);
 }
 
-// Auto-select branch matching website browsing preference or first branch
+// Preselect the branch from the link, else the shopper's chosen store, else the first.
 watch(
   [branches, () => storeContext.choice],
   ([list, contextChoice]) => {
     if (list.length === 0) return;
-    if (
-      userSelectedBranch &&
-      selectedBranchId.value &&
-      list.some((b) => b.id === selectedBranchId.value)
-    ) {
+    if (userSelectedBranch && list.some((b) => b.id === selectedBranchId.value))
       return;
-    }
-    if (route.query.branch) {
-      const qBranch = String(route.query.branch).toLowerCase();
-      const matched = list.find(
-        (b) => b.id === route.query.branch || b.name.toLowerCase() === qBranch,
-      );
-      if (matched) {
-        selectedBranchId.value = matched.id;
-        return;
-      }
-    }
-    // Match by user's selected branch from StoreContext
-    if (
-      contextChoice &&
-      contextChoice !== 'browse' &&
-      contextChoice !== 'online'
-    ) {
-      const matched = list.find(
-        (b) =>
-          b.name.toLowerCase() === contextChoice.toLowerCase() ||
-          b.id === contextChoice ||
-          (storeContext.branch &&
-            b.name.toLowerCase() === storeContext.branch.name.toLowerCase()),
-      );
-      if (matched) {
-        selectedBranchId.value = matched.id;
-        return;
-      }
-    }
-    if (
-      !selectedBranchId.value ||
-      !list.some((b) => b.id === selectedBranchId.value)
-    ) {
+    const wanted =
+      typeof route.query.branch === 'string' ? route.query.branch : undefined;
+    const fromLink = list.find(
+      (b) => b.id === wanted || b.name.toLowerCase() === wanted?.toLowerCase(),
+    );
+    const fromContext =
+      contextChoice && contextChoice !== 'browse' && contextChoice !== 'online'
+        ? list.find((b) => b.id === contextChoice)
+        : undefined;
+    const pick = fromLink ?? fromContext;
+    if (pick) selectedBranchId.value = pick.id;
+    else if (!list.some((b) => b.id === selectedBranchId.value))
       selectedBranchId.value = list[0].id;
-    }
   },
   { immediate: true },
 );
 
-const selectedBranch = computed(() =>
-  branches.value.find((b) => b.id === selectedBranchId.value),
+const selectedBranch = computed(() => directory.byId(selectedBranchId.value));
+
+const startTimestamp = computed(() =>
+  branchInstant(reservationDate.value, reservationStartTime.value),
+);
+const endTimestamp = computed(() =>
+  plusHours(startTimestamp.value, reservationDurationHours.value),
 );
 
-// Timestamps computation
-const startTimestamp = computed(() => {
-  if (!reservationDate.value || !reservationStartTime.value) return '';
-  const dt = new Date(
-    `${reservationDate.value}T${reservationStartTime.value}:00`,
-  );
-  return isNaN(dt.getTime()) ? '' : dt.toISOString();
-});
+const isDateInPast = computed(
+  () =>
+    !!reservationDate.value && reservationDate.value < todayDateString.value,
+);
 
-const endTimestamp = computed(() => {
-  if (!startTimestamp.value) return '';
-  const dt = new Date(startTimestamp.value);
-  dt.setHours(dt.getHours() + reservationDurationHours.value);
-  return dt.toISOString();
-});
-
-// Date and Time Validation: Cannot reserve before current date/time
-const isDateInPast = computed(() => {
-  if (!reservationDate.value) return false;
-  return reservationDate.value < todayDateString.value;
-});
-
+// Same-day bookings start at least 30 minutes from now.
 const isTimeInPast = computed(() => {
-  if (!reservationDate.value || !reservationStartTime.value) return false;
-  if (reservationDate.value > todayDateString.value) return false;
-  if (reservationDate.value < todayDateString.value) return true;
-  // If reserving for today, start time must be at least 30 minutes in advance
-  const [hrs, mins] = reservationStartTime.value.split(':').map(Number);
-  const selectedMinutes = hrs * 60 + mins;
-  const now = new Date();
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-  return selectedMinutes < nowMinutes + 30;
+  if (!startTimestamp.value || isDateInPast.value) return false;
+  return Date.parse(startTimestamp.value) < Date.now() + 30 * 60_000;
 });
 
 const isDateTimeInvalid = computed(
   () => isDateInPast.value || isTimeInPast.value,
 );
 
-// Glamorous human-friendly date and time (no raw timestamps in brief summary)
-const glamorousDateFormatted = computed(() => {
-  if (!reservationDate.value) return '';
-  const [y, m, d] = reservationDate.value.split('-').map(Number);
-  const dt = new Date(y, m - 1, d);
-  return dt.toLocaleDateString(locale.value === 'th-TH' ? 'th-TH' : 'en-US', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-});
-
-const glamorousTimeFormatted = computed(() => {
-  if (!reservationStartTime.value) return '';
-  const [hrs, mins] = reservationStartTime.value.split(':').map(Number);
-  const endHrs = hrs + reservationDurationHours.value;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(hrs)}:${pad(mins)} – ${pad(endHrs)}:${pad(mins)}`;
-});
-
-const formattedDateTimeInterval = computed(() => {
-  if (!startTimestamp.value || !endTimestamp.value) return '';
-  return `${glamorousDateFormatted.value}, ${glamorousTimeFormatted.value} (${t(reservationDurationHours.value === 1 ? '1 Hour' : '{count} Hours', { count: reservationDurationHours.value })})`;
-});
-
-// Step 2 State: Table & Customer Contact
-const selectedTable = ref<TableAvailability | null>(null);
-const customerName = ref<string>(auth.displayName || auth.username || '');
-const customerEmail = ref<string>(
-  auth.authenticated ? `${auth.username}@theparlor.test` : '',
+const dateLocale = computed(() =>
+  locale.value === 'th-TH' ? 'th-TH' : 'en-US',
 );
-const customerPhone = ref<string>('');
-const specialNotes = ref<string>('');
 
-const isPhoneValid = ref(false);
-const isPhoneDirty = ref(false);
-const phoneErrorMessage = computed(() => {
-  if (!isPhoneDirty.value || !customerPhone.value.trim()) return '';
-  return isPhoneValid.value ? '' : phoneText('phone.invalid');
-});
+const glamorousDateFormatted = computed(() =>
+  startTimestamp.value
+    ? new Date(startTimestamp.value).toLocaleDateString(dateLocale.value, {
+        timeZone: BRANCH_TIME_ZONE,
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      })
+    : '',
+);
 
-// Query real-time branch availability for tables
+const glamorousTimeFormatted = computed(() =>
+  startTimestamp.value
+    ? `${branchTime(new Date(startTimestamp.value))} – ${branchTime(new Date(endTimestamp.value))}`
+    : '',
+);
+
+const durationLabel = computed(() =>
+  t(reservationDurationHours.value === 1 ? '1 Hour' : '{count} Hours', {
+    count: reservationDurationHours.value,
+  }),
+);
+
+const formattedDateTimeInterval = computed(() =>
+  startTimestamp.value
+    ? `${glamorousDateFormatted.value}, ${glamorousTimeFormatted.value} (${durationLabel.value})`
+    : '',
+);
+
+// Live availability for the chosen window; nothing is assumed when it fails.
 const availabilityQuery = useQuery({
   queryKey: [
-    'branchAvailability',
+    'reservations',
+    'availability',
     selectedBranchId,
     startTimestamp,
     endTimestamp,
     partySize,
   ],
+  meta: { public: true },
   queryFn: ({ signal }) =>
     getBranchAvailability(
       selectedBranchId.value,
@@ -284,303 +192,330 @@ const availabilityQuery = useQuery({
     ),
   enabled: computed(
     () =>
+      currentStep.value >= 2 &&
+      currentStep.value <= 5 &&
       !!selectedBranchId.value &&
       !!startTimestamp.value &&
-      !!endTimestamp.value,
+      !isDateTimeInvalid.value,
   ),
 });
 
-const MOCK_TABLES_BY_BRANCH: Record<string, TableAvailability[]> = {
-  siam: [
-    {
-      tableId: 'siam-t1',
-      label: 'The Emerald Salon (Table 1)',
-      capacity: 4,
-      hourlyRate: { amountMinor: 15000 },
-      available: true,
-    },
-    {
-      tableId: 'siam-t2',
-      label: 'Grand Oak Salon (Table 2)',
-      capacity: 6,
-      hourlyRate: { amountMinor: 20000 },
-      available: true,
-    },
-    {
-      tableId: 'siam-t3',
-      label: 'The Royal Library (Table 3)',
-      capacity: 8,
-      hourlyRate: { amountMinor: 25000 },
-      available: true,
-    },
-    {
-      tableId: 'siam-t4',
-      label: 'Imperial Parlor Suite (VIP 1)',
-      capacity: 12,
-      hourlyRate: { amountMinor: 35000 },
-      available: true,
-    },
-    {
-      tableId: 'siam-t5',
-      label: 'Duelist Corner (Table 5)',
-      capacity: 2,
-      hourlyRate: { amountMinor: 10000 },
-      available: true,
-    },
-  ],
-  ari: [
-    {
-      tableId: 'ari-t1',
-      label: 'Ari Garden Veranda (Table 1)',
-      capacity: 4,
-      hourlyRate: { amountMinor: 15000 },
-      available: true,
-    },
-    {
-      tableId: 'ari-t2',
-      label: 'The Bohemian Alcove (Table 2)',
-      capacity: 6,
-      hourlyRate: { amountMinor: 20000 },
-      available: true,
-    },
-    {
-      tableId: 'ari-t3',
-      label: 'Ari Master Suite (Table 3)',
-      capacity: 10,
-      hourlyRate: { amountMinor: 30000 },
-      available: true,
-    },
-  ],
-  riverside: [
-    {
-      tableId: 'riv-t1',
-      label: 'Riverside Panorama (Table 1)',
-      capacity: 4,
-      hourlyRate: { amountMinor: 18000 },
-      available: true,
-    },
-    {
-      tableId: 'riv-t2',
-      label: 'Chao Phraya Lounge (Table 2)',
-      capacity: 6,
-      hourlyRate: { amountMinor: 24000 },
-      available: true,
-    },
-    {
-      tableId: 'riv-t3',
-      label: "The Captain's Quarters (VIP)",
-      capacity: 12,
-      hourlyRate: { amountMinor: 40000 },
-      available: true,
-    },
-  ],
-};
+const availability = computed(() => availabilityQuery.data.value);
 
-const availableTables = computed<TableAvailability[]>(() => {
-  const apiTables = availabilityQuery.data.value?.tables;
-  const list =
-    apiTables && apiTables.length > 0
-      ? apiTables
-      : (MOCK_TABLES_BY_BRANCH[selectedBranchId.value] ??
-        MOCK_TABLES_BY_BRANCH['siam']);
-  return list.filter((t) => t.available && t.capacity >= partySize.value);
-});
+// Step 2: table.
+const selectedTable = ref<TableAvailability | null>(null);
 
-// Auto-select first matching table when entering Step 2 or changing filter
-watch(
-  [availableTables, currentStep],
-  ([tables, step]) => {
-    if (step >= 2 && tables.length > 0) {
-      if (
-        !selectedTable.value ||
-        !tables.some((t) => t.tableId === selectedTable.value?.tableId)
-      ) {
-        selectedTable.value = tables[0];
-      }
-    }
-  },
-  { immediate: true },
+const availableTables = computed<TableAvailability[]>(() =>
+  (availability.value?.tables ?? []).filter(
+    (table) => table.available && table.capacity >= partySize.value,
+  ),
 );
 
-// Step 3 State: Food & Drinks Pre-Order (10% Discount)
+watch(availableTables, (tables) => {
+  if (!tables.some((table) => table.tableId === selectedTable.value?.tableId))
+    selectedTable.value = tables[0] ?? null;
+});
+
+// Step 3: games from the branch rental library that are free for the whole window.
+const branchGamesQuery = useQuery({
+  queryKey: ['reservations', 'branch-games', selectedBranchId],
+  meta: { public: true },
+  staleTime: 300_000,
+  queryFn: ({ signal }) =>
+    collectPages((cursor) =>
+      listBranchGames(
+        selectedBranchId.value,
+        { limit: 100, cursor },
+        undefined,
+        signal,
+      ),
+    ),
+  enabled: computed(
+    () =>
+      !!selectedBranchId.value &&
+      (currentStep.value >= 3 || !!requestedGameId.value),
+  ),
+});
+
+const gameNames = computed(
+  () =>
+    new Map(
+      (branchGamesQuery.data.value ?? []).map((entry) => [
+        entry.game.id,
+        entry.game.name,
+      ]),
+    ),
+);
+
+interface GameChoice {
+  gameId: string;
+  name: string;
+  available: number;
+  hourlyRateMinor: number;
+}
+
+const gameChoices = computed<GameChoice[]>(() =>
+  (availability.value?.games ?? [])
+    .filter((game) => game.rentalEnabled && game.availableQuantity > 0)
+    .map((game) => ({
+      gameId: game.gameId,
+      name: gameNames.value.get(game.gameId) ?? t('Game'),
+      available: game.availableQuantity,
+      hourlyRateMinor: game.hourlyRate?.amountMinor ?? 0,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name)),
+);
+
+/** Copies wanted per game ID; absent means not wanted. */
+const selectedGames = ref<Record<string, number>>({});
+
+function gameQuantity(gameId: string): number {
+  return selectedGames.value[gameId] ?? 0;
+}
+
+function setGameQuantity(game: GameChoice, quantity: number) {
+  const next = Math.max(0, Math.min(game.available, quantity));
+  const updated = { ...selectedGames.value };
+  if (next === 0) delete updated[game.gameId];
+  else updated[game.gameId] = next;
+  selectedGames.value = updated;
+}
+
+// Drop or trim games that are no longer free, and preselect a linked game once.
+watch(gameChoices, (choices) => {
+  const byId = new Map(choices.map((game) => [game.gameId, game]));
+  const kept: Record<string, number> = {};
+  for (const [gameId, quantity] of Object.entries(selectedGames.value)) {
+    const game = byId.get(gameId);
+    if (game) kept[gameId] = Math.min(quantity, game.available);
+  }
+  if (requestedGameId.value && byId.has(requestedGameId.value)) {
+    kept[requestedGameId.value] ??= 1;
+    requestedGameId.value = '';
+  }
+  selectedGames.value = kept;
+});
+
+const requestedGameName = computed(() =>
+  requestedGameId.value
+    ? gameNames.value.get(requestedGameId.value)
+    : undefined,
+);
+
+const chosenGames = computed(() =>
+  gameChoices.value
+    .filter((game) => gameQuantity(game.gameId) > 0)
+    .map((game) => ({ ...game, quantity: gameQuantity(game.gameId) })),
+);
+
+// Step 4: food and drinks, paid by card now and served at check-in.
+const preOrderAllowed = computed(() => canPreOrder(startTimestamp.value));
+
+const menuQuery = useQuery({
+  queryKey: ['reservations', 'menu', selectedBranchId],
+  meta: { public: true },
+  queryFn: ({ signal }) =>
+    getBranchMenu(selectedBranchId.value, undefined, signal),
+  enabled: computed(
+    () =>
+      !!selectedBranchId.value &&
+      preOrderAllowed.value &&
+      currentStep.value >= 4 &&
+      currentStep.value <= 5,
+  ),
+});
+
+const menuItems = computed(() =>
+  (menuQuery.data.value?.items ?? []).map(toFoodMenuItem),
+);
+
 const preOrderedFood = ref<FoodOrderItem[]>([]);
 
-const foodSubtotal = computed(() =>
-  preOrderedFood.value.reduce(
-    (sum, item) => sum + item.item.price * item.quantity,
-    0,
+watch(selectedBranchId, () => {
+  preOrderedFood.value = [];
+  selectedGames.value = {};
+});
+
+watch(preOrderAllowed, (allowed) => {
+  if (!allowed) preOrderedFood.value = [];
+});
+
+// Keep the pre-order within what the branch has left after a menu refresh.
+watch(menuItems, (items) => {
+  const byId = new Map(items.map((item) => [item.id, item]));
+  preOrderedFood.value = preOrderedFood.value
+    .map((line) => {
+      const item = byId.get(line.item.id);
+      return item
+        ? { item, quantity: Math.min(line.quantity, item.available ?? 0) }
+        : null;
+    })
+    .filter((line): line is FoodOrderItem => !!line && line.quantity > 0);
+});
+
+const hasFood = computed(() => preOrderedFood.value.length > 0);
+
+const foodPreview = computed(() =>
+  preOrderPreview(
+    preOrderedFood.value.reduce(
+      (sum, line) => sum + Math.round(line.item.price * 100) * line.quantity,
+      0,
+    ),
   ),
 );
 
-const foodDiscountInfo = computed(() =>
-  calculatePreOrderDiscount(foodSubtotal.value),
+// The visit itself is billed by the hour at the counter after check-out.
+const tableHourlyMinor = computed(
+  () => selectedTable.value?.hourlyRate.amountMinor ?? 0,
 );
 
-// Table Pricing Calculation
-const tableHourlyRate = computed(() => {
-  if (!selectedTable.value) return 150; // fallback default
-  const rate = selectedTable.value.hourlyRate;
-  if (!rate) return 150;
-  return 'amountMinor' in rate ? Number(rate.amountMinor) / 100 : 150;
-});
-
-const tableTotal = computed(
-  () => tableHourlyRate.value * reservationDurationHours.value,
+const visitEstimateMinor = computed(
+  () =>
+    (tableHourlyMinor.value +
+      chosenGames.value.reduce(
+        (sum, game) => sum + game.hourlyRateMinor * game.quantity,
+        0,
+      )) *
+    reservationDurationHours.value,
 );
 
-const payNowTotal = computed(() => foodDiscountInfo.value.discountedTotal);
-
-function confirmWithoutPayment() {
-  onPaymentCompleted({
-    reference: `CONFIRMED-${Date.now().toString().slice(-6)}`,
-    paidAtTimestamp: new Date().toISOString(),
-  });
-}
-
-// Step 4 State: QR Payment Modal & Confirmation
-const showQrPayment = ref(false);
-const paymentDetails = ref<ReservationPreOrder | null>(null);
-const createdReservation = ref<any>(null);
+// Step 5: book, authorizing the pre-order card first when there is food.
+const cardFields = ref<InstanceType<typeof CardPaymentFields> | null>(null);
 const isSubmitting = ref(false);
-const submissionError = ref<string>('');
+const submissionError = ref('');
+const createdReservation = ref<Reservation | null>(null);
 
-// Create reservation mutation
-const createMutation = useMutation({
-  mutationFn: async (payload: { branchId: string; data: any }) => {
-    return createMyReservation(payload.branchId, payload.data);
-  },
-  onSuccess: (data) => {
-    createdReservation.value = data;
-    currentStep.value = 5; // Receipt step
-    void queryClient.invalidateQueries({ queryKey: ['listMyReservations'] });
-  },
-  onError: (err: any) => {
-    submissionError.value =
-      err?.response?.data?.message ||
-      err?.message ||
-      'Failed to submit reservation.';
-  },
+/**
+ * One idempotency key, with the token it was sent with, per booking attempt. Both
+ * survive only a lost response, so a retry replays instead of booking twice; any
+ * answer from the server, or changing the booking, starts a fresh attempt.
+ */
+let attempt: { key: string; paymentToken?: string } | undefined;
+
+watch(currentStep, (step) => {
+  if (step < 5) attempt = undefined;
+  if (step !== 5) submissionError.value = '';
 });
 
-function proceedToPayment() {
-  submissionError.value = '';
-  showQrPayment.value = true;
+function failureMessage(error: unknown): string {
+  const status = httpStatus(error);
+  if (status === 402)
+    return t(
+      'The card was declined and nothing was booked. Check the details or use another card.',
+    );
+  if (status === 409)
+    return t(
+      'The table, a game or some food was just taken, or the visit is too far ahead for a pre-order. Review your choices and try again.',
+    );
+  if (status === 502)
+    return t(
+      'Card payment is unavailable right now. Please try again shortly.',
+    );
+  if (status === 400)
+    return t('Some booking details are not valid. Please check them.');
+  return t('The reservation could not be made. Please try again.');
 }
 
-async function onPaymentCompleted(paymentMeta: {
-  reference: string;
-  paidAtTimestamp: string;
-}) {
-  showQrPayment.value = false;
-  isSubmitting.value = true;
+async function confirmReservation() {
+  if (isSubmitting.value || !selectedTable.value) return;
   submissionError.value = '';
-
-  const hasFood = preOrderedFood.value.length > 0;
-  const preOrderPayload: ReservationPreOrder = {
-    items: preOrderedFood.value,
-    subtotal: foodSubtotal.value,
-    discountRate: 0.1,
-    discountAmount: foodDiscountInfo.value.discountAmount,
-    discountedTotal: foodDiscountInfo.value.discountedTotal,
-    paid: hasFood,
-    paymentMethod: 'promptpay_qr',
-    paymentReference: hasFood ? paymentMeta.reference : undefined,
-    paidAtTimestamp: hasFood ? paymentMeta.paidAtTimestamp : undefined,
-  };
-  paymentDetails.value = hasFood ? preOrderPayload : null;
-
-  // Format special notes to preserve customer notes and food pre-order details
-  let notesCombined = specialNotes.value ? `${specialNotes.value}\n` : '';
-  if (preOrderedFood.value.length > 0) {
-    const foodSummary = preOrderedFood.value
-      .map((f) => `${f.quantity}x ${f.item.name}`)
-      .join(', ');
-    notesCombined += `[Pre-order Paid QR (-10%)]: ${foodSummary} (Ref: ${paymentMeta.reference})`;
-  }
-
-  const reservationPayload = {
-    tableId: selectedTable.value?.tableId ?? '',
-    startsAt: startTimestamp.value,
-    endsAt: endTimestamp.value,
-    partySize: partySize.value,
-    games: [],
-    notes: notesCombined.trim() || undefined,
-  };
-
-  const newReservation = {
-    id: `res-thm-${Math.floor(1000 + Math.random() * 9000)}`,
-    branchId: selectedBranchId.value,
-    branchName: selectedBranch.value?.name ?? 'Siam',
-    tableId: selectedTable.value?.tableId ?? 'table-1',
-    tableLabel: selectedTable.value?.label ?? 'Table',
-    startsAt: startTimestamp.value,
-    endsAt: endTimestamp.value,
-    partySize: partySize.value,
-    status: 'CONFIRMED' as const,
-    customerName:
-      customerName.value.trim() ||
-      auth.displayName ||
-      auth.username ||
-      'Customer',
-    customerPhone: customerPhone.value.trim() || undefined,
-    notes: notesCombined.trim() || undefined,
-    createdAt: new Date().toISOString(),
-    preOrder: preOrderedFood.value.length > 0 ? preOrderPayload : undefined,
-  };
-
-  reservationsStore.addReservation(newReservation);
-  createdReservation.value = newReservation;
-  currentStep.value = 5;
-
+  const card = hasFood.value ? cardFields.value?.read() : undefined;
+  if (hasFood.value && !card) return;
+  isSubmitting.value = true;
   try {
-    await createMutation.mutateAsync({
-      branchId: selectedBranchId.value,
-      data: reservationPayload,
-    });
-  } catch (e) {
-    console.warn('Backend sync notice (saved to client store):', e);
+    if (!attempt) {
+      attempt = { key: crypto.randomUUID() };
+      if (card) {
+        attempt.paymentToken = (await createPaymentToken(card)).token;
+        cardFields.value?.clear();
+      }
+    }
+    const request: CreateReservationRequest = {
+      tableId: selectedTable.value.tableId,
+      startsAt: startTimestamp.value,
+      endsAt: endTimestamp.value,
+      partySize: partySize.value,
+      games: chosenGames.value.map(({ gameId, quantity }) => ({
+        gameId,
+        quantity,
+      })),
+      notes: specialNotes.value.trim() || undefined,
+      preOrder: attempt.paymentToken
+        ? {
+            items: preOrderedFood.value.map((line) => ({
+              menuItemId: line.item.id,
+              quantity: line.quantity,
+            })),
+            paymentToken: attempt.paymentToken,
+          }
+        : undefined,
+    };
+    createdReservation.value = await createMyReservation(
+      selectedBranchId.value,
+      request,
+      { headers: { 'Idempotency-Key': attempt.key } },
+    );
+    attempt = undefined;
+    currentStep.value = 6;
+    void queryClient.invalidateQueries({ queryKey: ['reservations'] });
+  } catch (error) {
+    const status = httpStatus(error);
+    // Any answer is definite: the token is spent or refused, and the key is done.
+    if (status !== undefined) attempt = undefined;
+    submissionError.value = failureMessage(error);
+    if (status === 409) {
+      void availabilityQuery.refetch();
+      void menuQuery.refetch();
+    }
   } finally {
     isSubmitting.value = false;
   }
 }
+
+function startOver() {
+  createdReservation.value = null;
+  preOrderedFood.value = [];
+  selectedGames.value = {};
+  specialNotes.value = '';
+  currentStep.value = 1;
+}
+
+const receiptGames = computed(() =>
+  (createdReservation.value?.games ?? []).map((game) => ({
+    name: gameNames.value.get(game.gameId) ?? t('Game'),
+    quantity: game.quantity,
+  })),
+);
+
+const receiptPaymentNote = computed(() => {
+  const status = createdReservation.value?.preOrder?.payment.status;
+  if (status === 'AUTHORIZED')
+    return t('Authorized on your card; charged when you check in.');
+  if (status === 'CAPTURED') return t('Charged');
+  return '';
+});
 </script>
 
 <template>
   <div class="reservation-page">
     <div class="container">
-      <!-- Stepper Indicator -->
-      <nav class="stepper-nav" aria-label="Reservation Progress">
-        <div
-          class="step-indicator"
-          :class="{ active: currentStep === 1, completed: currentStep > 1 }"
-        >
-          <span class="step-num"><span>1</span></span>
-          <span class="step-text">{{ t('When & Where') }}</span>
-        </div>
-        <div class="step-divider" />
-        <div
-          class="step-indicator"
-          :class="{ active: currentStep === 2, completed: currentStep > 2 }"
-        >
-          <span class="step-num"><span>2</span></span>
-          <span class="step-text">{{ t('Table & Info') }}</span>
-        </div>
-        <div class="step-divider" />
-        <div
-          class="step-indicator"
-          :class="{ active: currentStep === 3, completed: currentStep > 3 }"
-        >
-          <span class="step-num"><span>3</span></span>
-          <span class="step-text">{{ t('Food & Drinks (-10%)') }}</span>
-        </div>
-        <div class="step-divider" />
-        <div
-          class="step-indicator"
-          :class="{ active: currentStep === 4, completed: currentStep > 4 }"
-        >
-          <span class="step-num"><span>4</span></span>
-          <span class="step-text">{{ t('Review & Pay') }}</span>
-        </div>
+      <nav class="stepper-nav" :aria-label="t('Reservation progress')">
+        <template v-for="(label, index) in steps" :key="label">
+          <div v-if="index > 0" class="step-divider" />
+          <div
+            class="step-indicator"
+            :class="{
+              active: currentStep === index + 1,
+              completed: currentStep > index + 1,
+            }"
+            :aria-current="currentStep === index + 1 ? 'step' : undefined"
+          >
+            <span class="step-num"
+              ><span>{{ index + 1 }}</span></span
+            >
+            <span class="step-text">{{ t(label) }}</span>
+          </div>
+        </template>
       </nav>
 
       <Transition name="glam-step" mode="out-in">
@@ -659,7 +594,7 @@ async function onPaymentCompleted(paymentMeta: {
               }"
               class="btn btn-primary auth-signin-btn"
             >
-              <span>{{ t('Sign In / Register') }} →</span>
+              {{ t('Sign In / Register') }} →
             </RouterLink>
           </div>
 
@@ -676,7 +611,7 @@ async function onPaymentCompleted(paymentMeta: {
                 @change="onBranchChange"
               >
                 <option v-for="b in branches" :key="b.id" :value="b.id">
-                  {{ b.name }} — {{ b.address || 'Bangkok' }}
+                  {{ b.name }} — {{ b.address }}
                 </option>
               </select>
             </div>
@@ -903,7 +838,7 @@ async function onPaymentCompleted(paymentMeta: {
                 </div>
               </div>
 
-              <div v-if="requestedGame" class="summary-item game-item">
+              <div v-if="requestedGameName" class="summary-item game-item">
                 <span class="summary-icon">
                   <svg
                     class="gold-icon"
@@ -921,16 +856,16 @@ async function onPaymentCompleted(paymentMeta: {
                 </span>
                 <div>
                   <span class="summary-label">{{ t('Playing') }}</span>
-                  <strong class="summary-value">{{ requestedGame }}</strong>
+                  <strong class="summary-value">{{ requestedGameName }}</strong>
                 </div>
               </div>
             </div>
           </div>
 
           <div class="wizard-actions">
-            <RouterLink :to="{ name: 'HomeIndex' }" class="btn btn-secondary">
-              <span>{{ t('Cancel') }}</span>
-            </RouterLink>
+            <RouterLink :to="{ name: 'HomeIndex' }" class="btn btn-secondary">{{
+              t('Cancel')
+            }}</RouterLink>
             <button
               type="button"
               class="btn btn-primary"
@@ -951,7 +886,7 @@ async function onPaymentCompleted(paymentMeta: {
           </div>
         </section>
 
-        <!-- STEP 2: Table Selection & Guest Info -->
+        <!-- STEP 2: Table -->
         <section
           v-else-if="currentStep === 2"
           key="step2"
@@ -960,48 +895,58 @@ async function onPaymentCompleted(paymentMeta: {
         >
           <div class="step-header">
             <h2 id="step2-heading" class="step-title">
-              {{ t('Select Table & Guest Details') }}
+              {{ t('Choose Your Table') }}
             </h2>
             <p class="step-subtitle">
               {{
-                t('Available tables at {branch} for {count} players.', {
-                  branch: t(selectedBranch?.name ?? ''),
+                t('Tables free at {branch} for {count} players, {when}.', {
+                  branch: selectedBranch?.name ?? '',
                   count: partySize,
+                  when: formattedDateTimeInterval,
                 })
               }}
             </p>
           </div>
 
-          <!-- Tables loading or empty -->
-          <div v-if="availabilityQuery.isLoading.value" class="state-message">
-            Checking table availability at {{ selectedBranch?.name }}…
+          <div
+            v-if="availabilityQuery.isLoading.value"
+            class="state-message"
+            role="status"
+          >
+            {{ t('Checking table availability…') }}
+          </div>
+
+          <div
+            v-else-if="availabilityQuery.isError.value"
+            class="empty-tables-box"
+            role="alert"
+          >
+            <p class="empty-title">
+              {{ t('Availability could not be loaded.') }}
+            </p>
+            <button
+              type="button"
+              class="btn btn-secondary"
+              @click="availabilityQuery.refetch()"
+            >
+              {{ t('Try again') }}
+            </button>
           </div>
 
           <div
             v-else-if="availableTables.length === 0"
             class="empty-tables-box"
           >
-            <svg
-              class="gold-icon empty-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
             <p class="empty-title">
-              {{ t('No tables available for this time slot') }}
+              {{
+                availability?.withinOpeningHours === false
+                  ? t('The branch is closed for part of this time.')
+                  : t('No tables available for this time slot')
+              }}
             </p>
             <p class="empty-sub">
               {{
-                t(
-                  'All tables are booked or out of operational hours for this party size. Try adjusting the time or branch.',
-                )
+                t('Try another time, a shorter visit or a different branch.')
               }}
             </p>
             <button
@@ -1009,83 +954,39 @@ async function onPaymentCompleted(paymentMeta: {
               class="btn btn-secondary"
               @click="currentStep = 1"
             >
-              <span>{{ t('← Change Time or Branch') }}</span>
+              {{ t('← Change Time or Branch') }}
             </button>
           </div>
 
-          <!-- Table selection cards with Gold Table Icon and translated labels -->
-          <div v-else class="tables-grid">
-            <div
+          <div v-else class="tables-grid" role="radiogroup">
+            <label
               v-for="table in availableTables"
               :key="table.tableId"
               class="table-card"
               :class="{
                 'is-selected': selectedTable?.tableId === table.tableId,
               }"
-              @click="selectedTable = table"
             >
               <div class="table-top">
                 <div class="table-label-row">
-                  <svg
-                    class="gold-icon table-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <rect x="3" y="6" width="18" height="5" rx="1.5"></rect>
-                    <line x1="6" y1="11" x2="6" y2="19"></line>
-                    <line x1="18" y1="11" x2="18" y2="19"></line>
-                    <line x1="4" y1="14" x2="20" y2="14"></line>
-                  </svg>
-                  <span class="table-label">{{ t(table.label) }}</span>
+                  <span class="table-label">{{ table.label }}</span>
                 </div>
                 <span class="capacity-pill">
-                  <svg
-                    class="gold-icon micro"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                    <circle cx="9" cy="7" r="4"></circle>
-                  </svg>
                   {{ t('Up to {count} seats', { count: table.capacity }) }}
                 </span>
               </div>
               <div class="table-rate">
-                <span class="rate-num"
-                  >฿{{
-                    (table.hourlyRate as any)?.amountMinor
-                      ? (table.hourlyRate as any).amountMinor / 100
-                      : 150
-                  }}</span
-                >
+                <span class="rate-num">{{
+                  formatBaht(table.hourlyRate.amountMinor)
+                }}</span>
                 <span class="rate-unit">{{ t('/ hour') }}</span>
-              </div>
-              <div class="table-subtotal">
-                {{
-                  t('{amount} for {hours} hrs', {
-                    amount: (
-                      ((table.hourlyRate as any)?.amountMinor
-                        ? (table.hourlyRate as any).amountMinor / 100
-                        : 150) * reservationDurationHours
-                    ).toFixed(0),
-                    hours: reservationDurationHours,
-                  })
-                }}
               </div>
               <div class="select-radio">
                 <input
+                  v-model="selectedTable"
                   type="radio"
                   name="selected_table"
-                  :checked="selectedTable?.tableId === table.tableId"
-                  aria-label="Select table"
+                  :value="table"
                 />
                 <span>{{
                   selectedTable?.tableId === table.tableId
@@ -1093,84 +994,21 @@ async function onPaymentCompleted(paymentMeta: {
                     : t('Select Table')
                 }}</span>
               </div>
-            </div>
+            </label>
           </div>
 
-          <!-- Contact Information (With international phone support) -->
           <div class="contact-section">
-            <h3 class="section-title">{{ t('Guest Contact Information') }}</h3>
-            <div class="form-grid">
-              <div class="form-field">
-                <label for="cust-name" class="form-label">{{
-                  t('Full Name')
-                }}</label>
-                <input
-                  id="cust-name"
-                  v-model="customerName"
-                  type="text"
-                  placeholder="Jane Doe"
-                  class="form-input"
-                  required
-                />
-              </div>
-
-              <div class="form-field">
-                <label for="cust-email" class="form-label">{{
-                  t('Email Address')
-                }}</label>
-                <input
-                  id="cust-email"
-                  v-model="customerEmail"
-                  type="email"
-                  placeholder="jane@example.com"
-                  class="form-input"
-                  required
-                />
-              </div>
-
-              <!-- International Phone: Flexible country code + number -->
-              <div class="form-field full-width">
-                <label for="cust-phone" class="form-label">
-                  {{ t('Phone Number') }}
-                </label>
-                <PhoneNumberInput
-                  id="cust-phone"
-                  v-model="customerPhone"
-                  class="reservation-phone"
-                  :class="{ 'is-invalid': !!phoneErrorMessage }"
-                  required
-                  @validity="isPhoneValid = $event"
-                  @blur="isPhoneDirty = true"
-                  @update:model-value="isPhoneDirty = true"
-                />
-                <small
-                  v-if="phoneErrorMessage"
-                  class="phone-error-hint"
-                  role="alert"
-                >
-                  {{ phoneErrorMessage }}
-                </small>
-                <small v-else class="field-hint">
-                  {{
-                    t(
-                      'You can select any country code or type international numbers directly.',
-                    )
-                  }}
-                </small>
-              </div>
-
-              <div class="form-field full-width">
-                <label for="cust-notes" class="form-label">{{
-                  t('Special Requests or Board Game Preferences (Optional)')
-                }}</label>
-                <textarea
-                  id="cust-notes"
-                  v-model="specialNotes"
-                  rows="2"
-                  placeholder="High chair, birthday celebration, game teaching preference…"
-                  class="form-input"
-                />
-              </div>
+            <div class="form-field full-width">
+              <label for="cust-notes" class="form-label">{{
+                t('Special requests (optional)')
+              }}</label>
+              <textarea
+                id="cust-notes"
+                v-model="specialNotes"
+                rows="2"
+                maxlength="1000"
+                class="form-input"
+              />
             </div>
           </div>
 
@@ -1180,22 +1018,20 @@ async function onPaymentCompleted(paymentMeta: {
               class="btn btn-secondary"
               @click="currentStep = 1"
             >
-              <span>{{ t('← Back') }}</span>
+              {{ t('← Back') }}
             </button>
             <button
               type="button"
               class="btn btn-primary"
-              :disabled="
-                !selectedTable || !customerName.trim() || !isPhoneValid
-              "
+              :disabled="!selectedTable"
               @click="currentStep = 3"
             >
-              <span>{{ t('Add Food & Drinks (-10%) →') }}</span>
+              {{ t('Choose Games →') }}
             </button>
           </div>
         </section>
 
-        <!-- STEP 3: Food & Drinks Catalog (10% Discount & In-play note) -->
+        <!-- STEP 3: Games free for the whole visit -->
         <section
           v-else-if="currentStep === 3"
           key="step3"
@@ -1204,18 +1040,76 @@ async function onPaymentCompleted(paymentMeta: {
         >
           <div class="step-header">
             <h2 id="step3-heading" class="step-title">
-              {{ t('Pre-Order Food & Drinks (10% Discount)') }}
+              {{ t('Reserve Games') }}
             </h2>
             <p class="step-subtitle">
               {{
                 t(
-                  'Pre-order bottled drinks and packaged snacks to enjoy a special 10% reservation discount. You can also order more snacks directly from your table while playing!',
+                  'Copies free for your whole visit. Reserved copies wait at your table; you can also pick games when you arrive.',
                 )
               }}
             </p>
           </div>
 
-          <FoodMenuPicker v-model="preOrderedFood" :items="FOOD_MENU_ITEMS" />
+          <div
+            v-if="
+              availabilityQuery.isLoading.value ||
+              branchGamesQuery.isLoading.value
+            "
+            class="state-message"
+            role="status"
+          >
+            {{ t('Checking game availability…') }}
+          </div>
+          <div v-else-if="gameChoices.length === 0" class="state-message">
+            {{ t('No games can be reserved for this time.') }}
+          </div>
+          <ul v-else class="games-list">
+            <li
+              v-for="game in gameChoices"
+              :key="game.gameId"
+              class="game-row"
+              :class="{ 'is-selected': gameQuantity(game.gameId) > 0 }"
+            >
+              <div class="game-info">
+                <span class="game-name">{{ game.name }}</span>
+                <span class="game-meta">
+                  {{
+                    t('{count} free · {rate} per copy per hour', {
+                      count: game.available,
+                      rate: formatBaht(game.hourlyRateMinor),
+                    })
+                  }}
+                </span>
+              </div>
+              <div class="game-stepper">
+                <button
+                  v-if="gameQuantity(game.gameId) > 0"
+                  type="button"
+                  class="step-btn"
+                  :aria-label="t('Fewer copies of {game}', { game: game.name })"
+                  @click="setGameQuantity(game, gameQuantity(game.gameId) - 1)"
+                >
+                  −
+                </button>
+                <span
+                  v-if="gameQuantity(game.gameId) > 0"
+                  class="qty-count"
+                  aria-live="polite"
+                  >{{ gameQuantity(game.gameId) }}</span
+                >
+                <button
+                  type="button"
+                  class="step-btn"
+                  :disabled="gameQuantity(game.gameId) >= game.available"
+                  :aria-label="t('Reserve {game}', { game: game.name })"
+                  @click="setGameQuantity(game, gameQuantity(game.gameId) + 1)"
+                >
+                  {{ gameQuantity(game.gameId) > 0 ? '+' : t('+ Reserve') }}
+                </button>
+              </div>
+            </li>
+          </ul>
 
           <div class="wizard-actions">
             <button
@@ -1223,19 +1117,19 @@ async function onPaymentCompleted(paymentMeta: {
               class="btn btn-secondary"
               @click="currentStep = 2"
             >
-              <span>{{ t('← Back to Table') }}</span>
+              {{ t('← Back to Table') }}
             </button>
             <button
               type="button"
               class="btn btn-primary"
               @click="currentStep = 4"
             >
-              <span>{{ t('Proceed to Review & Pay →') }}</span>
+              {{ t('Add Food & Drinks (-10%) →') }}
             </button>
           </div>
         </section>
 
-        <!-- STEP 4: Review Summary & QR Code Payment -->
+        <!-- STEP 4: Food & drinks -->
         <section
           v-else-if="currentStep === 4"
           key="step4"
@@ -1244,28 +1138,92 @@ async function onPaymentCompleted(paymentMeta: {
         >
           <div class="step-header">
             <h2 id="step4-heading" class="step-title">
-              {{ t('Review & Confirm Reservation') }}
+              {{ t('Pre-Order Food & Drinks (10% Discount)') }}
             </h2>
             <p class="step-subtitle">
-              Confirm your table reservation details and complete the PromptPay
-              QR transfer to lock in your booking.
+              {{
+                t(
+                  'Pre-ordered food and drinks are 10% off. Your card is authorized when you book and charged when you check in; cancelling releases it.',
+                )
+              }}
             </p>
           </div>
 
+          <div v-if="!preOrderAllowed" class="state-message">
+            {{
+              t(
+                'Food can be pre-ordered for visits within {days} days. You can order at the counter during this visit.',
+                { days: PRE_ORDER_WINDOW_DAYS },
+              )
+            }}
+          </div>
+          <div
+            v-else-if="menuQuery.isLoading.value"
+            class="state-message"
+            role="status"
+          >
+            {{ t('Loading the menu…') }}
+          </div>
+          <div
+            v-else-if="menuQuery.isError.value"
+            class="state-message"
+            role="alert"
+          >
+            {{ t('The menu could not be loaded.') }}
+            <button
+              type="button"
+              class="btn btn-secondary"
+              @click="menuQuery.refetch()"
+            >
+              {{ t('Try again') }}
+            </button>
+          </div>
+          <FoodMenuPicker v-else v-model="preOrderedFood" :items="menuItems" />
+
+          <div class="wizard-actions">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              @click="currentStep = 3"
+            >
+              {{ t('← Back to Games') }}
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              @click="currentStep = 5"
+            >
+              {{ t('Review →') }}
+            </button>
+          </div>
+        </section>
+
+        <!-- STEP 5: Review and book -->
+        <section
+          v-else-if="currentStep === 5"
+          key="step5"
+          class="wizard-step"
+          aria-labelledby="step5-heading"
+        >
+          <div class="step-header">
+            <h2 id="step5-heading" class="step-title">
+              {{ t('Review & Confirm Reservation') }}
+            </h2>
+          </div>
+
           <div class="review-grid">
-            <!-- Summary Details -->
             <div class="review-card">
               <h3 class="card-heading">{{ t('Reservation Summary') }}</h3>
               <div class="review-row">
                 <span class="label">{{ t('Branch') }}:</span>
-                <span class="val">{{ t(selectedBranch?.name ?? '') }}</span>
+                <span class="val">{{ selectedBranch?.name }}</span>
               </div>
               <div class="review-row">
                 <span class="label">{{ t('Table') }}:</span>
                 <span class="val"
-                  >{{ t(selectedTable?.label ?? '') }} ({{
+                  >{{ selectedTable?.label }} ({{
                     t('Up to {count} seats', {
-                      count: selectedTable?.capacity || 4,
+                      count: selectedTable?.capacity ?? 0,
                     })
                   }})</span
                 >
@@ -1283,14 +1241,21 @@ async function onPaymentCompleted(paymentMeta: {
                 }}</span>
               </div>
               <div class="review-row">
-                <span class="label">{{ t('Guest') }}:</span>
-                <span class="val"
-                  >{{ customerName }} ({{ customerPhone }})</span
-                >
+                <span class="label">{{ t('Games') }}:</span>
+                <span class="val">{{
+                  chosenGames.length
+                    ? chosenGames
+                        .map((game) => `${game.quantity}× ${game.name}`)
+                        .join(', ')
+                    : t('Choose at the table')
+                }}</span>
+              </div>
+              <div v-if="specialNotes.trim()" class="review-row">
+                <span class="label">{{ t('Notes') }}:</span>
+                <span class="val">{{ specialNotes.trim() }}</span>
               </div>
 
-              <!-- Pre-ordered Food Summary -->
-              <div v-if="preOrderedFood.length > 0" class="food-summary-block">
+              <div v-if="hasFood" class="food-summary-block">
                 <h4 class="food-summary-title">
                   {{ t('Pre-Ordered Food & Drinks (10% Discount)') }}
                 </h4>
@@ -1300,118 +1265,92 @@ async function onPaymentCompleted(paymentMeta: {
                     :key="line.item.id"
                     class="food-item-line"
                   >
-                    <span>{{ line.quantity }}x {{ line.item.name }}</span>
-                    <span>฿{{ line.item.price * line.quantity }}</span>
+                    <span
+                      >{{ line.quantity }}×
+                      {{
+                        locale === 'th-TH' && line.item.nameTh
+                          ? line.item.nameTh
+                          : line.item.name
+                      }}</span
+                    >
+                    <span>{{
+                      formatBaht(
+                        Math.round(line.item.price * 100) * line.quantity,
+                      )
+                    }}</span>
                   </li>
                 </ul>
               </div>
-
-              <!-- In-game food purchase note with Gold Layout Icon -->
-              <div class="inplay-callout">
-                <span class="callout-icon">
-                  <svg
-                    class="gold-icon"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path
-                      d="M12 2v1M12 21v1M4.22 4.22l.71.71M18.36 18.36l.71.71M1 12h1M21 12h1M4.22 19.78l.71-.71M18.36 5.64l.71-.71"
-                    ></path>
-                    <circle cx="12" cy="12" r="5"></circle>
-                  </svg>
-                </span>
-                <p class="callout-text">
-                  <strong>{{ t('In-Play Ordering:') }}</strong>
-                  {{
-                    t(
-                      "Need more snacks or refills while playing? You can scan your table's menu code to order food and drinks directly to your table at any time during your visit.",
-                    )
-                  }}
-                </p>
-              </div>
             </div>
 
-            <!-- Price & Pay Action (Pay only pre-order food; table fee is paid at counter with staff) -->
             <div class="pricing-card">
               <h3 class="card-heading">{{ t('Payment Summary') }}</h3>
               <div class="cost-row">
                 <div>
-                  <span
-                    >{{ t('Table Fee') }} ({{ reservationDurationHours }} hrs @
-                    ฿{{ tableHourlyRate }}/hr)</span
-                  >
+                  <span>{{
+                    t('Table and games for {hours}', { hours: durationLabel })
+                  }}</span>
                   <span class="pay-counter-pill">{{
                     t('Pay at counter after session')
                   }}</span>
                 </div>
-                <span class="muted-val">฿{{ tableTotal }}</span>
+                <span class="muted-val">{{
+                  formatBaht(visitEstimateMinor)
+                }}</span>
               </div>
-              <div v-if="preOrderedFood.length > 0" class="cost-row">
-                <span>{{ t('Pre-ordered Food & Drinks') }}</span>
-                <span>฿{{ foodSubtotal }}</span>
-              </div>
-              <div
-                v-if="preOrderedFood.length > 0"
-                class="cost-row discount-row"
-              >
-                <span>{{ t('Pre-Order Discount (-10%)') }}</span>
-                <span class="discount-num"
-                  >-฿{{ foodDiscountInfo.discountAmount }}</span
-                >
-              </div>
+              <template v-if="hasFood">
+                <div class="cost-row">
+                  <span>{{ t('Pre-ordered Food & Drinks') }}</span>
+                  <span>{{ formatBaht(foodPreview.subtotalMinor) }}</span>
+                </div>
+                <div class="cost-row discount-row">
+                  <span>{{ t('Pre-Order Discount (-10%)') }}</span>
+                  <span class="discount-num"
+                    >-{{ formatBaht(foodPreview.discountMinor) }}</span
+                  >
+                </div>
+              </template>
               <div class="grand-total-row">
                 <div>
-                  <span>{{ t('Total Due Now') }}</span>
+                  <span>{{ t('On your card now') }}</span>
                   <small class="due-sub-text">{{
-                    preOrderedFood.length > 0
-                      ? t('Pre-ordered food with 10% discount')
-                      : t('Table fee paid at counter with staff')
+                    hasFood
+                      ? t('Authorized now, charged at check-in')
+                      : t('Nothing is charged to book a table')
                   }}</small>
                 </div>
-                <span class="total-amount">฿{{ payNowTotal }}</span>
+                <span class="total-amount">{{
+                  formatBaht(hasFood ? foodPreview.totalMinor : 0)
+                }}</span>
               </div>
+
+              <CardPaymentFields v-if="hasFood" ref="cardFields" />
 
               <div v-if="submissionError" class="error-banner" role="alert">
                 {{ submissionError }}
               </div>
 
               <button
-                v-if="payNowTotal > 0"
                 type="button"
                 class="btn btn-primary pay-btn"
-                :disabled="isSubmitting"
-                @click="proceedToPayment"
+                :disabled="isSubmitting || !selectedTable"
+                @click="confirmReservation"
               >
-                <span>{{
-                  t('Pay Pre-order ฿{total} with PromptPay QR →', {
-                    total: payNowTotal,
-                  })
-                }}</span>
-              </button>
-              <button
-                v-else
-                type="button"
-                class="btn btn-primary pay-btn"
-                :disabled="isSubmitting"
-                @click="confirmWithoutPayment"
-              >
-                <span>{{
-                  t('Confirm Table Reservation (Pay at Counter)')
-                }}</span>
+                {{
+                  isSubmitting
+                    ? t('Booking…')
+                    : hasFood
+                      ? t('Authorize {total} and Book', {
+                          total: formatBaht(foodPreview.totalMinor),
+                        })
+                      : t('Confirm Reservation')
+                }}
               </button>
               <p class="pay-note">
                 {{
-                  payNowTotal > 0
-                    ? t(
-                        'Instant verification via PromptPay / Thai QR Code. Table is reserved immediately.',
-                      )
-                    : t(
-                        'Table is reserved immediately. Settle table fee at the counter with staff.',
-                      )
+                  t(
+                    'Prices, availability and the discount are confirmed by the branch when you book.',
+                  )
                 }}
               </p>
             </div>
@@ -1421,99 +1360,98 @@ async function onPaymentCompleted(paymentMeta: {
             <button
               type="button"
               class="btn btn-secondary"
-              @click="currentStep = 3"
+              :disabled="isSubmitting"
+              @click="currentStep = 4"
             >
-              <span>{{ t('← Back to Food & Drinks') }}</span>
+              {{ t('← Back to Food & Drinks') }}
             </button>
           </div>
         </section>
 
-        <!-- STEP 5: Receipt & Booking Confirmation -->
+        <!-- STEP 6: Confirmation, from the server's record -->
         <section
-          v-else-if="currentStep === 5"
-          key="step5"
+          v-else-if="currentStep === 6 && createdReservation"
+          key="step6"
           class="wizard-step receipt-step"
           aria-labelledby="receipt-heading"
         >
-          <div class="receipt-card">
-            <div class="receipt-badge">
-              <svg
-                class="gold-icon check-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2.5"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
+          <div v-if="createdReservation" class="receipt-card">
+            <div class="receipt-badge" role="status">
               <span>{{ t('Reservation Confirmed!') }}</span>
             </div>
 
             <h2 id="receipt-heading" class="receipt-title">
               {{ t('See You at The Parlor!') }}
             </h2>
-            <p class="receipt-sub">
-              {{
-                t(
-                  'Your table is reserved. A confirmation has been sent to your email.',
-                )
-              }}
-            </p>
 
             <div class="receipt-meta-box">
               <div class="meta-line">
                 <span class="lbl">{{ t('Reservation Reference') }}:</span>
                 <span class="v code">{{
-                  createdReservation?.id || 'CONFIRMED'
+                  createdReservation.id.slice(-8).toUpperCase()
                 }}</span>
               </div>
               <div class="meta-line">
                 <span class="lbl">{{ t('Branch') }}:</span>
-                <span class="v">{{ t(selectedBranch?.name ?? '') }}</span>
+                <span class="v">{{
+                  directory.byId(createdReservation.branchId)?.name
+                }}</span>
               </div>
               <div class="meta-line">
                 <span class="lbl">{{ t('Table') }}:</span>
-                <span class="v">{{ t(selectedTable?.label ?? '') }}</span>
+                <span class="v">{{ selectedTable?.label }}</span>
               </div>
               <div class="meta-line">
-                <span class="lbl">{{ t('Interval (Timestamps)') }}:</span>
+                <span class="lbl">{{ t('Reservation Date') }}:</span>
                 <span class="v">{{ formattedDateTimeInterval }}</span>
               </div>
               <div class="meta-line">
-                <span class="lbl">{{ t('Guest') }}:</span>
-                <span class="v">{{ customerName }} ({{ customerPhone }})</span>
+                <span class="lbl">{{ t('Party Size') }}:</span>
+                <span class="v">{{ createdReservation.partySize }}</span>
               </div>
-              <div class="meta-line">
-                <span class="lbl">{{ t('Table Fee') }}:</span>
-                <span class="v"
-                  >฿{{ tableTotal }} ({{
-                    t('Pay at counter with staff')
-                  }})</span
-                >
-              </div>
-              <div class="meta-line">
-                <span class="lbl">{{ t('Pre-order Paid (QR)') }}:</span>
-                <span class="v bold">฿{{ payNowTotal }}</span>
+              <div v-if="receiptGames.length" class="meta-line">
+                <span class="lbl">{{ t('Games') }}:</span>
+                <span class="v">{{
+                  receiptGames
+                    .map((game) => `${game.quantity}× ${game.name}`)
+                    .join(', ')
+                }}</span>
               </div>
             </div>
 
-            <div
-              v-if="paymentDetails && paymentDetails.items.length > 0"
-              class="receipt-food-box"
-            >
+            <div v-if="createdReservation.preOrder" class="receipt-food-box">
               <h4 class="food-h">
                 {{ t('Pre-Ordered Refreshments (10% Discount Applied)') }}
               </h4>
               <div
-                v-for="f in paymentDetails.items"
-                :key="f.item.id"
+                v-for="line in createdReservation.preOrder.items"
+                :key="line.menuItemId"
                 class="receipt-food-item"
               >
-                <span>{{ f.quantity }}x {{ f.item.name }}</span>
-                <span>฿{{ Math.round(f.item.price * 0.9 * f.quantity) }}</span>
+                <span>{{ line.quantity }}× {{ line.name }}</span>
+                <span>{{ formatBaht(line.lineTotal.amountMinor) }}</span>
               </div>
+              <div class="receipt-food-item">
+                <span>{{ t('Pre-Order Discount (-10%)') }}</span>
+                <span
+                  >-{{
+                    formatBaht(createdReservation.preOrder.discount.amountMinor)
+                  }}</span
+                >
+              </div>
+              <div class="receipt-food-item receipt-food-total">
+                <span
+                  >{{ t('Total') }}
+                  <small v-if="createdReservation.preOrder.payment.cardLast4"
+                    >({{ createdReservation.preOrder.payment.cardBrand }} ••••
+                    {{ createdReservation.preOrder.payment.cardLast4 }})</small
+                  ></span
+                >
+                <span>{{
+                  formatBaht(createdReservation.preOrder.total.amountMinor)
+                }}</span>
+              </div>
+              <p class="pay-note">{{ receiptPaymentNote }}</p>
             </div>
 
             <div class="receipt-actions">
@@ -1521,41 +1459,22 @@ async function onPaymentCompleted(paymentMeta: {
                 :to="{ name: 'CustomerReservationsList' }"
                 class="btn btn-primary"
               >
-                <span>{{ t('View My Reservations') }}</span>
+                {{ t('View My Reservations') }}
               </RouterLink>
               <button
                 type="button"
                 class="btn btn-secondary"
-                @click="currentStep = 1"
+                @click="startOver"
               >
-                <span>+ {{ t('Reserve a Table Now') }}</span>
+                + {{ t('Reserve a Table Now') }}
               </button>
               <RouterLink :to="{ name: 'HomeIndex' }" class="btn btn-secondary">
-                <span>{{ t('Return to Catalog') }}</span>
+                {{ t('Return to Catalog') }}
               </RouterLink>
             </div>
           </div>
         </section>
       </Transition>
-
-      <!-- Dynamic QR Payment Modal -->
-      <div
-        v-if="showQrPayment"
-        class="modal-backdrop"
-        @click.self="showQrPayment = false"
-      >
-        <QrPaymentDialog
-          :total-amount="payNowTotal"
-          :table-total="0"
-          :food-items="preOrderedFood"
-          :food-subtotal="foodSubtotal"
-          :food-discount="foodDiscountInfo.discountAmount"
-          :food-discounted-total="foodDiscountInfo.discountedTotal"
-          :reservation-ref="`RES-${Date.now().toString().slice(-6)}`"
-          @payment-completed="onPaymentCompleted"
-          @cancel="showQrPayment = false"
-        />
-      </div>
     </div>
   </div>
 </template>
@@ -1629,8 +1548,7 @@ async function onPaymentCompleted(paymentMeta: {
 .member-name,
 .member-badge-perk,
 .parlor-crest > span,
-.party-badge > span,
-.btn > span {
+.party-badge > span {
   text-box: trim-both cap alphabetic;
 }
 
@@ -1724,6 +1642,26 @@ async function onPaymentCompleted(paymentMeta: {
 .form-select:focus {
   border-color: #203c30;
   box-shadow: 0 0 0 2px rgba(32, 60, 48, 0.15);
+}
+
+.phone-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.country-code-select {
+  padding: 10px 12px;
+  border: 1px solid #c9bda7;
+  border-radius: 6px;
+  background: #fffaf1;
+  color: #203c30;
+  font-size: 13px;
+  font-weight: 600;
+  max-width: 220px;
+}
+
+.phone-number-field {
+  flex: 1;
 }
 
 .field-hint {
@@ -2027,7 +1965,7 @@ async function onPaymentCompleted(paymentMeta: {
   font-weight: 600;
 }
 
-.reservation-phone.is-invalid :deep(.phone-control) {
+.form-input.phone-number-field.is-invalid {
   border-color: #c0392b;
   background: #fff8f8;
 }
@@ -2310,7 +2248,7 @@ async function onPaymentCompleted(paymentMeta: {
 .btn-primary {
   background: #203c30;
   color: #fffaf1;
-  border: 1px solid transparent;
+  border: none;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -2572,5 +2510,81 @@ async function onPaymentCompleted(paymentMeta: {
 .muted-val {
   color: #7a705e;
   font-weight: 700;
+}
+
+.games-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.game-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #d8cfbf;
+  border-radius: 6px;
+  background: #fffdf8;
+  transition: border-color 0.15s ease;
+}
+
+.game-row.is-selected {
+  border-color: #203c30;
+}
+
+.game-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.game-name {
+  font-weight: 700;
+  color: #1f1a14;
+}
+
+.game-meta {
+  font-size: 13px;
+  color: #5b5145;
+}
+
+.game-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.game-stepper .step-btn {
+  min-width: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #203c30;
+  border-radius: 4px;
+  background: #fff;
+  color: #203c30;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.game-stepper .step-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.receipt-food-total {
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .game-row {
+    transition: none;
+  }
 }
 </style>

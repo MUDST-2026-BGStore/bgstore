@@ -6,6 +6,7 @@ import { configureApiTransport } from '@theparlor/api-client';
 import { clearAccount, useAccount } from '@theparlor/account';
 import { clearAuth, initAuth, useAuth } from '@theparlor/auth';
 import { installAuthGuards } from './guards';
+import { useLocale } from '../../shared/lib/locale';
 import type {} from './index';
 
 const { login } = vi.hoisted(() => ({ login: vi.fn() }));
@@ -28,6 +29,7 @@ beforeEach(() => {
   clearAuth();
   clearAccount();
   sessionStorage.clear();
+  localStorage.clear();
   login.mockReset();
   configureApiTransport({
     baseUrl: 'http://localhost',
@@ -49,6 +51,14 @@ beforeEach(() => {
   });
   scope = effectScope();
   scope.run(() => installAuthGuards(router));
+});
+
+it('passes the storefront language to the login redirect', async () => {
+  useLocale().setLocale('en-US');
+
+  await router.push('/login');
+
+  expect(login).toHaveBeenCalledExactlyOnceWith('en-US');
 });
 
 afterEach(() => {
