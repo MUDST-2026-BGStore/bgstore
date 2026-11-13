@@ -1,0 +1,6 @@
+type: string
+enum:
+  - BEVERAGES
+  - SNACKS
+  - TEA_COFFEE
+  - BAKERY_DESSERTS

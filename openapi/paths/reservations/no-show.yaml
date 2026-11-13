@@ -8,7 +8,7 @@ post:
   summary: Staff-only release of a missed reservation
   description:
     Only CONFIRMED -> NO_SHOW is allowed, and only at or after startsAt. Never automatic
-    just because a customer has not self-reported arrival. Release allocations and record the staff
+    just because a customer has not self-reported arrival. Release allocations and pre-order stock, void any pre-order payment and record the staff
     actor and server timestamp. Repeating NO_SHOW returns the same reservation; other states return
     409.
   security:
@@ -33,9 +33,13 @@ post:
       $ref: ../../components/responses/BadRequest.yaml
     '401':
       $ref: ../../components/responses/Unauthorized.yaml
+    '402':
+      $ref: ../../components/responses/PaymentDeclined.yaml
     '403':
       $ref: ../../components/responses/Forbidden.yaml
     '404':
       $ref: ../../components/responses/NotFound.yaml
     '409':
       $ref: ../../components/responses/Conflict.yaml
+    '502':
+      $ref: ../../components/responses/PaymentGatewayError.yaml

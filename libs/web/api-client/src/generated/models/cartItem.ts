@@ -12,8 +12,11 @@ import type { Money } from './money';
  * One cart item per edition; every edition of a game has its own line. Prices and availability are revalidated server-side on every read against the selected fulfillment location. A cart holds nothing and reserves no stock.
  */
 export interface CartItem {
+  /** Line identifier for item operations; equal to editionId, since a cart has one line per edition. */
   id: string;
   editionId: string;
+  /** The edition's catalog game, for linking to its product page and cover image. */
+  gameId: string;
   editionKind: CartItemEditionKind;
   /** IETF language tag of the edition's components. */
   editionLanguage: string;

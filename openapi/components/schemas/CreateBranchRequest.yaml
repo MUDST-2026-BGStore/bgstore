@@ -26,3 +26,6 @@ properties:
     maxItems: 28
   active:
     type: boolean
+  fulfillsDelivery:
+    type: boolean
+    description: Whether this branch ships delivery orders. At most one branch does; claiming it while another branch holds it returns 409.

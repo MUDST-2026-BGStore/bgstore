@@ -1,0 +1,23 @@
+type: object
+description: One pre-ordered line. The name and unit price are snapshots from booking.
+required:
+  - menuItemId
+  - name
+  - quantity
+  - unitPrice
+  - lineTotal
+properties:
+  menuItemId:
+    type: string
+    format: uuid
+  name:
+    type: string
+    description: English menu name at booking.
+  quantity:
+    type: integer
+    format: int32
+    minimum: 1
+  unitPrice:
+    $ref: ./Money.yaml
+  lineTotal:
+    $ref: ./Money.yaml

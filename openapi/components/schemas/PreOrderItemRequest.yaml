@@ -1,0 +1,14 @@
+type: object
+additionalProperties: false
+required:
+  - menuItemId
+  - quantity
+properties:
+  menuItemId:
+    type: string
+    format: uuid
+  quantity:
+    type: integer
+    format: int32
+    minimum: 1
+    maximum: 50

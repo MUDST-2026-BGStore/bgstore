@@ -60,7 +60,9 @@ post:
     all selected game quantities. The table and games must belong to this branch and games must be
     enabled for rental. Assign usable physical copies and hold them for the entire interval
     atomically. Failure returns 409 without a partial booking. Duplicate game IDs return 400.
-    Retry-safe creation requires Idempotency-Key.
+    An optional food and drink pre-order is priced by the server with the pre-order discount, its
+    stock is held at the branch and its total is authorized on the payment token; a declined
+    payment returns 402 and nothing is booked. Retry-safe creation requires Idempotency-Key.
   security:
     - sessionCookie: []
   x-access-policy: authenticated-owner
@@ -84,9 +86,13 @@ post:
       $ref: ../../components/responses/BadRequest.yaml
     '401':
       $ref: ../../components/responses/Unauthorized.yaml
+    '402':
+      $ref: ../../components/responses/PaymentDeclined.yaml
     '403':
       $ref: ../../components/responses/Forbidden.yaml
     '404':
       $ref: ../../components/responses/NotFound.yaml
     '409':
       $ref: ../../components/responses/Conflict.yaml
+    '502':
+      $ref: ../../components/responses/PaymentGatewayError.yaml

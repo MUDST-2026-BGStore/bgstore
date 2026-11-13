@@ -1,0 +1,39 @@
+type: object
+description: >-
+  Card details exchanged for a single-use payment token. The card number and
+  security code are passed to the payment gateway and never stored or logged by
+  this API. With a hosted payment provider the browser tokenizes directly with
+  the provider instead of calling this operation.
+additionalProperties: false
+required:
+  - number
+  - expMonth
+  - expYear
+  - cvc
+  - holderName
+properties:
+  number:
+    type: string
+    description: Card number, 12 to 19 digits; spaces and dashes are ignored. Must pass the Luhn check.
+    minLength: 12
+    maxLength: 23
+    pattern: ^[0-9 -]+$
+  expMonth:
+    type: integer
+    format: int32
+    minimum: 1
+    maximum: 12
+  expYear:
+    type: integer
+    format: int32
+    description: Four-digit year.
+    minimum: 2000
+    maximum: 2999
+  cvc:
+    type: string
+    description: Three digits, or four for American Express.
+    pattern: ^[0-9]{3,4}$
+  holderName:
+    type: string
+    minLength: 1
+    maxLength: 150

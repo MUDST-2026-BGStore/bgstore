@@ -35,3 +35,5 @@ properties:
   notes:
     type: string
     maxLength: 1000
+  preOrder:
+    $ref: ./PreOrderRequest.yaml

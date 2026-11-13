@@ -18,4 +18,10 @@ export interface CreateOrderRequest {
   items: OrderItemRequest[];
   /** @maxLength 1000 */
   notes?: string;
+  /**
+     * Single-use token from the payment token operation; authorized for the server-calculated total.
+     * @minLength 16
+     * @maxLength 128
+     */
+  paymentToken: string;
 }

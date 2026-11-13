@@ -1,0 +1,21 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+get:
+  tags:
+    - Pantry
+  operationId: getBranchMenu
+  summary: Read the food and drink menu with this branch's availability
+  description: Active menu items only, at an active branch. Availability is advisory; a pre-order holds stock atomically at booking.
+  security: []
+  x-access-policy: public
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/BranchMenu.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml

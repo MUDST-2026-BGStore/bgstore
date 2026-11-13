@@ -1,0 +1,30 @@
+type: object
+description: >-
+  How the order is paid. Customer orders are authorized on a card at placement,
+  captured at fulfillment and voided on cancellation. Counter sales are settled
+  at the counter: PENDING until handover, then CAPTURED. Only the card brand and
+  last four digits are ever kept.
+required:
+  - method
+  - status
+  - amount
+properties:
+  method:
+    type: string
+    enum:
+      - CARD
+      - COUNTER
+  status:
+    type: string
+    enum:
+      - PENDING
+      - AUTHORIZED
+      - CAPTURED
+      - VOIDED
+  amount:
+    $ref: ./Money.yaml
+  cardBrand:
+    $ref: ./CardBrand.yaml
+  cardLast4:
+    type: string
+    pattern: ^[0-9]{4}$

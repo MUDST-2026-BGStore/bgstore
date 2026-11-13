@@ -1,0 +1,7 @@
+description: >-
+  The payment gateway declined the card or the payment token is unknown, expired
+  or already used. Nothing is placed or held; tokenize again and retry.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/Problem.yaml

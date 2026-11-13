@@ -1,0 +1,13 @@
+type: object
+description: The active menu with this branch's current availability. Items the branch has never stocked show zero available.
+required:
+  - branchId
+  - items
+properties:
+  branchId:
+    type: string
+    format: uuid
+  items:
+    type: array
+    items:
+      $ref: ./BranchMenuItem.yaml

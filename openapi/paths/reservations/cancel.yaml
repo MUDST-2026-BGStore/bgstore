@@ -8,7 +8,7 @@ post:
   summary: Cancel a confirmed reservation
   description:
     Only CONFIRMED -> CANCELLED is allowed. Customers may cancel their own reservation
-    before startsAt; branch operators may cancel it until check-in. Release all table and game holds
+    before startsAt; branch operators may cancel it until check-in. Release all table, game and pre-order stock holds, void any pre-order payment
     atomically and record the actor and server timestamp. Repeating an already completed
     cancellation returns the unchanged reservation; other states return 409. Checked-in visits must
     use staff checkout.
@@ -34,9 +34,13 @@ post:
       $ref: ../../components/responses/BadRequest.yaml
     '401':
       $ref: ../../components/responses/Unauthorized.yaml
+    '402':
+      $ref: ../../components/responses/PaymentDeclined.yaml
     '403':
       $ref: ../../components/responses/Forbidden.yaml
     '404':
       $ref: ../../components/responses/NotFound.yaml
     '409':
       $ref: ../../components/responses/Conflict.yaml
+    '502':
+      $ref: ../../components/responses/PaymentGatewayError.yaml

@@ -3,6 +3,7 @@ description: One line per edition ID; prices and lifecycle fields are server-con
 additionalProperties: false
 required:
   - items
+  - paymentToken
 properties:
   items:
     type: array
@@ -13,3 +14,8 @@ properties:
   notes:
     type: string
     maxLength: 1000
+  paymentToken:
+    type: string
+    description: Single-use token from the payment token operation; authorized for the server-calculated total.
+    minLength: 16
+    maxLength: 128
