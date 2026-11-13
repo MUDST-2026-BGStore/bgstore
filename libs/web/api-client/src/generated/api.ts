@@ -66,6 +66,7 @@ import type {
   CreateTableRequest,
   CsrfResponse,
   ForbiddenResponse,
+  FulfillOrderRequest,
   Game,
   GameEdition,
   GameEditionPage,
@@ -5773,13 +5774,17 @@ export const useCancelOrder = <TError = ErrorType<BadRequestResponse | Unauthori
 export const fulfillOrder = (
     branchId: MaybeRefOrGetter<string>,
     orderId: MaybeRefOrGetter<string>,
+    fulfillOrderRequest?: MaybeRefOrGetter<FulfillOrderRequest>,
  options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
 ) => {
       branchId = toValue(branchId);
 orderId = toValue(orderId);
+fulfillOrderRequest = toValue(fulfillOrderRequest);
 
       return apiRequest<Order>(
-      {url: `/api/v1/branches/${branchId}/orders/${orderId}/fulfill`, method: 'POST', signal
+      {url: `/api/v1/branches/${branchId}/orders/${orderId}/fulfill`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: fulfillOrderRequest, signal
     },
       options);
     }
@@ -5804,9 +5809,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof fulfillOrder>>, FulfillOrderMutationVariables> = (props) => {
-          const {branchId,orderId} = props ?? {};
+          const {branchId,orderId,data} = props ?? {};
 
-          return  fulfillOrder(branchId,orderId,requestOptions)
+          return  fulfillOrder(branchId,orderId,data,requestOptions)
         }
 
 
@@ -5817,9 +5822,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type FulfillOrderMutationResult = NonNullable<Awaited<ReturnType<typeof fulfillOrder>>>
-
+    export type FulfillOrderMutationBody = FulfillOrderRequest | undefined
     export type FulfillOrderMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>
-    export type FulfillOrderMutationVariables = {branchId: string;orderId: string}
+    export type FulfillOrderMutationVariables = {branchId: string;orderId: string;data?: FulfillOrderRequest}
 
     /**
  * @summary Staff-only handover of purchased games

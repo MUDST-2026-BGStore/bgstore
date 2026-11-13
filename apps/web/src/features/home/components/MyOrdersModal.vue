@@ -19,6 +19,13 @@ const queryClient = useQueryClient();
 const coverOf = useGameCovers();
 const { locale } = useStoreText();
 
+const carrierNames: Record<string, string> = {
+  THAILAND_POST: 'Thailand Post',
+  KERRY: 'Kerry Express (KEX)',
+  FLASH: 'Flash Express',
+  JT: 'J&T Express',
+};
+
 const dialog = ref<HTMLDialogElement | null>(null);
 
 // Orders have three server states; there is no separate "shipped" step yet.
@@ -173,6 +180,10 @@ function paymentLabel(order: Order): string {
         ? `กันวงเงินไว้ที่ ${card} จะเรียกเก็บเมื่อส่งมอบสินค้า`
         : `Reserved on ${card}; charged at handover`;
   }
+}
+
+async function copyTracking(trackingNumber: string) {
+  await navigator.clipboard.writeText(trackingNumber);
 }
 
 function getStatusLabel(order: Order): { text: string; colorClass: string } {
@@ -445,6 +456,23 @@ function getStatusLabel(order: Order): { text: string; colorClass: string } {
             <!-- Card Bottom: Total Price + Action Buttons -->
             <div class="card-footer-action-row">
               <div class="footer-total-line">
+                <span class="order-payment-line">
+                  {{ locale === 'th-TH' ? 'ยอดรวมสินค้า' : 'Subtotal' }}:
+                  {{ formatMinor(order.subtotal.amountMinor) }}
+                </span>
+                <span
+                  v-if="order.fulfillmentMethod === 'SHIPPING'"
+                  class="order-payment-line"
+                >
+                  {{ locale === 'th-TH' ? 'ค่าจัดส่ง' : 'Shipping' }}:
+                  {{
+                    order.shippingFee.amountMinor === 0
+                      ? locale === 'th-TH'
+                        ? 'ฟรี'
+                        : 'Free'
+                      : formatMinor(order.shippingFee.amountMinor)
+                  }}
+                </span>
                 <span class="lbl-total-purchase">{{
                   locale === 'th-TH' ? 'รวมการสั่งซื้อ:' : 'Order Total:'
                 }}</span>
@@ -454,6 +482,20 @@ function getStatusLabel(order: Order): { text: string; colorClass: string } {
                 <span class="order-payment-line">{{
                   paymentLabel(order)
                 }}</span>
+                <span
+                  v-if="order.carrier && order.trackingNumber"
+                  class="tracking-snippet-bar"
+                >
+                  {{ carrierNames[order.carrier] }} ·
+                  <strong>{{ order.trackingNumber }}</strong>
+                  <button
+                    type="button"
+                    class="btn-copy-code"
+                    @click="copyTracking(order.trackingNumber)"
+                  >
+                    {{ locale === 'th-TH' ? 'คัดลอก' : 'Copy' }}
+                  </button>
+                </span>
               </div>
 
               <div class="footer-buttons-group">

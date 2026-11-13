@@ -729,7 +729,7 @@ class TheparlorApiApplicationTests {
     jdbc.update(
         "INSERT INTO branch_games(branch_id,game_id,sale_enabled) VALUES (?,?,true)", branch, game);
     jdbc.update(
-        "INSERT INTO branch_editions(branch_id,edition_id,sale_price_minor,stock_on_hand) VALUES (?,?,89000,5)",
+        "INSERT INTO branch_editions(branch_id,edition_id,sale_price_minor,stock_on_hand) VALUES (?,?,74000,5)",
         branch,
         edition);
 
@@ -755,7 +755,9 @@ class TheparlorApiApplicationTests {
     var added = send(guest, "POST", cart + "/items", line, "X-Cart-Token", token);
     assertThat(added.statusCode()).as(added.body()).isEqualTo(200);
     var cartView = JSON.readTree(added.body());
-    assertThat(cartView.get("subtotal").asLong()).isEqualTo(178000);
+    assertThat(cartView.get("subtotal").asLong()).isEqualTo(148000);
+    assertThat(cartView.get("shippingFee").get("amountMinor").asLong()).isEqualTo(5000);
+    assertThat(cartView.get("total").get("amountMinor").asLong()).isEqualTo(153000);
     assertThat(cartView.get("items").get(0).get("gameName").asString()).isEqualTo("Retail game");
     assertThat(cartView.get("items").get(0).get("gameId").asString()).isEqualTo(game.toString());
     assertThat(cartView.get("items").get(0).get("available").asInt()).isEqualTo(5);
@@ -861,12 +863,15 @@ class TheparlorApiApplicationTests {
     assertThat(order.get("status").asString()).isEqualTo("PLACED");
     assertThat(order.get("fulfillmentMethod").asString()).isEqualTo("SHIPPING");
     assertThat(order.get("branchId").asString()).isEqualTo(branch.toString());
-    assertThat(order.get("total").get("amountMinor").asLong()).isEqualTo(178000);
+    assertThat(order.get("subtotal").get("amountMinor").asLong()).isEqualTo(148000);
+    assertThat(order.get("shippingFee").get("amountMinor").asLong()).isEqualTo(5000);
+    assertThat(order.get("total").get("amountMinor").asLong()).isEqualTo(153000);
     assertThat(order.get("customer").get("kind").asString()).isEqualTo("GUEST");
     assertThat(order.get("items").get(0).get("editionLanguage").asString()).isEqualTo("th");
     assertThat(order.get("items").get(0).get("gameId").asString()).isEqualTo(game.toString());
     assertThat(order.get("shippingAddress").get("postalCode").asString()).isEqualTo("10330");
     assertThat(order.get("payment").get("status").asString()).isEqualTo("AUTHORIZED");
+    assertThat(order.get("payment").get("amount").get("amountMinor").asLong()).isEqualTo(153000);
     assertThat(order.get("payment").get("cardBrand").asString()).isEqualTo("VISA");
     assertThat(order.get("payment").get("cardLast4").asString()).isEqualTo("4242");
     assertThat(stock("stock_held", branch, edition)).isEqualTo(2);
@@ -910,10 +915,16 @@ class TheparlorApiApplicationTests {
     var manager = login("manager");
     var listed = JSON.readTree(get(manager, orders + "?status=PLACED").body()).get("items");
     assertThat(listed).hasSize(1);
+    assertThat(send(manager, "POST", orders + "/" + orderId + "/fulfill", null).statusCode())
+        .isEqualTo(400);
+    String dispatch = "{\"carrier\":\"KERRY\",\"trackingNumber\":\"KEX-123\"}";
     for (int attempt = 0; attempt < 2; attempt++) {
-      var fulfilled = send(manager, "POST", orders + "/" + orderId + "/fulfill", null);
+      var fulfilled = send(manager, "POST", orders + "/" + orderId + "/fulfill", dispatch);
       assertThat(fulfilled.statusCode()).as(fulfilled.body()).isEqualTo(200);
       assertThat(JSON.readTree(fulfilled.body()).get("status").asString()).isEqualTo("FULFILLED");
+      assertThat(JSON.readTree(fulfilled.body()).get("carrier").asString()).isEqualTo("KERRY");
+      assertThat(JSON.readTree(fulfilled.body()).get("trackingNumber").asString())
+          .isEqualTo("KEX-123");
       assertThat(JSON.readTree(fulfilled.body()).get("payment").get("status").asString())
           .isEqualTo("CAPTURED");
     }
@@ -1035,6 +1046,7 @@ class TheparlorApiApplicationTests {
             UUID.randomUUID().toString());
     assertThat(risky.statusCode()).as(risky.body()).isEqualTo(201);
     String riskyPath = orders + "/" + JSON.readTree(risky.body()).get("id").asString();
+    assertThat(send(manager, "POST", riskyPath + "/fulfill", dispatch).statusCode()).isEqualTo(400);
     assertThat(send(manager, "POST", riskyPath + "/fulfill", null).statusCode()).isEqualTo(402);
     assertThat(JSON.readTree(get(manager, riskyPath).body()).get("status").asString())
         .isEqualTo("PLACED");
@@ -1939,6 +1951,11 @@ class TheparlorApiApplicationTests {
         "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor) VALUES (?,?,'T1',4,0)",
         table,
         branch);
+    String category = "Retire-" + UUID.randomUUID();
+    assertThat(
+            writeJson(manager, "POST", "/api/v1/categories", "{\"name\":\"" + category + "\"}")
+                .statusCode())
+        .isEqualTo(201);
     var createdGame =
         writeJson(
             manager,
@@ -1946,8 +1963,10 @@ class TheparlorApiApplicationTests {
             "/api/v1/games",
             "{\"name\":\"Retire-"
                 + UUID.randomUUID()
-                + "\",\"minPlayers\":1,\"maxPlayers\":4,\"playMinutesMin\":10,\"playMinutesMax\":20,\"active\":true}");
-    assertThat(createdGame.statusCode()).isEqualTo(201);
+                + "\",\"minPlayers\":1,\"maxPlayers\":4,\"playMinutesMin\":10,\"playMinutesMax\":20,\"active\":true,\"categories\":[\""
+                + category
+                + "\"],\"descriptions\":{\"en-US\":\"Retirement test\"}}");
+    assertThat(createdGame.statusCode()).as(createdGame.body()).isEqualTo(201);
     UUID gameId = UUID.fromString(JSON.readTree(createdGame.body()).get("id").asString());
     var reservation =
         jdbc.queryForObject(
@@ -1962,7 +1981,8 @@ class TheparlorApiApplicationTests {
         writeJson(manager, "PATCH", "/api/v1/games/" + gameId, "{\"active\":false}");
     assertThat(refusedReservation.statusCode()).isEqualTo(409);
 
-    jdbc.update("UPDATE reservations SET status='CANCELLED' WHERE id=?", reservation);
+    jdbc.update(
+        "UPDATE reservations SET status='CANCELLED', cancelled_at=now() WHERE id=?", reservation);
     var edition =
         jdbc.queryForObject(
             "INSERT INTO game_editions(game_id,kind,language_code) VALUES (?,'BASE_GAME','en') RETURNING id",
@@ -1975,7 +1995,7 @@ class TheparlorApiApplicationTests {
             UUID.class,
             branch);
     jdbc.update(
-        "INSERT INTO order_items(order_id,edition_id,game_id,game_name,quantity,unit_price_minor,line_total_minor,edition_language_code)"
+        "INSERT INTO order_items(order_id,edition_id,game_id,game_name,quantity,unit_price_minor,line_total_minor,edition_language)"
             + " VALUES (?,?,?,'Game',1,0,0,'en')",
         order,
         edition,
@@ -1984,17 +2004,23 @@ class TheparlorApiApplicationTests {
     var refusedOrder = writeJson(manager, "PATCH", "/api/v1/games/" + gameId, "{\"active\":false}");
     assertThat(refusedOrder.statusCode()).isEqualTo(409);
 
-    jdbc.update("UPDATE orders SET status='CANCELLED' WHERE id=?", order);
+    jdbc.update(
+        "UPDATE orders SET status='CANCELLED', cancelled_at=now(), cancellation_reason='Test released' WHERE id=?",
+        order);
     var deactivated = writeJson(manager, "PATCH", "/api/v1/games/" + gameId, "{\"active\":false}");
     assertThat(deactivated.statusCode()).isEqualTo(200);
     assertThat(JSON.readTree(deactivated.body()).get("active").asBoolean()).isFalse();
 
     // Reactivating is always allowed even if an open commitment exists.
-    jdbc.update("UPDATE orders SET status='PLACED' WHERE id=?", order);
+    jdbc.update(
+        "UPDATE orders SET status='PLACED', cancelled_at=NULL, cancellation_reason=NULL WHERE id=?",
+        order);
     var reactivated = writeJson(manager, "PATCH", "/api/v1/games/" + gameId, "{\"active\":true}");
     assertThat(reactivated.statusCode()).isEqualTo(200);
     assertThat(JSON.readTree(reactivated.body()).get("active").asBoolean()).isTrue();
-    jdbc.update("UPDATE orders SET status='CANCELLED' WHERE id=?", order);
+    jdbc.update(
+        "UPDATE orders SET status='CANCELLED', cancelled_at=now(), cancellation_reason='Test released' WHERE id=?",
+        order);
   }
 
   @Test
@@ -2027,9 +2053,11 @@ class TheparlorApiApplicationTests {
         table,
         branch);
     jdbc.update(
-        "INSERT INTO carts(id,account_id,branch_id) VALUES (?,?,?)",
+        "INSERT INTO carts(id,account_id,token_hash,fulfillment_method,pickup_branch_id) VALUES (?,?,?,?,?)",
         UUID.randomUUID(),
         accountId,
+        new byte[32],
+        "PICKUP",
         branch);
 
     var startsAt = java.time.Instant.now().plus(java.time.Duration.ofDays(2));

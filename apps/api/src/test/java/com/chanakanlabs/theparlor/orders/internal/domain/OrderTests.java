@@ -49,6 +49,21 @@ class OrderTests {
   }
 
   @Test
+  void shippingNeedsCarrierAndTrackingAndPickupRejectsThem() {
+    var shipping = placed(Map.of("line1", "1 Road"));
+    assertThat(shipping.getShippingFeeMinor()).isEqualTo(5_000);
+    assertThat(shipping.getTotalMinor()).isEqualTo(10_000);
+    shipping.ship(OrderCarrier.KERRY, " KEX-123 ");
+    assertThat(shipping.getCarrier()).isEqualTo(OrderCarrier.KERRY);
+    assertThat(shipping.getTrackingNumber()).isEqualTo("KEX-123");
+
+    assertThatThrownBy(() -> shipping.ship(OrderCarrier.FLASH, " "))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> placed(null).ship(OrderCarrier.JT, "JT-123"))
+        .isInstanceOf(IllegalStateException.class);
+  }
+
+  @Test
   void aRegisteredBuyerNeedsBothCustomerAndSubject() {
     assertThatThrownBy(() -> new Buyer(UUID.randomUUID(), null, "Name", null, null))
         .isInstanceOf(IllegalArgumentException.class);

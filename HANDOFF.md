@@ -59,20 +59,12 @@ pnpm nx run-many -t lint typecheck
 
 | ID  | Marker                                                                                                       | Area      | Depends on |
 | --- | ------------------------------------------------------------------------------------------------------------ | --------- | ---------- |
-| T1  | `MeController.java:24` (no tag)                                                                              | API       | —          |
-| T2  | `MeController.java:48` (no tag)                                                                              | API + Web | T1         |
-| T3  | `GamesService.java:160` `catalog-offline`                                                                    | API       | —          |
-| T4  | `BranchSelect.vue:22` `branch-api`                                                                           | Web       | —          |
-| T5  | `CheckoutPage.vue:17` `checkout-payments`                                                                    | API + Web | T6 first   |
-| T6  | `CheckoutPage.vue:18` `checkout-shipping`                                                                    | API + Web | —          |
+| T5  | `CheckoutPage.vue:17` `checkout-payments`                                                                    | API + Web | —          |
 | T7  | `InPlayOrderModal.vue:2` `in-play-orders-api`; `useWorkspacePantry.ts:1`, `pantry.samples.ts:1` `pantry-api` | API + Web | —          |
-| T8  | `reservations-store.ts:1` `reservation-api`                                                                  | Web       | T7, T10    |
+| T8  | `reservations-store.ts:1` `reservation-api`                                                                  | Web       | T7         |
 | T9  | `WorkspaceAnalytics.vue:2` `analytics-api`                                                                   | API + Web | T7         |
-| T10 | `WorkspacePolicies.vue:2` `policies-api`                                                                     | Web       | —          |
-| T11 | `WorkspaceSettings.vue:2` `settings-api`                                                                     | Web       | —          |
-| T12 | `WorkspaceStaff.vue:2` `staff-admin-api`; `WorkspaceAdministration.vue:2` `administration-api`               | API + Web | —          |
 
-Suggested order: T1, T11, T4, T10, T3, T2, T12, T6, T7, T8, T9, T5. T5 is last because it needs Omise credentials from the owner and the largest design.
+Suggested order: T7, T8, T9, T5. T5 is last because it needs Omise credentials from the owner and the largest design.
 
 Path prefixes used below:
 
@@ -83,149 +75,11 @@ Path prefixes used below:
 
 ---
 
-## T1 — Make `MeController` use one dependency style
-
-**Marker:** `API/account/internal/web/MeController.java:24` — `// TODO: make this consistent, either use interface or direct class`
-
-**Today:** The controller injects both the concrete `AccountService` and the interface `AccountProvisioning`. `AccountService` implements `AccountProvisioning`, so both are the same bean. Every other controller injects its concrete service only (see `API/branches/internal/web/BranchesController.java`).
-
-**Decision:** use the concrete class only.
-
-**Do:**
-
-1. In `MeController.java`: remove the `AccountProvisioning` field, constructor parameter and import. Constructor becomes `MeController(AccountService accountService)`.
-2. In `createMe`, replace `accountProvisioning.provisionForCurrentIdentity(registration);` with `accountService.provisionForCurrentIdentity(registration);`. Keep the next line (`return accountService.findCurrentProfile().orElseThrow();`) exactly as it is.
-3. Delete the TODO comment.
-4. In `APITEST/account/internal/web/MeControllerTests.java`: every `new MeController(service, mock(AccountProvisioning.class))` becomes `new MeController(service)`. Two tests (around lines 137 and 180) create a separate `provisioning` mock and stub/verify `provisionForCurrentIdentity` on it; move those stubs and verifications onto the `AccountService` mock. Remove the unused import.
-
-**Out of scope:** Do not delete or change the `AccountProvisioning` interface. Do not change endpoint behavior.
-
-**Done when:** `pnpm nx run api:test` passes and the TODO is gone.
-
----
-
-## T2 — Implement account deletion (`DELETE /api/v1/me`)
-
-**Marker:** `API/account/internal/web/MeController.java:48`. The method throws `UnsupportedOperationException`.
-
-**Read first:** `openapi/paths/account/me.yaml` (`delete:` block), `API/account/internal/application/AccountService.java`, `apps/api/src/main/resources/db/migration/V001__initial_schema.sql` lines 5–46 and 547–567, `API/orders/internal/domain/Order.java`, `API/reservations/internal/domain/Reservation.java`, `WEB/features/auth/pages/AuthProfile.vue`, `WEB/shared/stores/auth.ts`.
-
-**Facts:**
-
-- The contract exists: `operationId: deleteMe`, responses `204`, `401`, `403`, `404` (not provisioned), `409` (cannot currently be deleted). It says the Keycloak identity is not deleted.
-- Deleting a row from `accounts` cascades in the database: `account_identities` and `carts` rows are deleted (`ON DELETE CASCADE`), `customers.account_id` becomes NULL (`ON DELETE SET NULL`). The `customers` row stays, so past reservations and orders keep their history.
-- Orders and reservations also store the customer's subject (`Order.getCustomerSubject()` exists; `Reservation` has a subject in its `Party` — verify the field/column name in code).
-- The `account` module may depend only on `identity`, `contracts`, `shared`.
-- The generated client already has `deleteMe`. No page calls it. No test covers it.
-- Web logout exists: `useAuthStore().logout()` in `WEB/shared/stores/auth.ts` drops account data and posts to `/api/auth/logout`, which clears the server session and redirects through Keycloak logout.
-
-**Decisions:**
-
-1. Refuse with `409` while the account has an open commitment: a reservation in status `CONFIRMED` or `CHECKED_IN`, or an order in status `PLACED`. (An active rental always belongs to a `CHECKED_IN` reservation, so the reservation check covers it.) Finished, cancelled and no-show history never blocks.
-2. Only the application account is deleted. The Keycloak identity is kept. No Keycloak integration.
-3. After a successful delete the user is logged out.
-4. Build the UI now, on the profile page.
-
-**Do — server:**
-
-1. Create `API/account/spi/package-info.java` (named interface `spi`) and `API/account/spi/AccountCommitments.java`:
-   ```java
-   /** Implemented by modules holding a customer's open commitments; asked before an account is deleted. */
-   public interface AccountCommitments {
-     /** subject is the customer's OIDC subject. */
-     boolean hasOpenCommitments(String subject);
-   }
-   ```
-2. `AccountService`: add a constructor parameter `List<AccountCommitments> commitments` and a method:
-   - `@Transactional public void deleteCurrent()`
-   - `var user = currentUser.require();`
-   - find the account with the existing private `lookupAccount(user)`; if empty throw `new AccountNotProvisionedException()` (already mapped to 404).
-   - if any `commitments` bean returns true for `user.subject()`, throw `new ResponseStatusException(HttpStatus.CONFLICT, "Account has an open reservation or order")`.
-   - `accounts.delete(account); accounts.flush();`
-3. Implement `AccountCommitments` in `reservations` (new class in `API/reservations/internal/application/`, a repository query "exists reservation with this customer subject and status in CONFIRMED, CHECKED_IN") and in `orders` (new class in `API/orders/internal/application/`, "exists order with this customer subject and status PLACED"). Add `"account::spi"` to `allowedDependencies` in `API/reservations/package-info.java` and `API/orders/package-info.java`.
-4. `MeController.deleteMe()`: replace the body with `accountService.deleteCurrent();`. Delete the TODO. Verify in the generated `AccountApi` interface that the method answers 204.
-5. Fix `AccountServiceTests` construction for the new constructor parameter.
-
-**Do — web:**
-
-6. In `AuthProfile.vue` add a "Delete account" section at the bottom of the page: a danger button that opens a confirmation dialog (use `AppConfirmDialog` from `WEB/shared/ui`), text stating that the account, saved cart and preferences are removed, order and visit history is kept by the store, and the sign-in itself remains.
-7. On confirm call `deleteMe()` from `@theparlor/api-client`. On success call `useAuthStore().logout()`. On `409` show the server's message (open reservation or order) and keep the dialog closed and the page unchanged. On any other failure show a generic retry message. Disable the button while pending.
-8. Add both Thai and English copy the same way the rest of `AuthProfile.vue` does (verify whether it uses `useStoreText`/`t()` or inline locale checks, and follow it).
-
-**Tests:**
-
-- `AccountServiceTests`: deletes when no commitments; 404 when not provisioned; 409 when a commitments bean returns true and the account still exists.
-- `TheparlorApiApplicationTests`: delete with a confirmed reservation → 409; after cancelling it → 204, `GET /api/v1/me` → 404, the identity link and carts are gone, and the cancelled reservation is still readable by staff.
-- `AuthProfile.spec.ts`: confirm calls `deleteMe` then logout; 409 shows the message and does not log out.
-
-**Out of scope:** Deleting or disabling the Keycloak user. Anonymising `customers` contact columns. Auto-cancelling anything.
-
----
-
-## T3 — Refuse taking a game offline while it is committed
-
-**Marker:** `API/catalog/internal/application/GamesService.java:160` — `TODO(catalog-offline)`. In `updateGame`, the `active: false` branch calls `entity.deactivate()` with no checks.
-
-**Read first:** `GamesService.updateGame`, `API/branches/internal/application/BranchesService.java` method `update` (the model to copy), `API/reservations/ReservationCommitments.java`, `API/rentals/RentalCommitments.java`, `API/orders/OrderCommitments.java`, `API/reservations/internal/persistence/ReservationRepository.java`, `API/orders/internal/persistence/OrderRepository.java`.
-
-**Facts:**
-
-- Three classes exist "for catalog retirement checks" and are **not called from anywhere**: `ReservationCommitments`, `RentalCommitments`, `OrderCommitments`.
-- `catalog` may depend only on `contracts` and `shared`, so it cannot call them. `reservations` and `orders` do not list `catalog` as a dependency.
-- `PATCH /api/v1/games/{gameId}` (`openapi/paths/games/item.yaml`, `updateGame`) already declares `409`.
-- `order_items.game_id` exists (V008) and is nullable for old rows.
-- `ReservationRepository.hasConfirmedGame(gameId)` exists but checks `CONFIRMED` only.
-
-**Decision:** refuse with `409`, the same rule as deactivating a branch. Staff must cancel or finish the commitments first.
-
-**Do:**
-
-1. Create `API/catalog/spi/package-info.java` (named interface `spi`) and `API/catalog/spi/GameCommitments.java` with one method `boolean hasOpenCommitments(UUID gameId)` and a Javadoc: implemented by modules that commit a game to customers; catalog asks before taking a game offline.
-2. `GamesService`: add constructor parameter `List<GameCommitments> commitments`. In `updateGame`, in the `else` branch (request `active` is false), before `entity.deactivate()`:
-   ```java
-   if (entity.isActive() && commitments.stream().anyMatch(c -> c.hasOpenCommitments(id)))
-     throw new ResponseStatusException(
-         HttpStatus.CONFLICT, "Game has a confirmed reservation, active visit or placed order");
-   ```
-   (Verify the getter name on `catalog/internal/domain/Game.java`.) Replace the TODO comment with a one-line comment stating the rule.
-3. `reservations`: new bean implementing `GameCommitments`. True when a reservation in status `CONFIRMED` or `CHECKED_IN` has a `ReservationGame` row for the game. Add a repository query modelled on `hasConfirmedGame` with both statuses. Add `"catalog::spi"` to `API/reservations/package-info.java`.
-4. `orders`: new bean implementing `GameCommitments`. True when an order in status `PLACED` has an item with that `game_id` (verify the field name on `OrderItem`). Add `"catalog::spi"` to `API/orders/package-info.java`.
-5. Delete `ReservationCommitments`, `RentalCommitments`, `OrderCommitments` and the repository methods only they used (`hasConfirmedGame`, `reservationsUsingGame`, `hasActiveReservation`, `hasPlacedEdition`) — but first search the whole repo for each name and keep anything that has another caller.
-6. Web: find where the workspace toggles a game's active flag (search `updateGame` in `MGMT/useWorkspaceGames.ts` and `MGMT/components/WorkspaceLibrary.vue`). If such an action exists, make sure a `409` shows the server's message. If none exists, make no web change.
-
-**Tests:** `TheparlorApiApplicationTests`: deactivating is 409 with a confirmed reservation selecting the game; 409 with a placed order for one of its editions; 200 after those are cancelled; reactivating is always allowed. Fix any unit test that constructs `GamesService`.
-
-**Out of scope:** Edition `active` flags (`EditionsService`). Removing a game from a branch library. Notifications.
-
----
-
-## T4 — Branch search in the store selector
-
-**Marker:** `WEB/features/home/components/BranchSelect.vue:22` — `TODO(branch-api)`.
-
-**Read first:** `BranchSelect.vue`, its callers `WEB/features/home/components/CartFulfillment.vue:52` and `WEB/features/home/components/StoreContext.vue:133`, `WEB/shared/stores/branch-directory.ts`, `WEB/features/home/components/BranchSelect.spec.ts`.
-
-**Facts:** `branch-directory.ts` loads every active branch once and caches it; each entry has `address` (one free-text string; no city field exists anywhere). `BranchSelect` receives `options: { id, name }[]` and filters on the translated name only. The selected option always stays visible while filtering, and typing never changes the saved branch.
-
-**Decision:** client-side search only. No server search parameter will be added.
-
-**Do:**
-
-1. Change the `options` prop type to `{ id: string; name: string; address?: string }[]`.
-2. In `matches`, also match `option.address` (case-insensitive, same trimming as the name).
-3. In both callers, pass `address` from the directory entries they already have.
-4. Add a case to `BranchSelect.spec.ts`: typing part of an address keeps that branch and the selected branch visible, and hides the others.
-5. Replace the TODO with a one-line comment: search is client-side over the cached directory.
-
-**Out of scope:** Changing option labels or layout (`AppSelect` options are `{ value, label }` only). Any API change.
-
----
-
 ## T5 — PromptPay and cash on delivery, with Omise as the payment provider
 
 **Marker:** `WEB/features/home/pages/CheckoutPage.vue:17` — `TODO(checkout-payments)`.
 
-**Do T6 first** (the order total changes there).
+T6 is complete; order totals now include the server-calculated shipping fee.
 
 **Read first:** `API/payments/Payments.java`, `API/payments/internal/application/PaymentsService.java`, `API/payments/internal/application/PaymentTokensService.java`, `API/payments/internal/gateway/PaymentGateway.java`, `UnconfiguredGateway.java`, `bogus/BogusGateway.java`, `API/payments/internal/domain/Payment.java`, V006 lines 22–62 and V009 lines 1–6, `API/orders/internal/application/OrderPlacementService.java`, `OrdersService.java`, `OrderViews.java`, `API/carts/internal/application/CartsService.java` (checkout), `openapi/components/schemas/CheckoutCartRequest.yaml`, `OrderPayment.yaml`, `apps/api/src/main/resources/application.yaml` (the `theparlor.payments` block), `WEB/features/home/pages/CheckoutPage.vue`, `WEB/features/home/components/MyOrdersModal.vue`, `WEB/features/reservations/components/inventory/FulfillmentQueue.vue`.
 
@@ -299,47 +153,6 @@ _Web:_
 **Tests:** `PaymentsServiceTests` for every new transition and refusal; `TheparlorApiApplicationTests` with the bogus gateway: PromptPay order paid → fulfillable; unpaid past expiry → cancelled and stock back; fulfil while unpaid → 409; COD pickup → 400; guest PromptPay → 400; COD fulfil then confirm → CAPTURED; webhook with unknown reference → 200. `SchemaIntegrityTests` if it enumerates constraints. Web specs for method visibility (guest vs signed-in, pickup vs shipping) and the polling outcomes.
 
 **Out of scope:** Refunds of captured payments. Bank transfer. PromptPay for reservation pre-orders. Saving cards. Sending raw card data anywhere new. Going live (live keys and switching production to `omise` are the owner's step).
-
----
-
-## T6 — Shipping fee, carriers and tracking numbers
-
-**Marker:** `WEB/features/home/pages/CheckoutPage.vue:18` — `TODO(checkout-shipping)`.
-
-**Read first:** `API/orders/internal/domain/Order.java`, `OrderFulfillmentMethod.java`, `API/orders/internal/application/OrderPlacementService.java`, `OrdersService.java` (`fulfillOrder`), `OrderViews.java`, `API/carts/internal/application/CartsService.java`, `openapi/components/schemas/Cart.yaml`, `Order.yaml`, `openapi/paths/orders/fulfill.yaml`, `WEB/features/home/pages/CartPage.vue`, `CheckoutPage.vue`, `WEB/features/home/components/MyOrdersModal.vue`, `WEB/features/reservations/components/inventory/FulfillmentQueue.vue`.
-
-**Facts:** Orders are `PICKUP` or `SHIPPING`, with an optional `shippingAddress`. One branch ships. `Order.total` is the sum of line totals; `Cart` has `subtotal`. There is no fee, carrier or tracking column. `fulfillOrder` takes no request body. `carts` may depend on `orders`.
-
-**Decisions:**
-
-1. Fee: **flat ฿50 (`5000` minor) per shipping order, free when the items total is ฿1,500 (`150000` minor) or more.** Pickup orders have no fee.
-2. The carrier is chosen by **staff at dispatch**, from a fixed list: **Thailand Post, Kerry Express (KEX), Flash Express, J&T Express**.
-3. The tracking number is **entered by staff when fulfilling a shipping order, is required then, and is shown to the customer** in My Orders.
-
-**Do — server:**
-
-1. New public final class `API/orders/ShippingPolicy.java` (top-level so `carts` can use it) with constants `FLAT_FEE_MINOR = 5_000`, `FREE_FROM_MINOR = 150_000` and `static long feeMinor(boolean shipping, long itemsTotalMinor)` returning `0` for pickup or when `itemsTotalMinor >= FREE_FROM_MINOR`, else the flat fee. Unit-test the boundaries (149 999 → 5 000; 150 000 → 0).
-2. Migration: on `orders` add `shipping_fee_minor BIGINT NOT NULL DEFAULT 0`, `carrier VARCHAR(20)`, `tracking_number VARCHAR(60)`; checks: fee ≥ 0; carrier in `('THAILAND_POST','KERRY','FLASH','JT')` or null; carrier and tracking are both null or both non-null; tracking is not blank. Verify the name of the fulfilment-method column on `orders` and add a check that pickup rows have fee 0 and null carrier.
-3. `Order` entity: store the fee at creation (computed by the service from `ShippingPolicy`); add `ship(carrier, trackingNumber)` used during fulfilment, which throws `IllegalStateException` for a pickup order. Keep mutations inside domain methods as the existing ones do.
-4. `OrderPlacementService.place`: compute the fee from the items total, store it, and authorize **items total + fee**. Verify `OrderViews` then reports `total` = items + fee and that the payment amount equals it.
-5. Contract:
-   - `Order.yaml`: add `subtotal` (items only), `shippingFee` (both `Money`, required), `carrier` (enum above) and `trackingNumber` (string, max 60); update the description: total = subtotal + shippingFee.
-   - `Cart.yaml`: add `shippingFee` and `total` (`Money`, required).
-   - `openapi/paths/orders/fulfill.yaml`: add an optional request body schema `FulfillOrderRequest` with `carrier` and `trackingNumber`. Server rule: both required when the order is `SHIPPING` (400 if missing), rejected when it is `PICKUP` (400).
-   - `pnpm generate:api`.
-6. `OrdersService.fulfillOrder`: take the request, validate as above, call `order.ship(...)` for shipping orders before the existing fulfil logic. The controller passes the body through (`API/orders/internal/web/OrdersController.java`).
-7. `CartsService`: fill `shippingFee` and `total` on the cart view using `ShippingPolicy` and the cart's fulfilment method.
-
-**Do — web:**
-
-8. `CartPage.vue` and the `CheckoutPage.vue` summary: show Subtotal, Shipping (the server's `shippingFee`, or "Free" when zero on a shipping cart; hide the row for pickup) and Total (the server's `total`). Under the shipping row, when the fee is not zero, show how much more is needed for free shipping, computed as `150000 - subtotal` from a constant exported next to the cart store (`WEB/features/home/stores/cart.ts`) with a comment pointing at `ShippingPolicy`.
-9. `MyOrdersModal.vue` and the checkout confirmation: show the fee line, and for shipped orders the carrier name and tracking number with a copy button.
-10. `FulfillmentQueue.vue`: fulfilling a shipping order opens a small dialog with a carrier `AppSelect` (four options, display names as in decision 2) and a tracking number field, both required; pickup orders fulfil as today. Wait for the server and show its errors.
-11. Remove the `checkout-shipping` half of the TODO comment (and the sentence "delivery orders ship … at no extra fee"). Update the sentence in `apps/web/AGENTS.md` that says carriers and shipping fees have no backend.
-
-**Tests:** `ShippingPolicy` unit test; `OrderTests` for `ship`; integration: shipping order below threshold authorizes items + 5 000; at threshold authorizes items only; fulfil shipping without tracking → 400; pickup with tracking → 400; fulfilled shipping order returns carrier and tracking to its customer. Update `apps/web-e2e/src/storefront.spec.ts` fixtures for the new required fields. Web specs for the summary rows.
-
-**Out of scope:** Customer-chosen carriers, per-province rates, carrier API integration, delivery status tracking, changing tracking after fulfilment.
 
 ---
 
@@ -496,71 +309,6 @@ Range = `[from 00:00, until+1 day 00:00)` in `Asia/Bangkok`. All money is `Money
 **Tests:** per-module repository/service tests for each aggregate; one integration case that books, checks in, orders food, checks out and fulfils a retail order, then asserts every field; staff role → 403; bad range → 400. Web spec with a mocked report.
 
 **Out of scope:** Charts, exports, cross-branch totals, cost/profit, tax (the server has no such data), caching.
-
----
-
-## T10 — Venue policies show the real rules; no-show becomes manual
-
-**Marker:** `MGMT/components/WorkspacePolicies.vue:2` — `TODO(policies-api)`.
-
-**Read first:** `WorkspacePolicies.vue`, `MGMT/useWorkspaceReservations.ts` (search `autoNoShowMutation`, `Auto-marked`, `Auto-released`), `MGMT/components/WorkspaceBookings.vue`, `MGMT/components/CancelBookingDialog.vue`, `API/reservations/internal/application/ReservationsService.java` (`markNoShow`), `API/reservations/internal/domain/Reservation.java` (`markNoShow` — read which states and times it accepts), `openapi/paths/reservations/no-show.yaml`, `WEB/features/reservations/data/booking.ts`.
-
-**Facts:**
-
-- The screen (admin tab, read-only) shows hard-coded values: no-show release 15 minutes; rates ฿150/฿200/฿300 by seat count; unused deposit fields.
-- Real rules: table rate is per table (`hourlyRate` on each table, already loaded as `branchFloorTables` with `label`, `seats`, `rate`); billing is every started hour with a one-hour minimum; pre-orders get 10% off and are allowed for visits within 6 days (`PRE_ORDER_DISCOUNT_PERCENT`, `PRE_ORDER_WINDOW_DAYS` exported by `booking.ts`); deposits do not exist.
-- The server says no-shows are "Never automatic". But the web auto-marks: the `allReservations` computed calls `markReservationNoShow` for any confirmed booking more than 15 minutes late, and local sample items are flipped to `NO_SHOW` the same way. **There is no manual No-show button anywhere in the web.**
-
-**Decisions:**
-
-1. Policies are **not** editable. The screen displays the real fixed rules.
-2. No-show is **manual only**. Remove the browser auto-mark; staff press a No-show action.
-
-**Do:**
-
-1. `useWorkspaceReservations.ts`:
-   - Delete `autoNoShowMutation` and its export.
-   - In `allReservations`, delete the block that fires the mutation and rewrites status/notes for late confirmed bookings (API items), and the equivalent status flip for local items (if T8 has not removed that code yet). Late bookings stay `CONFIRMED`.
-   - In `needsYouItems`, change the LATE alert subtitle from `… · Auto-released if 15m late` to `Scheduled HH:MM`. Keep the alert.
-   - Add a manual flow mirroring cancel: `showNoShowModal`, `noShowTargetRes`, `noShowReason` (default `Customer did not arrive`), `openNoShow(res)`, a `noShowMutation` calling `markReservationNoShow(selectedBranchId, id, { reason })`, and `submitNoShow()`. On success close and invalidate `['listBranchReservations']`; on error set `actionError` to `No-show failed. Refresh and retry.` Export them.
-2. New `MGMT/components/NoShowDialog.vue`, copied from `CancelBookingDialog.vue` with the no-show state and wording. Mount it where `CancelBookingDialog` is mounted (`WEB/features/reservations/pages/StaffReservationsPage.vue`).
-3. Add a "No-show" action next to Cancel for `CONFIRMED` bookings whose start time has passed, in `WorkspaceBookings.vue` and in the dashboard's late-arrival item (`WorkspaceDashboard.vue`). If the server rejects (read `Reservation.markNoShow` for its rule), the error shows through `actionError`.
-4. `WorkspacePolicies.vue`: delete `venuePolicies`. Take `branchFloorTables` from `useManagementWorkspace()`.
-   - "Reservation & billing rules" rows: **Table time** — "Every started hour, one-hour minimum" / "Billed from check-in to checkout at the rate locked when booked."; **Food pre-orders** — `${PRE_ORDER_DISCOUNT_PERCENT}% off` / `Visits within ${PRE_ORDER_WINDOW_DAYS} days; card charged at check-in.`; **No-shows** — "Marked by staff" / "Releases the table, held games and pre-ordered food; the card hold is voided."
-   - "Table hourly rates" table: one row per table from `branchFloorTables` (Table label, Seats, Hourly rate), with an `AppEmptyState` when there are none.
-   - Remove the TODO. Keep the Read-only badge.
-5. Tests: extend `useWorkspaceReservations.spec.ts` — a late confirmed booking is not marked automatically and no request is sent; `submitNoShow` sends the reason and refreshes. Update `apps/web-e2e` cases that relied on auto no-show, if any (search for `No-Show`/`Auto-marked`).
-
-**Out of scope:** Server-side settings, deposits, a scheduled no-show job, changing any server rule.
-
----
-
-## T11 — Venue settings: save branch details through the existing API
-
-**Marker:** `MGMT/components/WorkspaceSettings.vue:2` — `TODO(settings-api)`. The comment "no backend" is outdated.
-
-**Read first:** `WorkspaceSettings.vue`, `MGMT/useWorkspaceSettings.ts`, `MGMT/context.ts`, `MGMT/useWorkspaceReservations.ts` (`branches` query, `selectedBranch`), `openapi/components/schemas/UpdateBranchRequest.yaml`, `OpeningPeriod.yaml`, `MGMT/components/WorkspacePantryStock.vue` (mutation pattern).
-
-**Facts:**
-
-- Admin-only tab. It binds to a hard-coded object in `useWorkspaceSettings.ts` and its Save button is permanently disabled.
-- The endpoint exists: `PATCH /api/v1/branches/{branchId}`, generated as `updateBranch(branchId, body, options?)`, admin only. Body fields, all optional, at least one required: `name` (1–120), `address` (1–500), `phone` (1–40), `openingHours`, `active`, `fulfillsDelivery`.
-- `openingHours` is a full replacement list of `{ dayOfWeek: 'MONDAY'…'SUNDAY', opensAt: 'HH:MM', closesAt: 'HH:MM' or '24:00' }`, at most 28 entries, several non-overlapping periods per day allowed, omitted days are closed, `closesAt` later than `opensAt`.
-- The server answers `409` when new hours would exclude a confirmed reservation or active rental, `400` for invalid input.
-- The workspace context exposes `selectedBranch` (a `Branch`) and `selectedBranchId`. The storefront caches branches under `BRANCHES_QUERY_KEY` exported from `WEB/shared/stores/branch-directory.ts`; the workspace uses `['branches']`.
-
-**Do:**
-
-1. In `WorkspaceSettings.vue`, stop using `venueSettings`. Take `selectedBranch`, `selectedBranchId` and `queryClient` from `useManagementWorkspace()`.
-2. Keep a local editable copy (`name`, `address`, `phone`, list of periods) reset from `selectedBranch` whenever the selected branch changes or a save succeeds.
-3. Fields: Branch name, Physical address, Phone (new, same `AppField` pattern). Replace the single open/close pair with one row per period: day (`AppSelect` of the seven days), opens (`type="time"`), closes (`type="time"`), an "Until midnight" checkbox that sends `'24:00'` and disables the closes input, and Remove. An "Add period" button appends a row. Sort rows by day then opening time for display.
-4. Enable Save only when something changed and every row is complete with closes later than opens. On save send only changed fields (`openingHours` as the whole list when any period changed; omit `phone` when it is empty, since the server requires 1–40 characters). Disable the button while pending.
-5. On success invalidate `['branches']` and `BRANCHES_QUERY_KEY`. On failure show the server's message in an `AppMessageBar` and keep the edits.
-6. Delete `MGMT/useWorkspaceSettings.ts` and its spread in `MGMT/context.ts` after confirming nothing else reads `venueSettings` (search the repo).
-7. Remove the TODO and the HTML comment about not suggesting persistence.
-8. Tests: a component spec `MGMT/components/WorkspaceSettings.spec.ts` (mount with a provided workspace and mocked `fetch`, as other specs in `MGMT/` do): fields prefilled from the branch; saving a changed name sends only `name`; a 409 shows the message and keeps edits; "Until midnight" sends `24:00`.
-
-**Out of scope:** `active` and `fulfillsDelivery` toggles, creating branches, table management, fields the server does not have.
 
 ---
 

@@ -293,6 +293,8 @@ components:
       $ref: ./components/schemas/OrderContact.yaml
     OrderPayment:
       $ref: ./components/schemas/OrderPayment.yaml
+    FulfillOrderRequest:
+      $ref: ./components/schemas/FulfillOrderRequest.yaml
     ShippingAddress:
       $ref: ./components/schemas/ShippingAddress.yaml
     CheckoutCartRequest:

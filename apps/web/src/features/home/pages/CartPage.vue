@@ -8,6 +8,7 @@ import { useGameCovers } from '../api/catalog';
 import { useAuthStore } from '../../../shared/stores/auth';
 import { useStoreText } from '../data/store-text';
 import { AppCheckbox, AppNumberStepper } from '../../../shared/ui';
+import { FREE_SHIPPING_FROM_MINOR } from '../stores/cart';
 
 const router = useRouter();
 const cart = useCartStore();
@@ -115,8 +116,8 @@ const selectedCount = computed(() =>
   selectedLines.value.reduce((sum, l) => sum + l.quantity, 0),
 );
 
-const selectedSubtotal = computed(() =>
-  selectedLines.value.reduce((sum, l) => sum + l.total, 0),
+const freeShippingRemaining = computed(() =>
+  Math.max(0, FREE_SHIPPING_FROM_MINOR - cart.subtotal),
 );
 
 async function updateQty(id: string, qty: number) {
@@ -477,9 +478,32 @@ async function proceedToCheckout() {
                       : `Total (${selectedCount} items):`
                   }}
                 </span>
+                <strong class="total-amt">{{ formatMinor(cart.subtotal) }}</strong>
+              </div>
+              <div v-if="cart.method === 'shipping'" class="breakdown-line">
+                <span class="lbl-total">
+                  {{ locale === 'th-TH' ? 'ค่าจัดส่ง:' : 'Shipping:' }}
+                  <small v-if="cart.shippingFee > 0">
+                    {{
+                      locale === 'th-TH'
+                        ? `เพิ่มอีก ${formatMinor(freeShippingRemaining)} เพื่อรับสิทธิ์จัดส่งฟรี`
+                        : `Add ${formatMinor(freeShippingRemaining)} more for free shipping`
+                    }}
+                  </small>
+                </span>
                 <strong class="total-amt">{{
-                  formatMinor(selectedSubtotal)
+                  cart.shippingFee === 0
+                    ? locale === 'th-TH'
+                      ? 'ฟรี'
+                      : 'Free'
+                    : formatMinor(cart.shippingFee)
                 }}</strong>
+              </div>
+              <div class="breakdown-line">
+                <span class="lbl-total">{{
+                  locale === 'th-TH' ? 'ยอดรวม:' : 'Total:'
+                }}</span>
+                <strong class="total-amt">{{ formatMinor(cart.total) }}</strong>
               </div>
             </div>
 
