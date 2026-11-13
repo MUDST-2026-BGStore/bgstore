@@ -1,3 +1,16 @@
+-- Development-only schema cutover. Pre-V007 reservations do not contain the
+-- lifecycle audit required below, and overlapping confirmed bookings cannot be
+-- resolved without a business decision. Reset the development database rather
+-- than weakening constraints or inventing audit history.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM reservations) THEN
+    RAISE EXCEPTION
+      'V007 requires an empty reservations table; reset the development database instead of upgrading legacy reservations';
+  END IF;
+END
+$$;
+
 -- The registered customer's identity subject at booking; NULL for guests.
 ALTER TABLE reservations ADD COLUMN customer_subject TEXT;
 ALTER TABLE reservations ADD CONSTRAINT chk_reservations_customer_subject

@@ -1,3 +1,16 @@
+-- Development-only schema cutover. Orders created before payments and the
+-- expanded line snapshots existed cannot be upgraded truthfully: their payment
+-- method/status and edition language were never recorded. Reset the development
+-- database instead of manufacturing history.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM orders) THEN
+    RAISE EXCEPTION
+      'V006 requires an empty orders table; reset the development database instead of upgrading legacy orders';
+  END IF;
+END
+$$;
+
 -- At most one branch ships delivery orders; it is the fulfillment location of
 -- every SHIPPING cart and order.
 ALTER TABLE branches ADD COLUMN fulfills_delivery BOOLEAN NOT NULL DEFAULT FALSE;

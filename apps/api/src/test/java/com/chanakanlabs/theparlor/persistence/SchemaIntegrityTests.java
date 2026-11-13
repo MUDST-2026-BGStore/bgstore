@@ -128,6 +128,80 @@ class SchemaIntegrityTests {
   }
 
   @Test
+  void emptyDevelopmentSchemaAtV003MigratesToLatest() {
+    String schema = "empty_upgrade_" + UUID.randomUUID().toString().replace("-", "");
+    var configuration =
+        Flyway.configure()
+            .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+            .schemas(schema)
+            .defaultSchema(schema);
+    configuration.target("003").load().migrate();
+
+    configuration.target(org.flywaydb.core.api.MigrationVersion.LATEST).load().migrate();
+
+    jdbc.execute("SET search_path TO " + schema);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM flyway_schema_history WHERE success AND version='009'",
+                Integer.class))
+        .isEqualTo(1);
+  }
+
+  @Test
+  void rejectsDevelopmentOrdersCreatedBeforePaymentCutover() {
+    String schema = "order_upgrade_" + UUID.randomUUID().toString().replace("-", "");
+    var configuration =
+        Flyway.configure()
+            .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+            .schemas(schema)
+            .defaultSchema(schema);
+    configuration.target("005").load().migrate();
+    jdbc.execute("SET search_path TO " + schema);
+    var branch = branch();
+    jdbc.update(
+        """
+        INSERT INTO orders(
+          branch_id, contact_name, contact_email, contact_phone, source, status,
+          fulfillment_method, total_minor, created_by_subject
+        ) VALUES (?, 'Development order', 'dev@example.invalid', '000', 'CUSTOMER',
+                  'PLACED', 'PICKUP', 100, 'development-subject')
+        """,
+        branch);
+
+    assertThatThrownBy(
+            () ->
+                configuration
+                    .target(org.flywaydb.core.api.MigrationVersion.LATEST)
+                    .load()
+                    .migrate())
+        .hasStackTraceContaining(
+            "V006 requires an empty orders table; reset the development database");
+  }
+
+  @Test
+  void rejectsDevelopmentReservationsCreatedBeforeLifecycleCutover() {
+    String schema = "reservation_upgrade_" + UUID.randomUUID().toString().replace("-", "");
+    var configuration =
+        Flyway.configure()
+            .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+            .schemas(schema)
+            .defaultSchema(schema);
+    configuration.target("006").load().migrate();
+    jdbc.execute("SET search_path TO " + schema);
+    var branch = branch();
+    reservation(branch, table(branch));
+
+    assertThatThrownBy(
+            () ->
+                configuration
+                    .target(org.flywaydb.core.api.MigrationVersion.LATEST)
+                    .load()
+                    .migrate())
+        .hasStackTraceContaining(
+            "V007 requires an empty reservations table; reset the development database");
+  }
+
+  @Test
   void rejectsMissingNullAndUnsupportedPreferenceLocales() {
     for (String preferences :
         java.util.List.of(
