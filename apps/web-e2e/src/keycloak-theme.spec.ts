@@ -92,7 +92,8 @@ for (const viewport of [
     await expect(english).toHaveAttribute('aria-current', 'true');
     await expect(english).toHaveCSS('background-color', 'rgb(198, 173, 122)');
     const switcher = await language.boundingBox();
-    expect(switcher?.x).toBeLessThan(32);
+    // Same inset as the storefront header's switcher (32px at 1440px).
+    expect(switcher?.x).toBeCloseTo(32, 0);
     expect((switcher?.x ?? 0) + (switcher?.width ?? 0)).toBeLessThan(
       wordmark?.x ?? 0,
     );
