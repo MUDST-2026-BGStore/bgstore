@@ -37,4 +37,27 @@
   /* Shape */
   --ui-radius: 4px;
   --ui-radius-lg: 8px;
+
+  /* Form controls (select triggers, number steppers) */
+  --ui-control-height: 34px;
+  --ui-control-font-size: 13px;
+}
+
+/* Storefront pages: the same controls in the Parlor catalog palette and size. */
+.ui-storefront {
+  --ui-brand: #244c38;
+  --ui-brand-hover: #1b3a2b;
+  --ui-focus: #244c38;
+  --ui-text: #202e27;
+  --ui-muted: #4e5b53;
+  --ui-stroke: #829087;
+  --ui-stroke-strong: #244c38;
+  --ui-divider: #d3d9d4;
+  --ui-surface: #fff;
+  --ui-surface-hover: #f3f6f3;
+  --ui-selected: #e9f0ea;
+  --ui-radius: 3px;
+  --ui-radius-lg: 6px;
+  --ui-control-height: 42px;
+  --ui-control-font-size: 14px;
 }

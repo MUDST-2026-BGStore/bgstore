@@ -12,8 +12,10 @@ const props = withDefaults(
     name?: string;
     placeholder?: string;
     disabled?: boolean;
+    /** Fill the container's width, like a form field. */
+    block?: boolean;
   }>(),
-  { placeholder: 'Select an option', disabled: false },
+  { placeholder: 'Select an option', disabled: false, block: false },
 );
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const dropdown = ref<InstanceType<typeof AppDropdown>>();
@@ -123,6 +125,7 @@ watch(
     popup-role="listbox"
     :width="240"
     :disabled="disabled"
+    :block="block"
     @opened="onOpen"
     @trigger-keydown="onTriggerKeydown"
   >

@@ -70,20 +70,21 @@ function onChange(event: Event) {
   gap: 4px;
 }
 .app-number-stepper > .app-button {
-  min-width: 30px;
+  min-width: max(30px, calc(var(--ui-control-height) - 4px));
+  min-height: calc(var(--ui-control-height) - 2px);
   padding-inline: 6px;
 }
 .app-number-stepper input {
   width: 56px;
   min-width: 0;
-  height: 32px;
+  height: calc(var(--ui-control-height) - 2px);
   padding: 4px;
   border: 1px solid var(--ui-stroke);
   border-radius: var(--ui-radius);
-  background: white;
+  background: var(--ui-surface);
   color: var(--ui-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--ui-control-font-size);
   text-align: center;
   font-variant-numeric: tabular-nums;
   appearance: textfield;

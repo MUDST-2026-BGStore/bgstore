@@ -3,7 +3,9 @@
 // come from the branch API; map positions are frontend approximations, because the
 // API has no coordinates. A branch without a known position is listed without a pin.
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { RouterLink } from 'vue-router';
 import BranchMap from '../components/BranchMap.vue';
+import { AppCheckbox } from '../../../shared/ui';
 import {
   useBranchDirectoryStore,
   type StoreBranch,
@@ -306,7 +308,7 @@ watch(filterOpen, (open) => {
             </button>
             <div v-if="filterOpen" id="branch-filter" class="filter-panel">
               <label>
-                <input v-model="openNowOnly" type="checkbox" />
+                <AppCheckbox v-model="openNowOnly" :label="t('Open now')" />
                 {{ t('Open now') }}
               </label>
             </div>
@@ -399,12 +401,23 @@ watch(filterOpen, (open) => {
                   <dd>{{ entry.range }}</dd>
                 </div>
               </dl>
-              <a
-                :href="directionsUrl(branch)"
-                target="_blank"
-                rel="noopener noreferrer"
-                >{{ t('Get directions') }} <span aria-hidden="true">↗</span></a
-              >
+              <div class="detail-actions">
+                <RouterLink
+                  class="reserve-here"
+                  :to="{
+                    path: '/reservations/new',
+                    query: { branch: branch.id },
+                  }"
+                  >{{ t('Reserve a table here') }}</RouterLink
+                >
+                <a
+                  :href="directionsUrl(branch)"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  >{{ t('Get directions') }}
+                  <span aria-hidden="true">↗</span></a
+                >
+              </div>
             </div>
           </li>
         </ul>
@@ -638,11 +651,27 @@ watch(filterOpen, (open) => {
 .hours .today {
   font-weight: 700;
 }
+.detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+}
 .details a {
   justify-self: start;
   color: #244c38;
   font-weight: 700;
   text-decoration: underline;
+}
+.details a.reserve-here {
+  padding: 8px 14px;
+  border-radius: 3px;
+  background: #244c38;
+  color: #fff;
+  text-decoration: none;
+}
+.details a.reserve-here:hover {
+  background: #1b3a2b;
 }
 .map-panel {
   position: absolute;

@@ -9,8 +9,10 @@ const props = withDefaults(
     popupRole?: 'dialog' | 'listbox' | 'menu';
     width?: number;
     disabled?: boolean;
+    /** Fill the container's width, like a form field. */
+    block?: boolean;
   }>(),
-  { popupRole: 'dialog', width: 320, disabled: false },
+  { popupRole: 'dialog', width: 320, disabled: false, block: false },
 );
 const emit = defineEmits<{
   opened: [];
@@ -108,7 +110,7 @@ defineExpose({
 </script>
 
 <template>
-  <span class="app-dropdown">
+  <span class="app-dropdown" :class="{ block }">
     <button
       :id="triggerId"
       ref="trigger"
@@ -162,12 +164,19 @@ defineExpose({
   display: inline-flex;
   min-width: 0;
 }
+.app-dropdown.block {
+  display: flex;
+  width: 100%;
+}
+.app-dropdown.block .dropdown-trigger {
+  flex: 1 1 auto;
+}
 .dropdown-trigger {
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 34px;
+  min-height: var(--ui-control-height);
   min-width: 0;
   padding: 6px 10px;
   border: 1px solid var(--ui-stroke);
@@ -175,7 +184,7 @@ defineExpose({
   background: var(--ui-surface);
   color: var(--ui-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--ui-control-font-size);
   line-height: 20px;
   cursor: pointer;
 }

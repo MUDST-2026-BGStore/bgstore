@@ -159,7 +159,10 @@ it('changes language immediately and saves it through the account endpoint', asy
     expect(page.find('[data-testid="profile-account-id"]').exists()).toBe(true),
   );
 
-  await page.get('select').setValue('th-TH');
+  const thai = page
+    .findAll('[role="option"]')
+    .find((option) => option.text().includes('ไทย'));
+  await thai!.trigger('click');
   expect(document.documentElement.lang).toBe('th-TH');
   await vi.waitFor(() => expect(useLocale().saveStatus.value).toBe('idle'));
 

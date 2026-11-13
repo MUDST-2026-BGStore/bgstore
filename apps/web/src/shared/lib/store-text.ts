@@ -398,6 +398,15 @@ const thai: Record<string, string> = {
     'ตะกร้ามีการเปลี่ยนแปลง กรุณาตรวจสอบสินค้าอีกครั้ง',
   // Reservations & Navigation
   'Reserve Table': 'จองโต๊ะ',
+  'Reserve a table': 'จองโต๊ะ',
+  'Reserve a table at {branch}': 'จองโต๊ะที่สาขา{branch}',
+  'Reserve a table here': 'จองโต๊ะที่สาขานี้',
+  'Reserve a table to play': 'จองโต๊ะเพื่อเล่นเกมนี้',
+  'Play it at {branch}: book a table and add this game.':
+    'เล่นที่สาขา{branch}: จองโต๊ะแล้วเลือกเกมนี้',
+  'Play it in store: book a table at a branch with this game.':
+    'เล่นที่ร้าน: จองโต๊ะที่สาขาที่มีเกมนี้',
+  'Quantity for {game}': 'จำนวน {game}',
   'Reserve a Table': 'จองโต๊ะ',
   'Reserve a Table to Play': 'จองโต๊ะเพื่อเล่นเกมนี้',
   'My Reservations': 'การจองของฉัน',

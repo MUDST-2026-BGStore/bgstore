@@ -229,7 +229,7 @@ it('shows the chosen branch’s price and stock and adds the edition to the serv
   // Library membership only: no live rental copy count on a product page.
   expect(page.get('.library-line').text()).toContain('In the rental library');
   expect(page.text()).not.toContain('rentalAvailableNow');
-  expect(page.get('input[name="quantity"]').attributes('max')).toBe('2');
+  expect(page.get('input[aria-label="Quantity"]').attributes('max')).toBe('2');
 
   await page.get('.purchase-form').trigger('submit');
   await flushPromises();

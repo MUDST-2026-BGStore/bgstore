@@ -19,6 +19,7 @@ import {
   taxonomyLabel,
 } from '../api/catalog';
 import { useBranchGames } from '../api/inventory';
+import { AppCheckbox, AppSelect } from '../../../shared/ui';
 
 const compact = ref(false);
 const filterDialog = ref<HTMLDialogElement>();
@@ -77,6 +78,33 @@ const loginFailed = new URLSearchParams(window.location.search).has(
   'login_error',
 );
 const { t, locale } = useStoreText();
+const sortOptions = computed(() => [
+  { value: 'shelf', label: t('Shelf order') },
+  { value: 'name', label: t('Name: A–Z') },
+  { value: 'time', label: t('Shortest playtime') },
+]);
+const playerOptions = computed(() => [
+  { value: '', label: t('Any group size') },
+  ...Array.from({ length: 20 }, (_, index) => ({
+    value: String(index + 1),
+    label: t(index === 0 ? '{count} player' : '{count} players', {
+      count: index + 1,
+    }),
+  })),
+]);
+const timeOptions = computed(() => [
+  { value: '', label: t('Any duration') },
+  { value: '30', label: t('Up to 30 minutes') },
+  { value: '60', label: t('Up to 1 hour') },
+  { value: '120', label: t('Up to 2 hours') },
+  { value: '180', label: t('Up to 3 hours') },
+]);
+const difficultyOptions = computed(() => [
+  { value: '', label: t('All experience levels') },
+  { value: 'Easy', label: t('First-timer friendly') },
+  { value: 'Medium', label: t('Some experience') },
+  { value: 'Advanced', label: t('Ready for a challenge') },
+]);
 const context = useStoreContextStore();
 const catalog = useCatalog();
 const taxonomy = useTaxonomy();
@@ -250,14 +278,14 @@ function markImageFailed(url: string) {
                 {{ t('Filters')
                 }}<span v-if="activeCount"> ({{ activeCount }})</span>
               </button>
-              <label class="sort-control"
-                >{{ t('Sort by')
-                }}<select v-model="sort" :aria-label="t('Sort games')">
-                  <option value="shelf">{{ t('Shelf order') }}</option>
-                  <option value="name">{{ t('Name: A–Z') }}</option>
-                  <option value="time">{{ t('Shortest playtime') }}</option>
-                </select></label
-              >
+              <div class="sort-control">
+                <span aria-hidden="true">{{ t('Sort by') }}</span>
+                <AppSelect
+                  v-model="sort"
+                  :label="t('Sort games')"
+                  :options="sortOptions"
+                />
+              </div>
               <div class="view-switch" :aria-label="t('Display games')">
                 <button
                   type="button"
@@ -491,50 +519,46 @@ function markImageFailed(url: string) {
           >
             <h2>{{ t('At this store') }}</h2>
             <label class="branch-filter-check">
-              <input v-model="soldHere" type="checkbox" name="sold-here" />
+              <AppCheckbox v-model="soldHere" :label="t('Sold here')" />
               <span>{{ t('Sold here') }}</span>
             </label>
             <label v-if="context.branch" class="branch-filter-check">
-              <input v-model="inLibrary" type="checkbox" name="in-library" />
+              <AppCheckbox v-model="inLibrary" :label="t('In this library')" />
               <span>{{ t('In this library') }}</span>
             </label>
           </div>
           <h2>{{ t('For your table') }}</h2>
-          <label
-            >{{ t('Players')
-            }}<select v-model="players" name="players">
-              <option value="">{{ t('Any group size') }}</option>
-              <option v-for="count in 20" :key="count" :value="String(count)">
-                {{
-                  t(count === 1 ? '{count} player' : '{count} players', {
-                    count,
-                  })
-                }}
-              </option>
-            </select></label
-          >
-          <label
-            >{{ t('Time at the table')
-            }}<select v-model="time" name="time">
-              <option value="">{{ t('Any duration') }}</option>
-              <option value="30">{{ t('Up to 30 minutes') }}</option>
-              <option value="60">{{ t('Up to 1 hour') }}</option>
-              <option value="120">{{ t('Up to 2 hours') }}</option>
-              <option value="180">{{ t('Up to 3 hours') }}</option>
-            </select></label
-          >
+          <div class="filter-field">
+            <span>{{ t('Players') }}</span>
+            <AppSelect
+              v-model="players"
+              block
+              name="players"
+              :label="t('Players')"
+              :options="playerOptions"
+            />
+          </div>
+          <div class="filter-field">
+            <span>{{ t('Time at the table') }}</span>
+            <AppSelect
+              v-model="time"
+              block
+              name="time"
+              :label="t('Time at the table')"
+              :options="timeOptions"
+            />
+          </div>
           <p class="filter-hint">{{ t('Includes teaching & setup.') }}</p>
-          <label
-            >{{ t('Experience level')
-            }}<select v-model="difficulty" name="difficulty">
-              <option value="">{{ t('All experience levels') }}</option>
-              <option value="Easy">{{ t('First-timer friendly') }}</option>
-              <option value="Medium">{{ t('Some experience') }}</option>
-              <option value="Advanced">
-                {{ t('Ready for a challenge') }}
-              </option>
-            </select></label
-          >
+          <div class="filter-field">
+            <span>{{ t('Experience level') }}</span>
+            <AppSelect
+              v-model="difficulty"
+              block
+              name="difficulty"
+              :label="t('Experience level')"
+              :options="difficultyOptions"
+            />
+          </div>
         </div>
       </div>
     </Teleport>
@@ -741,49 +765,11 @@ h1 {
   gap: 9px;
   cursor: pointer;
 }
-.branch-filter-check input {
-  width: 16px;
-  height: 16px;
-  margin: 0;
-  accent-color: var(--accent);
-  cursor: pointer;
-}
-.table-filters label {
+.table-filters .filter-field {
   display: grid;
   gap: 7px;
   font-size: 13px;
   color: #34473a;
-}
-.table-filters select {
-  width: 100%;
-  min-width: 0;
-  border: 1px solid var(--control-border);
-  border-radius: 3px;
-  appearance: none;
-  min-height: 42px;
-  background-color: var(--surface);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%2334473a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-position: right 12px center;
-  background-repeat: no-repeat;
-  padding: 10px 36px 10px 12px;
-  color: var(--ink);
-  font-size: 13px;
-  line-height: 1.5;
-  cursor: pointer;
-}
-.table-filters select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-@media (forced-colors: active) {
-  .table-filters select {
-    appearance: auto;
-    background-image: none;
-    padding-right: 8px;
-  }
-}
-.table-filters select:hover {
-  border-color: var(--accent);
 }
 .filter-hint {
   margin-top: -10px;
@@ -826,12 +812,9 @@ h1 {
   align-items: center;
   font-size: 12px;
   color: var(--muted);
-}
-.sort-control select {
-  padding: 5px 0;
-  color: #2d4333;
-  font-size: 12px;
-  max-width: 145px;
+  /* A toolbar control, smaller than the filter fields. */
+  --ui-control-height: 32px;
+  --ui-control-font-size: 13px;
 }
 .view-switch {
   display: flex;
@@ -1222,10 +1205,6 @@ footer a:hover {
   }
   .results-count strong {
     font-size: 17px;
-  }
-  .sort-control select {
-    font-size: 12px;
-    max-width: 130px;
   }
   .results-controls {
     margin-left: auto;

@@ -20,6 +20,7 @@ import BranchAvailability from '../components/BranchAvailability.vue';
 import { useBranchOffering } from '../api/inventory';
 import { useStoreContextStore } from '../stores/store-context';
 import { useCartStore } from '../stores/cart';
+import { AppNumberStepper, AppSelect } from '../../../shared/ui';
 
 const route = useRoute();
 const { t, locale } = useStoreText();
@@ -100,6 +101,22 @@ watch([() => selected.value?.editionId, () => context.stockBranch?.id], () => {
   quantity.value = 1;
   added.value = '';
 });
+const editionOptions = computed(() =>
+  stocked.value.map((edition) => ({
+    value: edition.editionId,
+    label: editionLabel(edition),
+  })),
+);
+// Book a table to play this game, at the chosen branch when its library has it.
+const playLink = computed(() => ({
+  path: '/reservations/new',
+  query: {
+    game: game.value?.id,
+    ...(context.branch && offering.data.value?.rentalEnabled
+      ? { branch: context.branch.id }
+      : {}),
+  },
+}));
 function editionLabel(edition: { languageCode: string; editionKind: string }) {
   const language = languageName(edition.languageCode);
   return edition.editionKind === 'EXPANSION'
@@ -255,18 +272,16 @@ async function addToCart() {
             }}
           </p>
           <form v-else class="purchase-form" @submit.prevent="addToCart">
-            <label v-if="stocked.length > 1">
+            <div v-if="stocked.length > 1" class="edition-field">
               <span>{{ t('Edition') }}</span>
-              <select v-model="selectedEditionId" name="edition">
-                <option
-                  v-for="edition in stocked"
-                  :key="edition.editionId"
-                  :value="edition.editionId"
-                >
-                  {{ editionLabel(edition) }}
-                </option>
-              </select>
-            </label>
+              <AppSelect
+                v-model="selectedEditionId"
+                block
+                name="edition"
+                :label="t('Edition')"
+                :options="editionOptions"
+              />
+            </div>
             <p v-else class="purchase-edition">{{ editionLabel(selected) }}</p>
             <p class="product-price">
               {{ formatMinor(selected.salePrice.amountMinor) }}
@@ -290,18 +305,16 @@ async function addToCart() {
                 }}
               </span>
             </p>
-            <label class="quantity-field">
+            <div class="quantity-field">
               <span>{{ t('Quantity') }}</span>
-              <input
-                v-model.number="quantity"
-                type="number"
-                name="quantity"
-                inputmode="numeric"
-                min="1"
+              <AppNumberStepper
+                v-model="quantity"
+                :label="t('Quantity')"
+                :min="1"
                 :max="Math.max(1, maxQuantity)"
                 :disabled="maxQuantity === 0"
               />
-            </label>
+            </div>
             <button
               type="submit"
               class="add-to-cart"
@@ -335,6 +348,22 @@ async function addToCart() {
               · {{ t('Staff can teach this game') }}
             </span>
           </p>
+          <div class="play-here">
+            <p>
+              {{
+                context.branch && offering.data.value?.rentalEnabled
+                  ? t('Play it at {branch}: book a table and add this game.', {
+                      branch: t(context.branch.name),
+                    })
+                  : t(
+                      'Play it in store: book a table at a branch with this game.',
+                    )
+              }}
+            </p>
+            <RouterLink class="play-reserve" :to="playLink">{{
+              t('Reserve a table to play')
+            }}</RouterLink>
+          </div>
         </section>
         <div class="product-accordions">
           <BranchAvailability
@@ -543,8 +572,42 @@ h2 {
 .library-line {
   margin-top: 14px;
 }
-.quantity-field input {
-  max-width: 120px;
+.edition-field,
+.quantity-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  font-size: 13px;
+}
+.quantity-field {
+  justify-items: start;
+}
+.play-here {
+  display: grid;
+  gap: 10px;
+  max-width: 420px;
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line, #d3d9d4);
+}
+.play-here p {
+  font-size: 13px;
+  color: var(--muted);
+}
+.play-reserve {
+  display: block;
+  padding: 12px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color 150ms ease;
+}
+.play-reserve:hover {
+  background: #e9f0ea;
 }
 .add-to-cart {
   width: 100%;

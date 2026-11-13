@@ -14,19 +14,23 @@ it('searches a large branch directory without clearing or changing the selected 
       name: 'store-branch',
       label: 'Branch',
     },
+    attachTo: document.body,
   });
+  const choices = () =>
+    wrapper
+      .findAll('[role=option]')
+      .map((option) => option.text().replace('✓', ''));
   await wrapper.get('input[type=search]').setValue('Branch 090');
-  expect(
-    wrapper.findAll('option').map((option) => option.attributes('value')),
-  ).toEqual(['', 'branch-0', 'branch-90']);
-  expect((wrapper.get('select').element as HTMLSelectElement).value).toBe(
+  expect(choices()).toEqual(['Branch 000', 'Branch 090']);
+  expect(wrapper.get('input[type=hidden]').element).toHaveProperty(
+    'value',
     'branch-0',
   );
   expect(wrapper.emitted('update:modelValue')).toBeUndefined();
-  await wrapper.get('select').setValue('branch-90');
+  await wrapper.findAll('[role=option]')[1].trigger('click');
   expect(wrapper.emitted('update:modelValue')).toEqual([['branch-90']]);
   await wrapper.get('input[type=search]').setValue('missing place');
   expect(wrapper.get('[role=status]').text()).toContain('No matching branches');
-  expect(wrapper.find('option[value=branch-0]').exists()).toBe(true);
+  expect(choices()).toEqual(['Branch 000']);
   wrapper.unmount();
 });
