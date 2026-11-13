@@ -1,85 +1,78 @@
 package com.chanakanlabs.theparlor.carts.internal.web;
 
+import com.chanakanlabs.theparlor.carts.internal.application.CartsService;
 import com.chanakanlabs.theparlor.contracts.api.CartsApi;
 import com.chanakanlabs.theparlor.contracts.model.*;
-import java.time.*;
-import java.util.*;
+import com.chanakanlabs.theparlor.shared.Sha256;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.HexFormat;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class CartsController implements CartsApi {
+  private final CartsService carts;
+  private final HttpServletRequest request;
+
+  public CartsController(CartsService carts, HttpServletRequest request) {
+    this.carts = carts;
+    this.request = request;
+  }
 
   @Override
   public Cart addCartItem(
       UUID cartId, AddCartItemRequest addCartItemRequest, @Nullable String xCartToken) {
-    // TODO(carts-api): implement addCartItem — POST /api/v1/carts/{cartId}/items — Add a line to a
-    // cart
-    throw new UnsupportedOperationException(
-        "POST /api/v1/carts/{cartId}/items (addCartItem) is not implemented yet");
+    return carts.addItem(cartId, xCartToken, addCartItemRequest);
   }
 
   @Override
-  public Order checkoutCart(UUID cartId, UUID idempotencyKey, @Nullable String xCartToken) {
-    // TODO(carts-api): implement checkoutCart — POST /api/v1/carts/{cartId}/checkout — Place an
-    // order from a cart
-    throw new UnsupportedOperationException(
-        "POST /api/v1/carts/{cartId}/checkout (checkoutCart) is not implemented yet");
+  public Order checkoutCart(
+      UUID cartId,
+      UUID idempotencyKey,
+      CheckoutCartRequest checkoutCartRequest,
+      @Nullable String xCartToken) {
+    return carts.checkout(cartId, idempotencyKey, xCartToken, checkoutCartRequest);
   }
 
   @Override
   public CartCreated createCart(UUID idempotencyKey) {
-    // TODO(carts-api): implement createCart — POST /api/v1/carts — Create a cart for the caller
-    throw new UnsupportedOperationException(
-        "POST /api/v1/carts (createCart) is not implemented yet");
+    // A guest has no subject, so retries are recognized by browser session. The session ID is
+    // hashed because idempotency keys are stored and must not double as session credentials.
+    String session =
+        "session:" + HexFormat.of().formatHex(Sha256.of(request.getSession(true).getId()));
+    return carts.create(idempotencyKey, session);
   }
 
   @Override
   public void deleteCart(UUID cartId, @Nullable String xCartToken) {
-    // TODO(carts-api): implement deleteCart — DELETE /api/v1/carts/{cartId} — Abandon a cart
-    throw new UnsupportedOperationException(
-        "DELETE /api/v1/carts/{cartId} (deleteCart) is not implemented yet");
+    carts.abandon(cartId, xCartToken);
   }
 
   @Override
   public Cart getCart(UUID cartId, @Nullable String xCartToken) {
-    // TODO(carts-api): implement getCart — GET /api/v1/carts/{cartId} — Read a cart with
-    // revalidated lines
-    throw new UnsupportedOperationException(
-        "GET /api/v1/carts/{cartId} (getCart) is not implemented yet");
+    return carts.get(cartId, xCartToken);
   }
 
   @Override
   public Cart getMyCart() {
-    // TODO(carts-api): implement getMyCart — GET /api/v1/me/cart — Get the signed-in account&#39;s
-    // open cart
-    throw new UnsupportedOperationException(
-        "GET /api/v1/me/cart (getMyCart) is not implemented yet");
+    return carts.getMine();
   }
 
   @Override
   public Cart mergeCart(MergeCartRequest mergeCartRequest) {
-    // TODO(carts-api): implement mergeCart — POST /api/v1/me/cart/merge — Merge a guest cart into
-    // the account&#39;s open cart
-    throw new UnsupportedOperationException(
-        "POST /api/v1/me/cart/merge (mergeCart) is not implemented yet");
+    return carts.merge(mergeCartRequest);
   }
 
   @Override
   public void removeCartItem(UUID cartId, UUID itemId, @Nullable String xCartToken) {
-    // TODO(carts-api): implement removeCartItem — DELETE /api/v1/carts/{cartId}/items/{itemId} —
-    // Remove a line from a cart
-    throw new UnsupportedOperationException(
-        "DELETE /api/v1/carts/{cartId}/items/{itemId} (removeCartItem) is not implemented yet");
+    carts.removeItem(cartId, itemId, xCartToken);
   }
 
   @Override
   public Cart updateCart(
       UUID cartId, UpdateCartRequest updateCartRequest, @Nullable String xCartToken) {
-    // TODO(carts-api): implement updateCart — PATCH /api/v1/carts/{cartId} — Choose pickup or
-    // delivery for the whole cart
-    throw new UnsupportedOperationException(
-        "PATCH /api/v1/carts/{cartId} (updateCart) is not implemented yet");
+    return carts.updateFulfillment(cartId, xCartToken, updateCartRequest);
   }
 
   @Override
@@ -88,9 +81,6 @@ public class CartsController implements CartsApi {
       UUID itemId,
       UpdateCartItemRequest updateCartItemRequest,
       @Nullable String xCartToken) {
-    // TODO(carts-api): implement updateCartItem — PATCH /api/v1/carts/{cartId}/items/{itemId} — Set
-    // a line&#39;s quantity
-    throw new UnsupportedOperationException(
-        "PATCH /api/v1/carts/{cartId}/items/{itemId} (updateCartItem) is not implemented yet");
+    return carts.updateItem(cartId, itemId, xCartToken, updateCartItemRequest);
   }
 }

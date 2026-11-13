@@ -1,0 +1,19 @@
+:where(.gl-admin-layout) {
+  @media (max-width: 700px) {
+    .gl-main-wrapper {
+      margin-left: 68px;
+    }
+    .gl-content {
+      padding: 20px 12px 40px;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition: none !important;
+      animation: none !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}

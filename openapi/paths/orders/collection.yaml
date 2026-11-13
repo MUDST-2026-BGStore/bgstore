@@ -39,7 +39,9 @@ post:
   summary: Place an order for games sold by this branch
   description:
     The customer and creator subjects come from the session; source=CUSTOMER. Atomically
-    hold all requested sale quantities, lock the current server-side prices and calculate the total.
+    hold all requested sale quantities, lock the current server-side prices, calculate the total
+    and authorize the payment token for it; the order is picked up at this branch and contact
+    details come from the account. A declined payment returns 402 with nothing held.
     Only active games with active editions enabled for sale at this active branch may be ordered.
     Duplicate edition IDs return 400; insufficient sale stock returns 409 without partial holds.
     Rental copies are never sold through this operation.
@@ -66,9 +68,13 @@ post:
       $ref: ../../components/responses/BadRequest.yaml
     '401':
       $ref: ../../components/responses/Unauthorized.yaml
+    '402':
+      $ref: ../../components/responses/PaymentDeclined.yaml
     '403':
       $ref: ../../components/responses/Forbidden.yaml
     '404':
       $ref: ../../components/responses/NotFound.yaml
     '409':
       $ref: ../../components/responses/Conflict.yaml
+    '502':
+      $ref: ../../components/responses/PaymentGatewayError.yaml

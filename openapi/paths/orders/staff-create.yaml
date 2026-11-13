@@ -8,7 +8,8 @@ post:
   description:
     Creates a PLACED order with source=STAFF_COUNTER and creator from the authenticated
     operator. Apply the same atomic stock holds, offering and locked-price rules as customer orders.
-    Staff must separately fulfill the order after handing over the games.
+    The sale is settled at the counter and never charged through the payment gateway. Staff
+    must separately fulfill the order after handing over the games.
   security:
     - sessionCookie: []
   x-access-policy: branch-operator

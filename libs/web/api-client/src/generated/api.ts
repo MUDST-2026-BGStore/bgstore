@@ -39,6 +39,7 @@ import type {
   BranchEditionStock,
   BranchGame,
   BranchGamePage,
+  BranchMenu,
   BranchPage,
   Cart,
   CartCreated,
@@ -46,6 +47,7 @@ import type {
   CategoryPage,
   CheckInResult,
   CheckOutResult,
+  CheckoutCartRequest,
   ConfigureBranchGameRequest,
   ConflictResponse,
   CreateAccountRequest,
@@ -55,6 +57,7 @@ import type {
   CreateGameRequest,
   CreateMechanicRequest,
   CreateOrderRequest,
+  CreatePaymentTokenRequest,
   CreateRentalCopyRequest,
   CreateReservationRequest,
   CreateStaffOrderRequest,
@@ -83,10 +86,14 @@ import type {
   ListTablesParams,
   Mechanic,
   MechanicPage,
+  MenuStock,
   MergeCartRequest,
   NotFoundResponse,
   Order,
   OrderPage,
+  PaymentDeclinedResponse,
+  PaymentGatewayErrorResponse,
+  PaymentToken,
   Problem,
   Profile,
   ReasonRequest,
@@ -1458,17 +1465,21 @@ export const useRemoveCartItem = <TError = ErrorType<ForbiddenResponse | NotFoun
     }
 
 /**
- * Validates every line atomically against the fulfillment location, holds stock (branch_editions stock_held), creates one PLACED order and marks the cart CONVERTED; the cart keeps its lines and cannot be reused. Requires Idempotency-Key. Replays with the same key and body return the original order. Guests require X-Cart-Token; signed-in accounts may also check out a guest cart they hold. 409 when the cart is empty, has issues, is not OPEN, or any line no longer has enough stock.
+ * Validates every line atomically against the fulfillment location, holds stock (branch_editions stock_held), authorizes the payment token for the total, creates one PLACED order and marks the cart CONVERTED; the cart keeps its lines and cannot be reused. A declined payment returns 402 and leaves the cart open with nothing held. Requires Idempotency-Key. Replays with the same key and body return the original order. Guests require X-Cart-Token; signed-in accounts may also check out a guest cart they hold. 409 when the cart is empty, has issues, is not OPEN, or any line no longer has enough stock.
  * @summary Place an order from a cart
  */
 export const checkoutCart = (
     cartId: MaybeRefOrGetter<string>,
+    checkoutCartRequest: MaybeRefOrGetter<CheckoutCartRequest>,
  options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
 ) => {
       cartId = toValue(cartId);
+checkoutCartRequest = toValue(checkoutCartRequest);
 
       return apiRequest<Order>(
-      {url: `/api/v1/carts/${cartId}/checkout`, method: 'POST', signal
+      {url: `/api/v1/carts/${cartId}/checkout`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: checkoutCartRequest, signal
     },
       options);
     }
@@ -1478,7 +1489,7 @@ export const checkoutCart = (
 
 export const getCheckoutCartMutationKey = () => ['checkoutCart'] as const;
 
-export const getCheckoutCartMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const getCheckoutCartMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkoutCart>>, TError,CheckoutCartMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
 ): UseMutationOptions<Awaited<ReturnType<typeof checkoutCart>>, TError,CheckoutCartMutationVariables, TContext> => {
 
@@ -1493,9 +1504,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
       const mutationFn: MutationFunction<Awaited<ReturnType<typeof checkoutCart>>, CheckoutCartMutationVariables> = (props) => {
-          const {cartId} = props ?? {};
+          const {cartId,data} = props ?? {};
 
-          return  checkoutCart(cartId,requestOptions)
+          return  checkoutCart(cartId,data,requestOptions)
         }
 
 
@@ -1506,14 +1517,14 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type CheckoutCartMutationResult = NonNullable<Awaited<ReturnType<typeof checkoutCart>>>
-
-    export type CheckoutCartMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
-    export type CheckoutCartMutationVariables = {cartId: string}
+    export type CheckoutCartMutationBody = CheckoutCartRequest
+    export type CheckoutCartMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>
+    export type CheckoutCartMutationVariables = {cartId: string;data: CheckoutCartRequest}
 
     /**
  * @summary Place an order from a cart
  */
-export const useCheckoutCart = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const useCheckoutCart = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkoutCart>>, TError,CheckoutCartMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient): UseMutationReturnType<
         Awaited<ReturnType<typeof checkoutCart>>,
@@ -1522,6 +1533,220 @@ export const useCheckoutCart = <TError = ErrorType<BadRequestResponse | Unauthor
         TContext
       > => {
       return useMutation(getCheckoutCartMutationOptions(options), queryClient);
+    }
+
+/**
+ * Active menu items only, at an active branch. Availability is advisory; a pre-order holds stock atomically at booking.
+ * @summary Read the food and drink menu with this branch's availability
+ */
+export const getBranchMenu = (
+    branchId: MaybeRefOrGetter<string>,
+ options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
+) => {
+      branchId = toValue(branchId);
+
+      return apiRequest<BranchMenu>(
+      {url: `/api/v1/branches/${branchId}/menu`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetBranchMenuQueryKey = (branchId: MaybeRefOrGetter<string>,) => {
+    return [
+    'api','v1','branches',branchId,'menu'
+    ] as const;
+    }
+
+
+export const getGetBranchMenuQueryOptions = <TData = Awaited<ReturnType<typeof getBranchMenu>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(branchId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBranchMenu>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  getGetBranchMenuQueryKey(branchId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBranchMenu>>> = ({ signal }) => getBranchMenu(branchId, requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBranchMenu>>, TError, TData>
+}
+
+export type GetBranchMenuQueryResult = NonNullable<Awaited<ReturnType<typeof getBranchMenu>>>
+export type GetBranchMenuQueryError = ErrorType<BadRequestResponse | NotFoundResponse>
+
+
+/**
+ * @summary Read the food and drink menu with this branch's availability
+ */
+
+export function useGetBranchMenu<TData = Awaited<ReturnType<typeof getBranchMenu>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
+ branchId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBranchMenu>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
+ , queryClient?: QueryClient
+ ): UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetBranchMenuQueryOptions(branchId,options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
+
+  return query;
+}
+
+
+
+
+
+
+
+/**
+ * Apply delta atomically to the branch's on-hand units, starting from zero the first time the branch stocks the item. Reject zero delta or any adjustment making on-hand stock less than the units held by pre-orders. The server records the actor, reason and timestamp.
+ * @summary Receive or correct a branch's stock of a menu item
+ */
+export const adjustMenuStock = (
+    branchId: MaybeRefOrGetter<string>,
+    menuItemId: MaybeRefOrGetter<string>,
+    stockAdjustmentRequest: MaybeRefOrGetter<StockAdjustmentRequest>,
+ options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
+) => {
+      branchId = toValue(branchId);
+menuItemId = toValue(menuItemId);
+stockAdjustmentRequest = toValue(stockAdjustmentRequest);
+
+      return apiRequest<MenuStock>(
+      {url: `/api/v1/branches/${branchId}/menu/${menuItemId}/stock-adjustments`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: stockAdjustmentRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getAdjustMenuStockMutationKey = () => ['adjustMenuStock'] as const;
+
+export const getAdjustMenuStockMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustMenuStock>>, TError,AdjustMenuStockMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+): UseMutationOptions<Awaited<ReturnType<typeof adjustMenuStock>>, TError,AdjustMenuStockMutationVariables, TContext> => {
+
+const mutationKey = getAdjustMenuStockMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof adjustMenuStock>>, AdjustMenuStockMutationVariables> = (props) => {
+          const {branchId,menuItemId,data} = props ?? {};
+
+          return  adjustMenuStock(branchId,menuItemId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AdjustMenuStockMutationResult = NonNullable<Awaited<ReturnType<typeof adjustMenuStock>>>
+    export type AdjustMenuStockMutationBody = StockAdjustmentRequest
+    export type AdjustMenuStockMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type AdjustMenuStockMutationVariables = {branchId: string;menuItemId: string;data: StockAdjustmentRequest}
+
+    /**
+ * @summary Receive or correct a branch's stock of a menu item
+ */
+export const useAdjustMenuStock = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof adjustMenuStock>>, TError,AdjustMenuStockMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+ , queryClient?: QueryClient): UseMutationReturnType<
+        Awaited<ReturnType<typeof adjustMenuStock>>,
+        TError,
+        AdjustMenuStockMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAdjustMenuStockMutationOptions(options), queryClient);
+    }
+
+/**
+ * Validates the card (number length, Luhn check, brand, expiry and security code) and returns a short-lived token for checkout or order placement. No money moves here. The development gateway approves any valid card except its published test numbers, which force declines and gateway errors.
+ * @summary Exchange card details for a single-use payment token
+ */
+export const createPaymentToken = (
+    createPaymentTokenRequest: MaybeRefOrGetter<CreatePaymentTokenRequest>,
+ options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
+) => {
+      createPaymentTokenRequest = toValue(createPaymentTokenRequest);
+
+      return apiRequest<PaymentToken>(
+      {url: `/api/v1/payments/tokens`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: createPaymentTokenRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getCreatePaymentTokenMutationKey = () => ['createPaymentToken'] as const;
+
+export const getCreatePaymentTokenMutationOptions = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | PaymentGatewayErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaymentToken>>, TError,CreatePaymentTokenMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPaymentToken>>, TError,CreatePaymentTokenMutationVariables, TContext> => {
+
+const mutationKey = getCreatePaymentTokenMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPaymentToken>>, CreatePaymentTokenMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPaymentToken(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePaymentTokenMutationResult = NonNullable<Awaited<ReturnType<typeof createPaymentToken>>>
+    export type CreatePaymentTokenMutationBody = CreatePaymentTokenRequest
+    export type CreatePaymentTokenMutationError = ErrorType<BadRequestResponse | ForbiddenResponse | PaymentGatewayErrorResponse>
+    export type CreatePaymentTokenMutationVariables = {data: CreatePaymentTokenRequest}
+
+    /**
+ * @summary Exchange card details for a single-use payment token
+ */
+export const useCreatePaymentToken = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | PaymentGatewayErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPaymentToken>>, TError,CreatePaymentTokenMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+ , queryClient?: QueryClient): UseMutationReturnType<
+        Awaited<ReturnType<typeof createPaymentToken>>,
+        TError,
+        CreatePaymentTokenMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreatePaymentTokenMutationOptions(options), queryClient);
     }
 
 /**
@@ -4086,7 +4311,7 @@ export function useListBranchReservations<TData = Awaited<ReturnType<typeof list
 
 
 /**
- * The customer subject and createdBySubject come from the session; source is CUSTOMER and status is CONFIRMED. Require a future startsAt, endsAt > startsAt, sufficient table capacity and all selected game quantities. The table and games must belong to this branch and games must be enabled for rental. Assign usable physical copies and hold them for the entire interval atomically. Failure returns 409 without a partial booking. Duplicate game IDs return 400. Retry-safe creation requires Idempotency-Key.
+ * The customer subject and createdBySubject come from the session; source is CUSTOMER and status is CONFIRMED. Require a future startsAt, endsAt > startsAt, sufficient table capacity and all selected game quantities. The table and games must belong to this branch and games must be enabled for rental. Assign usable physical copies and hold them for the entire interval atomically. Failure returns 409 without a partial booking. Duplicate game IDs return 400. An optional food and drink pre-order is priced by the server with the pre-order discount, its stock is held at the branch and its total is authorized on the payment token; a declined payment returns 402 and nothing is booked. Retry-safe creation requires Idempotency-Key.
  * @summary Reserve a table and game quantities for the signed-in customer
  */
 export const createMyReservation = (
@@ -4110,7 +4335,7 @@ createReservationRequest = toValue(createReservationRequest);
 
 export const getCreateMyReservationMutationKey = () => ['createMyReservation'] as const;
 
-export const getCreateMyReservationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const getCreateMyReservationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMyReservation>>, TError,CreateMyReservationMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createMyReservation>>, TError,CreateMyReservationMutationVariables, TContext> => {
 
@@ -4139,13 +4364,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateMyReservationMutationResult = NonNullable<Awaited<ReturnType<typeof createMyReservation>>>
     export type CreateMyReservationMutationBody = CreateReservationRequest
-    export type CreateMyReservationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type CreateMyReservationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>
     export type CreateMyReservationMutationVariables = {branchId: string;data: CreateReservationRequest}
 
     /**
  * @summary Reserve a table and game quantities for the signed-in customer
  */
-export const useCreateMyReservation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const useCreateMyReservation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMyReservation>>, TError,CreateMyReservationMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient): UseMutationReturnType<
         Awaited<ReturnType<typeof createMyReservation>>,
@@ -4377,7 +4602,7 @@ export const useRescheduleReservation = <TError = ErrorType<BadRequestResponse |
     }
 
 /**
- * Only CONFIRMED -> CANCELLED is allowed. Customers may cancel their own reservation before startsAt; branch operators may cancel it until check-in. Release all table and game holds atomically and record the actor and server timestamp. Repeating an already completed cancellation returns the unchanged reservation; other states return 409. Checked-in visits must use staff checkout.
+ * Only CONFIRMED -> CANCELLED is allowed. Customers may cancel their own reservation before startsAt; branch operators may cancel it until check-in. Release all table, game and pre-order stock holds, void any pre-order payment atomically and record the actor and server timestamp. Repeating an already completed cancellation returns the unchanged reservation; other states return 409. Checked-in visits must use staff checkout.
  * @summary Cancel a confirmed reservation
  */
 export const cancelReservation = (
@@ -4403,7 +4628,7 @@ reasonRequest = toValue(reasonRequest);
 
 export const getCancelReservationMutationKey = () => ['cancelReservation'] as const;
 
-export const getCancelReservationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const getCancelReservationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelReservation>>, TError,CancelReservationMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
 ): UseMutationOptions<Awaited<ReturnType<typeof cancelReservation>>, TError,CancelReservationMutationVariables, TContext> => {
 
@@ -4432,13 +4657,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CancelReservationMutationResult = NonNullable<Awaited<ReturnType<typeof cancelReservation>>>
     export type CancelReservationMutationBody = ReasonRequest
-    export type CancelReservationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type CancelReservationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>
     export type CancelReservationMutationVariables = {branchId: string;reservationId: string;data: ReasonRequest}
 
     /**
  * @summary Cancel a confirmed reservation
  */
-export const useCancelReservation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const useCancelReservation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelReservation>>, TError,CancelReservationMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient): UseMutationReturnType<
         Awaited<ReturnType<typeof cancelReservation>>,
@@ -4450,7 +4675,7 @@ export const useCancelReservation = <TError = ErrorType<BadRequestResponse | Una
     }
 
 /**
- * Customers always receive 403, including the reservation owner. Only CONFIRMED -> CHECKED_IN is allowed, with startsAt <= server time < endsAt. An early arrival must first be rescheduled by staff. Atomically verify table occupancy, branch access, capacity and every allocated copy, then create exactly one ACTIVE rental with server-controlled checkedInAt and checkedInBySubject. A copy or table still in use from an overdue visit causes 409. Repeating a successful check-in returns the existing reservation and rental, including their current completed representations after checkout, without changing start time or charging twice. Cancelled and no-show reservations return 409.
+ * Customers always receive 403, including the reservation owner. Only CONFIRMED -> CHECKED_IN is allowed, with startsAt <= server time < endsAt. An early arrival must first be rescheduled by staff. Atomically verify table occupancy, branch access, capacity and every allocated copy, then create exactly one ACTIVE rental with server-controlled checkedInAt and checkedInBySubject. A copy or table still in use from an overdue visit causes 409. Repeating a successful check-in returns the existing reservation and rental, including their current completed representations after checkout, without changing start time or charging twice. A pre-order is served at check-in, when its held stock is consumed and its payment captured. Cancelled and no-show reservations return 409.
  * @summary Staff-only arrival confirmation and rental start
  */
 export const checkInReservation = (
@@ -4472,7 +4697,7 @@ reservationId = toValue(reservationId);
 
 export const getCheckInReservationMutationKey = () => ['checkInReservation'] as const;
 
-export const getCheckInReservationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const getCheckInReservationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkInReservation>>, TError,CheckInReservationMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
 ): UseMutationOptions<Awaited<ReturnType<typeof checkInReservation>>, TError,CheckInReservationMutationVariables, TContext> => {
 
@@ -4501,13 +4726,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CheckInReservationMutationResult = NonNullable<Awaited<ReturnType<typeof checkInReservation>>>
 
-    export type CheckInReservationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type CheckInReservationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>
     export type CheckInReservationMutationVariables = {branchId: string;reservationId: string}
 
     /**
  * @summary Staff-only arrival confirmation and rental start
  */
-export const useCheckInReservation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const useCheckInReservation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof checkInReservation>>, TError,CheckInReservationMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient): UseMutationReturnType<
         Awaited<ReturnType<typeof checkInReservation>>,
@@ -4519,7 +4744,7 @@ export const useCheckInReservation = <TError = ErrorType<BadRequestResponse | Un
     }
 
 /**
- * Only CONFIRMED -> NO_SHOW is allowed, and only at or after startsAt. Never automatic just because a customer has not self-reported arrival. Release allocations and record the staff actor and server timestamp. Repeating NO_SHOW returns the same reservation; other states return 409.
+ * Only CONFIRMED -> NO_SHOW is allowed, and only at or after startsAt. Never automatic just because a customer has not self-reported arrival. Release allocations and pre-order stock, void any pre-order payment and record the staff actor and server timestamp. Repeating NO_SHOW returns the same reservation; other states return 409.
  * @summary Staff-only release of a missed reservation
  */
 export const markReservationNoShow = (
@@ -4545,7 +4770,7 @@ reasonRequest = toValue(reasonRequest);
 
 export const getMarkReservationNoShowMutationKey = () => ['markReservationNoShow'] as const;
 
-export const getMarkReservationNoShowMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const getMarkReservationNoShowMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markReservationNoShow>>, TError,MarkReservationNoShowMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
 ): UseMutationOptions<Awaited<ReturnType<typeof markReservationNoShow>>, TError,MarkReservationNoShowMutationVariables, TContext> => {
 
@@ -4574,13 +4799,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type MarkReservationNoShowMutationResult = NonNullable<Awaited<ReturnType<typeof markReservationNoShow>>>
     export type MarkReservationNoShowMutationBody = ReasonRequest
-    export type MarkReservationNoShowMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type MarkReservationNoShowMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>
     export type MarkReservationNoShowMutationVariables = {branchId: string;reservationId: string;data: ReasonRequest}
 
     /**
  * @summary Staff-only release of a missed reservation
  */
-export const useMarkReservationNoShow = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const useMarkReservationNoShow = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markReservationNoShow>>, TError,MarkReservationNoShowMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient): UseMutationReturnType<
         Awaited<ReturnType<typeof markReservationNoShow>>,
@@ -4964,7 +5189,7 @@ export function useListBranchOrders<TData = Awaited<ReturnType<typeof listBranch
 
 
 /**
- * The customer and creator subjects come from the session; source=CUSTOMER. Atomically hold all requested sale quantities, lock the current server-side prices and calculate the total. Only active games with active editions enabled for sale at this active branch may be ordered. Duplicate edition IDs return 400; insufficient sale stock returns 409 without partial holds. Rental copies are never sold through this operation.
+ * The customer and creator subjects come from the session; source=CUSTOMER. Atomically hold all requested sale quantities, lock the current server-side prices, calculate the total and authorize the payment token for it; the order is picked up at this branch and contact details come from the account. A declined payment returns 402 with nothing held. Only active games with active editions enabled for sale at this active branch may be ordered. Duplicate edition IDs return 400; insufficient sale stock returns 409 without partial holds. Rental copies are never sold through this operation.
  * @summary Place an order for games sold by this branch
  */
 export const createMyOrder = (
@@ -4988,7 +5213,7 @@ createOrderRequest = toValue(createOrderRequest);
 
 export const getCreateMyOrderMutationKey = () => ['createMyOrder'] as const;
 
-export const getCreateMyOrderMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const getCreateMyOrderMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMyOrder>>, TError,CreateMyOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createMyOrder>>, TError,CreateMyOrderMutationVariables, TContext> => {
 
@@ -5017,13 +5242,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateMyOrderMutationResult = NonNullable<Awaited<ReturnType<typeof createMyOrder>>>
     export type CreateMyOrderMutationBody = CreateOrderRequest
-    export type CreateMyOrderMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type CreateMyOrderMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>
     export type CreateMyOrderMutationVariables = {branchId: string;data: CreateOrderRequest}
 
     /**
  * @summary Place an order for games sold by this branch
  */
-export const useCreateMyOrder = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const useCreateMyOrder = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createMyOrder>>, TError,CreateMyOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient): UseMutationReturnType<
         Awaited<ReturnType<typeof createMyOrder>>,
@@ -5035,7 +5260,7 @@ export const useCreateMyOrder = <TError = ErrorType<BadRequestResponse | Unautho
     }
 
 /**
- * Creates a PLACED order with source=STAFF_COUNTER and creator from the authenticated operator. Apply the same atomic stock holds, offering and locked-price rules as customer orders. Staff must separately fulfill the order after handing over the games.
+ * Creates a PLACED order with source=STAFF_COUNTER and creator from the authenticated operator. Apply the same atomic stock holds, offering and locked-price rules as customer orders. The sale is settled at the counter and never charged through the payment gateway. Staff must separately fulfill the order after handing over the games.
  * @summary Record a counter sale for a registered customer or guest
  */
 export const createStaffOrder = (
@@ -5182,7 +5407,7 @@ export function useGetOrder<TData = Awaited<ReturnType<typeof getOrder>>, TError
 
 
 /**
- * Only PLACED -> CANCELLED is allowed. Release sale holds atomically and record the actor and timestamp. Repeating cancellation returns the unchanged order. Fulfilled orders return 409; returns/refunds are outside this contract.
+ * Only PLACED -> CANCELLED is allowed. Release sale holds and void the payment atomically and record the actor and timestamp. Repeating cancellation returns the unchanged order. Fulfilled orders return 409; returns/refunds are outside this contract.
  * @summary Cancel a placed sale order
  */
 export const cancelOrder = (
@@ -5208,7 +5433,7 @@ reasonRequest = toValue(reasonRequest);
 
 export const getCancelOrderMutationKey = () => ['cancelOrder'] as const;
 
-export const getCancelOrderMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const getCancelOrderMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelOrder>>, TError,CancelOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
 ): UseMutationOptions<Awaited<ReturnType<typeof cancelOrder>>, TError,CancelOrderMutationVariables, TContext> => {
 
@@ -5237,13 +5462,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CancelOrderMutationResult = NonNullable<Awaited<ReturnType<typeof cancelOrder>>>
     export type CancelOrderMutationBody = ReasonRequest
-    export type CancelOrderMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type CancelOrderMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>
     export type CancelOrderMutationVariables = {branchId: string;orderId: string;data: ReasonRequest}
 
     /**
  * @summary Cancel a placed sale order
  */
-export const useCancelOrder = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const useCancelOrder = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof cancelOrder>>, TError,CancelOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient): UseMutationReturnType<
         Awaited<ReturnType<typeof cancelOrder>>,
@@ -5255,7 +5480,7 @@ export const useCancelOrder = <TError = ErrorType<BadRequestResponse | Unauthori
     }
 
 /**
- * Only PLACED -> FULFILLED is allowed. Atomically decrement saleOnHand and saleHeld by the ordered quantities, then record server time and staff subject. Customers always receive 403. Repeating fulfillment returns the same order without decrementing stock twice. Cancelled orders return 409.
+ * Only PLACED -> FULFILLED is allowed. Atomically decrement saleOnHand and saleHeld by the ordered quantities, capture the payment, then record server time and staff subject. Customers always receive 403. Repeating fulfillment returns the same order without decrementing stock twice. Cancelled orders return 409.
  * @summary Staff-only handover of purchased games
  */
 export const fulfillOrder = (
@@ -5277,7 +5502,7 @@ orderId = toValue(orderId);
 
 export const getFulfillOrderMutationKey = () => ['fulfillOrder'] as const;
 
-export const getFulfillOrderMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const getFulfillOrderMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fulfillOrder>>, TError,FulfillOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
 ): UseMutationOptions<Awaited<ReturnType<typeof fulfillOrder>>, TError,FulfillOrderMutationVariables, TContext> => {
 
@@ -5306,13 +5531,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type FulfillOrderMutationResult = NonNullable<Awaited<ReturnType<typeof fulfillOrder>>>
 
-    export type FulfillOrderMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type FulfillOrderMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>
     export type FulfillOrderMutationVariables = {branchId: string;orderId: string}
 
     /**
  * @summary Staff-only handover of purchased games
  */
-export const useFulfillOrder = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+export const useFulfillOrder = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fulfillOrder>>, TError,FulfillOrderMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient): UseMutationReturnType<
         Awaited<ReturnType<typeof fulfillOrder>>,

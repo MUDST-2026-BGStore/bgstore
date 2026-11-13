@@ -1,6 +1,7 @@
 package com.chanakanlabs.theparlor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dasniko.testcontainers.keycloak.KeycloakContainer;
 import java.net.CookieManager;
@@ -115,6 +116,7 @@ class TheparlorApiApplicationTests {
     registry.add("spring.data.redis.port", () -> valkey.getMappedPort(6379));
     registry.add("spring.data.redis.password", () -> PASSWORD);
     registry.add("management.tracing.sampling.probability", () -> "0");
+    registry.add("theparlor.payments.gateway", () -> "bogus");
   }
 
   @BeforeAll
@@ -127,7 +129,8 @@ class TheparlorApiApplicationTests {
     client.setAttributes(new java.util.HashMap<>(client.getAttributes()));
     client.getAttributes().put("post.logout.redirect.uris", "http://localhost:" + TEST_PORT + "/");
     realm.clients().get(client.getId()).update(client);
-    for (String role : List.of("staff", "manager", "admin")) {
+    // "customer" has no realm role: an ordinary signed-in shopper.
+    for (String role : List.of("staff", "manager", "admin", "customer")) {
       var credential = new CredentialRepresentation();
       credential.setType("password");
       credential.setValue(PASSWORD);
@@ -144,12 +147,13 @@ class TheparlorApiApplicationTests {
         assertThat(response.getStatus()).isEqualTo(201);
       }
       var created = realm.users().searchByUsername(user.getUsername(), true).getFirst();
-      realm
-          .users()
-          .get(created.getId())
-          .roles()
-          .realmLevel()
-          .add(List.of(realm.roles().get(role).toRepresentation()));
+      if (!role.equals("customer"))
+        realm
+            .users()
+            .get(created.getId())
+            .roles()
+            .realmLevel()
+            .add(List.of(realm.roles().get(role).toRepresentation()));
     }
   }
 
@@ -316,6 +320,1306 @@ class TheparlorApiApplicationTests {
                 .statusCode())
         .isEqualTo(200);
     assertThat(get(browser(), "/api/v1/games/" + gameId).statusCode()).isEqualTo(404);
+  }
+
+  @Test
+  void saleStockChangesRequireBranchAccessAndPreserveHeldUnits() throws Exception {
+    var branch = UUID.randomUUID();
+    var game = UUID.randomUUID();
+    var edition = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Inventory test', 'Address')", branch);
+    jdbc.update(
+        "INSERT INTO games(id,name,min_players,max_players,play_minutes_min,play_minutes_max) VALUES (?, 'Inventory game',1,4,10,20)",
+        game);
+    jdbc.update(
+        "INSERT INTO game_descriptions(game_id,locale,description) VALUES (?, 'en-US', 'Game')",
+        game);
+    jdbc.update(
+        "INSERT INTO game_editions(id,game_id,kind,language_code) VALUES (?,?,'BASE_GAME','en')",
+        edition,
+        game);
+    jdbc.update(
+        "INSERT INTO branch_games(branch_id,game_id,sale_enabled,rental_enabled,staff_can_teach,rental_hourly_rate_minor) VALUES (?,?,true,false,false,0)",
+        branch,
+        game);
+    jdbc.update(
+        "INSERT INTO branch_editions(branch_id,edition_id,sale_price_minor,stock_on_hand,stock_held) VALUES (?,?,10000,5,2)",
+        branch,
+        edition);
+    String path = "/api/v1/branches/" + branch + "/editions/" + edition;
+    assertThat(
+            writeJson(
+                    login("staff"),
+                    "POST",
+                    path + "/stock-adjustments",
+                    "{\"delta\":1,\"reason\":\"Receipt\"}")
+                .statusCode())
+        .isEqualTo(403);
+    var manager = login("manager");
+    assertThat(
+            writeJson(manager, "PUT", path, "{\"salePrice\":{\"amountMinor\":12000}}").statusCode())
+        .isEqualTo(200);
+    var response =
+        writeJson(
+            manager,
+            "POST",
+            path + "/stock-adjustments",
+            "{\"delta\":-4,\"reason\":\"Correction\"}");
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(409);
+    response =
+        writeJson(
+            manager, "POST", path + "/stock-adjustments", "{\"delta\":3,\"reason\":\"Receipt\"}");
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(201);
+    assertThat(JSON.readTree(response.body()).get("saleOnHand").asInt()).isEqualTo(8);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT sale_price_minor FROM branch_editions WHERE branch_id=? AND edition_id=?",
+                Long.class,
+                branch,
+                edition))
+        .isEqualTo(12000);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM sale_stock_adjustments WHERE branch_id=? AND edition_id=?",
+                Integer.class,
+                branch,
+                edition))
+        .isEqualTo(1);
+    String copyPath = "/api/v1/branches/" + branch + "/games/" + game + "/rental-copies";
+    String code = "x".repeat(80);
+    var createdCopy = writeJson(manager, "POST", copyPath, "{\"assetCode\":\"" + code + "\"}");
+    assertThat(createdCopy.statusCode()).as(createdCopy.body()).isEqualTo(201);
+    assertThat(JSON.readTree(createdCopy.body()).get("state").asString()).isEqualTo("AVAILABLE");
+    assertThat(
+            writeJson(manager, "POST", copyPath, "{\"assetCode\":\"" + code + "\"}").statusCode())
+        .isEqualTo(409);
+  }
+
+  @Test
+  void branchesAndTablesAreAdministeredPubliclyReadableAndGuardCommitments() throws Exception {
+    String hours =
+        "[{\"dayOfWeek\":\"MONDAY\",\"opensAt\":\"10:00\",\"closesAt\":\"24:00\"},"
+            + "{\"dayOfWeek\":\"TUESDAY\",\"opensAt\":\"00:00\",\"closesAt\":\"02:00\"}]";
+    String body =
+        "{\"name\":\"Branch API test\",\"address\":\"1 Test Road\",\"phone\":\"+6620000000\","
+            + "\"openingHours\":"
+            + hours
+            + ",\"active\":true}";
+    assertThat(writeJson(login("manager"), "POST", "/api/v1/branches", body).statusCode())
+        .isEqualTo(403);
+    var admin = login("admin");
+    var created = writeJson(admin, "POST", "/api/v1/branches", body);
+    assertThat(created.statusCode()).as(created.body()).isEqualTo(201);
+    String branch = JSON.readTree(created.body()).get("id").asString();
+    // PostgreSQL keeps the end of day as 24:00:00, never as midnight.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT closes_at::text FROM branch_opening_hours WHERE branch_id=?::uuid AND day_of_week=1",
+                String.class,
+                branch))
+        .isEqualTo("24:00:00");
+
+    var anonymous = browser();
+    var read = get(anonymous, "/api/v1/branches/" + branch);
+    assertThat(read.statusCode()).as(read.body()).isEqualTo(200);
+    var periods = JSON.readTree(read.body()).get("openingHours");
+    assertThat(periods.get(0).get("closesAt").asString()).isEqualTo("24:00");
+    assertThat(periods.get(1).get("opensAt").asString()).isEqualTo("00:00");
+    assertThat(JSON.readTree(read.body()).get("phone").asString()).isEqualTo("+6620000000");
+    var firstPage = get(anonymous, "/api/v1/branches?limit=1");
+    assertThat(firstPage.statusCode()).as(firstPage.body()).isEqualTo(200);
+    assertThat(JSON.readTree(firstPage.body()).get("items")).hasSize(1);
+    var invalidCursor = get(anonymous, "/api/v1/branches?cursor=bm9wZQ");
+    assertThat(invalidCursor.statusCode()).isEqualTo(400);
+    assertThat(JSON.readTree(invalidCursor.body()).get("code").asString())
+        .isEqualTo("INVALID_REQUEST");
+
+    var overlap =
+        writeJson(
+            admin,
+            "PATCH",
+            "/api/v1/branches/" + branch,
+            "{\"openingHours\":[{\"dayOfWeek\":\"MONDAY\",\"opensAt\":\"10:00\",\"closesAt\":\"14:00\"},"
+                + "{\"dayOfWeek\":\"MONDAY\",\"opensAt\":\"13:00\",\"closesAt\":\"18:00\"}]}");
+    assertThat(overlap.statusCode()).as(overlap.body()).isEqualTo(400);
+
+    String tables = "/api/v1/branches/" + branch + "/tables";
+    String tableBody =
+        "{\"label\":\"T1\",\"capacity\":4,\"hourlyRate\":{\"amountMinor\":5000},"
+            + "\"operationalStatus\":\"IN_SERVICE\"}";
+    assertThat(writeJson(login("staff"), "POST", tables, tableBody).statusCode()).isEqualTo(403);
+    var manager = login("manager");
+    var table = writeJson(manager, "POST", tables, tableBody);
+    assertThat(table.statusCode()).as(table.body()).isEqualTo(201);
+    String tableId = JSON.readTree(table.body()).get("id").asString();
+    assertThat(JSON.readTree(table.body()).get("state").asString()).isEqualTo("AVAILABLE");
+    var duplicate = writeJson(manager, "POST", tables, tableBody);
+    assertThat(duplicate.statusCode()).as(duplicate.body()).isEqualTo(409);
+    assertThat(JSON.readTree(duplicate.body()).get("code").asString()).isEqualTo("CONFLICT");
+
+    // A confirmed booking covering now, inside Monday 10:00 through Tuesday 02:00 opening time.
+    jdbc.update(
+        "INSERT INTO reservations(branch_id,guest_name,source,status,starts_at,ends_at,party_size,"
+            + "table_id,table_hourly_rate_minor,created_by_subject) "
+            + "VALUES (?::uuid,'Guest','WALK_IN','CONFIRMED',now() - interval '1 hour',"
+            + "now() + interval '1 hour',3,?::uuid,5000,'test')",
+        branch,
+        tableId);
+    var listed = get(anonymous, tables);
+    assertThat(listed.statusCode()).as(listed.body()).isEqualTo(200);
+    assertThat(JSON.readTree(listed.body()).get("items").get(0).get("state").asString())
+        .isEqualTo("RESERVED");
+    String tablePath = tables + "/" + tableId;
+    assertThat(writeJson(manager, "PATCH", tablePath, "{\"capacity\":2}").statusCode())
+        .isEqualTo(409);
+    assertThat(
+            writeJson(manager, "PATCH", tablePath, "{\"operationalStatus\":\"OUT_OF_SERVICE\"}")
+                .statusCode())
+        .isEqualTo(409);
+    assertThat(writeJson(manager, "PATCH", tablePath, "{\"capacity\":3}").statusCode())
+        .isEqualTo(200);
+    assertThat(
+            writeJson(admin, "PATCH", "/api/v1/branches/" + branch, "{\"active\":false}")
+                .statusCode())
+        .isEqualTo(409);
+    assertThat(
+            writeJson(admin, "PATCH", "/api/v1/branches/" + branch, "{\"openingHours\":[]}")
+                .statusCode())
+        .isEqualTo(409);
+
+    jdbc.update(
+        "UPDATE reservations SET status='CHECKED_IN', checked_in_at=now() WHERE table_id=?::uuid",
+        tableId);
+    assertThat(JSON.readTree(get(anonymous, tablePath).body()).get("state").asString())
+        .isEqualTo("OCCUPIED");
+    jdbc.update(
+        "UPDATE reservations SET status='CANCELLED', checked_in_at=NULL, cancelled_at=now() "
+            + "WHERE table_id=?::uuid",
+        tableId);
+
+    var closed = writeJson(admin, "PATCH", "/api/v1/branches/" + branch, "{\"active\":false}");
+    assertThat(closed.statusCode()).as(closed.body()).isEqualTo(200);
+    assertThat(get(anonymous, "/api/v1/branches/" + branch).statusCode()).isEqualTo(404);
+    assertThat(get(anonymous, tables).statusCode()).isEqualTo(404);
+    assertThat(get(admin, "/api/v1/branches/" + branch).statusCode()).isEqualTo(200);
+    // Operational writes at an inactive branch conflict, even for managers.
+    assertThat(writeJson(manager, "PATCH", tablePath, "{\"capacity\":6}").statusCode())
+        .isEqualTo(409);
+  }
+
+  @Test
+  void branchOfferingsArePublicAndCopyConditionChangesMoveCommitments() throws Exception {
+    var branch = UUID.randomUUID();
+    var game = UUID.randomUUID();
+    var hidden = UUID.randomUUID();
+    var edition = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Offer test', 'Address')", branch);
+    for (var entry : java.util.Map.of(game, "Offered Meeple", hidden, "Hidden Meeple").entrySet()) {
+      jdbc.update(
+          "INSERT INTO games(id,name,min_players,max_players,play_minutes_min,play_minutes_max,active) VALUES (?,?,1,4,10,20,?)",
+          entry.getKey(),
+          entry.getValue(),
+          entry.getKey().equals(game));
+      jdbc.update(
+          "INSERT INTO game_descriptions(game_id,locale,description) VALUES (?, 'en-US', 'Game')",
+          entry.getKey());
+    }
+    jdbc.update(
+        "INSERT INTO game_editions(id,game_id,kind,language_code) VALUES (?,?,'BASE_GAME','en')",
+        edition,
+        game);
+    jdbc.update("INSERT INTO branch_games(branch_id,game_id) VALUES (?,?)", branch, hidden);
+
+    String games = "/api/v1/branches/" + branch + "/games";
+    String offer =
+        "{\"saleEnabled\":true,\"rentalEnabled\":true,\"staffCanTeach\":true,"
+            + "\"rentalHourlyRate\":{\"amountMinor\":4000}}";
+    assertThat(writeJson(login("staff"), "PUT", games + "/" + game, offer).statusCode())
+        .isEqualTo(403);
+    var manager = login("manager");
+    var configured = writeJson(manager, "PUT", games + "/" + game, offer);
+    assertThat(configured.statusCode()).as(configured.body()).isEqualTo(200);
+    assertThat(writeJson(manager, "PUT", games + "/" + hidden, offer).statusCode()).isEqualTo(404);
+    assertThat(
+            writeJson(
+                    manager,
+                    "PUT",
+                    "/api/v1/branches/" + branch + "/editions/" + edition,
+                    "{\"salePrice\":{\"amountMinor\":89000}}")
+                .statusCode())
+        .isEqualTo(200);
+    assertThat(
+            writeJson(
+                    manager,
+                    "POST",
+                    "/api/v1/branches/" + branch + "/editions/" + edition + "/stock-adjustments",
+                    "{\"delta\":3,\"reason\":\"Receipt\"}")
+                .statusCode())
+        .isEqualTo(201);
+    String copies = games + "/" + game + "/rental-copies";
+    var copyIds = new java.util.ArrayList<String>();
+    for (String code : List.of("A", "B")) {
+      var created = writeJson(manager, "POST", copies, "{\"assetCode\":\"" + code + "\"}");
+      assertThat(created.statusCode()).as(created.body()).isEqualTo(201);
+      copyIds.add(JSON.readTree(created.body()).get("id").asString());
+    }
+
+    var anonymous = browser();
+    var read = get(anonymous, games + "/" + game);
+    assertThat(read.statusCode()).as(read.body()).isEqualTo(200);
+    var offering = JSON.readTree(read.body());
+    assertThat(offering.get("game").get("name").asString()).isEqualTo("Offered Meeple");
+    assertThat(offering.get("rentalHourlyRate").get("amountMinor").asLong()).isEqualTo(4000);
+    assertThat(offering.get("editions").get(0).get("saleAvailable").asInt()).isEqualTo(3);
+    assertThat(offering.get("rentalAvailableNow").asInt()).isEqualTo(2);
+    assertThat(get(anonymous, games + "/" + hidden).statusCode()).isEqualTo(404);
+    // Inactive catalog titles never appear, and name search is case-insensitive.
+    var listed = JSON.readTree(get(anonymous, games + "?q=mEEple").body()).get("items");
+    assertThat(listed).hasSize(1);
+    assertThat(listed.get(0).get("game").get("id").asString()).isEqualTo(game.toString());
+    assertThat(JSON.readTree(get(anonymous, games + "?q=zzz").body()).get("items")).isEmpty();
+    assertThat(get(anonymous, copies).statusCode()).isEqualTo(401);
+
+    // Copy A is out with an active rental; copy B is free.
+    var table = UUID.randomUUID();
+    var reservation = UUID.randomUUID();
+    var rental = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branch_tables(id,branch_id,label,seats) VALUES (?,?,'T1',4)", table, branch);
+    jdbc.update(
+        "INSERT INTO reservations(id,branch_id,guest_name,source,status,starts_at,ends_at,party_size,"
+            + "table_id,table_hourly_rate_minor,created_by_subject,checked_in_at) "
+            + "VALUES (?,?,'Guest','WALK_IN','CHECKED_IN',now() - interval '1 hour',"
+            + "now() + interval '1 hour',2,?,5000,'test',now())",
+        reservation,
+        branch,
+        table);
+    jdbc.update(
+        "INSERT INTO rentals(id,branch_id,reservation_id,started_at,planned_ends_at,checked_in_by) "
+            + "VALUES (?,?,?,now() - interval '1 hour',now() + interval '1 hour','test')",
+        rental,
+        branch,
+        reservation);
+    jdbc.update(
+        "INSERT INTO rental_copy_allocations(rental_id,branch_id,copy_id) VALUES (?,?,?::uuid)",
+        rental,
+        branch,
+        copyIds.get(0));
+    assertThat(
+            JSON.readTree(get(anonymous, games + "/" + game).body())
+                .get("rentalAvailableNow")
+                .asInt())
+        .isEqualTo(1);
+
+    String copyA = copies + "/" + copyIds.get(0);
+    String copyB = copies + "/" + copyIds.get(1);
+    assertThat(
+            writeJson(manager, "PATCH", copyA, "{\"operationalStatus\":\"OUT_OF_SERVICE\"}")
+                .statusCode())
+        .isEqualTo(400);
+    var damaged =
+        writeJson(
+            manager,
+            "PATCH",
+            copyA,
+            "{\"operationalStatus\":\"OUT_OF_SERVICE\",\"reason\":\"Missing pieces\"}");
+    assertThat(damaged.statusCode()).as(damaged.body()).isEqualTo(200);
+    assertThat(JSON.readTree(damaged.body()).get("reason").asString()).isEqualTo("Missing pieces");
+    // The rental now uses copy B, so B cannot leave the pool: nothing else can cover it.
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT copy_id::text FROM rental_copy_allocations WHERE rental_id=?",
+                String.class,
+                rental))
+        .isEqualTo(copyIds.get(1));
+    var stranded =
+        writeJson(
+            manager, "PATCH", copyB, "{\"operationalStatus\":\"RETIRED\",\"reason\":\"Lost\"}");
+    assertThat(stranded.statusCode()).as(stranded.body()).isEqualTo(409);
+
+    var page = JSON.readTree(get(manager, copies + "?limit=1").body());
+    assertThat(page.get("items").get(0).get("state").asString()).isEqualTo("OUT_OF_SERVICE");
+    assertThat(page.get("items").get(0).get("reason").asString()).isEqualTo("Missing pieces");
+    var rest =
+        JSON.readTree(get(manager, copies + "?cursor=" + page.get("nextCursor").asString()).body());
+    assertThat(rest.get("items").get(0).get("state").asString()).isEqualTo("IN_USE");
+
+    assertThat(
+            writeJson(
+                    manager,
+                    "PATCH",
+                    copyA,
+                    "{\"operationalStatus\":\"RETIRED\",\"reason\":\"Scrapped\"}")
+                .statusCode())
+        .isEqualTo(200);
+    assertThat(
+            writeJson(manager, "PATCH", copyA, "{\"operationalStatus\":\"USABLE\"}").statusCode())
+        .isEqualTo(409);
+    assertThat(
+            jdbc.queryForList(
+                "SELECT to_status FROM rental_copy_condition_changes WHERE copy_id=?::uuid ORDER BY created_at, id",
+                String.class,
+                copyIds.get(0)))
+        .containsExactly("OUT_OF_SERVICE", "RETIRED");
+    var counts = JSON.readTree(get(anonymous, games + "/" + game).body());
+    assertThat(counts.get("rentalTotal").asInt()).isEqualTo(1);
+    assertThat(counts.get("rentalAvailableNow").asInt()).isZero();
+  }
+
+  HttpResponse<String> send(
+      HttpClient client, String method, String path, String body, String... headers)
+      throws Exception {
+    var csrf = JSON.readTree(get(client, "/api/auth/csrf").body());
+    var request =
+        HttpRequest.newBuilder(URI.create("http://localhost:" + port + path))
+            .header("Content-Type", "application/json")
+            .header(csrf.get("headerName").asString(), csrf.get("token").asString())
+            .method(
+                method,
+                body == null
+                    ? HttpRequest.BodyPublishers.noBody()
+                    : HttpRequest.BodyPublishers.ofString(body));
+    for (int i = 0; i < headers.length; i += 2) request.header(headers[i], headers[i + 1]);
+    return client.send(request.build(), HttpResponse.BodyHandlers.ofString());
+  }
+
+  String paymentToken(HttpClient client, String cardNumber) throws Exception {
+    var response =
+        send(
+            client,
+            "POST",
+            "/api/v1/payments/tokens",
+            "{\"number\":\""
+                + cardNumber
+                + "\",\"expMonth\":12,\"expYear\":2999,\"cvc\":\"123\",\"holderName\":\"Test\"}");
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(201);
+    assertThat(response.body()).doesNotContain(cardNumber);
+    return JSON.readTree(response.body()).get("token").asString();
+  }
+
+  int stock(String column, UUID branch, UUID edition) {
+    return jdbc.queryForObject(
+        "SELECT " + column + " FROM branch_editions WHERE branch_id=? AND edition_id=?",
+        Integer.class,
+        branch,
+        edition);
+  }
+
+  @Test
+  void guestsAndCustomersBuyThroughCartsCardPaymentsAndStaffFulfillment() throws Exception {
+    var branch = UUID.randomUUID();
+    var game = UUID.randomUUID();
+    var edition = UUID.randomUUID();
+    jdbc.update("UPDATE branches SET fulfills_delivery=false");
+    jdbc.update(
+        "INSERT INTO branches(id,name,address,fulfills_delivery) VALUES (?, 'Retail test', 'Address', true)",
+        branch);
+    jdbc.update(
+        "INSERT INTO games(id,name,min_players,max_players,play_minutes_min,play_minutes_max) VALUES (?, 'Retail game',1,4,10,20)",
+        game);
+    jdbc.update(
+        "INSERT INTO game_descriptions(game_id,locale,description) VALUES (?, 'en-US', 'Game')",
+        game);
+    jdbc.update(
+        "INSERT INTO game_editions(id,game_id,kind,language_code) VALUES (?,?,'BASE_GAME','th')",
+        edition,
+        game);
+    jdbc.update(
+        "INSERT INTO branch_games(branch_id,game_id,sale_enabled) VALUES (?,?,true)", branch, game);
+    jdbc.update(
+        "INSERT INTO branch_editions(branch_id,edition_id,sale_price_minor,stock_on_hand) VALUES (?,?,89000,5)",
+        branch,
+        edition);
+
+    // A guest opens a cart; a retry returns the same cart with a fresh token.
+    var guest = browser();
+    String cartKey = UUID.randomUUID().toString();
+    var opened = send(guest, "POST", "/api/v1/carts", null, "Idempotency-Key", cartKey);
+    assertThat(opened.statusCode()).as(opened.body()).isEqualTo(201);
+    String cartId = JSON.readTree(opened.body()).get("id").asString();
+    String staleToken = JSON.readTree(opened.body()).get("token").asString();
+    var reopened = send(guest, "POST", "/api/v1/carts", null, "Idempotency-Key", cartKey);
+    assertThat(JSON.readTree(reopened.body()).get("id").asString()).isEqualTo(cartId);
+    String token = JSON.readTree(reopened.body()).get("token").asString();
+    assertThat(token).isNotEqualTo(staleToken).hasSizeGreaterThanOrEqualTo(32);
+    String cart = "/api/v1/carts/" + cartId;
+    assertThat(get(guest, cart).statusCode()).isEqualTo(404);
+    assertThat(send(guest, "GET", cart, null, "X-Cart-Token", staleToken).statusCode())
+        .isEqualTo(404);
+    assertThat(send(browser(), "GET", cart, null, "X-Cart-Token", token).statusCode())
+        .isEqualTo(200);
+
+    String line = "{\"editionId\":\"" + edition + "\",\"quantity\":2}";
+    var added = send(guest, "POST", cart + "/items", line, "X-Cart-Token", token);
+    assertThat(added.statusCode()).as(added.body()).isEqualTo(200);
+    var cartView = JSON.readTree(added.body());
+    assertThat(cartView.get("subtotal").asLong()).isEqualTo(178000);
+    assertThat(cartView.get("items").get(0).get("gameName").asString()).isEqualTo("Retail game");
+    assertThat(cartView.get("items").get(0).get("gameId").asString()).isEqualTo(game.toString());
+    assertThat(cartView.get("items").get(0).get("available").asInt()).isEqualTo(5);
+    assertThat(cartView.get("checkoutReady").asBoolean()).isTrue();
+    // Adding never exceeds stock, but an explicit quantity is kept and flagged.
+    assertThat(
+            send(
+                    guest,
+                    "POST",
+                    cart + "/items",
+                    "{\"editionId\":\"" + edition + "\",\"quantity\":4}",
+                    "X-Cart-Token",
+                    token)
+                .statusCode())
+        .isEqualTo(409);
+    String linePath = cart + "/items/" + edition;
+    var over = send(guest, "PATCH", linePath, "{\"quantity\":9}", "X-Cart-Token", token);
+    assertThat(JSON.readTree(over.body()).get("issues").get(0).get("code").asString())
+        .isEqualTo("INSUFFICIENT_STOCK");
+    assertThat(JSON.readTree(over.body()).get("checkoutReady").asBoolean()).isFalse();
+    assertThat(
+            send(guest, "PATCH", linePath, "{\"quantity\":2}", "X-Cart-Token", token).statusCode())
+        .isEqualTo(200);
+    assertThat(stock("stock_held", branch, edition)).isZero();
+
+    // Card rules run before any gateway call.
+    var badCard =
+        send(
+            guest,
+            "POST",
+            "/api/v1/payments/tokens",
+            "{\"number\":\"4242424242424241\",\"expMonth\":12,\"expYear\":2999,\"cvc\":\"123\",\"holderName\":\"Test\"}");
+    assertThat(badCard.statusCode()).isEqualTo(400);
+    assertThat(badCard.body()).doesNotContain("4242424242424241");
+
+    String checkout = cart + "/checkout";
+    String details =
+        "\"contact\":{\"name\":\"Guest Buyer\",\"email\":\"guest@example.invalid\",\"phone\":\"+66812345678\"},"
+            + "\"shippingAddress\":{\"recipientName\":\"Guest Buyer\",\"line1\":\"1 Test Road\","
+            + "\"district\":\"Pathum Wan\",\"province\":\"Bangkok\",\"postalCode\":\"10330\"}";
+    // A declined card places nothing and holds nothing; the cart stays open.
+    var declined =
+        send(
+            guest,
+            "POST",
+            checkout,
+            "{"
+                + details
+                + ",\"paymentToken\":\""
+                + paymentToken(guest, "4000000000000002")
+                + "\"}",
+            "X-Cart-Token",
+            token,
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(declined.statusCode()).as(declined.body()).isEqualTo(402);
+    assertThat(JSON.readTree(declined.body()).get("code").asString()).isEqualTo("PAYMENT_DECLINED");
+    assertThat(stock("stock_held", branch, edition)).isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM orders WHERE branch_id=?", Integer.class, branch))
+        .isZero();
+    var providerDown =
+        send(
+            guest,
+            "POST",
+            checkout,
+            "{"
+                + details
+                + ",\"paymentToken\":\""
+                + paymentToken(guest, "4000000000000119")
+                + "\"}",
+            "X-Cart-Token",
+            token,
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(providerDown.statusCode()).as(providerDown.body()).isEqualTo(502);
+
+    String goodToken = paymentToken(guest, "4242 4242 4242 4242");
+    // A delivery cart needs an address.
+    assertThat(
+            send(
+                    guest,
+                    "POST",
+                    checkout,
+                    "{\"contact\":{\"name\":\"Guest Buyer\",\"email\":\"guest@example.invalid\",\"phone\":\"+66812345678\"},\"paymentToken\":\""
+                        + goodToken
+                        + "\"}",
+                    "X-Cart-Token",
+                    token,
+                    "Idempotency-Key",
+                    UUID.randomUUID().toString())
+                .statusCode())
+        .isEqualTo(400);
+    String orderKey = UUID.randomUUID().toString();
+    String orderBody = "{" + details + ",\"paymentToken\":\"" + goodToken + "\"}";
+    var placed =
+        send(
+            guest, "POST", checkout, orderBody, "X-Cart-Token", token, "Idempotency-Key", orderKey);
+    assertThat(placed.statusCode()).as(placed.body()).isEqualTo(201);
+    var order = JSON.readTree(placed.body());
+    String orderId = order.get("id").asString();
+    assertThat(order.get("status").asString()).isEqualTo("PLACED");
+    assertThat(order.get("fulfillmentMethod").asString()).isEqualTo("SHIPPING");
+    assertThat(order.get("branchId").asString()).isEqualTo(branch.toString());
+    assertThat(order.get("total").get("amountMinor").asLong()).isEqualTo(178000);
+    assertThat(order.get("customer").get("kind").asString()).isEqualTo("GUEST");
+    assertThat(order.get("items").get(0).get("editionLanguage").asString()).isEqualTo("th");
+    assertThat(order.get("items").get(0).get("gameId").asString()).isEqualTo(game.toString());
+    assertThat(order.get("shippingAddress").get("postalCode").asString()).isEqualTo("10330");
+    assertThat(order.get("payment").get("status").asString()).isEqualTo("AUTHORIZED");
+    assertThat(order.get("payment").get("cardBrand").asString()).isEqualTo("VISA");
+    assertThat(order.get("payment").get("cardLast4").asString()).isEqualTo("4242");
+    assertThat(stock("stock_held", branch, edition)).isEqualTo(2);
+    // The same key and body replay the order; a different body conflicts; the cart is spent.
+    var replay =
+        send(
+            guest, "POST", checkout, orderBody, "X-Cart-Token", token, "Idempotency-Key", orderKey);
+    assertThat(replay.statusCode()).as(replay.body()).isEqualTo(201);
+    assertThat(JSON.readTree(replay.body()).get("id").asString()).isEqualTo(orderId);
+    assertThat(
+            send(
+                    guest,
+                    "POST",
+                    checkout,
+                    orderBody.replace("Guest Buyer", "Someone Else"),
+                    "X-Cart-Token",
+                    token,
+                    "Idempotency-Key",
+                    orderKey)
+                .statusCode())
+        .isEqualTo(409);
+    assertThat(send(guest, "GET", cart, null, "X-Cart-Token", token).statusCode()).isEqualTo(409);
+    assertThat(stock("stock_held", branch, edition)).isEqualTo(2);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM payments p JOIN orders o ON o.id = p.order_id WHERE o.branch_id=?",
+                Integer.class,
+                branch))
+        .isEqualTo(1);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM bogus_payment_tokens WHERE card_last4 NOT IN ('4242','0002','0119')",
+                Integer.class))
+        .isZero();
+
+    // Staff hand the order over: stock is consumed and the payment captured, exactly once.
+    String orders = "/api/v1/branches/" + branch + "/orders";
+    assertThat(get(guest, orders + "/" + orderId).statusCode()).isEqualTo(401);
+    assertThat(send(login("staff"), "POST", orders + "/" + orderId + "/fulfill", null).statusCode())
+        .isEqualTo(403);
+    var manager = login("manager");
+    var listed = JSON.readTree(get(manager, orders + "?status=PLACED").body()).get("items");
+    assertThat(listed).hasSize(1);
+    for (int attempt = 0; attempt < 2; attempt++) {
+      var fulfilled = send(manager, "POST", orders + "/" + orderId + "/fulfill", null);
+      assertThat(fulfilled.statusCode()).as(fulfilled.body()).isEqualTo(200);
+      assertThat(JSON.readTree(fulfilled.body()).get("status").asString()).isEqualTo("FULFILLED");
+      assertThat(JSON.readTree(fulfilled.body()).get("payment").get("status").asString())
+          .isEqualTo("CAPTURED");
+    }
+    assertThat(stock("stock_on_hand", branch, edition)).isEqualTo(3);
+    assertThat(stock("stock_held", branch, edition)).isZero();
+    assertThat(
+            send(manager, "POST", orders + "/" + orderId + "/cancel", "{\"reason\":\"Too late\"}")
+                .statusCode())
+        .isEqualTo(409);
+
+    // A signed-in customer: account cart, guest-cart merge, direct order and own cancellation.
+    var customer = login("staff");
+    var account =
+        send(
+            customer,
+            "POST",
+            "/api/v1/me",
+            "{\"firstName\":\"Retail\",\"lastName\":\"Customer\",\"phoneNumber\":\"+66898765432\","
+                + "\"preferences\":{\"preferredLocale\":\"en-US\"}}");
+    assertThat(account.statusCode()).as(account.body()).isIn(200, 201);
+    var second = browser();
+    var guestCart =
+        JSON.readTree(
+            send(
+                    second,
+                    "POST",
+                    "/api/v1/carts",
+                    null,
+                    "Idempotency-Key",
+                    UUID.randomUUID().toString())
+                .body());
+    String guestToken = guestCart.get("token").asString();
+    String guestPath = "/api/v1/carts/" + guestCart.get("id").asString();
+    assertThat(
+            send(second, "POST", guestPath + "/items", line, "X-Cart-Token", guestToken)
+                .statusCode())
+        .isEqualTo(200);
+    var merged =
+        send(
+            customer,
+            "POST",
+            "/api/v1/me/cart/merge",
+            "{\"cartId\":\""
+                + guestCart.get("id").asString()
+                + "\",\"cartToken\":\""
+                + guestToken
+                + "\"}");
+    assertThat(merged.statusCode()).as(merged.body()).isEqualTo(200);
+    assertThat(JSON.readTree(merged.body()).get("items").get(0).get("quantity").asInt())
+        .isEqualTo(2);
+    assertThat(send(second, "GET", guestPath, null, "X-Cart-Token", guestToken).statusCode())
+        .isEqualTo(404);
+    var mine = JSON.readTree(get(customer, "/api/v1/me/cart").body());
+    assertThat(mine.get("id").asString())
+        .isEqualTo(JSON.readTree(merged.body()).get("id").asString());
+    // Another signed-in user cannot reach it, with or without a made-up token.
+    assertThat(get(manager, "/api/v1/carts/" + mine.get("id").asString()).statusCode())
+        .isEqualTo(404);
+
+    String myKey = UUID.randomUUID().toString();
+    String myOrder =
+        "{\"items\":[{\"editionId\":\""
+            + edition
+            + "\",\"quantity\":1}],\"paymentToken\":\""
+            + paymentToken(customer, "5555555555554444")
+            + "\"}";
+    var direct = send(customer, "POST", orders, myOrder, "Idempotency-Key", myKey);
+    assertThat(direct.statusCode()).as(direct.body()).isEqualTo(201);
+    var directOrder = JSON.readTree(direct.body());
+    assertThat(directOrder.get("fulfillmentMethod").asString()).isEqualTo("PICKUP");
+    assertThat(directOrder.get("customer").get("kind").asString()).isEqualTo("REGISTERED");
+    assertThat(directOrder.get("contact").get("email").asString())
+        .isEqualTo("staff@example.invalid");
+    assertThat(directOrder.get("payment").get("cardBrand").asString()).isEqualTo("MASTERCARD");
+    assertThat(stock("stock_held", branch, edition)).isEqualTo(1);
+    String directPath = orders + "/" + directOrder.get("id").asString();
+    assertThat(JSON.readTree(get(customer, "/api/v1/me/orders").body()).get("items")).hasSize(1);
+    assertThat(get(customer, directPath).statusCode()).isEqualTo(200);
+    // The guest's order is not this customer's, and they do not operate the branch.
+    assertThat(get(customer, orders + "/" + orderId).statusCode()).isEqualTo(403);
+    for (int attempt = 0; attempt < 2; attempt++) {
+      var cancelled =
+          send(customer, "POST", directPath + "/cancel", "{\"reason\":\"Changed my mind\"}");
+      assertThat(cancelled.statusCode()).as(cancelled.body()).isEqualTo(200);
+      assertThat(JSON.readTree(cancelled.body()).get("status").asString()).isEqualTo("CANCELLED");
+      assertThat(JSON.readTree(cancelled.body()).get("payment").get("status").asString())
+          .isEqualTo("VOIDED");
+    }
+    assertThat(stock("stock_held", branch, edition)).isZero();
+    assertThat(stock("stock_on_hand", branch, edition)).isEqualTo(3);
+
+    // A counter sale never touches the gateway; a card that fails at capture blocks handover.
+    var counter =
+        send(
+            manager,
+            "POST",
+            "/api/v1/branches/" + branch + "/staff/orders",
+            "{\"customer\":{\"kind\":\"GUEST\",\"displayName\":\"Walk-in\"},\"items\":[{\"editionId\":\""
+                + edition
+                + "\",\"quantity\":1}]}",
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(counter.statusCode()).as(counter.body()).isEqualTo(201);
+    assertThat(JSON.readTree(counter.body()).get("payment").get("method").asString())
+        .isEqualTo("COUNTER");
+    assertThat(JSON.readTree(counter.body()).get("payment").get("status").asString())
+        .isEqualTo("PENDING");
+    var risky =
+        send(
+            customer,
+            "POST",
+            orders,
+            "{\"items\":[{\"editionId\":\""
+                + edition
+                + "\",\"quantity\":1}],\"paymentToken\":\""
+                + paymentToken(customer, "4000000000000341")
+                + "\"}",
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(risky.statusCode()).as(risky.body()).isEqualTo(201);
+    String riskyPath = orders + "/" + JSON.readTree(risky.body()).get("id").asString();
+    assertThat(send(manager, "POST", riskyPath + "/fulfill", null).statusCode()).isEqualTo(402);
+    assertThat(JSON.readTree(get(manager, riskyPath).body()).get("status").asString())
+        .isEqualTo("PLACED");
+    assertThat(stock("stock_on_hand", branch, edition)).isEqualTo(3);
+    assertThat(stock("stock_held", branch, edition)).isEqualTo(2);
+    jdbc.update("UPDATE branches SET fulfills_delivery=false WHERE id=?", branch);
+  }
+
+  @Test
+  void visitsAreBookedCheckedInBilledByTheHourAndReleaseTheirTableAndCopies() throws Exception {
+    var branch = UUID.randomUUID();
+    var table = UUID.randomUUID();
+    var game = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Visit test', 'Address')", branch);
+    for (int day = 1; day <= 7; day++)
+      jdbc.update(
+          "INSERT INTO branch_opening_hours(branch_id,day_of_week,opens_at,closes_at) VALUES (?,?,'00:00','24:00')",
+          branch,
+          day);
+    jdbc.update(
+        "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor) VALUES (?,?,'T1',4,5000)",
+        table,
+        branch);
+    jdbc.update(
+        "INSERT INTO games(id,name,min_players,max_players,play_minutes_min,play_minutes_max) VALUES (?, 'Visit game',1,4,10,20)",
+        game);
+    jdbc.update(
+        "INSERT INTO game_descriptions(game_id,locale,description) VALUES (?, 'en-US', 'Game')",
+        game);
+    jdbc.update(
+        "INSERT INTO branch_games(branch_id,game_id,rental_enabled,rental_hourly_rate_minor) VALUES (?,?,true,4000)",
+        branch,
+        game);
+    for (String code : List.of("A", "B"))
+      jdbc.update(
+          "INSERT INTO rental_copies(branch_id,game_id,asset_code) VALUES (?,?,?)",
+          branch,
+          game,
+          code);
+
+    String base = "/api/v1/branches/" + branch;
+    var tomorrow = java.time.Instant.now().plus(java.time.Duration.ofDays(1));
+    String from = tomorrow.toString();
+    String until = tomorrow.plus(java.time.Duration.ofHours(2)).toString();
+    String window = "startsAt=" + from + "&endsAt=" + until;
+    var anonymous = browser();
+    var free = get(anonymous, base + "/availability?" + window + "&partySize=4");
+    assertThat(free.statusCode()).as(free.body()).isEqualTo(200);
+    var freeView = JSON.readTree(free.body());
+    assertThat(freeView.get("withinOpeningHours").asBoolean()).isTrue();
+    assertThat(freeView.get("tables").get(0).get("available").asBoolean()).isTrue();
+    assertThat(freeView.get("games").get(0).get("availableQuantity").asInt()).isEqualTo(2);
+    assertThat(freeView.get("games").get(0).get("hourlyRate").get("amountMinor").asLong())
+        .isEqualTo(4000);
+    var tooBig =
+        JSON.readTree(get(anonymous, base + "/availability?" + window + "&partySize=9").body());
+    assertThat(tooBig.get("tables").get(0).get("unavailableReasons").toString())
+        .contains("CAPACITY_EXCEEDED");
+    assertThat(
+            get(
+                    anonymous,
+                    base + "/availability?" + window + "&partySize=2&gameId=" + UUID.randomUUID())
+                .statusCode())
+        .isEqualTo(404);
+    assertThat(
+            get(
+                    anonymous,
+                    base + "/availability?startsAt=" + until + "&endsAt=" + from + "&partySize=2")
+                .statusCode())
+        .isEqualTo(400);
+
+    // A customer books both copies for tomorrow; a retry returns the same booking.
+    var customer = login("customer");
+    assertThat(
+            send(
+                    customer,
+                    "POST",
+                    "/api/v1/me",
+                    "{\"firstName\":\"Visit\",\"lastName\":\"Customer\",\"phoneNumber\":\"+66811112222\","
+                        + "\"preferences\":{\"preferredLocale\":\"en-US\"}}")
+                .statusCode())
+        .isIn(200, 201);
+    String plan =
+        "\"tableId\":\""
+            + table
+            + "\",\"partySize\":3,\"games\":[{\"gameId\":\""
+            + game
+            + "\",\"quantity\":2}]";
+    String booking = "{" + plan + ",\"startsAt\":\"" + from + "\",\"endsAt\":\"" + until + "\"}";
+    String bookingKey = UUID.randomUUID().toString();
+    var booked =
+        send(customer, "POST", base + "/reservations", booking, "Idempotency-Key", bookingKey);
+    assertThat(booked.statusCode()).as(booked.body()).isEqualTo(201);
+    var reservation = JSON.readTree(booked.body());
+    String reservationId = reservation.get("id").asString();
+    assertThat(reservation.get("status").asString()).isEqualTo("CONFIRMED");
+    assertThat(reservation.get("source").asString()).isEqualTo("CUSTOMER");
+    assertThat(reservation.get("customer").get("kind").asString()).isEqualTo("REGISTERED");
+    assertThat(reservation.get("tableHourlyRate").get("amountMinor").asLong()).isEqualTo(5000);
+    assertThat(reservation.get("games").get(0).get("unitHourlyRate").get("amountMinor").asLong())
+        .isEqualTo(4000);
+    var replayed =
+        send(customer, "POST", base + "/reservations", booking, "Idempotency-Key", bookingKey);
+    assertThat(JSON.readTree(replayed.body()).get("id").asString()).isEqualTo(reservationId);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM reservation_copy_holds WHERE reservation_id=?::uuid",
+                Integer.class,
+                reservationId))
+        .isEqualTo(2);
+
+    // The table and both copies are now taken for that window, and nothing leaks about who.
+    var taken = get(anonymous, base + "/availability?" + window + "&partySize=2");
+    assertThat(taken.body()).doesNotContain("Visit", "+66811112222");
+    var takenView = JSON.readTree(taken.body());
+    assertThat(takenView.get("tables").get(0).get("unavailableReasons").toString())
+        .contains("RESERVED");
+    assertThat(takenView.get("games").get(0).get("availableQuantity").asInt()).isZero();
+    var manager = login("manager");
+    String guestBooking =
+        "{\"source\":\"STAFF_BOOKING\",\"customer\":{\"kind\":\"GUEST\",\"displayName\":\"Other party\"},"
+            + "\"tableId\":\""
+            + table
+            + "\",\"partySize\":2,\"games\":[],\"startsAt\":\""
+            + tomorrow.plus(java.time.Duration.ofHours(1))
+            + "\",\"endsAt\":\""
+            + tomorrow.plus(java.time.Duration.ofHours(3))
+            + "\"}";
+    var clash =
+        send(
+            manager,
+            "POST",
+            base + "/staff/reservations",
+            guestBooking,
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(clash.statusCode()).as(clash.body()).isEqualTo(409);
+
+    // Rescheduling replaces the plan; a plan that cannot fit leaves the booking untouched.
+    String reservationPath = base + "/reservations/" + reservationId;
+    assertThat(
+            send(
+                    customer,
+                    "PATCH",
+                    reservationPath,
+                    "{\"tableId\":\""
+                        + table
+                        + "\",\"partySize\":3,\"games\":[{\"gameId\":\""
+                        + game
+                        + "\",\"quantity\":3}],\"startsAt\":\""
+                        + from
+                        + "\",\"endsAt\":\""
+                        + until
+                        + "\"}")
+                .statusCode())
+        .isEqualTo(409);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM reservation_copy_holds WHERE reservation_id=?::uuid",
+                Integer.class,
+                reservationId))
+        .isEqualTo(2);
+    String later = tomorrow.plus(java.time.Duration.ofHours(4)).toString();
+    var moved =
+        send(
+            customer,
+            "PATCH",
+            reservationPath,
+            "{\"tableId\":\""
+                + table
+                + "\",\"partySize\":2,\"games\":[{\"gameId\":\""
+                + game
+                + "\",\"quantity\":1}],\"startsAt\":\""
+                + later
+                + "\",\"endsAt\":\""
+                + tomorrow.plus(java.time.Duration.ofHours(5))
+                + "\"}");
+    assertThat(moved.statusCode()).as(moved.body()).isEqualTo(200);
+    assertThat(JSON.readTree(moved.body()).get("partySize").asInt()).isEqualTo(2);
+    assertThat(JSON.readTree(get(customer, "/api/v1/me/reservations").body()).get("items"))
+        .hasSize(1);
+    assertThat(get(login("staff"), reservationPath).statusCode()).isEqualTo(403);
+    assertThat(send(customer, "POST", reservationPath + "/check-in", null).statusCode())
+        .isEqualTo(403);
+    // Staff cannot call a booking missed before it starts; the customer can still cancel it.
+    assertThat(
+            send(manager, "POST", reservationPath + "/no-show", "{\"reason\":\"Too early\"}")
+                .statusCode())
+        .isEqualTo(409);
+    for (int attempt = 0; attempt < 2; attempt++) {
+      var cancelled =
+          send(customer, "POST", reservationPath + "/cancel", "{\"reason\":\"Plans changed\"}");
+      assertThat(cancelled.statusCode()).as(cancelled.body()).isEqualTo(200);
+      assertThat(JSON.readTree(cancelled.body()).get("status").asString()).isEqualTo("CANCELLED");
+    }
+    assertThat(
+            JSON.readTree(get(anonymous, base + "/availability?" + window + "&partySize=2").body())
+                .get("games")
+                .get(0)
+                .get("availableQuantity")
+                .asInt())
+        .isEqualTo(2);
+
+    // A walk-in starts now but is not checked in until staff say so.
+    String walkIn =
+        "{\"source\":\"WALK_IN\",\"customer\":{\"kind\":\"GUEST\",\"displayName\":\"Walk-in party\"},"
+            + "\"tableId\":\""
+            + table
+            + "\",\"partySize\":2,\"games\":[{\"gameId\":\""
+            + game
+            + "\",\"quantity\":1}],\"endsAt\":\""
+            + java.time.Instant.now().plus(java.time.Duration.ofHours(2))
+            + "\"}";
+    var seated =
+        send(
+            manager,
+            "POST",
+            base + "/staff/reservations",
+            walkIn,
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(seated.statusCode()).as(seated.body()).isEqualTo(201);
+    String visitId = JSON.readTree(seated.body()).get("id").asString();
+    assertThat(JSON.readTree(seated.body()).get("status").asString()).isEqualTo("CONFIRMED");
+    String visitPath = base + "/reservations/" + visitId;
+    assertThat(
+            JSON.readTree(get(anonymous, base + "/tables/" + table).body()).get("state").asString())
+        .isEqualTo("RESERVED");
+    assertThat(get(customer, visitPath).statusCode()).isEqualTo(404);
+
+    String rentalId = null;
+    for (int attempt = 0; attempt < 2; attempt++) {
+      var arrived = send(manager, "POST", visitPath + "/check-in", null);
+      assertThat(arrived.statusCode()).as(arrived.body()).isEqualTo(200);
+      var result = JSON.readTree(arrived.body());
+      assertThat(result.get("reservation").get("status").asString()).isEqualTo("CHECKED_IN");
+      assertThat(result.get("rental").get("status").asString()).isEqualTo("ACTIVE");
+      assertThat(result.get("rental").get("charges")).hasSize(2);
+      assertThat(result.get("rental").get("total")).isNull();
+      if (rentalId != null)
+        assertThat(result.get("rental").get("id").asString()).isEqualTo(rentalId);
+      rentalId = result.get("rental").get("id").asString();
+      assertThat(result.get("reservation").get("rentalId").asString()).isEqualTo(rentalId);
+    }
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM rentals WHERE branch_id=?", Integer.class, branch))
+        .isEqualTo(1);
+    assertThat(
+            JSON.readTree(get(anonymous, base + "/tables/" + table).body()).get("state").asString())
+        .isEqualTo("OCCUPIED");
+    assertThat(
+            JSON.readTree(get(anonymous, base + "/games/" + game).body())
+                .get("rentalAvailableNow")
+                .asInt())
+        .isEqualTo(1);
+    assertThat(send(manager, "POST", visitPath + "/no-show", "{\"reason\":\"Here\"}").statusCode())
+        .isEqualTo(409);
+    // An active visit blocks a second walk-in now, but not a booking after its planned end.
+    assertThat(
+            send(
+                    manager,
+                    "POST",
+                    base + "/staff/reservations",
+                    walkIn,
+                    "Idempotency-Key",
+                    UUID.randomUUID().toString())
+                .statusCode())
+        .isEqualTo(409);
+    var afterwards =
+        JSON.readTree(get(anonymous, base + "/availability?" + window + "&partySize=2").body());
+    assertThat(afterwards.get("tables").get(0).get("available").asBoolean()).isTrue();
+    assertThat(afterwards.get("games").get(0).get("availableQuantity").asInt()).isEqualTo(2);
+
+    // 61 minutes of play bill two started hours at the locked rates, once.
+    jdbc.update(
+        "UPDATE rentals SET started_at = now() - interval '61 minutes' WHERE id=?::uuid", rentalId);
+    String rentalPath = base + "/rentals/" + rentalId;
+    assertThat(send(login("staff"), "POST", rentalPath + "/check-out", null).statusCode())
+        .isEqualTo(403);
+    for (int attempt = 0; attempt < 2; attempt++) {
+      var left = send(manager, "POST", rentalPath + "/check-out", null);
+      assertThat(left.statusCode()).as(left.body()).isEqualTo(200);
+      var result = JSON.readTree(left.body());
+      assertThat(result.get("rental").get("status").asString()).isEqualTo("COMPLETED");
+      assertThat(result.get("rental").get("billableHours").asInt()).isEqualTo(2);
+      assertThat(result.get("rental").get("total").get("amountMinor").asLong()).isEqualTo(18000);
+      assertThat(result.get("rental").get("charges").get(0).get("kind").asString())
+          .isEqualTo("TABLE");
+      assertThat(
+              result
+                  .get("rental")
+                  .get("charges")
+                  .get(0)
+                  .get("lineTotal")
+                  .get("amountMinor")
+                  .asLong())
+          .isEqualTo(10000);
+      assertThat(result.get("reservation").get("status").asString()).isEqualTo("COMPLETED");
+      assertThat(result.get("reservation").get("completedAt")).isNotNull();
+      assertThat(result.get("reservation").get("checkedInAt")).isNotNull();
+    }
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM rental_charges WHERE rental_id=?::uuid",
+                Integer.class,
+                rentalId))
+        .isEqualTo(2);
+    assertThat(
+            JSON.readTree(get(anonymous, base + "/tables/" + table).body()).get("state").asString())
+        .isEqualTo("AVAILABLE");
+    assertThat(
+            JSON.readTree(get(anonymous, base + "/games/" + game).body())
+                .get("rentalAvailableNow")
+                .asInt())
+        .isEqualTo(2);
+    assertThat(JSON.readTree(get(manager, base + "/rentals?status=COMPLETED").body()).get("items"))
+        .hasSize(1);
+    assertThat(
+            JSON.readTree(get(manager, base + "/reservations?status=COMPLETED").body())
+                .get("items"))
+        .hasSize(1);
+    assertThat(get(customer, rentalPath).statusCode()).isEqualTo(404);
+  }
+
+  @Test
+  void foodPreOrdersHoldPantryStockAndAreChargedOnlyWhenThePartyArrives() throws Exception {
+    var branch = UUID.randomUUID();
+    var table = UUID.randomUUID();
+    var cola = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Pantry test', 'Address')", branch);
+    for (int day = 1; day <= 7; day++)
+      jdbc.update(
+          "INSERT INTO branch_opening_hours(branch_id,day_of_week,opens_at,closes_at) VALUES (?,?,'00:00','24:00')",
+          branch,
+          day);
+    jdbc.update(
+        "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor) VALUES (?,?,'P1',4,5000)",
+        table,
+        branch);
+    jdbc.update(
+        "INSERT INTO menu_items(id,sku,category,names,price_minor) VALUES (?,?,'BEVERAGES',"
+            + "'{\"en-US\":\"Cola\",\"th-TH\":\"โคล่า\"}'::jsonb,3500)",
+        cola,
+        "test-cola-" + cola);
+    String base = "/api/v1/branches/" + branch;
+    var anonymous = browser();
+
+    // The menu is public; a branch that never stocked an item has none to offer.
+    var menu = get(anonymous, base + "/menu");
+    assertThat(menu.statusCode()).as(menu.body()).isEqualTo(200);
+    assertThat(available(menu.body(), cola)).isZero();
+    assertThat(get(anonymous, "/api/v1/branches/" + UUID.randomUUID() + "/menu").statusCode())
+        .isEqualTo(404);
+    var manager = login("manager");
+    String receipt = "{\"delta\":3,\"reason\":\"Delivery\"}";
+    assertThat(
+            send(login("customer"), "POST", base + "/menu/" + cola + "/stock-adjustments", receipt)
+                .statusCode())
+        .isEqualTo(403);
+    var received = send(manager, "POST", base + "/menu/" + cola + "/stock-adjustments", receipt);
+    assertThat(received.statusCode()).as(received.body()).isEqualTo(201);
+    assertThat(JSON.readTree(received.body()).get("onHand").asInt()).isEqualTo(3);
+    assertThat(available(get(anonymous, base + "/menu").body(), cola)).isEqualTo(3);
+
+    var customer = login("customer");
+    assertThat(
+            send(
+                    customer,
+                    "POST",
+                    "/api/v1/me",
+                    "{\"firstName\":\"Food\",\"lastName\":\"Customer\",\"phoneNumber\":\"+66811113333\","
+                        + "\"preferences\":{\"preferredLocale\":\"en-US\"}}")
+                .statusCode())
+        .isIn(200, 201);
+    var tomorrow = java.time.Instant.now().plus(java.time.Duration.ofDays(1));
+    java.util.function.BiFunction<java.time.Instant, String, String> booking =
+        (startsAt, token) ->
+            "{\"tableId\":\""
+                + table
+                + "\",\"partySize\":2,\"games\":[],\"startsAt\":\""
+                + startsAt
+                + "\",\"endsAt\":\""
+                + startsAt.plus(java.time.Duration.ofHours(2))
+                + "\",\"preOrder\":{\"items\":[{\"menuItemId\":\""
+                + cola
+                + "\",\"quantity\":2}],\"paymentToken\":\""
+                + token
+                + "\"}}";
+
+    // A visit beyond the card authorization window cannot carry food.
+    var tooFar =
+        send(
+            customer,
+            "POST",
+            base + "/reservations",
+            booking.apply(
+                tomorrow.plus(java.time.Duration.ofDays(7)),
+                paymentToken(customer, "4242 4242 4242 4242")),
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(tooFar.statusCode()).as(tooFar.body()).isEqualTo(409);
+
+    // A declined card books nothing and holds nothing.
+    var declined =
+        send(
+            customer,
+            "POST",
+            base + "/reservations",
+            booking.apply(tomorrow, paymentToken(customer, "4000 0000 0000 0002")),
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(declined.statusCode()).as(declined.body()).isEqualTo(402);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM reservations WHERE branch_id=?", Integer.class, branch))
+        .isZero();
+    assertThat(available(get(anonymous, base + "/menu").body(), cola)).isEqualTo(3);
+
+    // Asking for more than the branch has refuses the booking before the card is touched.
+    String greedy =
+        booking
+            .apply(tomorrow, paymentToken(customer, "4242 4242 4242 4242"))
+            .replace("\"quantity\":2", "\"quantity\":4");
+    assertThat(
+            send(
+                    customer,
+                    "POST",
+                    base + "/reservations",
+                    greedy,
+                    "Idempotency-Key",
+                    UUID.randomUUID().toString())
+                .statusCode())
+        .isEqualTo(409);
+
+    // Two colas at 35 THB, less 10%, authorized on the card and held at the branch.
+    var booked =
+        send(
+            customer,
+            "POST",
+            base + "/reservations",
+            booking.apply(tomorrow, paymentToken(customer, "4242 4242 4242 4242")),
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(booked.statusCode()).as(booked.body()).isEqualTo(201);
+    var preOrder = JSON.readTree(booked.body()).get("preOrder");
+    assertThat(preOrder.get("subtotal").get("amountMinor").asLong()).isEqualTo(7000);
+    assertThat(preOrder.get("discount").get("amountMinor").asLong()).isEqualTo(700);
+    assertThat(preOrder.get("total").get("amountMinor").asLong()).isEqualTo(6300);
+    assertThat(preOrder.get("items").get(0).get("name").asString()).isEqualTo("Cola");
+    assertThat(preOrder.get("payment").get("status").asString()).isEqualTo("AUTHORIZED");
+    assertThat(preOrder.get("payment").get("amount").get("amountMinor").asLong()).isEqualTo(6300);
+    assertThat(available(get(anonymous, base + "/menu").body(), cola)).isEqualTo(1);
+    String reservationPath =
+        base + "/reservations/" + JSON.readTree(booked.body()).get("id").asString();
+    assertThat(
+            JSON.readTree(get(customer, "/api/v1/me/reservations").body())
+                .get("items")
+                .findValues("preOrder"))
+        .isNotEmpty();
+    // Held units cannot be corrected away.
+    assertThat(
+            send(
+                    manager,
+                    "POST",
+                    base + "/menu/" + cola + "/stock-adjustments",
+                    "{\"delta\":-2,\"reason\":\"Breakage\"}")
+                .statusCode())
+        .isEqualTo(409);
+    // Nor can the visit be moved past the authorization window.
+    String moveFar =
+        "{\"tableId\":\""
+            + table
+            + "\",\"partySize\":2,\"games\":[],\"startsAt\":\""
+            + tomorrow.plus(java.time.Duration.ofDays(7))
+            + "\",\"endsAt\":\""
+            + tomorrow.plus(java.time.Duration.ofDays(7)).plus(java.time.Duration.ofHours(1))
+            + "\"}";
+    assertThat(send(customer, "PATCH", reservationPath, moveFar).statusCode()).isEqualTo(409);
+
+    // Moving a visit cannot renew an authorization obtained four days earlier.
+    jdbc.update(
+        "UPDATE reservation_preorders SET created_at = now() - interval '4 days' WHERE reservation_id=?::uuid",
+        JSON.readTree(booked.body()).get("id").asString());
+    String moveAfterOriginalWindow =
+        "{\"tableId\":\""
+            + table
+            + "\",\"partySize\":2,\"games\":[],\"startsAt\":\""
+            + tomorrow.plus(java.time.Duration.ofDays(2))
+            + "\",\"endsAt\":\""
+            + tomorrow.plus(java.time.Duration.ofDays(2)).plus(java.time.Duration.ofHours(1))
+            + "\"}";
+    var expiredMove = send(customer, "PATCH", reservationPath, moveAfterOriginalWindow);
+    assertThat(expiredMove.statusCode()).as(expiredMove.body()).isEqualTo(409);
+    assertThat(JSON.readTree(get(customer, reservationPath).body()).get("startsAt").asString())
+        .isEqualTo(JSON.readTree(booked.body()).get("startsAt").asString());
+    assertThat(available(get(anonymous, base + "/menu").body(), cola)).isEqualTo(1);
+
+    // Cancelling returns the stock and voids the card authorization.
+    var cancelled =
+        send(customer, "POST", reservationPath + "/cancel", "{\"reason\":\"Plans changed\"}");
+    assertThat(cancelled.statusCode()).as(cancelled.body()).isEqualTo(200);
+    assertThat(
+            JSON.readTree(cancelled.body()).get("preOrder").get("payment").get("status").asString())
+        .isEqualTo("VOIDED");
+    assertThat(available(get(anonymous, base + "/menu").body(), cola)).isEqualTo(3);
+
+    // A booking waits for a concurrent branch change, then rechecks its active state.
+    try (var executor = java.util.concurrent.Executors.newSingleThreadExecutor()) {
+      try (var connection = jdbc.getDataSource().getConnection()) {
+        connection.setAutoCommit(false);
+        try (var deactivate =
+            connection.prepareStatement("UPDATE branches SET active=false WHERE id=?")) {
+          deactivate.setObject(1, branch);
+          deactivate.executeUpdate();
+        }
+        String pendingBooking =
+            booking.apply(tomorrow, paymentToken(customer, "4242 4242 4242 4242"));
+        var started = new java.util.concurrent.CountDownLatch(1);
+        var pending =
+            executor.submit(
+                () -> {
+                  started.countDown();
+                  return send(
+                      customer,
+                      "POST",
+                      base + "/reservations",
+                      pendingBooking,
+                      "Idempotency-Key",
+                      UUID.randomUUID().toString());
+                });
+        assertThat(started.await(5, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        assertThatThrownBy(() -> pending.get(1, java.util.concurrent.TimeUnit.SECONDS))
+            .isInstanceOf(java.util.concurrent.TimeoutException.class);
+        connection.commit();
+        var rejected = pending.get(10, java.util.concurrent.TimeUnit.SECONDS);
+        assertThat(rejected.statusCode()).as(rejected.body()).isEqualTo(404);
+      }
+    }
+    jdbc.update("UPDATE branches SET active=true WHERE id=?", branch);
+    assertThat(available(get(anonymous, base + "/menu").body(), cola)).isEqualTo(3);
+
+    // Check-in serves the food from held stock and captures the money, once.
+    var soon = java.time.Instant.now().plus(java.time.Duration.ofMinutes(5));
+    var visit =
+        send(
+            customer,
+            "POST",
+            base + "/reservations",
+            booking.apply(soon, paymentToken(customer, "4242 4242 4242 4242")),
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(visit.statusCode()).as(visit.body()).isEqualTo(201);
+    String visitId = JSON.readTree(visit.body()).get("id").asString();
+    jdbc.update(
+        "UPDATE reservations SET starts_at = now() - interval '1 minute' WHERE id=?::uuid",
+        visitId);
+    for (int attempt = 0; attempt < 2; attempt++) {
+      var arrived = send(manager, "POST", base + "/reservations/" + visitId + "/check-in", null);
+      assertThat(arrived.statusCode()).as(arrived.body()).isEqualTo(200);
+      assertThat(
+              JSON.readTree(arrived.body())
+                  .get("reservation")
+                  .get("preOrder")
+                  .get("payment")
+                  .get("status")
+                  .asString())
+          .isEqualTo("CAPTURED");
+    }
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT on_hand * 10 + held FROM branch_menu_stock WHERE branch_id=? AND menu_item_id=?",
+                Integer.class,
+                branch,
+                cola))
+        .isEqualTo(10);
+  }
+
+  static int available(String menuBody, UUID menuItemId) throws Exception {
+    for (var item : JSON.readTree(menuBody).get("items"))
+      if (item.get("item").get("id").asString().equals(menuItemId.toString()))
+        return item.get("available").asInt();
+    throw new AssertionError("Menu item " + menuItemId + " is not on the menu");
   }
 
   @Test

@@ -4,7 +4,7 @@ import type { Router } from 'vue-router';
 import { login, useAuth } from '@theparlor/auth';
 import { clearAccount, ensureAccount, useAccount } from '@theparlor/account';
 
-import { defaultDestination, pageAccess, safeReturnPath } from './access';
+import { pageAccess, safeReturnPath, workspaceDestination } from './access';
 
 const returnPathKey = 'theparlor.returnTo';
 const onboardingRoute = 'AccountOnboarding';
@@ -45,7 +45,7 @@ export function installAuthGuards(router: Router): void {
         to.name === onboardingRoute
       ) {
         return {
-          name: defaultDestination(identity.roles),
+          name: workspaceDestination(identity.roles),
           replace: true,
         };
       }
@@ -62,7 +62,7 @@ export function installAuthGuards(router: Router): void {
       if (identity.authenticated) {
         return (
           next || {
-            name: defaultDestination(identity.roles),
+            name: 'HomeIndex',
           }
         );
       }
@@ -126,7 +126,7 @@ export function installAuthGuards(router: Router): void {
 
       if (status === 'ready' && route.name === onboardingRoute) {
         void router.replace({
-          name: defaultDestination(identity.roles),
+          name: workspaceDestination(identity.roles),
         });
       }
     },

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.5.0
  */
 import type { GameSelection } from './gameSelection';
+import type { PreOrderRequest } from './preOrderRequest';
 
 /**
  * Table and games must be offered by this branch, fit the interval and have sufficient capacity. Fields such as customer, status, source, prices and check-in timestamps are forbidden.
@@ -23,4 +24,5 @@ export interface CreateReservationRequest {
   games: GameSelection[];
   /** @maxLength 1000 */
   notes?: string;
+  preOrder?: PreOrderRequest;
 }

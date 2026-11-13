@@ -7,6 +7,7 @@ import { homeRoutes } from '../../features/home/routes';
 import { authRoutes } from '../../features/auth/routes';
 import { workspaceRoutes } from '../../features/workspace/routes';
 import { accountRoutes } from '../../features/account/routes';
+import { reservationRoutes } from '../../features/reservations/routes';
 import { installAuthGuards } from './guards';
 
 import CustomerLayout from '../layouts/CustomerLayout.vue';
@@ -24,6 +25,8 @@ export function createAppRouter() {
     ...homeRoutes,
     ...authRoutes,
     ...accountRoutes,
+    ...reservationRoutes,
+    ...workspaceRoutes.filter((route) => route.meta?.layout === 'customer'),
   ];
 
   const customerRoutes = customerPages.filter(
@@ -48,7 +51,7 @@ export function createAppRouter() {
       ...rawRoutes,
 
       // Staff pages remain separate.
-      ...workspaceRoutes,
+      ...workspaceRoutes.filter((route) => route.meta?.layout !== 'customer'),
 
       {
         path: '/:pathMatch(.*)*',

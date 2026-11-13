@@ -1,0 +1,45 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: theparlor
+spec:
+  parentRefs:
+    - name: public
+      namespace: gateway
+      sectionName: theparlor
+  hostnames: [theparlor.devopsandbox.chanakanlabs.com]
+  rules:
+    - matches: [{ path: { type: PathPrefix, value: /api } }]
+      backendRefs: [{ name: api, port: 8080 }]
+    - matches: [{ path: { type: PathPrefix, value: / } }]
+      backendRefs: [{ name: web, port: 8080 }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: keycloak
+spec:
+  parentRefs:
+    - name: public
+      namespace: gateway
+      sectionName: keycloak
+  hostnames: [auth.devopsandbox.chanakanlabs.com]
+  rules:
+    - backendRefs: [{ name: keycloak, port: 8080 }]
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: https-redirect
+spec:
+  parentRefs:
+    - name: public
+      namespace: gateway
+      sectionName: http
+  hostnames:
+    - theparlor.devopsandbox.chanakanlabs.com
+    - auth.devopsandbox.chanakanlabs.com
+  rules:
+    - filters:
+        - type: RequestRedirect
+          requestRedirect: { scheme: https, statusCode: 301 }

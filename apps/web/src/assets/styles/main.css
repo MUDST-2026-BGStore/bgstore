@@ -1,5 +1,30 @@
 @import 'tailwindcss';
 
+/* Thai Font: FC Mee Sakul (https://www.f0nt.com/release/fc-mee-sakul/) */
+@font-face {
+  font-family: 'FC Mee Sakul';
+  src: url('/fonts/fc-mee-sakul.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+:lang(th),
+:lang(th-TH),
+[lang='th'],
+[lang='th-TH'],
+.font-thai {
+  font-family:
+    'FC Mee Sakul',
+    'Plus Jakarta Sans',
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif !important;
+}
+
 /* Tailwind v4 auto-detects classes in the app only; libs/web components are
    consumed from outside the Vite root, so register them explicitly.
    The path is relative to this stylesheet. */
@@ -12,17 +37,14 @@
  *  - generates utilities: bg-primary, text-text, border-border, ...
  */
 @theme {
-  --color-primary: #6366f1; /* indigo-500 */
-  --color-primary-hover: #4f46e5; /* indigo-600 */
-  --color-danger: #851d24; /* red-500 */
-  --color-danger-hover: color-mix(
-    in srgb,
-    var(--color-danger, #000 20%)
-  ); /* red-600 */
-  --color-surface: #1e293b; /* slate-800 */
-  --color-surface-hover: #334155; /* slate-700 */
-  --color-text: #e2e8f0; /* slate-200 */
-  --color-border: #334155; /* slate-700 */
+  --color-primary: #203c30;
+  --color-primary-hover: #142b20;
+  --color-danger: #851d24;
+  --color-danger-hover: color-mix(in srgb, var(--color-danger), black 15%);
+  --color-surface: #0e1d16;
+  --color-surface-hover: #193528;
+  --color-text: #efe5d0;
+  --color-border: #c6ad7a66;
 }
 
 @layer base {
@@ -42,7 +64,12 @@ html {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  html {
-    scroll-behavior: auto;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

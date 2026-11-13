@@ -17,4 +17,13 @@ public class RentalCopyAllocation {
 
   @Column(name = "branch_id", nullable = false)
   private UUID branchId;
+
+  public static RentalCopyAllocation of(UUID rentalId, UUID branchId, UUID copyId) {
+    var allocation = new RentalCopyAllocation();
+    allocation.id =
+        new RentalCopyAllocationId(
+            java.util.Objects.requireNonNull(rentalId), java.util.Objects.requireNonNull(copyId));
+    allocation.branchId = java.util.Objects.requireNonNull(branchId);
+    return allocation;
+  }
 }

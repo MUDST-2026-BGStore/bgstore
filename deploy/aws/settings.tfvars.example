@@ -1,0 +1,25 @@
+# Copy to settings.auto.tfvars in this directory; it is ignored by Git.
+# Start with an empty file for an unchanged import. Uncomment options, run
+# make aws-plan from the repository root, and inspect the proposed changes.
+
+# Start the server before SSH/Ansible/deployment; restore stopped when finished.
+# instance_state = "running"
+
+# Restrict SSH to your current public IPv4 address (replace the example).
+# ssh_cidrs = ["203.0.113.10/32"]
+
+# Allocate and attach a stable public IPv4 address (billable even when stopped).
+# elastic_ip = { create = true }
+
+# Allocate without attaching:
+# elastic_ip = { create = true, associate = false }
+
+# Reuse an EIP allocation owned by this account in this region:
+# elastic_ip = { allocation_id = "eipalloc-0123456789abcdef0" }
+
+# SSM needs a running agent and outbound HTTPS. With this network, attaching
+# an EIP provides internet connectivity; an internet gateway alone is not enough.
+# enable_ssm = true
+
+# Turning create=false after creating an EIP releases it on apply; the address
+# might never be recoverable. Detach with associate=false to keep it allocated.

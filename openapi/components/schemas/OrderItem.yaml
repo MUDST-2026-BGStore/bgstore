@@ -11,6 +11,10 @@ properties:
   editionId:
     type: string
     format: uuid
+  gameId:
+    type: string
+    format: uuid
+    description: The edition's catalog game at placement, for linking to its product page.
   gameName:
     type: string
     description: Name snapshot at order placement.

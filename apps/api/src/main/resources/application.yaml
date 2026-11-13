@@ -50,6 +50,10 @@ theparlor:
     issuer: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/theparlor}
     backchannel-issuer: ${KEYCLOAK_BACKCHANNEL_ISSUER_URI:${theparlor.auth.issuer}}
     client-secret: ${THEPARLOR_OIDC_CLIENT_SECRET}
+  payments:
+    # Card payment provider: "none" refuses card payments, "bogus" is the development stand-in
+    # that approves test cards and moves no money. Never use bogus where real orders are taken.
+    gateway: ${THEPARLOR_PAYMENT_GATEWAY:none}
 
 # ── Actuator / Observability ──────────────────────────────────
 management:

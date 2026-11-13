@@ -92,16 +92,19 @@ for (const status of [401, 503]) {
   });
 }
 
-test('remembers a browsing preference without claiming inventory', async ({
+test('remembers a chosen branch without putting prices on catalog cards', async ({
   page,
 }) => {
   await page.locator('.context-trigger').click();
   const dialog = page.getByRole('dialog', { name: 'Choose your store' });
   await dialog.locator('input[value=branch]').check();
-  await dialog.locator('select[name=store-branch]').selectOption('ari');
+  // Branches come from the seeded API, so they are chosen by name, not by a fixed ID.
+  await dialog
+    .locator('select[name=store-branch]')
+    .selectOption({ label: 'Ari' });
   await dialog.getByRole('button', { name: 'Save & continue' }).click();
   await expect(page.locator('.context-trigger')).toContainText('Ari');
-  await expect(page.locator('.source-label')).toHaveText('Browsing preference');
+  await expect(page.locator('.source-label')).toHaveText('Prices and stock');
   await page.reload();
   await expect(page.locator('.context-trigger')).toContainText('Ari');
   await expect(page.locator('.game-availability, .game-price')).toHaveCount(0);
@@ -169,6 +172,17 @@ test('desktop keeps navigation, search and short-viewport filters reachable whil
 }) => {
   await page.setViewportSize({ width: 1440, height: 600 });
   await expect(page.locator('.game-card')).toHaveCount(16);
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  const sidebar = page.locator('.filters');
+  const lastFilter = sidebar.getByRole('combobox', {
+    name: 'Experience level',
+    exact: true,
+  });
+  await sidebar.hover();
+  await page.mouse.wheel(0, 1200);
+  await expect(lastFilter).toBeInViewport({ ratio: 1 });
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+
   await page.evaluate(() => window.scrollTo({ top: 500, behavior: 'instant' }));
   const header = page.locator('.parlor-header');
   await expect
@@ -179,7 +193,6 @@ test('desktop keeps navigation, search and short-viewport filters reachable whil
   expect(
     search && headerBox && Math.abs(search.y - headerBox.height) < 2,
   ).toBeTruthy();
-  const sidebar = page.locator('.filters');
   const sidebarBox = await sidebar.boundingBox();
   expect(
     sidebarBox && search && sidebarBox.y >= search.y + search.height - 1,
@@ -251,8 +264,9 @@ test('mobile filter drawer shares state, traps focus, restores focus and closes 
   await expect(
     drawer.getByRole('combobox', { name: 'Players', exact: true }),
   ).toHaveValue('8');
-  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.setViewportSize({ width: 701, height: 900 });
   await expect(drawer).toBeHidden();
+  await expect(page.locator('.filters select[name=players]')).toBeVisible();
   await expect(page.locator('.filters select[name=players]')).toHaveValue('8');
   await page.setViewportSize({ width: 390, height: 700 });
   await page.evaluate(() => window.scrollTo({ top: 400, behavior: 'instant' }));

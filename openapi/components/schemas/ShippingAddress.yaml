@@ -1,0 +1,37 @@
+type: object
+description: Delivery address in Thailand, the only country served.
+additionalProperties: false
+required:
+  - recipientName
+  - line1
+  - district
+  - province
+  - postalCode
+properties:
+  recipientName:
+    type: string
+    minLength: 1
+    maxLength: 150
+  line1:
+    type: string
+    minLength: 1
+    maxLength: 200
+  line2:
+    type: string
+    minLength: 1
+    maxLength: 200
+  subdistrict:
+    type: string
+    minLength: 1
+    maxLength: 100
+  district:
+    type: string
+    minLength: 1
+    maxLength: 100
+  province:
+    type: string
+    minLength: 1
+    maxLength: 100
+  postalCode:
+    type: string
+    pattern: ^[0-9]{5}$

@@ -1,0 +1,25 @@
+type: object
+description: >-
+  Food and drink paid for with the reservation. total is subtotal minus the
+  pre-order discount. The card is authorized at booking, captured when staff
+  check the party in, and voided if the reservation is cancelled or missed.
+required:
+  - items
+  - subtotal
+  - discount
+  - total
+  - payment
+properties:
+  items:
+    type: array
+    items:
+      $ref: ./ReservationPreOrderItem.yaml
+    minItems: 1
+  subtotal:
+    $ref: ./Money.yaml
+  discount:
+    $ref: ./Money.yaml
+  total:
+    $ref: ./Money.yaml
+  payment:
+    $ref: ./OrderPayment.yaml

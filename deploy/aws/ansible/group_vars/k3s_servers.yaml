@@ -1,0 +1,31 @@
+# Match the installed versions; existing installations are never upgraded by
+# default. k3s includes containerd: Docker is unnecessary.
+k3s_version: v1.36.4+k3s1
+argocd_chart_version: 10.9.2
+helm_version: v4.3.1
+envoy_gateway_version: v1.9.1
+cert_manager_version: v1.21.2
+ecr_credential_provider_version: v1.37.0
+enable_ecr_credentials: false
+allow_k3s_upgrade: false
+allow_argocd_upgrade: false
+ssh_user: ec2-user
+
+# Empty means refresh the external IP from EC2 IMDSv2 at each k3s startup.
+# No Kubernetes API or Argo CD administration port is opened in the AWS SG.
+k3s_external_ip: ''
+k3s_disable: [traefik]
+
+# Register the new The Parlor project/application from this checkout. The app
+# uses manual sync and stays paused until its code and images are published.
+configure_gitops: true
+# Retire old Applications that referenced the previous Git deployment paths.
+# Deleting their Argo objects is NON-CASCADING: it never deletes databases/PVCs.
+retire_legacy_git_applications: true
+legacy_git_applications:
+  - bgstore-dev
+  - argocd-routing
+  - grafana-routing
+  - keycloak-database
+  - keycloak-routing
+  - public-gateway

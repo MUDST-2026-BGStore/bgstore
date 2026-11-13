@@ -1,0 +1,29 @@
+type: object
+description: A branch's pantry stock of one menu item. available is onHand minus held.
+required:
+  - branchId
+  - menuItemId
+  - onHand
+  - held
+  - available
+properties:
+  branchId:
+    type: string
+    format: uuid
+  menuItemId:
+    type: string
+    format: uuid
+  onHand:
+    type: integer
+    format: int32
+    minimum: 0
+    description: Physical units at this branch, including held units.
+  held:
+    type: integer
+    format: int32
+    minimum: 0
+    description: Units held by pre-orders of confirmed reservations.
+  available:
+    type: integer
+    format: int32
+    minimum: 0

@@ -49,6 +49,8 @@ properties:
       $ref: ./ReservationGame.yaml
   tableHourlyRate:
     $ref: ./Money.yaml
+  preOrder:
+    $ref: ./ReservationPreOrder.yaml
   notes:
     type: string
   createdAt:

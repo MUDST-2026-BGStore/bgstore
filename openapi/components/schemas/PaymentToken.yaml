@@ -1,0 +1,20 @@
+type: object
+description: Single-use reference to a validated card. It expires shortly and is consumed by the first authorization attempt.
+required:
+  - token
+  - cardBrand
+  - cardLast4
+  - expiresAt
+properties:
+  token:
+    type: string
+    minLength: 16
+    maxLength: 128
+  cardBrand:
+    $ref: ./CardBrand.yaml
+  cardLast4:
+    type: string
+    pattern: ^[0-9]{4}$
+  expiresAt:
+    type: string
+    format: date-time

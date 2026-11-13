@@ -128,7 +128,21 @@ public class SecurityConfig {
                         "/api/v1/categories",
                         "/api/v1/categories/{categoryId}",
                         "/api/v1/mechanics",
-                        "/api/v1/mechanics/{mechanicId}")
+                        "/api/v1/mechanics/{mechanicId}",
+                        "/api/v1/branches",
+                        "/api/v1/branches/{branchId}",
+                        "/api/v1/branches/{branchId}/tables",
+                        "/api/v1/branches/{branchId}/tables/{tableId}",
+                        "/api/v1/branches/{branchId}/games",
+                        "/api/v1/branches/{branchId}/games/{gameId}",
+                        "/api/v1/branches/{branchId}/availability",
+                        "/api/v1/branches/{branchId}/menu")
+                    .permitAll()
+                    // Guests shop with a cart token and pay with a card token; both are
+                    // checked by the services, and writes still need a CSRF token.
+                    .requestMatchers("/api/v1/carts", "/api/v1/carts/**")
+                    .permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/payments/tokens")
                     .permitAll()
                     .requestMatchers("/api/v1/admin/**")
                     .hasRole("ADMIN")

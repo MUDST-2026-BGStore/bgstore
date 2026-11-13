@@ -1,0 +1,18 @@
+type: object
+description: Who to contact about an order. Counter sales to guests may have no email or phone.
+additionalProperties: false
+required:
+  - name
+properties:
+  name:
+    type: string
+    minLength: 1
+    maxLength: 150
+  email:
+    type: string
+    format: email
+    maxLength: 254
+  phone:
+    type: string
+    minLength: 1
+    maxLength: 32

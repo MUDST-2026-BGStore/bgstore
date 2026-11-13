@@ -1,0 +1,40 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/MenuItemId.yaml
+post:
+  tags:
+    - Pantry
+  operationId: adjustMenuStock
+  summary: Receive or correct a branch's stock of a menu item
+  description:
+    Apply delta atomically to the branch's on-hand units, starting from zero the first time
+    the branch stocks the item. Reject zero delta or any adjustment making on-hand stock less
+    than the units held by pre-orders. The server records the actor, reason and timestamp.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/StockAdjustmentRequest.yaml
+  responses:
+    '201':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/MenuStock.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

@@ -1,9 +1,11 @@
 <script setup lang="ts">
-// TODO(branch-inventory-api): This unused comparison component reads fixtures.
-// Wire branch library membership and edition stock to implemented branch/inventory
-// endpoints before exposing it on live product pages. Membership is not visit availability.
+// TODO(branch-comparison): This comparison component is not mounted anywhere and
+// still reads fixture branches, libraries and stock. To use it on product pages,
+// read each branch's offering with useBranchOffering (api/inventory.ts) instead.
+// Library membership is not visit availability.
 import StoreAccordion from './StoreAccordion.vue';
 import { computed, ref } from 'vue';
+import { AppDataTable, AppField } from '../../../shared/ui';
 import { branches, rentalLibraryAt, retailStockAt } from '../data/branches';
 import { useStoreText } from '../data/store-text';
 const props = defineProps<{
@@ -12,6 +14,11 @@ const props = defineProps<{
 }>();
 const { t } = useStoreText();
 const query = ref('');
+const columns = computed(() => [
+  { label: t('Branch') },
+  { label: t('Rental library') },
+  ...(props.variantId ? [{ label: t('New copy') }] : []),
+]);
 const matchingBranches = computed(() =>
   branches.filter((branch) =>
     t(branch.name)
@@ -35,48 +42,40 @@ function rentalText(branchId: string) {
     <p v-if="variantId" class="branch-hint">
       {{ t('Retail availability is for the selected edition.') }}
     </p>
-    <label v-if="branches.length > 8" class="availability-search"
-      >{{ t('Find a branch')
-      }}<input
+    <AppField
+      v-if="branches.length > 8"
+      class="availability-search"
+      :label="t('Find a branch')"
+      :input-id="`${gameId}-${variantId || 'rental'}-branch-search`"
+      ><input
+        :id="`${gameId}-${variantId || 'rental'}-branch-search`"
         v-model="query"
         type="search"
         :placeholder="t('Search branches…')"
-    /></label>
-    <div
+    /></AppField>
+    <AppDataTable
       class="branch-table"
-      role="region"
-      :aria-label="t('Branch libraries and retail stock')"
-      tabindex="0"
+      :label="t('Branch libraries and retail stock')"
+      :columns="columns"
     >
-      <table>
-        <thead>
-          <tr>
-            <th scope="col">{{ t('Branch') }}</th>
-            <th scope="col">{{ t('Rental library') }}</th>
-            <th v-if="variantId" scope="col">{{ t('New copy') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="branch in matchingBranches"
-            :key="branch.id"
-            class="branch-row"
-          >
-            <th scope="row">{{ t(branch.name) }}</th>
-            <td>{{ rentalText(branch.id) }}</td>
-            <td v-if="variantId">
-              {{
-                retailStockAt(variantId, branch.id)
-                  ? t('{count} in stock', {
-                      count: retailStockAt(variantId, branch.id),
-                    })
-                  : t('Sold out')
-              }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <tr
+        v-for="branch in matchingBranches"
+        :key="branch.id"
+        class="branch-row"
+      >
+        <th scope="row">{{ t(branch.name) }}</th>
+        <td>{{ rentalText(branch.id) }}</td>
+        <td v-if="variantId">
+          {{
+            retailStockAt(variantId, branch.id)
+              ? t('{count} in stock', {
+                  count: retailStockAt(variantId, branch.id),
+                })
+              : t('Sold out')
+          }}
+        </td>
+      </tr>
+    </AppDataTable>
     <p v-if="!matchingBranches.length" role="status">
       {{ t('No matching branches. Try another name.') }}
     </p>
@@ -108,31 +107,5 @@ function rentalText(branchId: string) {
 input:focus-visible {
   outline: 2px solid #244c38;
   outline-offset: 3px;
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 12px;
-  table-layout: fixed;
-  font-size: 12px;
-}
-th,
-td {
-  text-align: left;
-  vertical-align: top;
-  padding: 9px 8px 9px 0;
-  border-bottom: 1px solid #d3d9d4;
-  overflow-wrap: anywhere;
-}
-thead th {
-  color: #4e5b53;
-  font-weight: 400;
-}
-tbody th {
-  font-weight: 600;
-}
-tbody tr:last-child th,
-tbody tr:last-child td {
-  border-bottom: 0;
 }
 </style>

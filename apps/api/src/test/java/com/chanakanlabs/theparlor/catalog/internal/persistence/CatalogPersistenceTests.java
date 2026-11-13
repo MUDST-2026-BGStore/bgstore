@@ -560,7 +560,7 @@ class CatalogPersistenceTests {
             "INSERT INTO orders(branch_id,contact_name,contact_email,contact_phone,source,status,fulfillment_method,total_minor,created_by_subject) VALUES (?,'Guest','guest@example.com','123','STAFF_COUNTER','PLACED','PICKUP',0,'staff') RETURNING id",
             UUID.class,
             branch);
-    jdbc.update("INSERT INTO order_items VALUES (?,?,'Committed',1,0,0)", order, edition);
+    jdbc.update("INSERT INTO order_items VALUES (?,?,'Committed',1,0,0,'en')", order, edition);
     service.updateGame(
         gameId, new com.chanakanlabs.theparlor.contracts.model.UpdateGameRequest().active(true));
     assertThat(service.updateGame(gameId, retire).getActive()).isFalse();

@@ -1,0 +1,21 @@
+type: object
+description: >-
+  Checkout details. Guests must supply contact with name, email and phone;
+  signed-in callers may omit it to use their account profile and sign-in email.
+  shippingAddress is required when the cart ships and rejected when it is
+  picked up. The payment token is authorized for the server-calculated total.
+additionalProperties: false
+required:
+  - paymentToken
+properties:
+  contact:
+    $ref: ./OrderContact.yaml
+  shippingAddress:
+    $ref: ./ShippingAddress.yaml
+  notes:
+    type: string
+    maxLength: 1000
+  paymentToken:
+    type: string
+    minLength: 16
+    maxLength: 128

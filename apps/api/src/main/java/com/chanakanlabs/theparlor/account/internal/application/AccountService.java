@@ -2,6 +2,7 @@ package com.chanakanlabs.theparlor.account.internal.application;
 
 import static com.chanakanlabs.theparlor.account.internal.domain.AccountPreferencePolicy.*;
 
+import com.chanakanlabs.theparlor.account.AccountDirectory;
 import com.chanakanlabs.theparlor.account.AccountNotProvisionedException;
 import com.chanakanlabs.theparlor.account.AccountProvisioning;
 import com.chanakanlabs.theparlor.account.AccountRegistration;
@@ -26,7 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class AccountService implements CurrentAccount, AccountProvisioning {
+public class AccountService implements CurrentAccount, AccountProvisioning, AccountDirectory {
 
   private final CurrentUser currentUser;
   private final AccountRepository accounts;
@@ -68,6 +69,20 @@ public class AccountService implements CurrentAccount, AccountProvisioning {
     var key = new AccountIdentityId(identity.issuer(), identity.subject());
 
     return identities.findById(key).map(mapping -> toProfile(mapping.getAccount()));
+  }
+
+  /** Empty when no account, or more than one identity provider, uses the subject. */
+  @Override
+  @Transactional(readOnly = true)
+  public Optional<AccountContact> findBySubject(String subject) {
+    var matches = identities.findBySubject(subject);
+    if (matches.size() != 1) return Optional.empty();
+    var account = matches.getFirst().getAccount();
+    return Optional.of(
+        new AccountContact(
+            account.getId(),
+            (account.getFirstName() + " " + account.getLastName()).strip(),
+            account.getPhoneNumber()));
   }
 
   private Optional<UUID> lookupId(UserProfile user) {

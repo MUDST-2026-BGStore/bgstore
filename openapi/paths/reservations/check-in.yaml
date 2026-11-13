@@ -14,6 +14,7 @@ post:
     checkedInBySubject. A copy or table still in use from an overdue visit causes 409. Repeating a
     successful check-in returns the existing reservation and rental, including their current
     completed representations after checkout, without changing start time or charging twice.
+    A pre-order is served at check-in, when its held stock is consumed and its payment captured.
     Cancelled and no-show reservations return 409.
   security:
     - sessionCookie: []
@@ -31,9 +32,13 @@ post:
       $ref: ../../components/responses/BadRequest.yaml
     '401':
       $ref: ../../components/responses/Unauthorized.yaml
+    '402':
+      $ref: ../../components/responses/PaymentDeclined.yaml
     '403':
       $ref: ../../components/responses/Forbidden.yaml
     '404':
       $ref: ../../components/responses/NotFound.yaml
     '409':
       $ref: ../../components/responses/Conflict.yaml
+    '502':
+      $ref: ../../components/responses/PaymentGatewayError.yaml

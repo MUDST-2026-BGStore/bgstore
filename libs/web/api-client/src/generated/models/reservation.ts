@@ -8,6 +8,7 @@
 import type { CustomerReference } from './customerReference';
 import type { Money } from './money';
 import type { ReservationGame } from './reservationGame';
+import type { ReservationPreOrder } from './reservationPreOrder';
 import type { ReservationSource } from './reservationSource';
 import type { ReservationStatus } from './reservationStatus';
 
@@ -27,6 +28,7 @@ export interface Reservation {
   partySize: number;
   games: ReservationGame[];
   tableHourlyRate: Money;
+  preOrder?: ReservationPreOrder;
   notes?: string;
   createdAt: string;
   createdBySubject: string;

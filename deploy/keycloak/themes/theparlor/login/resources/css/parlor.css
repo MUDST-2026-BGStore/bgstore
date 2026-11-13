@@ -1,5 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
 
+/* Same Thai typeface as the storefront. */
+@font-face {
+  font-family: 'FC Mee Sakul';
+  src: url('../fonts/fc-mee-sakul.ttf') format('truetype');
+  font-display: swap;
+}
+
 /* Follow ParlorShell, ParlorCard and onboarding's paper/underline controls. */
 :root {
   color-scheme: light;
@@ -23,6 +30,11 @@
   --pf-v5-global--active-color--100: var(--parlor-ink);
 }
 
+#keycloak-bg[data-page-id='login-login']:lang(th) {
+  --pf-v5-global--FontFamily--text: 'FC Mee Sakul', system-ui, sans-serif;
+  --pf-v5-global--FontFamily--heading: var(--pf-v5-global--FontFamily--text);
+}
+
 html.login-pf {
   min-height: 100%;
   scroll-padding-top: 82px;
@@ -41,10 +53,7 @@ html.login-pf {
     #08120d 100%
   );
   color: var(--parlor-text);
-  font:
-    15px/1.6 'Plus Jakarta Sans',
-    Arial,
-    sans-serif;
+  font: 15px/1.6 var(--pf-v5-global--FontFamily--text);
 }
 
 #keycloak-bg .pf-v5-c-login {
@@ -108,6 +117,10 @@ html.login-pf {
   color: #fff3dc !important;
 }
 
+[data-page-id='login-login'] .parlor-wordmark {
+  text-transform: uppercase;
+}
+
 .parlor-suit {
   color: #ddc18c;
   font-size: 15px;
@@ -159,12 +172,14 @@ html.login-pf {
 #kc-page-title {
   width: 100%;
   color: var(--parlor-text);
-  font:
-    400 44px/1.05 'Instrument Serif',
-    Georgia,
-    serif;
+  font: 400 44px/1.05 var(--pf-v5-global--FontFamily--heading);
   letter-spacing: -0.02em;
   text-align: center;
+}
+
+[data-page-id='login-login'] #kc-page-title:lang(th) {
+  line-height: 1.2;
+  letter-spacing: normal;
 }
 
 #keycloak-bg .pf-v5-c-login__main-body {
@@ -436,7 +451,67 @@ html.login-pf {
   font-size: 14px;
 }
 
+/* Match the storefront's BLocaleSwitcher sizing and type. */
+#kc-header .parlor-header-language {
+  position: absolute;
+  inset-inline-start: max(24px, calc((100vw - 1440px) / 2));
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid #c6ad7a80;
+  background: #13281d;
+  font:
+    12px/1.5 Arial,
+    sans-serif;
+  letter-spacing: normal;
+}
+
+#kc-header .parlor-header-language a {
+  padding: 4px 9px;
+  color: #f3e5c5;
+  font: inherit;
+  text-decoration: none;
+}
+
+#kc-header .parlor-header-language:lang(th),
+#kc-header .parlor-header-language a:lang(th) {
+  font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, sans-serif;
+}
+
+#kc-header .parlor-header-language a:hover {
+  background: #35523f;
+}
+
+#kc-header .parlor-header-language a[aria-current='true'] {
+  background: var(--parlor-gold);
+  color: var(--parlor-text);
+  font-weight: 600;
+}
+
+#kc-header .parlor-header-language a:focus-visible {
+  outline: 2px solid #fff3dc;
+  outline-offset: -2px;
+}
+
+@media (max-width: 300px) {
+  :is([data-page-id='login-login'], [data-page-id='login-register'])
+    #kc-header-wrapper.pf-v5-c-brand {
+    gap: 4px;
+    font-size: 11px;
+    letter-spacing: 0.14em;
+  }
+
+  :is([data-page-id='login-login'], [data-page-id='login-register'])
+    #kc-header-wrapper
+    .parlor-suit {
+    font-size: 12px;
+  }
+}
+
 @media (max-width: 600px) {
+  #kc-header .parlor-header-language {
+    inset-inline-start: clamp(4px, calc(10vw - 24px), 8px);
+  }
+
   #keycloak-bg:has(#kc-reset-password-form) #kc-page-title {
     font-size: 34px;
   }

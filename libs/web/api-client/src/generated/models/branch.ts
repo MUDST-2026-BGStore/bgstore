@@ -27,4 +27,6 @@ export interface Branch {
   /** @maxItems 28 */
   openingHours: OpeningPeriod[];
   active: boolean;
+  /** Whether this branch ships delivery orders. At most one branch does; claiming it while another branch holds it returns 409. */
+  fulfillsDelivery: boolean;
 }

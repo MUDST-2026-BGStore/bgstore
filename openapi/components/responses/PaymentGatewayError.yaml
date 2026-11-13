@@ -1,0 +1,7 @@
+description: >-
+  The payment gateway failed or is not configured. Nothing is committed; the
+  request may be retried with the same Idempotency-Key.
+content:
+  application/json:
+    schema:
+      $ref: ../schemas/Problem.yaml

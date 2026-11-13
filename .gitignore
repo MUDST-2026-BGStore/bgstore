@@ -74,3 +74,14 @@ apps/api/.gradle/
 **/blob-report/
 
 .nx/polygraph
+
+# OpenTofu state, plans, local tools and Ansible inventory may contain secrets.
+**/.terraform/
+**/.local/
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/crash.log
+deploy/aws/*.auto.tfvars
+deploy/aws/*.auto.tfvars.json
+deploy/aws/__pycache__/

@@ -1,233 +1,419 @@
 import { computed, ref, watch } from 'vue';
 import { defineStore } from 'pinia';
-import { games } from '../data/catalog';
-import { variants } from '../data/retail';
-import { branches, DELIVERY_BRANCH_ID, retailStockAt } from '../data/branches';
-// TODO(cart-api): All lines, prices and stock in this store are fixture-backed.
-// Wire create/get/add/update/remove cart and sign-in merge after CartsController
-// is implemented; generated client methods currently target throwing stubs.
-export const CART_STORAGE_KEY = 'theparlor.cart.preview.v1';
-export const FULFILLMENT_STORAGE_KEY = 'theparlor.cart.fulfillment.v1';
-interface CartItem {
+import {
+  addCartItem,
+  checkoutCart,
+  createCart,
+  createPaymentToken,
+  getCart,
+  getMyCart,
+  mergeCart,
+  removeCartItem,
+  updateCart,
+  updateCartItem,
+  type Cart,
+  type CartIssueCode,
+  type CheckoutCartRequest,
+  type CreatePaymentTokenRequest,
+  type Order,
+} from '@theparlor/api-client';
+import { useAuthStore } from '../../../shared/stores/auth';
+import { queryClient } from '../../../shared/lib/api';
+import { httpStatus } from '../../../shared/lib/api-errors';
+import { useBranchDirectoryStore } from './branch-directory';
+
+/** The guest cart's ID and bearer token: the only cart data kept in the browser. */
+export const CART_SESSION_KEY = 'theparlor.cart.session.v1';
+
+export type CartFailure =
+  | 'stock' // not enough units, or not sold at the cart's location
+  | 'invalid' // rejected input
+  | 'gone' // the cart or line no longer exists
+  | 'error'; // network or server failure
+
+export interface CartLine {
+  /** The edition ID; kept as variantId because every cart view keys lines by it. */
   variantId: string;
   quantity: number;
+  /** Units that can be bought at the cart's fulfillment location right now. */
+  available: number;
+  /** Why the line blocks checkout, if it does. */
+  issue?: CartIssueCode;
+  problem: boolean;
+  /** Line total in THB minor units. */
+  total: number;
+  variant: { id: string; language: string; kind: string; price: number };
+  game: { id: string; name: string };
 }
-function restore(): CartItem[] {
+
+interface Session {
+  id: string;
+  token: string;
+}
+
+function restoreSession(): Session | null {
   try {
-    const saved: unknown = JSON.parse(
-      localStorage.getItem(CART_STORAGE_KEY) || '[]',
+    const value: unknown = JSON.parse(
+      localStorage.getItem(CART_SESSION_KEY) || 'null',
     );
-    if (!Array.isArray(saved)) return [];
-    const restored = new Map<string, number>();
-    for (const item of saved) {
-      if (
-        !item ||
-        typeof item !== 'object' ||
-        typeof item.variantId !== 'string' ||
-        !Number.isSafeInteger(item.quantity) ||
-        item.quantity < 1 ||
-        !variants.some((v) => v.id === item.variantId)
-      )
-        continue;
-      // Retain recognized lines even if this location cannot fulfill them. A stock
-      // conflict must be shown, not silently removed/clamped on restore or change.
-      restored.set(
-        item.variantId,
-        Math.min(99, item.quantity + (restored.get(item.variantId) || 0)),
-      );
-    }
-    return [...restored].map(([variantId, quantity]) => ({
-      variantId,
-      quantity,
-    }));
+    const session = value as Partial<Session> | null;
+    return typeof session?.id === 'string' && typeof session.token === 'string'
+      ? { id: session.id, token: session.token }
+      : null;
   } catch {
-    return [];
+    return null;
   }
 }
-function restoreFulfillment(): {
-  method: 'shipping' | 'pickup';
-  branchId: string;
-} {
-  try {
-    const value = JSON.parse(
-      localStorage.getItem(FULFILLMENT_STORAGE_KEY) || 'null',
-    );
-    if (value?.method === 'pickup')
-      return {
-        method: 'pickup',
-        branchId: branches.some(
-          (branch) => branch.id === value.branchId && branch.pickup,
-        )
-          ? value.branchId
-          : '',
-      };
-  } catch {
-    /* Ignore corrupt browser preferences. */
-  }
-  return { method: 'shipping', branchId: '' };
-}
+
+/**
+ * The shopper's cart, held on the server. This store keeps only the last server
+ * response and, for guests, the cart's ID and token. Prices, stock and issues are
+ * never computed here: every change is sent to the API and its answer replaces
+ * the state, so the page always shows what checkout will charge.
+ *
+ * Signed-in shoppers use their account cart; a guest cart is merged into it on
+ * sign-in. All amounts are THB minor units.
+ */
 export const useCartStore = defineStore('shopping-cart', () => {
-  const items = ref<CartItem[]>(restore());
-  const savedFulfillment = restoreFulfillment();
-  const method = ref<'shipping' | 'pickup'>(savedFulfillment.method);
-  const pickupBranchId = ref(savedFulfillment.branchId);
-  const fulfillmentBranchId = computed(() =>
-    method.value === 'shipping' ? DELIVERY_BRANCH_ID : pickupBranchId.value,
+  const auth = useAuthStore();
+  const directory = useBranchDirectoryStore();
+
+  const server = ref<Cart | null>(null);
+  const session = ref<Session | null>(restoreSession());
+  const status = ref<'idle' | 'loading' | 'ready' | 'error'>('idle');
+  const busy = ref(false);
+  const lastFailure = ref<CartFailure | null>(null);
+  /** Pickup was chosen but no branch yet; the server cannot store that state. */
+  const choosingPickupBranch = ref(false);
+  let loading: Promise<void> | undefined;
+
+  function saveSession(next: Session | null) {
+    session.value = next;
+    try {
+      if (next) localStorage.setItem(CART_SESSION_KEY, JSON.stringify(next));
+      else localStorage.removeItem(CART_SESSION_KEY);
+    } catch {
+      /* The cart still works for this visit. */
+    }
+  }
+
+  /** Guests prove ownership with the token; an account cart needs only the session. */
+  const options = () =>
+    session.value
+      ? { headers: { 'X-Cart-Token': session.value.token } }
+      : undefined;
+
+  function failure(error: unknown): CartFailure {
+    const code = httpStatus(error);
+    return code === 409
+      ? 'stock'
+      : code === 404
+        ? 'gone'
+        : code === 400
+          ? 'invalid'
+          : 'error';
+  }
+
+  async function fetchCart(): Promise<void> {
+    if (auth.authenticated) {
+      const guest = session.value;
+      let guestCartGone = false;
+      if (guest) {
+        // Signing in moves the guest cart into the account cart, which consumes it.
+        try {
+          server.value = await mergeCart({
+            cartId: guest.id,
+            cartToken: guest.token,
+          });
+          saveSession(null);
+          return;
+        } catch (error) {
+          const code = httpStatus(error);
+          if (code === 409) saveSession(null);
+          // 404 is either a guest cart that no longer exists or an account without
+          // a profile yet; reading the account cart below tells them apart.
+          else if (code === 404) guestCartGone = true;
+          else throw error;
+        }
+      }
+      try {
+        server.value = await getMyCart();
+        if (guestCartGone) saveSession(null);
+        return;
+      } catch (error) {
+        if (httpStatus(error) !== 404) throw error;
+        // Signed in without an account profile: keep shopping with a guest cart.
+      }
+    }
+    await fetchGuestCart();
+  }
+
+  async function fetchGuestCart(): Promise<void> {
+    if (!session.value) {
+      server.value = null;
+      return;
+    }
+    try {
+      server.value = await getCart(session.value.id, options());
+    } catch (error) {
+      // 404: unknown cart or token. 409: the cart was checked out or abandoned.
+      if (![404, 409].includes(httpStatus(error) ?? 0)) throw error;
+      saveSession(null);
+      server.value = null;
+    }
+  }
+
+  /** Reads the cart from the server; concurrent callers share one request. */
+  function load(): Promise<void> {
+    if (loading) return loading;
+    status.value = server.value ? status.value : 'loading';
+    loading = Promise.all([fetchCart(), directory.load()])
+      .then(() => {
+        status.value = 'ready';
+      })
+      .catch(() => {
+        status.value = 'error';
+      })
+      .finally(() => {
+        loading = undefined;
+      });
+    return loading;
+  }
+
+  /** The cart to change, opening a guest cart on the shopper's first change. */
+  async function ensureCart(): Promise<Cart> {
+    if (status.value !== 'ready') await load();
+    if (server.value) return server.value;
+    const created = await createCart({
+      headers: { 'Idempotency-Key': crypto.randomUUID() },
+    });
+    const { token, ...cart } = created;
+    saveSession({ id: created.id, token });
+    server.value = cart;
+    return cart;
+  }
+
+  /** Runs one change against the server and adopts its answer. */
+  async function change(action: (cart: Cart) => Promise<Cart | void>) {
+    busy.value = true;
+    lastFailure.value = null;
+    try {
+      const cart = await ensureCart();
+      const next = await action(cart);
+      if (next) server.value = next;
+      else await fetchCart();
+      return true;
+    } catch (error) {
+      lastFailure.value = failure(error);
+      // The cart may have changed underneath us; show what the server has now.
+      if (lastFailure.value !== 'error')
+        await fetchCart().catch(() => undefined);
+      return false;
+    } finally {
+      busy.value = false;
+    }
+  }
+
+  const method = computed<'shipping' | 'pickup'>(() =>
+    choosingPickupBranch.value || server.value?.fulfillment.method === 'PICKUP'
+      ? 'pickup'
+      : 'shipping',
+  );
+  const pickupBranchId = computed(() =>
+    choosingPickupBranch.value
+      ? ''
+      : (server.value?.fulfillment.branchId ?? ''),
   );
   const fulfillmentBranch = computed(() =>
-    branches.find((branch) => branch.id === fulfillmentBranchId.value),
+    method.value === 'shipping'
+      ? directory.deliveryBranch
+      : directory.byId(pickupBranchId.value),
   );
-  const isOpen = ref(false);
-  const stage = ref<'cart' | 'details' | 'review'>('cart');
-  function stockFor(variantId: string) {
-    return retailStockAt(variantId, fulfillmentBranchId.value);
-  }
-  const lines = computed(() =>
-    items.value.flatMap((item) => {
-      const variant = variants.find((v) => v.id === item.variantId);
-      const game = games.find((g) => g.id === variant?.gameId);
-      const available = stockFor(item.variantId);
-      return variant && game
-        ? [
-            {
-              ...item,
-              variant,
-              game,
-              available,
-              problem:
-                Boolean(fulfillmentBranch.value) && item.quantity > available,
-              total: variant.price * item.quantity,
-            },
-          ]
-        : [];
-    }),
-  );
+  const fulfillmentBranchId = computed(() => fulfillmentBranch.value?.id ?? '');
+
+  const lines = computed<CartLine[]>(() => {
+    const issues = new Map(
+      (server.value?.issues ?? []).map((issue) => [issue.lineId, issue.code]),
+    );
+    return (server.value?.items ?? []).map((item) => ({
+      variantId: item.editionId,
+      quantity: item.quantity,
+      available: item.available,
+      issue: issues.get(item.id),
+      problem: issues.has(item.id),
+      total: item.lineTotal.amountMinor,
+      variant: {
+        id: item.editionId,
+        language: item.editionLanguage,
+        kind: item.editionKind,
+        price: item.unitPrice.amountMinor,
+      },
+      game: { id: item.gameId, name: item.gameName },
+    }));
+  });
   const count = computed(() =>
-    lines.value.reduce((sum, item) => sum + item.quantity, 0),
+    lines.value.reduce((sum, line) => sum + line.quantity, 0),
   );
-  const subtotal = computed(() =>
-    lines.value.reduce((sum, item) => sum + item.total, 0),
-  );
+  const subtotal = computed(() => server.value?.subtotal ?? 0);
   const issues = computed(() => lines.value.filter((line) => line.problem));
-  // TODO(checkout-api): This flag permits prototype navigation only, not placing
-  // an order. Require a server quote and stock validation before real checkout.
   const canCheckout = computed(
-    () =>
-      count.value > 0 &&
-      Boolean(fulfillmentBranch.value) &&
-      !issues.value.length,
+    () => Boolean(server.value?.checkoutReady) && !choosingPickupBranch.value,
   );
-  // TODO(cart-api): Use a server/guest cart and sign-in merge. Reprice/revalidate
-  // every variant against ONE fulfillment branch; browser totals and stock never
-  // reserve inventory. Do not aggregate stock, transfer or split the first release.
-  watch(
-    items,
-    (value) => {
-      try {
-        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(value));
-      } catch {
-        /* Session-only fallback. */
-      }
-    },
-    { deep: true, flush: 'sync' },
-  );
-  watch(
-    [method, pickupBranchId],
-    () => {
-      try {
-        localStorage.setItem(
-          FULFILLMENT_STORAGE_KEY,
-          JSON.stringify({
-            method: method.value,
-            branchId: pickupBranchId.value,
-          }),
-        );
-      } catch {
-        /* Session-only fallback. */
-      }
-      if (stage.value === 'review') stage.value = 'details';
-    },
-    { flush: 'sync' },
-  );
-  function setFulfillment(
+
+  /**
+   * Chooses how the whole cart is fulfilled. Pickup needs a branch; until one is
+   * chosen nothing is sent, because the server only stores a complete choice.
+   */
+  async function setFulfillment(
     nextMethod: 'shipping' | 'pickup',
-    branchId = pickupBranchId.value,
+    branchId = '',
   ) {
-    method.value = nextMethod;
-    pickupBranchId.value = branches.some(
-      (branch) => branch.id === branchId && branch.pickup,
-    )
-      ? branchId
-      : '';
+    if (nextMethod === 'pickup' && !directory.byId(branchId)) {
+      choosingPickupBranch.value = true;
+      return false;
+    }
+    const done = await change((cart) =>
+      updateCart(
+        cart.id,
+        {
+          fulfillment:
+            nextMethod === 'pickup'
+              ? { method: 'PICKUP', pickupBranchId: branchId }
+              : { method: 'SHIPPING' },
+        },
+        options(),
+      ),
+    );
+    if (done) choosingPickupBranch.value = false;
+    return done;
   }
-  function add(
-    variantId: string,
+
+  /**
+   * Adds units of one edition. An empty cart first adopts where the shopper was
+   * browsing (source), so the line is checked against the store they saw.
+   */
+  async function add(
+    editionId: string,
     quantity = 1,
     source?: { method: 'shipping' | 'pickup'; branchId: string },
   ) {
-    const variant = variants.find((v) => v.id === variantId);
-    const current = items.value.find((item) => item.variantId === variantId);
-    const sourceId = source
-      ? source.method === 'shipping'
-        ? DELIVERY_BRANCH_ID
-        : source.branchId
-      : fulfillmentBranchId.value;
-    if (
-      !variant ||
-      !Number.isSafeInteger(quantity) ||
-      quantity < 1 ||
-      quantity > 99 ||
-      (current?.quantity || 0) + quantity > 99 ||
-      (current?.quantity || 0) + quantity > retailStockAt(variantId, sourceId)
-    )
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 99) {
+      lastFailure.value = 'invalid';
       return false;
-    // The first item may initialize an empty order from the viewed store.
-    // Existing orders keep their own fulfillment choice. Never synchronize it
-    // back to browsing; shortages are resolved inside the cart only.
-    if (!items.value.length && source) {
-      if (source.method === 'pickup') setFulfillment('pickup', source.branchId);
-      else setFulfillment('shipping');
     }
-    if (current) current.quantity += quantity;
-    else items.value.push({ variantId, quantity });
-    return true;
+    return change(async (cart) => {
+      let current = cart;
+      if (!current.items.length && source) {
+        current = await updateCart(
+          current.id,
+          {
+            fulfillment:
+              source.method === 'pickup'
+                ? { method: 'PICKUP', pickupBranchId: source.branchId }
+                : { method: 'SHIPPING' },
+          },
+          options(),
+        );
+        server.value = current;
+        choosingPickupBranch.value = false;
+      }
+      return addCartItem(current.id, { editionId, quantity }, options());
+    });
   }
-  function update(variantId: string, quantity: number) {
-    const item = items.value.find((item) => item.variantId === variantId);
-    if (
-      !item ||
-      !Number.isSafeInteger(quantity) ||
-      quantity < 0 ||
-      quantity > 99 ||
-      (quantity > stockFor(variantId) && quantity >= item.quantity)
-    )
+
+  /** Sets a line's quantity; zero removes it. The server flags shortages. */
+  async function update(editionId: string, quantity: number) {
+    if (!Number.isSafeInteger(quantity) || quantity < 0 || quantity > 99) {
+      lastFailure.value = 'invalid';
       return false;
-    if (!quantity)
-      items.value = items.value.filter((line) => line.variantId !== variantId);
-    else item.quantity = quantity;
-    return true;
+    }
+    return change((cart) =>
+      quantity === 0
+        ? removeCartItem(cart.id, editionId, options())
+        : updateCartItem(cart.id, editionId, { quantity }, options()),
+    );
   }
-  function open() {
-    stage.value = 'cart';
-    isOpen.value = true;
+
+  /**
+   * Pays by card and places the order. The card goes to the payment gateway for a
+   * single-use token and is never kept. The idempotency key is reused until the
+   * server gives a definite answer, so a retry after a lost response cannot place
+   * a second order.
+   */
+  let checkoutKey: string | undefined;
+  async function checkout(
+    card: CreatePaymentTokenRequest,
+    details: Omit<CheckoutCartRequest, 'paymentToken'>,
+  ): Promise<Order> {
+    if (!server.value) throw new Error('There is no cart to check out');
+    busy.value = true;
+    try {
+      const cartId = server.value.id;
+      const { token } = await createPaymentToken(card);
+      checkoutKey ??= crypto.randomUUID();
+      let order: Order;
+      try {
+        order = await checkoutCart(
+          cartId,
+          { ...details, paymentToken: token },
+          {
+            headers: {
+              ...options()?.headers,
+              'Idempotency-Key': checkoutKey,
+            },
+          },
+        );
+      } catch (error) {
+        // Any HTTP answer is definite; only a lost response keeps the key.
+        if (httpStatus(error) !== undefined) checkoutKey = undefined;
+        if (httpStatus(error) === 409) await fetchCart().catch(() => undefined);
+        throw error;
+      }
+      checkoutKey = undefined;
+      // The cart became the order. A guest's token is spent; an account gets a
+      // fresh cart on the next read.
+      saveSession(null);
+      server.value = null;
+      void queryClient.invalidateQueries({
+        queryKey: ['storefront', 'offering'],
+      });
+      void queryClient.invalidateQueries({
+        queryKey: ['storefront', 'orders'],
+      });
+      if (auth.authenticated) void load();
+      return order;
+    } finally {
+      busy.value = false;
+    }
   }
+
+  // Signing in merges the guest cart; signing out leaves the account cart behind.
+  watch(
+    () => auth.authenticated,
+    () => {
+      server.value = null;
+      status.value = 'idle';
+      void load();
+    },
+  );
+
   return {
-    items,
+    status,
+    busy,
+    lastFailure,
     lines,
     count,
     subtotal,
-    isOpen,
-    stage,
     method,
     pickupBranchId,
     fulfillmentBranch,
     fulfillmentBranchId,
     issues,
     canCheckout,
-    stockFor,
+    load,
     setFulfillment,
     add,
     update,
-    open,
+    checkout,
   };
 });

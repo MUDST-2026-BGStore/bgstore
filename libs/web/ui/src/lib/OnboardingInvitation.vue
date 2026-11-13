@@ -61,14 +61,8 @@ defineExpose({ showSuccess });
 </script>
 
 <template>
-  <ParlorShell centered>
-    <!-- Top-Left: Context indicator (no full nav during onboarding) -->
+  <ParlorShell centered auth-layout>
     <template #header-left>
-      <span>{{ t('onboarding.context') }}</span>
-    </template>
-
-    <!-- Top-Right: Useful Language Switcher replaces the old Replay button -->
-    <template #header-right>
       <BLocaleSwitcher
         :locale="props.locale"
         :label="t('locale.label')"
@@ -76,8 +70,11 @@ defineExpose({ showSuccess });
       />
     </template>
 
-    <!-- Extracted Stationery Card -->
-    <ParlorCard show-cards aria-label="Account setup">
+    <template #header-right>
+      <span class="onboarding-context">{{ t('onboarding.context') }}</span>
+    </template>
+
+    <ParlorCard :aria-label="t('onboarding.context')">
       <template v-if="!submitted">
         <div class="text-center">
           <h1
@@ -188,6 +185,20 @@ defineExpose({ showSuccess });
 </template>
 
 <style scoped>
+.onboarding-context {
+  font-size: 13px;
+  line-height: 1.2;
+  text-align: end;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 380px) {
+  .onboarding-context {
+    max-width: 6em;
+    font-size: 12px;
+  }
+}
+
 .font-editorial {
   font-family: 'Instrument Serif', Georgia, serif;
 }

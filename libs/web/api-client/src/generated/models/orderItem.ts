@@ -12,6 +12,8 @@ import type { Money } from './money';
  */
 export interface OrderItem {
   editionId: string;
+  /** The edition's catalog game at placement, for linking to its product page. */
+  gameId?: string;
   /** Name snapshot at order placement. */
   gameName: string;
   /** IETF language tag of the edition's components at placement. */

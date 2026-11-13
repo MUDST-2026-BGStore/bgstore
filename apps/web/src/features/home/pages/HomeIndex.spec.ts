@@ -55,6 +55,7 @@ async function render(authenticated = false) {
     authenticated,
     displayName: 'Test Player',
     username: 'player',
+    roles: [],
     logout,
   } as unknown as ReturnType<typeof useAuthStore>);
   const router = createRouter({
@@ -74,6 +75,11 @@ async function render(authenticated = false) {
             path: 'login',
             name: 'AuthLogin',
             component: { template: '<p>Login destination</p>' },
+          },
+          {
+            path: 'workspace',
+            name: 'WorkspaceIndex',
+            component: { template: '<p>Workspace destination</p>' },
           },
           {
             path: 'profile',
@@ -126,8 +132,9 @@ it('supports keyboard navigation, Escape, outside dismissal and tabbing away', a
   await items[0].trigger('keydown', { key: 'ArrowDown' });
   expect(document.activeElement).toBe(items[1].element);
   await items[1].trigger('keydown', { key: 'End' });
-  expect(document.activeElement).toBe(items[2].element);
-  await items[2].trigger('keydown', { key: 'ArrowDown' });
+  const lastItem = page.get('#account-panel .sign-out');
+  expect(document.activeElement).toBe(lastItem.element);
+  await lastItem.trigger('keydown', { key: 'ArrowDown' });
   expect(document.activeElement).toBe(items[0].element);
   await items[0].trigger('keydown', { key: 'Escape' });
   expect(trigger.attributes('aria-expanded')).toBe('false');
@@ -148,7 +155,7 @@ it('shows profile, workspace and the existing logout action only for authenticat
   await page.get('.account-trigger').trigger('click');
   expect(page.get('#account-panel').text()).toContain('Test Player');
   expect(page.get('a[href="/profile"]').text()).toContain('Your profile');
-  expect(page.get('#account-panel a[href="/login"]').text()).toContain(
+  expect(page.get('#account-panel a[href="/workspace"]').text()).toContain(
     'Open your workspace',
   );
   await page.get('.sign-out').trigger('click');

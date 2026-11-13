@@ -1,0 +1,33 @@
+post:
+  tags:
+    - Payments
+  operationId: createPaymentToken
+  summary: Exchange card details for a single-use payment token
+  description: >-
+    Validates the card (number length, Luhn check, brand, expiry and security
+    code) and returns a short-lived token for checkout or order placement. No
+    money moves here. The development gateway approves any valid card except its
+    published test numbers, which force declines and gateway errors.
+  security: []
+  x-access-policy: public
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CreatePaymentTokenRequest.yaml
+  responses:
+    '201':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/PaymentToken.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '502':
+      $ref: ../../components/responses/PaymentGatewayError.yaml
