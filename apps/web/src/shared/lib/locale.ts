@@ -125,6 +125,7 @@ function setLocale(value: Locale): void {
   apply(value);
   const account = currentAccount();
   if (account) {
+    rememberLoginSelection(null);
     rememberPending({ accountId: account.id, locale: value });
     void retrySave();
   } else {
@@ -136,10 +137,27 @@ function setLocale(value: Locale): void {
 
 /** Connect once at bootstrap; the returned stop function is useful in tests. */
 export function initializeLocaleSync() {
+  const consumeLoginLocale = () => {
+    const fromLogin = document.cookie
+      .split('; ')
+      .find((entry) => entry.startsWith('theparlor.loginLocale='))
+      ?.split('=')[1];
+    if (!isLocale(fromLogin)) return;
+    document.cookie = 'theparlor.loginLocale=; Path=/; Max-Age=0; SameSite=Lax';
+    rememberLoginSelection(fromLogin);
+    setLocale(fromLogin);
+  };
+  consumeLoginLocale();
+  window.addEventListener('pageshow', consumeLoginLocale);
+  window.addEventListener('focus', consumeLoginLocale);
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') consumeLoginLocale();
+  };
+  document.addEventListener('visibilitychange', onVisible);
   apply(locale.value);
   let boundAccount: string | null = null;
   let boundSubject: string | null = null;
-  return watch(
+  const stop = watch(
     () => [useAuth().value.subject, currentAccount()?.id] as const,
     ([subject]) => {
       const account = currentAccount();
@@ -152,6 +170,7 @@ export function initializeLocaleSync() {
       boundAccount = account.id;
       boundSubject = subject;
       if (selectedForSubject === subject) {
+        rememberLoginSelection(null);
         if (saving || locale.value !== account.preferences.preferredLocale) {
           rememberPending({ accountId: account.id, locale: locale.value });
           void retrySave();
@@ -178,6 +197,12 @@ export function initializeLocaleSync() {
     },
     { immediate: true, flush: 'post' },
   );
+  return () => {
+    stop();
+    window.removeEventListener('pageshow', consumeLoginLocale);
+    window.removeEventListener('focus', consumeLoginLocale);
+    document.removeEventListener('visibilitychange', onVisible);
+  };
 }
 
 export function useLocale() {

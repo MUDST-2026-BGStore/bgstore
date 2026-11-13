@@ -107,6 +107,7 @@ public class SecurityConfig {
                         "/api/auth/session",
                         "/api/auth/csrf",
                         "/api/auth/login/keycloak",
+                        "/api/auth/login-locale",
                         "/api/auth/callback/keycloak")
                     .permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/auth/logout")
