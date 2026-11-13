@@ -229,7 +229,7 @@ export const games: CatalogGame[] = [
     designer: 'Brian Hersch',
     categories: ['Party & Casual'],
     mechanics: ['Word association', 'Team-based'],
-    players: [4, 10],
+    players: [4, 20],
     playMinutes: [20, 30],
     teachMinutes: 3,
     setupMinutes: 2,
