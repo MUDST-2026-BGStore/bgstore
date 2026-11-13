@@ -38,7 +38,7 @@ jobs:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
       - if: matrix.build-mode == 'manual'
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v4
       - if: matrix.build-mode == 'manual'
         name: Build the API
         run: |
