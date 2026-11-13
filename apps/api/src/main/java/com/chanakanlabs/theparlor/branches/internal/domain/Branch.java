@@ -43,6 +43,9 @@ public class Branch {
   @Column(nullable = false)
   private boolean active;
 
+  @Column(name = "fulfills_delivery", nullable = false)
+  private boolean fulfillsDelivery;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
@@ -50,4 +53,42 @@ public class Branch {
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
+
+  public static Branch create(String name, String address, String phoneNumber, boolean active) {
+    var branch = new Branch();
+    branch.changeDetails(name, address, phoneNumber);
+    branch.active = active;
+    return branch;
+  }
+
+  /** Replaces the contact details; a null phone number means the branch publishes none. */
+  public void changeDetails(String name, String address, String phoneNumber) {
+    this.name = required(name, MAX_NAME_LENGTH, "Branch name");
+    this.address = required(address, MAX_ADDRESS_LENGTH, "Branch address");
+    this.phoneNumber =
+        phoneNumber == null ? null : required(phoneNumber, MAX_PHONE_LENGTH, "Branch phone");
+  }
+
+  /** At most one branch ships delivery orders; the database rejects a second claim. */
+  public void changeDelivery(boolean fulfillsDelivery) {
+    this.fulfillsDelivery = fulfillsDelivery;
+  }
+
+  public void activate() {
+    active = true;
+  }
+
+  /** Callers must first confirm that no open commitment depends on this branch. */
+  public void deactivate() {
+    active = false;
+  }
+
+  private static String required(String value, int maxLength, String field) {
+    if (value == null || value.isBlank())
+      throw new IllegalArgumentException(field + " is required");
+    String stripped = value.strip();
+    if (stripped.length() > maxLength)
+      throw new IllegalArgumentException(field + " is longer than " + maxLength + " characters");
+    return stripped;
+  }
 }

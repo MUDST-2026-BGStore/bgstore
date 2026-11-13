@@ -1,5 +1,7 @@
 package com.chanakanlabs.theparlor.catalog.internal;
 
+import com.chanakanlabs.theparlor.shared.KeysetCursor;
+
 /**
  * Shared catalog limits for validation, diagnostics and ORM mappings.
  *
@@ -46,13 +48,13 @@ public final class CatalogLimits {
   public static final int MAX_FILTER_VALUES = 10;
 
   /** Page size when the request omits limit. */
-  public static final int DEFAULT_PAGE_SIZE = 20;
+  public static final int DEFAULT_PAGE_SIZE = KeysetCursor.DEFAULT_PAGE_SIZE;
 
   /** Maximum requested catalog page size. */
-  public static final int MAX_PAGE_SIZE = 100;
+  public static final int MAX_PAGE_SIZE = KeysetCursor.MAX_PAGE_SIZE;
 
   /** Maximum encoded cursor length in Java characters. */
-  public static final int MAX_CURSOR_LENGTH = 2048;
+  public static final int MAX_CURSOR_LENGTH = KeysetCursor.MAX_CURSOR_LENGTH;
 
   /** Hibernate collection fetch batch size; performance tuning only, not an API limit. */
   public static final int COLLECTION_BATCH_SIZE = 32;

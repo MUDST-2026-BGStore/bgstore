@@ -9,6 +9,8 @@ import com.chanakanlabs.theparlor.inventory.internal.domain.BranchGameId;
 import com.chanakanlabs.theparlor.inventory.internal.persistence.BranchEditionRepository;
 import com.chanakanlabs.theparlor.inventory.internal.persistence.BranchGameRepository;
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -71,11 +73,64 @@ public class SaleInventoryService implements SaleInventory {
       result.add(
           new PricedItem(
               selection.editionId(),
+              game.getId(),
               game.getName(),
+              editions.get(selection.editionId()).getLanguageCode(),
               selection.quantity(),
               row.getSalePriceMinor()));
     }
     return result;
+  }
+
+  /** branchId may be null when no fulfillment location is resolved; nothing is sold there. */
+  @Override
+  @Transactional(readOnly = true)
+  public Map<UUID, Quote> quote(UUID branchId, Collection<UUID> editionIds) {
+    var found = catalog.editions(editionIds);
+    var games =
+        catalog
+            .games(found.stream().map(edition -> edition.getGameId()).distinct().toList())
+            .stream()
+            .collect(Collectors.toMap(game -> game.getId(), Function.identity()));
+    boolean open = branchId != null && branches.isActive(branchId);
+    Map<UUID, BranchEdition> rows =
+        open
+            ? stock.findByIdBranchIdAndIdEditionIdIn(branchId, editionIds).stream()
+                .collect(Collectors.toMap(row -> row.getId().editionId(), Function.identity()))
+            : Map.of();
+    var selling = new HashMap<UUID, Boolean>();
+    var quotes = new HashMap<UUID, Quote>();
+    for (var edition : found) {
+      var game = games.get(edition.getGameId());
+      var row = rows.get(edition.getId());
+      boolean offered =
+          row != null
+              && selling.computeIfAbsent(
+                  edition.getGameId(),
+                  gameId ->
+                      offerings
+                          .findById(new BranchGameId(branchId, gameId))
+                          .filter(offering -> offering.isSaleEnabled())
+                          .isPresent());
+      Blocker blocker =
+          !Boolean.TRUE.equals(game.getActive())
+              ? Blocker.GAME_INACTIVE
+              : !Boolean.TRUE.equals(edition.getActive())
+                  ? Blocker.EDITION_INACTIVE
+                  : offered ? null : Blocker.NOT_SOLD_AT_LOCATION;
+      quotes.put(
+          edition.getId(),
+          new Quote(
+              edition.getId(),
+              game.getId(),
+              game.getName(),
+              edition.getEditionKind().getValue(),
+              edition.getLanguageCode(),
+              row == null ? 0 : row.getSalePriceMinor(),
+              blocker == null ? Math.max(0, row.getSaleOnHand() - row.getSaleHeld()) : 0,
+              blocker));
+    }
+    return quotes;
   }
 
   @Override

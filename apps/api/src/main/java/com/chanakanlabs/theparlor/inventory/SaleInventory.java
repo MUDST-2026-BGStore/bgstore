@@ -1,6 +1,8 @@
 package com.chanakanlabs.theparlor.inventory;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -19,5 +21,38 @@ public interface SaleInventory {
 
   record Selection(UUID editionId, int quantity) {}
 
-  record PricedItem(UUID editionId, String gameName, int quantity, long unitPriceMinor) {}
+  /**
+   * What each edition would cost and how many units could be bought at the branch right now. A
+   * quote reserves nothing; hold() revalidates atomically. Unknown editions are absent.
+   */
+  Map<UUID, Quote> quote(UUID branchId, Collection<UUID> editionIds);
+
+  record PricedItem(
+      UUID editionId,
+      UUID gameId,
+      String gameName,
+      String editionLanguage,
+      int quantity,
+      long unitPriceMinor) {}
+
+  /** Why an edition cannot be bought at a branch; the first applicable reason wins. */
+  enum Blocker {
+    GAME_INACTIVE,
+    EDITION_INACTIVE,
+    NOT_SOLD_AT_LOCATION
+  }
+
+  /**
+   * blocker is null when the edition is on sale. unitPriceMinor is zero and available is zero when
+   * the branch has never priced the edition.
+   */
+  record Quote(
+      UUID editionId,
+      UUID gameId,
+      String gameName,
+      String editionKind,
+      String editionLanguage,
+      long unitPriceMinor,
+      int available,
+      Blocker blocker) {}
 }

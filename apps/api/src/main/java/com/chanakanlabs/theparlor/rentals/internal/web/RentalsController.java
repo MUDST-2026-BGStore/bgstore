@@ -2,37 +2,32 @@ package com.chanakanlabs.theparlor.rentals.internal.web;
 
 import com.chanakanlabs.theparlor.contracts.api.RentalsApi;
 import com.chanakanlabs.theparlor.contracts.model.*;
-import java.time.*;
-import java.util.*;
+import com.chanakanlabs.theparlor.rentals.internal.application.RentalsService;
+import java.util.UUID;
 import org.jspecify.annotations.Nullable;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 public class RentalsController implements RentalsApi {
+  private final RentalsService rentals;
+
+  public RentalsController(RentalsService rentals) {
+    this.rentals = rentals;
+  }
 
   @Override
   public CheckOutResult checkOutRental(UUID branchId, UUID rentalId) {
-    // TODO(rentals-api): implement checkOutRental — POST
-    // /api/v1/branches/{branchId}/rentals/{rentalId}/check-out — Staff-only game return, hourly
-    // charge calculation and table release
-    throw new UnsupportedOperationException(
-        "POST /api/v1/branches/{branchId}/rentals/{rentalId}/check-out (checkOutRental) is not implemented yet");
+    return rentals.checkOut(branchId, rentalId);
   }
 
   @Override
   public Rental getRental(UUID branchId, UUID rentalId) {
-    // TODO(rentals-api): implement getRental — GET /api/v1/branches/{branchId}/rentals/{rentalId} —
-    // Read a rental and its locked hourly rates
-    throw new UnsupportedOperationException(
-        "GET /api/v1/branches/{branchId}/rentals/{rentalId} (getRental) is not implemented yet");
+    return rentals.get(branchId, rentalId);
   }
 
   @Override
   public RentalPage listBranchRentals(
       UUID branchId, Integer limit, @Nullable String cursor, @Nullable RentalStatus status) {
-    // TODO(rentals-api): implement listBranchRentals — GET /api/v1/branches/{branchId}/rentals —
-    // List active and completed hourly rentals for staff
-    throw new UnsupportedOperationException(
-        "GET /api/v1/branches/{branchId}/rentals (listBranchRentals) is not implemented yet");
+    return rentals.list(branchId, limit, cursor, status);
   }
 }

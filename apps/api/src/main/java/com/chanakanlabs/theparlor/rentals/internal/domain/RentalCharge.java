@@ -43,4 +43,19 @@ public class RentalCharge {
 
   @Column(name = "line_total_minor", nullable = false)
   private Long lineTotalMinor;
+
+  /** The final charge for the table (gameId null) or for the copies of one game. */
+  public static RentalCharge bill(
+      UUID rentalId, UUID gameId, int quantity, long unitHourlyRateMinor, int billableHours) {
+    var charge = new RentalCharge();
+    charge.rentalId = java.util.Objects.requireNonNull(rentalId);
+    charge.chargeType = gameId == null ? RentalChargeType.TABLE : RentalChargeType.GAME;
+    charge.gameId = gameId;
+    charge.quantity = quantity;
+    charge.unitHourlyRateMinor = unitHourlyRateMinor;
+    charge.billableHours = billableHours;
+    charge.lineTotalMinor =
+        RentalPricingPolicy.lineTotalMinor(quantity, unitHourlyRateMinor, billableHours);
+    return charge;
+  }
 }

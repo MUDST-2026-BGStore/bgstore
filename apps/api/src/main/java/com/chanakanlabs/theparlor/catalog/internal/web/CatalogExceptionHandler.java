@@ -1,6 +1,8 @@
 package com.chanakanlabs.theparlor.catalog.internal.web;
 
 import com.chanakanlabs.theparlor.contracts.model.Problem;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +14,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.server.ResponseStatusException;
 
+// Ahead of the global ApiExceptionHandler so catalog keeps its own conflict code.
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice(basePackages = "com.chanakanlabs.theparlor.catalog.internal.web")
 class CatalogExceptionHandler {
   @ExceptionHandler(IllegalArgumentException.class)

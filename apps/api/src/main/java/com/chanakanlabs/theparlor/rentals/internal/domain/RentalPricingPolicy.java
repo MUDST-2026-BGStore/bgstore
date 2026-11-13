@@ -1,34 +1,49 @@
 package com.chanakanlabs.theparlor.rentals.internal.domain;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
-/** Pure hourly charge calculations in integer THB satang; unfinished, with no database access. */
+/**
+ * Pure hourly charge calculations in integer THB satang. Inputs are the actual server check-in and
+ * checkout instants and the rates locked on the reservation, never the planned end or the branch's
+ * current prices. No discount, deposit or tax rule exists.
+ */
 public final class RentalPricingPolicy {
   private RentalPricingPolicy() {}
 
+  private static final long NANOS_PER_HOUR = Duration.ofHours(1).toNanos();
+
+  /** Every started hour is billed, with a one-hour minimum: max(1, ceil(elapsed / 1h)). */
   public static int billableHours(Instant startedAt, Instant endedAt) {
-    // TODO(rental-pricing): reject missing/reversed timestamps; use actual server check-in/out
-    // instants. Round elapsed duration UP to started hours, minimum one, without floating point
-    // or losing fractional seconds. Check conversion overflow; do not use the planned end time.
-    throw new UnsupportedOperationException("Rental billable hours are not implemented yet");
+    if (startedAt == null || endedAt == null)
+      throw new IllegalArgumentException("Check-in and checkout times are required");
+    if (endedAt.isBefore(startedAt))
+      throw new IllegalArgumentException("Checkout cannot be before check-in");
+    // Nanosecond precision keeps a visit one instant over the hour in the next hour.
+    long hours = Math.ceilDiv(Duration.between(startedAt, endedAt).toNanos(), NANOS_PER_HOUR);
+    return Math.toIntExact(Math.max(1, hours));
   }
 
+  /** quantity x rate x hours. A table line has quantity one; a game line its copy count. */
   public static long lineTotalMinor(int quantity, long lockedHourlyRateMinor, int billableHours) {
-    // TODO(rental-pricing): require quantity>=1, rate>=0, hours>=1; calculate quantity*rate*hours
-    // using exact arithmetic. Inputs come from reservation snapshots, never current branch prices.
-    // The table line has quantity=1; each game line uses its selected physical-copy quantity.
-    throw new UnsupportedOperationException(
-        "Rental charge line calculation is not implemented yet");
+    if (quantity < 1) throw new IllegalArgumentException("Quantity must be at least 1");
+    if (lockedHourlyRateMinor < 0) throw new IllegalArgumentException("Rate must be nonnegative");
+    if (billableHours < 1) throw new IllegalArgumentException("Billable hours must be at least 1");
+    return Math.multiplyExact(
+        Math.multiplyExact(lockedHourlyRateMinor, (long) quantity), (long) billableHours);
   }
 
+  /** The sum of the table line and every game line. */
   public static long totalMinor(List<Long> lineTotalsMinor) {
-    // TODO(rental-pricing): require at least the table line; reject null/negative amounts and sum
-    // using exact arithmetic. No discount, deposit, tax or take-home-rental rules are specified.
-    // TODO(rental-checkout): wire this policy into a staff-authorized transactional checkout.
-    // Persist final charges/total, complete the reservation and release resources atomically.
-    // Repeated checkout must return persisted charges without recalculation. Resolve reservation
-    // lifecycle CHECK constraints in a new migration so COMPLETED can retain check-in audit fields.
-    throw new UnsupportedOperationException("Rental total calculation is not implemented yet");
+    if (lineTotalsMinor == null || lineTotalsMinor.isEmpty())
+      throw new IllegalArgumentException("A rental has at least its table charge");
+    long total = 0;
+    for (Long line : lineTotalsMinor) {
+      if (line == null || line < 0)
+        throw new IllegalArgumentException("Charge lines must be nonnegative");
+      total = Math.addExact(total, line);
+    }
+    return total;
   }
 }

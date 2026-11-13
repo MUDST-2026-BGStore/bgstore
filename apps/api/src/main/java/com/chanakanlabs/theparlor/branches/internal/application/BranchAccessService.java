@@ -5,6 +5,7 @@ import com.chanakanlabs.theparlor.branches.internal.domain.BranchStaffAssignment
 import com.chanakanlabs.theparlor.branches.internal.persistence.BranchRepository;
 import com.chanakanlabs.theparlor.branches.internal.persistence.BranchStaffAssignmentRepository;
 import com.chanakanlabs.theparlor.identity.CurrentUser;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
@@ -33,6 +34,14 @@ public class BranchAccessService implements BranchAccess {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Branch not found");
   }
 
+  public Optional<UUID> deliveryBranch() {
+    return branches.findByFulfillsDeliveryTrueAndActiveTrue().map(branch -> branch.getId());
+  }
+
+  public boolean isActive(UUID branchId) {
+    return branches.findById(branchId).filter(branch -> branch.isActive()).isPresent();
+  }
+
   public String requireOperator(UUID branchId) {
     var user = currentUser.require();
     if (!user.roles().contains("admin")
@@ -40,7 +49,14 @@ public class BranchAccessService implements BranchAccess {
         && !(user.roles().contains("staff")
             && assignments.existsById(new BranchStaffAssignmentId(branchId, user.subject()))))
       throw new AccessDeniedException("Branch operator access required");
-    requireActive(branchId);
+    // Operators learn that the branch is closed for business; the public only sees 404.
+    var branch =
+        branches
+            .findById(branchId)
+            .orElseThrow(
+                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Branch not found"));
+    if (!branch.isActive())
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Branch is inactive");
     return user.subject();
   }
 }

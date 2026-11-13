@@ -42,10 +42,13 @@ public class Order {
       length = ContactStorageLimits.MAX_SNAPSHOT_NAME_LENGTH)
   private String contactName;
 
-  @Column(name = "contact_email", nullable = false, length = MAX_CONTACT_EMAIL_LENGTH)
+  @Column(name = "customer_subject")
+  private String customerSubject;
+
+  @Column(name = "contact_email", length = MAX_CONTACT_EMAIL_LENGTH)
   private String contactEmail;
 
-  @Column(name = "contact_phone", nullable = false, length = ContactStorageLimits.MAX_PHONE_LENGTH)
+  @Column(name = "contact_phone", length = ContactStorageLimits.MAX_PHONE_LENGTH)
   private String contactPhone;
 
   @Enumerated(EnumType.STRING)
@@ -95,6 +98,85 @@ public class Order {
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
+
+  /** Who the order is for. subject is the registered customer's identity; null for guests. */
+  public record Buyer(UUID customerId, String subject, String name, String email, String phone) {
+    public Buyer {
+      name = text(name, ContactStorageLimits.MAX_SNAPSHOT_NAME_LENGTH, "Contact name");
+      if (name == null) throw new IllegalArgumentException("Contact name is required");
+      email = text(email, MAX_CONTACT_EMAIL_LENGTH, "Contact email");
+      phone = text(phone, ContactStorageLimits.MAX_PHONE_LENGTH, "Contact phone");
+      if ((customerId == null) != (subject == null))
+        throw new IllegalArgumentException("A registered buyer needs a customer and a subject");
+    }
+  }
+
+  /**
+   * Places an order whose stock is already held. A shipping order needs an address; a pickup order
+   * must not carry one.
+   */
+  public static Order place(
+      UUID branchId,
+      Buyer buyer,
+      OrderSource source,
+      Map<String, Object> shippingAddress,
+      String notes,
+      long totalMinor,
+      String createdBySubject) {
+    if (totalMinor < 0) throw new IllegalArgumentException("Order total must be nonnegative");
+    if (createdBySubject == null || createdBySubject.isBlank())
+      throw new IllegalArgumentException("Orders need a creator");
+    var order = new Order();
+    order.branchId = java.util.Objects.requireNonNull(branchId);
+    order.customerId = buyer.customerId();
+    order.customerSubject = buyer.subject();
+    order.contactName = buyer.name();
+    order.contactEmail = buyer.email();
+    order.contactPhone = buyer.phone();
+    order.source = java.util.Objects.requireNonNull(source);
+    order.status = OrderStatus.PLACED;
+    order.fulfillmentMethod =
+        shippingAddress == null ? OrderFulfillmentMethod.PICKUP : OrderFulfillmentMethod.SHIPPING;
+    order.shippingAddress = shippingAddress == null ? null : copyJsonObject(shippingAddress);
+    order.notes = text(notes, WorkflowTextLimits.MAX_NOTES_LENGTH, "Notes");
+    order.totalMinor = totalMinor;
+    order.createdBySubject = createdBySubject;
+    return order;
+  }
+
+  /** Returns false when the order was already cancelled; a fulfilled order cannot be. */
+  public boolean cancel(String actor, String reason, Instant now) {
+    if (status == OrderStatus.CANCELLED) return false;
+    if (status == OrderStatus.FULFILLED)
+      throw new IllegalStateException("A fulfilled order cannot be cancelled");
+    String stripped =
+        text(reason, WorkflowTextLimits.MAX_CANCELLATION_REASON_LENGTH, "Cancellation reason");
+    if (stripped == null) throw new IllegalArgumentException("Cancellation reason is required");
+    status = OrderStatus.CANCELLED;
+    cancelledAt = java.util.Objects.requireNonNull(now);
+    cancelledBy = java.util.Objects.requireNonNull(actor);
+    cancellationReason = stripped;
+    return true;
+  }
+
+  /** Returns false when the order was already fulfilled; a cancelled order cannot be. */
+  public boolean fulfill(String actor, Instant now) {
+    if (status == OrderStatus.FULFILLED) return false;
+    if (status == OrderStatus.CANCELLED)
+      throw new IllegalStateException("A cancelled order cannot be fulfilled");
+    status = OrderStatus.FULFILLED;
+    fulfilledAt = java.util.Objects.requireNonNull(now);
+    fulfilledBy = java.util.Objects.requireNonNull(actor);
+    return true;
+  }
+
+  private static String text(String value, int maxLength, String field) {
+    if (value == null || value.isBlank()) return null;
+    String stripped = value.strip();
+    if (stripped.length() > maxLength)
+      throw new IllegalArgumentException(field + " is longer than " + maxLength + " characters");
+    return stripped;
+  }
 
   public Map<String, Object> getShippingAddress() {
     return shippingAddress == null ? null : copyJsonObject(shippingAddress);

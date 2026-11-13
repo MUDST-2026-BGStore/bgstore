@@ -56,4 +56,19 @@ public class RentalCopy {
     copy.operationalStatus = RentalCopyOperationalStatus.USABLE;
     return copy;
   }
+
+  /**
+   * Records a new physical condition. Retirement is terminal. Callers must first move every open
+   * commitment off a copy that leaves the rentable pool.
+   */
+  public void changeCondition(RentalCopyOperationalStatus status) {
+    java.util.Objects.requireNonNull(status);
+    if (operationalStatus == RentalCopyOperationalStatus.RETIRED && status != operationalStatus)
+      throw new IllegalStateException("A retired copy cannot be reactivated");
+    operationalStatus = status;
+  }
+
+  public boolean isUsable() {
+    return operationalStatus == RentalCopyOperationalStatus.USABLE;
+  }
 }

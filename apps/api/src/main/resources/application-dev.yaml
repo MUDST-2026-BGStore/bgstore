@@ -17,3 +17,6 @@ logging:
 
 # Local HTTP only. Staging/production retain Secure cookies.
 server.servlet.session.cookie.secure: ${SESSION_COOKIE_SECURE:false}
+
+# Development stand-in for a card payment provider; it moves no money.
+theparlor.payments.gateway: ${THEPARLOR_PAYMENT_GATEWAY:bogus}

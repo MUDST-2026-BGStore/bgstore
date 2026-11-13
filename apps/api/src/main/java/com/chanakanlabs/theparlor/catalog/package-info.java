@@ -1,3 +1,3 @@
 @org.springframework.modulith.ApplicationModule(
-    allowedDependencies = {"contracts::http", "contracts::models"})
+    allowedDependencies = {"contracts::http", "contracts::models", "shared"})
 package com.chanakanlabs.theparlor.catalog;
