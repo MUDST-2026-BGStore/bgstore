@@ -47,6 +47,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v2
+      - name: Use the pinned JDK for Gradle
+        # The runner's default JAVA_HOME is a newer JDK that google-java-format rejects.
+        run: echo "JAVA_HOME=$(mise where java)" >> "$GITHUB_ENV"
       - name: Install dependencies
         # The Gradle build bundles the OpenAPI contract with Redocly from node_modules.
         run: pnpm install --frozen-lockfile
