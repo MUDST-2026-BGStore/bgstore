@@ -1,23 +1,23 @@
 <script setup lang="ts">
-// TODO(branch-api): Load active branches from the backend and revalidate saved IDs.
-// Selection currently saves only a local preference; it does not filter the live
-// catalog by library membership or establish stock/fulfillment availability.
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
-import { branches } from '../data/branches';
+import { useBranchDirectoryStore } from '../stores/branch-directory';
 import { useStoreContextStore } from '../stores/store-context';
 import BranchSelect from './BranchSelect.vue';
 import { useStoreText } from '../data/store-text';
 const { t } = useStoreText();
 const context = useStoreContextStore();
+const directory = useBranchDirectoryStore();
 const dialog = ref<HTMLDialogElement>();
-const choices = ['browse', 'online', ...branches.map((b) => b.id)];
+const branches = computed(() => directory.branches);
 const intent = ref('browse');
 const selectedBranch = ref('');
 const draft = computed(() =>
   intent.value === 'branch' ? selectedBranch.value : intent.value,
 );
-const sourceLabel = computed(() => t('Browsing preference'));
+const sourceLabel = computed(() =>
+  context.stockBranch ? t('Prices and stock') : t('Browsing preference'),
+);
 const currentLabel = computed(() =>
   context.branch
     ? t(context.branch.name)
@@ -27,18 +27,22 @@ const currentLabel = computed(() =>
 );
 function open() {
   const current = context.branch?.id || context.choice || 'browse';
-  intent.value = branches.some((branch) => branch.id === current)
-    ? 'branch'
-    : current;
+  intent.value = directory.byId(current) ? 'branch' : current;
   selectedBranch.value = context.branch?.id || '';
   dialog.value?.showModal();
 }
 function save() {
-  if (!choices.includes(draft.value)) return;
+  if (
+    !['browse', 'online'].includes(draft.value) &&
+    !directory.byId(draft.value)
+  )
+    return;
   context.select(draft.value);
   dialog.value?.close();
 }
-onMounted(() => {
+onMounted(async () => {
+  // Wait for the directory so a saved branch is recognized before asking again.
+  await directory.load();
   if (!context.choice) open();
 });
 defineExpose({ open });
@@ -83,11 +87,7 @@ defineExpose({ open });
       </button>
     </div>
     <p>
-      {{
-        t(
-          'Choose a browsing preference. Price and stock information is unavailable.',
-        )
-      }}
+      {{ t('Prices and stock are shown for the store you choose.') }}
     </p>
     <fieldset>
       <legend>{{ t('Online') }}</legend>
@@ -99,7 +99,7 @@ defineExpose({ open });
           value="online"
         /><span
           ><strong>{{ t('Online') }}</strong
-          ><small>{{ t('Browse the catalog online.') }}</small></span
+          ><small>{{ t('Delivery prices and stock.') }}</small></span
         ></label
       >
     </fieldset>
@@ -113,7 +113,7 @@ defineExpose({ open });
           value="branch"
         /><span
           ><strong>{{ t('Visit a branch') }}</strong
-          ><small>{{ t('Remember this branch.') }}</small></span
+          ><small>{{ t('Prices and stock at this branch.') }}</small></span
         ></label
       >
       <BranchSelect
@@ -145,7 +145,9 @@ defineExpose({ open });
     <button
       type="button"
       class="save-context"
-      :disabled="!choices.includes(draft)"
+      :disabled="
+        !['browse', 'online'].includes(draft) && !directory.byId(draft)
+      "
       @click="save"
     >
       {{ t('Save & continue') }}

@@ -1,14 +1,32 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { RouterLink, useRouter, useRoute } from 'vue-router';
 import { useCartStore } from '../stores/cart';
 import { useStoreText } from '../data/store-text';
-import { formatPrice } from '../data/catalog';
+import { formatMinor } from '../data/catalog';
+import { useGameCovers } from '../api/catalog';
 
 const cart = useCartStore();
 const { t, locale } = useStoreText();
 const router = useRouter();
 const route = useRoute();
+
+const coverOf = useGameCovers();
+const failedCovers = ref(new Set<string>());
+// The header is on every storefront page, so this is where the cart is first read.
+onMounted(() => void cart.load());
+
+function editionLabel(language: string) {
+  try {
+    return (
+      new Intl.DisplayNames([locale.value], { type: 'language' }).of(
+        language,
+      ) || language
+    );
+  } catch {
+    return language;
+  }
+}
 
 const isHovered = ref(false);
 let closeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -129,27 +147,30 @@ function goToCart() {
               @click="goToCart"
             >
               <img
-                :src="`/images/games/${line.game.id}.jpg`"
+                v-if="coverOf(line.game.id) && !failedCovers.has(line.game.id)"
+                :src="coverOf(line.game.id)"
                 :alt="line.game.name"
                 class="dropdown-item-thumb"
                 width="44"
                 height="44"
+                @error="failedCovers = new Set([...failedCovers, line.game.id])"
               />
+              <span
+                v-else
+                class="dropdown-item-thumb"
+                aria-hidden="true"
+              ></span>
               <div class="dropdown-item-info">
                 <span class="dropdown-item-title" :title="line.game.name">
                   {{ line.game.name }}
                 </span>
                 <span class="dropdown-item-edition">
-                  {{
-                    line.variant.language === 'th'
-                      ? 'ฉบับภาษาไทย'
-                      : 'ฉบับภาษาอังกฤษ'
-                  }}
+                  {{ editionLabel(line.variant.language) }}
                   <span class="dropdown-item-qty">x{{ line.quantity }}</span>
                 </span>
               </div>
               <div class="dropdown-item-price">
-                {{ formatPrice(line.variant.price) }}
+                {{ formatMinor(line.variant.price) }}
               </div>
             </div>
           </div>

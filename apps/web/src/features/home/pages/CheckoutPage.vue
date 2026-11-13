@@ -1,41 +1,55 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
-import QRCode from 'qrcode';
+import type { Order } from '@theparlor/api-client';
 import { useCartStore } from '../stores/cart';
 import { useOrdersStore } from '../stores/orders';
-import { formatPrice } from '../data/catalog';
+import { formatMinor } from '../data/catalog';
+import { useGameCovers } from '../api/catalog';
+import { httpStatus, problemCode } from '../../../shared/lib/api-errors';
 import { useStoreText } from '../data/store-text';
 import { useAuthStore } from '../../../shared/stores/auth';
 import CartFulfillment from '../components/CartFulfillment.vue';
+
+// Checkout places one order from the whole server cart and pays by card. The card
+// is exchanged for a single-use token and never stored; the server authorizes the
+// total it calculated, so nothing on this page decides what is charged.
+// TODO(checkout-payments): PromptPay QR, bank transfer and cash on delivery have no
+// backend. TODO(checkout-shipping): carriers, shipping fees and tracking numbers
+// have no backend; delivery orders ship from the delivery branch at no extra fee.
 
 const router = useRouter();
 const cart = useCartStore();
 const ordersStore = useOrdersStore();
 const auth = useAuthStore();
 const { locale } = useStoreText();
+const coverOf = useGameCovers();
+const failedCovers = ref(new Set<string>());
 
-// Redirect back to cart if cart is empty
-onMounted(() => {
-  if (cart.lines.length === 0) {
-    router.replace('/cart');
-  }
+const placedOrder = ref<Order | null>(null);
+const isSubmitting = ref(false);
+const formError = ref('');
+
+// An empty cart has nothing to check out; wait for the server before deciding.
+onMounted(async () => {
+  await cart.load();
+  if (cart.lines.length === 0 && !placedOrder.value) router.replace('/cart');
 });
 
-// Pre-fill contact details from logged-in member
 const contact = reactive({
   email: '',
   name: '',
   phone: '',
   address: '',
   extra: '',
-  city: '',
-  region: '',
+  subdistrict: '',
+  district: '',
+  province: '',
   postal: '',
-  country: 'Thailand',
   note: '',
 });
 
+// Start from the signed-in member's details; everything stays editable.
 watch(
   () => auth.authenticated,
   (isAuth) => {
@@ -48,11 +62,6 @@ watch(
   { immediate: true },
 );
 
-// Payment Method Selector
-export type PaymentMethod = 'promptpay' | 'card' | 'bank_transfer' | 'cod';
-const selectedPaymentMethod = ref<PaymentMethod>('promptpay');
-
-// Credit Card Form
 const cardForm = reactive({
   number: '',
   expiry: '',
@@ -60,21 +69,28 @@ const cardForm = reactive({
   holder: '',
 });
 
-// Order totals
 const subtotal = computed(() => cart.subtotal);
-const shippingFee = computed(() =>
-  cart.method === 'shipping' ? cart.shippingFee : 0,
-);
-const totalPayable = computed(() => subtotal.value + shippingFee.value);
+const totalPayable = computed(() => cart.subtotal);
 
-// Validation Errors & Formatting Helpers
+function editionLabel(language: string) {
+  try {
+    return (
+      new Intl.DisplayNames([locale.value], { type: 'language' }).of(
+        language,
+      ) || language
+    );
+  } catch {
+    return language;
+  }
+}
+
 const errors = reactive({
   name: '',
   phone: '',
   email: '',
   address: '',
-  city: '',
-  region: '',
+  district: '',
+  province: '',
   postal: '',
   cardNumber: '',
   cardExpiry: '',
@@ -102,7 +118,7 @@ function onPostalInput(e: Event) {
 }
 
 function formatCardNumber(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 16);
+  const digits = raw.replace(/\D/g, '').slice(0, 19);
   return digits.replace(/(.{4})/g, '$1 ').trim();
 }
 
@@ -130,13 +146,13 @@ function onCardCvvInput(e: Event) {
 
 function validateField(field: keyof typeof errors) {
   const isTh = locale.value === 'th-TH';
+  const required = (value: string, th: string, en: string) =>
+    value.trim() ? '' : isTh ? th : en;
 
   if (field === 'name') {
     const val = contact.name.trim();
     if (!val) {
-      errors.name = isTh
-        ? 'กรุณากรอกชื่อและนามสกุลผู้รับ'
-        : 'Please enter recipient name';
+      errors.name = isTh ? 'กรุณากรอกชื่อและนามสกุล' : 'Please enter your name';
     } else if (!/^[A-Za-zก-๙\s.-]+$/.test(val)) {
       errors.name = isTh
         ? 'กรุณากรอกเป็นตัวอักษรภาษาไทยหรือภาษาอังกฤษเท่านั้น'
@@ -167,7 +183,11 @@ function validateField(field: keyof typeof errors) {
 
   if (field === 'email') {
     const val = contact.email.trim();
-    if (val && !/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(val)) {
+    if (!val) {
+      errors.email = isTh
+        ? 'กรุณากรอกอีเมลสำหรับยืนยันคำสั่งซื้อ'
+        : 'Please enter an email for your order';
+    } else if (!/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/.test(val)) {
       errors.email = isTh
         ? 'กรุณากรอกอีเมลให้ถูกต้อง (เช่น name@example.com)'
         : 'Invalid email format (e.g. name@example.com)';
@@ -191,27 +211,19 @@ function validateField(field: keyof typeof errors) {
     }
   }
 
-  if (field === 'city') {
-    const val = contact.city.trim();
-    if (!val) {
-      errors.city = isTh
-        ? 'กรุณากรอกตำบลหรือแขวง'
-        : 'Please enter sub-district';
-    } else {
-      errors.city = '';
-    }
-  }
+  if (field === 'district')
+    errors.district = required(
+      contact.district,
+      'กรุณากรอกอำเภอหรือเขต',
+      'Please enter district',
+    );
 
-  if (field === 'region') {
-    const val = contact.region.trim();
-    if (!val) {
-      errors.region = isTh
-        ? 'กรุณากรอกอำเภอ/เขต และจังหวัด'
-        : 'Please enter district and province';
-    } else {
-      errors.region = '';
-    }
-  }
+  if (field === 'province')
+    errors.province = required(
+      contact.province,
+      'กรุณากรอกจังหวัด',
+      'Please enter province',
+    );
 
   if (field === 'postal') {
     const raw = contact.postal.replace(/\D/g, '');
@@ -228,28 +240,29 @@ function validateField(field: keyof typeof errors) {
     }
   }
 
-  if (field === 'cardNumber' && selectedPaymentMethod.value === 'card') {
+  // The gateway runs the real card checks; these only catch obvious slips early.
+  if (field === 'cardNumber') {
     const raw = cardForm.number.replace(/\s/g, '');
     if (!raw) {
       errors.cardNumber = isTh
-        ? 'กรุณากรอกหมายเลขบัตร 16 หลัก'
-        : 'Please enter 16-digit card number';
-    } else if (raw.length < 16) {
+        ? 'กรุณากรอกหมายเลขบัตร'
+        : 'Please enter card number';
+    } else if (raw.length < 13) {
       errors.cardNumber = isTh
-        ? 'กรุณากรอกหมายเลขบัตรให้ครบ 16 หลัก'
-        : 'Card number must be 16 digits';
+        ? 'กรุณากรอกหมายเลขบัตรให้ครบ'
+        : 'Card number is too short';
     } else {
       errors.cardNumber = '';
     }
   }
 
-  if (field === 'cardExpiry' && selectedPaymentMethod.value === 'card') {
+  if (field === 'cardExpiry') {
     const val = cardForm.expiry.trim();
     if (!val) {
       errors.cardExpiry = isTh
         ? 'กรุณากรอกวันหมดอายุ (MM/YY)'
         : 'Please enter expiry date (MM/YY)';
-    } else if (!/^\d{2}\/\d{2}$/.test(val)) {
+    } else if (!/^(0[1-9]|1[0-2])\/\d{2}$/.test(val)) {
       errors.cardExpiry = isTh
         ? 'รูปแบบวันหมดอายุต้องเป็นเดือน/ปี เช่น 12/28'
         : 'Format must be MM/YY (e.g. 12/28)';
@@ -258,7 +271,7 @@ function validateField(field: keyof typeof errors) {
     }
   }
 
-  if (field === 'cardCvv' && selectedPaymentMethod.value === 'card') {
+  if (field === 'cardCvv') {
     const val = cardForm.cvv.trim();
     if (!val) {
       errors.cardCvv = isTh
@@ -273,7 +286,7 @@ function validateField(field: keyof typeof errors) {
     }
   }
 
-  if (field === 'cardHolder' && selectedPaymentMethod.value === 'card') {
+  if (field === 'cardHolder') {
     const val = cardForm.holder.trim();
     if (!val) {
       errors.cardHolder = isTh
@@ -290,208 +303,121 @@ function validateField(field: keyof typeof errors) {
 }
 
 function validateAllFields(): boolean {
-  if (cart.method === 'shipping') {
-    validateField('name');
-    validateField('phone');
-    validateField('email');
-    validateField('address');
-    validateField('city');
-    validateField('region');
-    validateField('postal');
-
-    if (
-      errors.name ||
-      errors.phone ||
-      errors.email ||
-      errors.address ||
-      errors.city ||
-      errors.region ||
-      errors.postal
-    ) {
-      return false;
-    }
-  }
-
-  if (selectedPaymentMethod.value === 'card') {
-    validateField('cardNumber');
-    validateField('cardExpiry');
-    validateField('cardCvv');
-    validateField('cardHolder');
-    if (
-      errors.cardNumber ||
-      errors.cardExpiry ||
-      errors.cardCvv ||
-      errors.cardHolder
-    ) {
-      return false;
-    }
-  }
-
-  return true;
+  const fields: (keyof typeof errors)[] = [
+    'name',
+    'phone',
+    'email',
+    'cardNumber',
+    'cardExpiry',
+    'cardCvv',
+    'cardHolder',
+  ];
+  if (cart.method === 'shipping')
+    fields.push('address', 'district', 'province', 'postal');
+  for (const field of fields) validateField(field);
+  return fields.every((field) => !errors[field]);
 }
 
-// Modal & Processing State
-const showPaymentModal = ref(false);
-const qrDataUrl = ref<string>('');
-const qrReference = ref<string>('');
-const isProcessingPayment = ref(false);
-const secondsLeft = ref(15 * 60);
-let timer: ReturnType<typeof setInterval> | null = null;
-const formError = ref('');
-const placedOrder = ref<any>(null);
-const copiedTracking = ref(false);
-
-const formattedTimer = computed(() => {
-  const m = Math.floor(secondsLeft.value / 60);
-  const s = secondsLeft.value % 60;
-  return `${m}:${s < 10 ? '0' : ''}${s}`;
-});
+/** What went wrong, in the shopper's terms. Nothing was charged in any of these cases. */
+function failureMessage(error: unknown): string {
+  const isTh = locale.value === 'th-TH';
+  const status = httpStatus(error);
+  if (status === 402)
+    return isTh
+      ? 'บัตรถูกปฏิเสธ ไม่มีการเรียกเก็บเงิน กรุณาตรวจสอบข้อมูลบัตรหรือใช้บัตรอื่น'
+      : 'The card was declined and nothing was charged. Check the details or use another card.';
+  if (status === 409)
+    return isTh
+      ? 'ตะกร้าของคุณมีการเปลี่ยนแปลงหรือสินค้าไม่เพียงพอ กรุณาตรวจสอบตะกร้าอีกครั้ง'
+      : 'Your cart changed or an item is no longer available. Review your cart and try again.';
+  if (status === 502 || problemCode(error) === 'PAYMENT_GATEWAY_ERROR')
+    return isTh
+      ? 'ไม่สามารถชำระเงินด้วยบัตรได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง'
+      : 'Card payment is unavailable right now. Please try again shortly.';
+  if (status === 400)
+    return isTh
+      ? 'ข้อมูลบัตรหรือข้อมูลผู้รับไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง'
+      : 'The card or contact details are not valid. Please check them.';
+  return isTh
+    ? 'ไม่สามารถดำเนินการสั่งซื้อได้ กรุณาลองใหม่อีกครั้ง'
+    : 'The order could not be placed. Please try again.';
+}
 
 async function handleConfirmOrder() {
   formError.value = '';
-  if (!validateAllFields()) return;
+  if (isSubmitting.value) return;
+  const isTh = locale.value === 'th-TH';
 
   if (cart.lines.length === 0) {
-    formError.value =
-      locale.value === 'th-TH'
-        ? 'ไม่มีรายการสินค้าในคำสั่งซื้อ'
-        : 'Your cart is empty.';
     router.replace('/cart');
     return;
   }
-
-  if (cart.method === 'shipping') {
-    if (!contact.name || !contact.phone || !contact.address || !contact.city) {
-      formError.value =
-        locale.value === 'th-TH'
-          ? 'กรุณากรอกข้อมูลผู้รับและที่อยู่จัดส่งให้ครบถ้วน'
-          : 'Please complete your recipient and delivery address information.';
-      const sec = document.querySelector('.delivery-section-box');
-      sec?.scrollIntoView({ behavior: 'smooth' });
-      return;
-    }
+  if (!cart.canCheckout) {
+    formError.value = isTh
+      ? 'มีสินค้าที่ไม่สามารถจัดส่งหรือรับได้ตามที่เลือก กรุณาแก้ไขในตะกร้าหรือเลือกวิธีรับสินค้าใหม่'
+      : 'Some items cannot be fulfilled as chosen. Fix them in your cart or choose another fulfillment option.';
+    return;
+  }
+  if (!validateAllFields()) {
+    formError.value = isTh
+      ? 'กรุณากรอกข้อมูลให้ครบถ้วนและถูกต้อง'
+      : 'Please complete the highlighted fields.';
+    return;
   }
 
-  if (selectedPaymentMethod.value === 'card') {
-    if (!cardForm.number || !cardForm.expiry || !cardForm.cvv) {
-      formError.value =
-        locale.value === 'th-TH'
-          ? 'กรุณากรอกข้อมูลบัตรเครดิต/เดบิตให้ครบถ้วน'
-          : 'Please complete all credit/debit card fields.';
-      const sec = document.querySelector('.payment-methods-card');
-      sec?.scrollIntoView({ behavior: 'smooth' });
-      return;
-    }
+  const [month, year] = cardForm.expiry.split('/');
+  isSubmitting.value = true;
+  try {
+    placedOrder.value = await cart.checkout(
+      {
+        number: cardForm.number,
+        expMonth: Number(month),
+        expYear: 2000 + Number(year),
+        cvc: cardForm.cvv,
+        holderName: cardForm.holder.trim(),
+      },
+      {
+        contact: {
+          name: contact.name.trim(),
+          email: contact.email.trim(),
+          phone: contact.phone.replace(/\D/g, ''),
+        },
+        shippingAddress:
+          cart.method === 'shipping'
+            ? {
+                recipientName: contact.name.trim(),
+                line1: contact.address.trim(),
+                line2: contact.extra.trim() || undefined,
+                subdistrict: contact.subdistrict.trim() || undefined,
+                district: contact.district.trim(),
+                province: contact.province.trim(),
+                postalCode: contact.postal,
+              }
+            : undefined,
+        notes: contact.note.trim() || undefined,
+      },
+    );
+    // Card details are no longer needed once the order exists.
+    Object.assign(cardForm, { number: '', expiry: '', cvv: '', holder: '' });
+  } catch (error) {
+    formError.value = failureMessage(error);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } finally {
+    isSubmitting.value = false;
   }
-
-  // Generate Reference
-  const randRef = `PP-ORD-${Math.floor(100000 + Math.random() * 900000)}`;
-  qrReference.value = randRef;
-  secondsLeft.value = 15 * 60;
-
-  if (selectedPaymentMethod.value === 'promptpay') {
-    const qrPayload = JSON.stringify({
-      service: 'PromptPay-QR',
-      merchant: 'The Parlor Board Game Store',
-      ref: randRef,
-      amount: totalPayable.value.toFixed(2),
-      currency: 'THB',
-      created: new Date().toISOString(),
-    });
-
-    try {
-      qrDataUrl.value = await QRCode.toDataURL(qrPayload, {
-        width: 230,
-        margin: 1,
-        color: { dark: '#142a1f', light: '#ffffff' },
-        errorCorrectionLevel: 'M',
-      });
-    } catch (err) {
-      console.error('Failed to generate PromptPay QR:', err);
-    }
-  }
-
-  showPaymentModal.value = true;
-
-  if (timer) clearInterval(timer);
-  if (selectedPaymentMethod.value === 'promptpay') {
-    timer = setInterval(() => {
-      if (secondsLeft.value > 0) {
-        secondsLeft.value--;
-      } else {
-        if (timer) clearInterval(timer);
-      }
-    }, 1000);
-  }
-}
-
-function confirmPayment() {
-  isProcessingPayment.value = true;
-  if (timer) clearInterval(timer);
-
-  setTimeout(() => {
-    isProcessingPayment.value = false;
-
-    // Convert items to OrderItems
-    const orderItems = cart.lines.map((line) => ({
-      variantId: line.variantId,
-      gameId: line.game.id,
-      gameName: line.game.name,
-      edition:
-        line.variant.language === 'th' ? 'ฉบับภาษาไทย' : 'ฉบับภาษาอังกฤษ',
-      quantity: line.quantity,
-      unitPrice: line.variant.price,
-      totalPrice: line.total,
-      imageUrl: `/images/games/${line.game.id}.jpg`,
-    }));
-
-    const methodLabels: Record<PaymentMethod, string> = {
-      promptpay: 'พร้อมเพย์ QR',
-      card: 'บัตรเครดิต/เดบิต',
-      bank_transfer: 'โอนผ่านบัญชีธนาคาร',
-      cod: 'เก็บเงินปลายทาง (COD)',
-    };
-
-    const newOrder = ordersStore.createOrder({
-      items: orderItems,
-      itemSubtotal: subtotal.value,
-      fulfillmentMethod: cart.method,
-      pickupBranchName: cart.fulfillmentBranch?.name,
-      carrier: cart.carrier,
-      shippingFee: shippingFee.value,
-      shippingAddress: { ...contact },
-      paymentReference: `${qrReference.value} (${methodLabels[selectedPaymentMethod.value]})`,
-    });
-
-    placedOrder.value = newOrder;
-
-    // Clear cart after checkout
-    cart.clearCart();
-  }, 700);
-}
-
-function copyTracking(trackingNo: string) {
-  void navigator.clipboard.writeText(trackingNo);
-  copiedTracking.value = true;
-  setTimeout(() => {
-    copiedTracking.value = false;
-  }, 2000);
 }
 
 function closeSuccessAndExit() {
-  showPaymentModal.value = false;
   placedOrder.value = null;
   router.push('/');
 }
 
 function viewOrdersAndExit() {
-  showPaymentModal.value = false;
-  ordersStore.openOrdersModal(placedOrder.value ?? undefined);
+  const orderId = placedOrder.value?.id;
+  placedOrder.value = null;
+  router.push('/');
+  ordersStore.openOrdersModal(orderId);
 }
-
-onUnmounted(() => {
-  if (timer) clearInterval(timer);
-});
 </script>
 
 <template>
@@ -602,27 +528,24 @@ onUnmounted(() => {
             class="summary-row"
           >
             <img
-              :src="`/images/games/${line.game.id}.jpg`"
+              v-if="coverOf(line.game.id) && !failedCovers.has(line.game.id)"
+              :src="coverOf(line.game.id)"
               :alt="line.game.name"
               class="summary-thumb"
-              width="64"
-              height="64"
+              @error="failedCovers = new Set([...failedCovers, line.game.id])"
             />
+            <span v-else class="summary-thumb" aria-hidden="true"></span>
             <div class="summary-details">
               <strong class="summary-name">{{ line.game.name }}</strong>
               <span class="summary-edition">
-                {{
-                  line.variant.language === 'th'
-                    ? 'ฉบับภาษาไทย'
-                    : 'ฉบับภาษาอังกฤษ'
-                }}
+                {{ editionLabel(line.variant.language) }}
               </span>
               <span class="summary-qty-price">
-                {{ formatPrice(line.variant.price) }} × {{ line.quantity }}
+                {{ formatMinor(line.variant.price) }} × {{ line.quantity }}
               </span>
             </div>
             <div class="summary-total">
-              {{ formatPrice(line.total) }}
+              {{ formatMinor(line.total) }}
             </div>
           </div>
         </div>
@@ -657,23 +580,20 @@ onUnmounted(() => {
 
         <CartFulfillment />
 
-        <!-- Address Form if Shipping -->
-        <div v-if="cart.method === 'shipping'" class="shipping-fields-card">
+        <!-- Contact details: needed for every order, pickup included -->
+        <div class="shipping-fields-card">
           <h4 class="form-subhead">
-            {{
-              locale === 'th-TH'
-                ? 'ที่อยู่สำหรับจัดส่งพัสดุ'
-                : 'Recipient Address'
-            }}
+            {{ locale === 'th-TH' ? 'ข้อมูลผู้สั่งซื้อ' : 'Contact Details' }}
           </h4>
           <div class="form-grid-3">
             <div class="field-wrap" :class="{ 'has-error': !!errors.name }">
               <label>{{
-                locale === 'th-TH' ? 'ชื่อ-นามสกุล ผู้รับ *' : 'Full Name *'
+                locale === 'th-TH' ? 'ชื่อ-นามสกุล *' : 'Full Name *'
               }}</label>
               <input
                 v-model="contact.name"
                 type="text"
+                autocomplete="name"
                 :placeholder="
                   locale === 'th-TH' ? 'เช่น สมชาย ใจดี' : 'e.g. Somchai Jaidee'
                 "
@@ -692,6 +612,7 @@ onUnmounted(() => {
               <input
                 :value="contact.phone"
                 type="tel"
+                autocomplete="tel"
                 placeholder="08X-XXX-XXXX"
                 maxlength="12"
                 required
@@ -704,16 +625,18 @@ onUnmounted(() => {
             </div>
             <div class="field-wrap" :class="{ 'has-error': !!errors.email }">
               <label>{{
-                locale === 'th-TH' ? 'อีเมลสำหรับรับใบเสร็จ' : 'Email Address'
+                locale === 'th-TH' ? 'อีเมล *' : 'Email Address *'
               }}</label>
               <input
                 v-model="contact.email"
                 type="email"
+                autocomplete="email"
                 :placeholder="
                   locale === 'th-TH'
                     ? 'เช่น somchai@example.com'
                     : 'e.g. somchai@example.com'
                 "
+                required
                 @input="validateField('email')"
                 @blur="validateField('email')"
               />
@@ -722,7 +645,17 @@ onUnmounted(() => {
               }}</span>
             </div>
           </div>
+        </div>
 
+        <!-- Address Form if Shipping -->
+        <div v-if="cart.method === 'shipping'" class="shipping-fields-card">
+          <h4 class="form-subhead">
+            {{
+              locale === 'th-TH'
+                ? 'ที่อยู่สำหรับจัดส่งพัสดุ'
+                : 'Delivery Address'
+            }}
+          </h4>
           <div class="form-grid-2">
             <div class="field-wrap" :class="{ 'has-error': !!errors.address }">
               <label>{{
@@ -765,48 +698,59 @@ onUnmounted(() => {
           </div>
 
           <div class="form-grid-3">
-            <div class="field-wrap" :class="{ 'has-error': !!errors.city }">
+            <div class="field-wrap">
               <label>{{
-                locale === 'th-TH' ? 'ตำบล / แขวง *' : 'Sub-district *'
+                locale === 'th-TH' ? 'ตำบล / แขวง' : 'Sub-district'
               }}</label>
               <input
-                v-model="contact.city"
+                v-model="contact.subdistrict"
                 type="text"
                 :placeholder="
                   locale === 'th-TH'
                     ? 'เช่น คลองเตยเหนือ'
                     : 'e.g. Khlong Toei Nuea'
                 "
-                required
-                @input="validateField('city')"
-                @blur="validateField('city')"
               />
-              <span v-if="errors.city" class="field-error-msg">{{
-                errors.city
-              }}</span>
             </div>
-            <div class="field-wrap" :class="{ 'has-error': !!errors.region }">
+            <div class="field-wrap" :class="{ 'has-error': !!errors.district }">
               <label>{{
-                locale === 'th-TH'
-                  ? 'อำเภอ / เขต, จังหวัด *'
-                  : 'District, Province *'
+                locale === 'th-TH' ? 'อำเภอ / เขต *' : 'District *'
               }}</label>
               <input
-                v-model="contact.region"
+                v-model="contact.district"
                 type="text"
                 :placeholder="
-                  locale === 'th-TH'
-                    ? 'เช่น วัฒนา, กรุงเทพฯ'
-                    : 'e.g. Watthana, Bangkok'
+                  locale === 'th-TH' ? 'เช่น วัฒนา' : 'e.g. Watthana'
                 "
                 required
-                @input="validateField('region')"
-                @blur="validateField('region')"
+                @input="validateField('district')"
+                @blur="validateField('district')"
               />
-              <span v-if="errors.region" class="field-error-msg">{{
-                errors.region
+              <span v-if="errors.district" class="field-error-msg">{{
+                errors.district
               }}</span>
             </div>
+            <div class="field-wrap" :class="{ 'has-error': !!errors.province }">
+              <label>{{
+                locale === 'th-TH' ? 'จังหวัด *' : 'Province *'
+              }}</label>
+              <input
+                v-model="contact.province"
+                type="text"
+                :placeholder="
+                  locale === 'th-TH' ? 'เช่น กรุงเทพมหานคร' : 'e.g. Bangkok'
+                "
+                required
+                @input="validateField('province')"
+                @blur="validateField('province')"
+              />
+              <span v-if="errors.province" class="field-error-msg">{{
+                errors.province
+              }}</span>
+            </div>
+          </div>
+
+          <div class="form-grid-2">
             <div class="field-wrap" :class="{ 'has-error': !!errors.postal }">
               <label>{{
                 locale === 'th-TH' ? 'รหัสไปรษณีย์ *' : 'Postal Code *'
@@ -814,6 +758,8 @@ onUnmounted(() => {
               <input
                 :value="contact.postal"
                 type="text"
+                inputmode="numeric"
+                autocomplete="postal-code"
                 :placeholder="locale === 'th-TH' ? 'เช่น 10110' : 'e.g. 10110'"
                 maxlength="5"
                 required
@@ -825,16 +771,19 @@ onUnmounted(() => {
               }}</span>
             </div>
           </div>
+        </div>
 
+        <div class="shipping-fields-card">
           <div class="field-wrap full">
             <label>{{
               locale === 'th-TH'
-                ? 'หมายเหตุเพิ่มเติมถึงเจ้าหน้าที่จัดส่ง (ถ้ามี)'
-                : 'Delivery Notes (Optional)'
+                ? 'หมายเหตุถึงร้าน (ถ้ามี)'
+                : 'Order Notes (Optional)'
             }}</label>
             <input
               v-model="contact.note"
               type="text"
+              maxlength="1000"
               :placeholder="
                 locale === 'th-TH'
                   ? 'เช่น ฝากไว้กับ รปภ. นิติบุคคลคอนโด'
@@ -861,62 +810,14 @@ onUnmounted(() => {
               <line x1="2" y1="10" x2="22" y2="10" />
             </svg>
             <h2>
-              {{
-                locale === 'th-TH'
-                  ? 'เลือกช่องทางการชำระเงิน'
-                  : 'Select Payment Method'
-              }}
+              {{ locale === 'th-TH' ? 'ชำระเงินด้วยบัตร' : 'Card Payment' }}
             </h2>
           </div>
         </div>
 
         <div class="methods-selection-list">
-          <!-- 1. PromptPay -->
-          <label
-            class="method-option-row"
-            :class="{ 'is-active': selectedPaymentMethod === 'promptpay' }"
-          >
-            <input
-              v-model="selectedPaymentMethod"
-              type="radio"
-              value="promptpay"
-              class="sr-only"
-            />
-            <div class="method-radio">
-              <span class="radio-dot"></span>
-            </div>
-            <div class="method-info">
-              <div class="method-name-line">
-                <strong>{{
-                  locale === 'th-TH'
-                    ? 'พร้อมเพย์ (PromptPay QR)'
-                    : 'PromptPay QR'
-                }}</strong>
-                <span class="tag-rec">{{
-                  locale === 'th-TH' ? 'แนะนำ' : 'Recommended'
-                }}</span>
-              </div>
-              <p class="method-desc">
-                {{
-                  locale === 'th-TH'
-                    ? 'สแกน QR Code ผ่านแอป Mobile Banking ทุกธนาคาร สะดวก รวดเร็ว ไม่มีค่าธรรมเนียม'
-                    : 'Scan QR Code with any Thai mobile banking app. Instant & zero fees.'
-                }}
-              </p>
-            </div>
-          </label>
-
           <!-- 2. Credit/Debit Card -->
-          <label
-            class="method-option-row"
-            :class="{ 'is-active': selectedPaymentMethod === 'card' }"
-          >
-            <input
-              v-model="selectedPaymentMethod"
-              type="radio"
-              value="card"
-              class="sr-only"
-            />
+          <label class="method-option-row" :class="{ 'is-active': true }">
             <div class="method-radio">
               <span class="radio-dot"></span>
             </div>
@@ -932,30 +833,26 @@ onUnmounted(() => {
               <p class="method-desc">
                 {{
                   locale === 'th-TH'
-                    ? 'ชำระปลอดภัยด้วยระบบมาตรฐานสากล'
-                    : 'Secure payment via Visa, Mastercard, or JCB'
+                    ? 'ระบบจะกันวงเงินไว้เมื่อสั่งซื้อ และเรียกเก็บเมื่อส่งมอบสินค้า'
+                    : 'Your card is authorized now and charged when the order is handed over.'
                 }}
               </p>
 
-              <div
-                v-if="selectedPaymentMethod === 'card'"
-                class="card-inline-form"
-                @click.stop
-              >
+              <div class="card-inline-form" @click.stop>
                 <div
                   class="field-wrap"
                   :class="{ 'has-error': !!errors.cardNumber }"
                 >
                   <label>{{
-                    locale === 'th-TH'
-                      ? 'หมายเลขบัตร 16 หลัก *'
-                      : 'Card Number *'
+                    locale === 'th-TH' ? 'หมายเลขบัตร *' : 'Card Number *'
                   }}</label>
                   <input
                     :value="cardForm.number"
                     type="text"
                     placeholder="xxxx xxxx xxxx xxxx"
-                    maxlength="19"
+                    maxlength="23"
+                    inputmode="numeric"
+                    autocomplete="cc-number"
                     @input="onCardNumberInput"
                     @blur="validateField('cardNumber')"
                   />
@@ -1026,103 +923,6 @@ onUnmounted(() => {
               </div>
             </div>
           </label>
-
-          <!-- 3. Bank Transfer -->
-          <label
-            class="method-option-row"
-            :class="{ 'is-active': selectedPaymentMethod === 'bank_transfer' }"
-          >
-            <input
-              v-model="selectedPaymentMethod"
-              type="radio"
-              value="bank_transfer"
-              class="sr-only"
-            />
-            <div class="method-radio">
-              <span class="radio-dot"></span>
-            </div>
-            <div class="method-info">
-              <div class="method-name-line">
-                <strong>{{
-                  locale === 'th-TH'
-                    ? 'โอนเงินผ่านบัญชีธนาคาร'
-                    : 'Bank Transfer'
-                }}</strong>
-              </div>
-              <p class="method-desc">
-                {{
-                  locale === 'th-TH'
-                    ? 'โอนเข้าบัญชีธนาคารกสิกรไทย (KBANK) หรือ ไทยพาณิชย์ (SCB)'
-                    : 'Direct transfer to our KBANK or SCB corporate bank account'
-                }}
-              </p>
-
-              <div
-                v-if="selectedPaymentMethod === 'bank_transfer'"
-                class="bank-accounts-box"
-                @click.stop
-              >
-                <div class="bank-item">
-                  <div class="bank-code kbank">KBANK</div>
-                  <div class="bank-text">
-                    <strong>ธนาคารกสิกรไทย</strong>
-                    <p>
-                      {{
-                        locale === 'th-TH'
-                          ? 'ชื่อบัญชี: บจก. เดอะ พาร์เลอร์'
-                          : 'Account: The Parlor Co., Ltd.'
-                      }}
-                    </p>
-                  </div>
-                </div>
-                <div class="bank-item">
-                  <div class="bank-code scb">SCB</div>
-                  <div class="bank-text">
-                    <strong>ธนาคารไทยพาณิชย์</strong>
-                    <p>
-                      {{
-                        locale === 'th-TH'
-                          ? 'ชื่อบัญชี: บจก. เดอะ พาร์เลอร์'
-                          : 'Account: The Parlor Co., Ltd.'
-                      }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </label>
-
-          <!-- 4. Cash on Delivery (COD) -->
-          <label
-            class="method-option-row"
-            :class="{ 'is-active': selectedPaymentMethod === 'cod' }"
-          >
-            <input
-              v-model="selectedPaymentMethod"
-              type="radio"
-              value="cod"
-              class="sr-only"
-            />
-            <div class="method-radio">
-              <span class="radio-dot"></span>
-            </div>
-            <div class="method-info">
-              <div class="method-name-line">
-                <strong>{{
-                  locale === 'th-TH'
-                    ? 'ชำระเงินปลายทาง (Cash on Delivery)'
-                    : 'Cash on Delivery (COD)'
-                }}</strong>
-              </div>
-              <p class="method-desc">
-                {{
-                  locale === 'th-TH'
-                    ? 'ชำระเงินสดกับเจ้าหน้าที่จัดส่งพัสดุเมื่อได้รับสินค้าถึงบ้าน'
-                    : 'Pay cash directly to the courier when receiving the parcel.'
-                }}
-              </p>
-            </div>
-          </label>
         </div>
       </div>
 
@@ -1133,22 +933,13 @@ onUnmounted(() => {
             <span class="lbl">{{
               locale === 'th-TH' ? 'ยอดรวมสินค้า' : 'Merchandise Subtotal'
             }}</span>
-            <span class="val">{{ formatPrice(subtotal) }}</span>
-          </div>
-          <div class="summary-line">
-            <span class="lbl">
-              {{ locale === 'th-TH' ? 'ค่าจัดส่งพัสดุ' : 'Shipping Total' }}
-              <span v-if="cart.method === 'shipping'" class="carrier-tag">
-                ({{ cart.carrierInfo.name }})
-              </span>
-            </span>
-            <span class="val">{{ formatPrice(shippingFee) }}</span>
+            <span class="val">{{ formatMinor(subtotal) }}</span>
           </div>
           <div class="summary-line line-grand-total">
             <span class="lbl">{{
               locale === 'th-TH' ? 'ยอดชำระทั้งสิ้น' : 'Total Payment'
             }}</span>
-            <strong class="val-grand">{{ formatPrice(totalPayable) }}</strong>
+            <strong class="val-grand">{{ formatMinor(totalPayable) }}</strong>
           </div>
         </div>
 
@@ -1156,6 +947,7 @@ onUnmounted(() => {
           <button
             type="button"
             class="btn-place-order"
+            :disabled="isSubmitting || cart.busy"
             @click="handleConfirmOrder"
           >
             <svg
@@ -1169,366 +961,54 @@ onUnmounted(() => {
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>
             <span>{{
-              locale === 'th-TH'
-                ? 'ยืนยันการสั่งซื้อและชำระเงิน'
-                : 'Place Order & Pay'
+              isSubmitting
+                ? locale === 'th-TH'
+                  ? 'กำลังดำเนินการ...'
+                  : 'Placing Order...'
+                : locale === 'th-TH'
+                  ? 'ยืนยันการสั่งซื้อและชำระเงิน'
+                  : 'Place Order & Pay'
             }}</span>
           </button>
         </div>
       </div>
     </div>
 
-    <!-- PAYMENT & ORDER CONFIRMATION MODAL (CENTERED POPUP) -->
-    <div
-      v-if="showPaymentModal"
-      class="checkout-modal-backdrop"
-      @click.self="!placedOrder && (showPaymentModal = false)"
-    >
-      <div class="checkout-modal-card" role="dialog" aria-modal="true">
-        <!-- Close Button -->
-        <button
-          v-if="!placedOrder"
-          type="button"
-          class="btn-modal-close"
-          aria-label="Close"
-          @click="showPaymentModal = false"
-        >
-          ✕
-        </button>
-
-        <!-- STATE A: PROMPT / PAYMENT IN PROGRESS -->
-        <div v-if="!placedOrder" class="modal-body-payment">
-          <!-- 1. PromptPay QR View -->
-          <template v-if="selectedPaymentMethod === 'promptpay'">
-            <div class="modal-header">
-              <h2 class="modal-title">
-                {{
-                  locale === 'th-TH'
-                    ? 'สแกนชำระเงินผ่าน พร้อมเพย์ (PromptPay QR)'
-                    : 'Scan & Pay via PromptPay QR'
-                }}
-              </h2>
-              <p class="modal-sub">
-                {{
-                  locale === 'th-TH'
-                    ? 'รองรับแอปพลิเคชันทุกธนาคารในประเทศไทย ไม่มีค่าธรรมเนียม'
-                    : 'Supported by all Thai mobile banking apps. Zero fees.'
-                }}
-              </p>
-            </div>
-
-            <!-- Total Amount Card -->
-            <div class="bank-total-card">
-              <span class="bt-label">{{
-                locale === 'th-TH' ? 'ยอดชำระรวม' : 'Total Amount'
-              }}</span>
-              <strong class="bt-amount">{{ formatPrice(totalPayable) }}</strong>
-            </div>
-
-            <div class="qr-presentation-card">
-              <div class="qr-code-frame">
-                <img
-                  v-if="qrDataUrl"
-                  :src="qrDataUrl"
-                  alt="PromptPay QR Code"
-                  class="qr-image"
-                />
-                <div v-else class="qr-skeleton">
-                  {{
-                    locale === 'th-TH'
-                      ? 'กำลังสร้าง QR Code...'
-                      : 'Generating QR Code...'
-                  }}
-                </div>
-              </div>
-
-              <div class="qr-details-grid">
-                <div class="detail-line">
-                  <span class="dl-label">{{
-                    locale === 'th-TH' ? 'ชื่อบัญชี:' : 'Account Name:'
-                  }}</span>
-                  <strong class="dl-val">{{
-                    locale === 'th-TH'
-                      ? 'บริษัท เดอะ พาร์เลอร์ จำกัด'
-                      : 'The Parlor Co., Ltd.'
-                  }}</strong>
-                </div>
-                <div class="detail-line">
-                  <span class="dl-label">{{
-                    locale === 'th-TH' ? 'รหัสอ้างอิง:' : 'Reference Code:'
-                  }}</span>
-                  <code class="dl-code">{{ qrReference }}</code>
-                </div>
-                <div class="detail-line timer-line">
-                  <span class="dl-label">{{
-                    locale === 'th-TH' ? 'อายุ QR Code:' : 'Expires In:'
-                  }}</span>
-                  <span class="timer-tag">
-                    <svg
-                      width="13"
-                      height="13"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <circle cx="12" cy="12" r="10" />
-                      <polyline points="12 6 12 12 16 14" />
-                    </svg>
-                    <span
-                      >{{ formattedTimer }}
-                      {{ locale === 'th-TH' ? 'นาที' : 'min' }}</span
-                    >
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <p class="qr-instruction">
-              <template v-if="locale === 'th-TH'">
-                เปิดแอปธนาคารของคุณ แล้วเลือก
-                <strong>"สแกน QR"</strong> เพื่อชำระเงิน
-                เมื่อทำรายการเรียบร้อยแล้ว
-                ให้กดปุ่มด้านล่างเพื่อยืนยันคำสั่งซื้อ
-              </template>
-              <template v-else>
-                Open your mobile banking app, select
-                <strong>"Scan QR"</strong> to pay, then click confirm below.
-              </template>
-            </p>
-          </template>
-
-          <!-- 2. Bank Transfer View -->
-          <template v-else-if="selectedPaymentMethod === 'bank_transfer'">
-            <div class="modal-header">
-              <h2 class="modal-title">
-                {{
-                  locale === 'th-TH'
-                    ? 'โอนเงินผ่านบัญชีธนาคาร'
-                    : 'Bank Account Transfer'
-                }}
-              </h2>
-              <p class="modal-sub">
-                {{
-                  locale === 'th-TH'
-                    ? 'กรุณาทำรายการโอนเงินตามยอดที่ระบุด้านล่างเข้าบัญชีของทางร้าน'
-                    : 'Please transfer the exact amount below to our official bank account'
-                }}
-              </p>
-            </div>
-
-            <!-- Total Amount Card -->
-            <div class="bank-total-card">
-              <span class="bt-label">{{
-                locale === 'th-TH' ? 'ยอดชำระรวม' : 'Total Amount'
-              }}</span>
-              <strong class="bt-amount">{{ formatPrice(totalPayable) }}</strong>
-            </div>
-
-            <div class="bank-accounts-modal-list">
-              <!-- Kasikorn Bank -->
-              <div class="bank-card-luxury">
-                <div class="bank-card-top">
-                  <div class="bank-brand-badge kbank-badge">
-                    <span class="badge-icon">KBANK</span>
-                    <span class="badge-title">{{
-                      locale === 'th-TH' ? 'ธนาคารกสิกรไทย' : 'Kasikornbank'
-                    }}</span>
-                  </div>
-                </div>
-                <div class="bank-card-body">
-                  <div class="account-name-row">
-                    <span class="lbl">{{
-                      locale === 'th-TH' ? 'ชื่อบัญชี:' : 'Account Name:'
-                    }}</span>
-                    <strong class="val">{{
-                      locale === 'th-TH'
-                        ? 'บริษัท เดอะ พาร์เลอร์ จำกัด'
-                        : 'The Parlor Co., Ltd.'
-                    }}</strong>
-                  </div>
-                </div>
-              </div>
-
-              <!-- SCB Bank -->
-              <div class="bank-card-luxury">
-                <div class="bank-card-top">
-                  <div class="bank-brand-badge scb-badge">
-                    <span class="badge-icon">SCB</span>
-                    <span class="badge-title">{{
-                      locale === 'th-TH'
-                        ? 'ธนาคารไทยพาณิชย์'
-                        : 'Siam Commercial Bank'
-                    }}</span>
-                  </div>
-                </div>
-                <div class="bank-card-body">
-                  <div class="account-name-row">
-                    <span class="lbl">{{
-                      locale === 'th-TH' ? 'ชื่อบัญชี:' : 'Account Name:'
-                    }}</span>
-                    <strong class="val">{{
-                      locale === 'th-TH'
-                        ? 'บริษัท เดอะ พาร์เลอร์ จำกัด'
-                        : 'The Parlor Co., Ltd.'
-                    }}</strong>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <p class="bank-note-text">
-              <template v-if="locale === 'th-TH'">
-                เมื่อทำรายการโอนเงินเสร็จเรียบร้อยแล้ว ให้กดปุ่ม
-                <strong>"ยืนยันการชำระเงิน"</strong> ด้านล่าง
-              </template>
-              <template v-else>
-                Once payment transfer is completed, click
-                <strong>"Confirm Payment"</strong> below.
-              </template>
-            </p>
-          </template>
-
-          <!-- 3. Card View -->
-          <template v-else-if="selectedPaymentMethod === 'card'">
-            <div class="modal-header">
-              <h2 class="modal-title">
-                {{
-                  locale === 'th-TH'
-                    ? 'ยืนยันการชำระเงินผ่านบัตร'
-                    : 'Confirm Card Payment'
-                }}
-              </h2>
-              <p class="modal-sub">
-                {{
-                  locale === 'th-TH'
-                    ? 'ระบบจะดำเนินการหักยอดเงินจากบัตรเครดิต/เดบิตของคุณ'
-                    : 'Your credit/debit card will be charged directly.'
-                }}
-              </p>
-            </div>
-
-            <div class="bank-total-card">
-              <span class="bt-label">{{
-                locale === 'th-TH' ? 'ยอดชำระรวม' : 'Total Amount'
-              }}</span>
-              <strong class="bt-amount">{{ formatPrice(totalPayable) }}</strong>
-            </div>
-
-            <div class="card-confirm-card">
-              <div class="cc-row">
-                <span class="lbl">{{
-                  locale === 'th-TH' ? 'หมายเลขบัตร:' : 'Card Number:'
-                }}</span>
-                <strong class="val"
-                  >•••• •••• ••••
-                  {{ cardForm.number.slice(-4) || '••••' }}</strong
-                >
-              </div>
-              <div class="cc-row">
-                <span class="lbl">{{
-                  locale === 'th-TH' ? 'ชื่อผู้ถือบัตร:' : 'Cardholder Name:'
-                }}</span>
-                <strong class="val">{{
-                  cardForm.holder ||
-                  (locale === 'th-TH' ? 'ผู้สั่งซื้อ' : 'Customer')
-                }}</strong>
-              </div>
-            </div>
-          </template>
-
-          <!-- 4. COD View -->
-          <template v-else>
-            <div class="modal-header">
-              <h2 class="modal-title">
-                {{
-                  locale === 'th-TH'
-                    ? 'ยืนยันการสั่งซื้อแบบเก็บเงินปลายทาง'
-                    : 'Confirm Cash on Delivery'
-                }}
-              </h2>
-              <p class="modal-sub">
-                {{
-                  locale === 'th-TH'
-                    ? 'ชำระเงินสดโดยตรงกับเจ้าหน้าที่ขนส่งเมื่อพัสดุจัดส่งถึงมือ'
-                    : 'Pay cash directly to the courier when receiving your parcel.'
-                }}
-              </p>
-            </div>
-
-            <div class="bank-total-card">
-              <span class="bt-label">{{
-                locale === 'th-TH' ? 'ยอดชำระรวม' : 'Total Amount'
-              }}</span>
-              <strong class="bt-amount">{{ formatPrice(totalPayable) }}</strong>
-            </div>
-          </template>
-
-          <!-- Modal Action Button -->
-          <div class="modal-action-row">
-            <button
-              type="button"
-              class="btn-confirm-payment"
-              :disabled="isProcessingPayment"
-              @click="confirmPayment"
-            >
-              <svg
-                v-if="isProcessingPayment"
-                class="spinner"
-                viewBox="0 0 50 50"
-              >
-                <circle
-                  cx="25"
-                  cy="25"
-                  r="20"
-                  fill="none"
-                  stroke-width="4"
-                ></circle>
-              </svg>
-              <span>{{
-                isProcessingPayment
-                  ? locale === 'th-TH'
-                    ? 'กำลังตรวจสอบการชำระเงิน...'
-                    : 'Verifying Payment...'
-                  : selectedPaymentMethod === 'cod'
-                    ? locale === 'th-TH'
-                      ? 'ยืนยันการสั่งซื้อ'
-                      : 'Confirm Order'
-                    : locale === 'th-TH'
-                      ? 'ยืนยันการชำระเงิน'
-                      : 'Confirm Payment'
-              }}</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- STATE B: SUCCESS & RECEIPT -->
-        <div v-else class="modal-body-success">
+    <!-- ORDER CONFIRMATION (CENTERED POPUP) -->
+    <div v-if="placedOrder" class="checkout-modal-backdrop">
+      <div
+        class="checkout-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="order-placed-title"
+      >
+        <div class="modal-body-success">
           <div class="success-icon-wrap">
             <svg
-              width="32"
-              height="32"
+              width="38"
+              height="38"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="#16a34a"
-              stroke-width="2.5"
+              stroke="currentColor"
+              stroke-width="2.4"
+              aria-hidden="true"
             >
               <polyline points="20 6 9 17 4 12" />
             </svg>
           </div>
 
-          <h2 class="success-title">
-            {{
-              locale === 'th-TH'
-                ? 'สั่งซื้อและชำระเงินสำเร็จ'
-                : 'Order Placed Successfully!'
-            }}
+          <h2 id="order-placed-title" class="success-title">
+            {{ locale === 'th-TH' ? 'สั่งซื้อสำเร็จ' : 'Order Placed' }}
           </h2>
           <p class="success-desc">
             {{
-              locale === 'th-TH'
-                ? 'ขอบคุณสำหรับการสั่งซื้อบอร์ดเกมกับ The Parlor ทางร้านกำลังเริ่มจัดเตรียมกล่องพัสดุของคุณ'
-                : 'Thank you for your order with The Parlor. We are preparing your board game parcel.'
+              placedOrder.fulfillmentMethod === 'SHIPPING'
+                ? locale === 'th-TH'
+                  ? 'ขอบคุณสำหรับการสั่งซื้อ ทางร้านกำลังจัดเตรียมพัสดุของคุณ'
+                  : 'Thank you for your order. We are preparing your parcel.'
+                : locale === 'th-TH'
+                  ? 'ขอบคุณสำหรับการสั่งซื้อ ทางร้านกำลังจัดเตรียมสินค้าให้คุณมารับที่สาขา'
+                  : 'Thank you for your order. We are preparing it for pickup at the branch.'
             }}
           </p>
 
@@ -1538,34 +1018,6 @@ onUnmounted(() => {
                 locale === 'th-TH' ? 'หมายเลขคำสั่งซื้อ:' : 'Order ID:'
               }}</span>
               <strong class="val">{{ placedOrder.id }}</strong>
-            </div>
-
-            <div v-if="placedOrder.trackingNumber" class="tracking-row">
-              <div class="tracking-left">
-                <span class="label">{{
-                  locale === 'th-TH'
-                    ? `หมายเลขพัสดุ (${placedOrder.carrierName}):`
-                    : `Tracking No (${placedOrder.carrierName}):`
-                }}</span>
-                <code class="tracking-code">{{
-                  placedOrder.trackingNumber
-                }}</code>
-              </div>
-              <button
-                type="button"
-                class="btn-copy-tracking"
-                @click="copyTracking(placedOrder.trackingNumber)"
-              >
-                {{
-                  copiedTracking
-                    ? locale === 'th-TH'
-                      ? 'คัดลอกแล้ว!'
-                      : 'Copied!'
-                    : locale === 'th-TH'
-                      ? 'คัดลอก'
-                      : 'Copy'
-                }}
-              </button>
             </div>
 
             <div class="summary-lines">
@@ -1580,49 +1032,39 @@ onUnmounted(() => {
               </div>
               <div class="line">
                 <span>{{
-                  locale === 'th-TH' ? 'ยอดเงินที่ชำระ:' : 'Total Paid:'
+                  locale === 'th-TH' ? 'ยอดรวมคำสั่งซื้อ:' : 'Order Total:'
                 }}</span>
                 <strong class="total-green">{{
-                  formatPrice(placedOrder.totalAmount)
+                  formatMinor(placedOrder.total.amountMinor)
                 }}</strong>
               </div>
               <div class="line">
                 <span>{{
-                  locale === 'th-TH'
-                    ? 'กำหนดส่งโดยประมาณ:'
-                    : 'Estimated Delivery:'
+                  locale === 'th-TH' ? 'การชำระเงิน:' : 'Payment:'
                 }}</span>
-                <span class="eta-text">{{
-                  placedOrder.estimatedDeliveryDate
-                }}</span>
+                <span class="eta-text">
+                  {{ placedOrder.payment.cardBrand }} ••••
+                  {{ placedOrder.payment.cardLast4 }}
+                  ·
+                  {{
+                    locale === 'th-TH'
+                      ? 'เรียกเก็บเมื่อส่งมอบสินค้า'
+                      : 'charged at handover'
+                  }}
+                </span>
               </div>
             </div>
           </div>
 
           <div class="success-action-row">
             <button
+              v-if="auth.authenticated"
               type="button"
               class="btn-view-all-orders"
               @click="viewOrdersAndExit"
             >
-              <svg
-                width="15"
-                height="15"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
-                />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-              </svg>
               <span>{{
-                locale === 'th-TH'
-                  ? 'ดูประวัติและติดตามพัสดุ'
-                  : 'View Orders & Tracking'
+                locale === 'th-TH' ? 'ดูคำสั่งซื้อของฉัน' : 'View My Orders'
               }}</span>
             </button>
             <button

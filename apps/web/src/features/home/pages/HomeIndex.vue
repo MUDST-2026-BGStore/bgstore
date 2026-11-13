@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// TODO(branch-catalog-api): Discovery is backed by the catalog API, but saved store
-// selection is a preference only. Wire branch library membership/retail eligibility
-// once branch/inventory reads work before restoring branch or buy/rent filters.
+// TODO(branch-catalog-filters): Discovery lists the whole catalog whatever store is
+// chosen; the chosen store only decides prices and stock on product pages. Branch
+// games can now be read per branch (listBranchGames); use that to add "sold here"
+// and "in this library" filters. Cards deliberately show no price or availability.
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import { storeToRefs } from 'pinia';
 import { RouterLink } from 'vue-router';

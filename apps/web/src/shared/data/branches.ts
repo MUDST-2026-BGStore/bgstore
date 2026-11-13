@@ -1,3 +1,21 @@
+/**
+ * Approximate map positions for the seeded branches, keyed by branch name. The API
+ * has no coordinates, so these stay a frontend-only approximation of the seed
+ * addresses in apps/api/src/maintenance/resources/seed/reference-data.json; a
+ * branch missing here is simply listed without a map pin.
+ */
+const coordinates: Record<string, { lat: number; lng: number }> = {
+  siam: { lat: 13.7449, lng: 100.5338 },
+  ari: { lat: 13.7796, lng: 100.5446 },
+  riverside: { lat: 13.7226, lng: 100.5136 },
+};
+export const branchCoordinates = (name: string) =>
+  coordinates[name.trim().toLocaleLowerCase()];
+
+// TODO(reservation-api): The fixture branches, opening hours, stock and rental
+// libraries below are used only by the legacy reservation preference store and the
+// unused branch comparison component. The storefront reads branches, prices and
+// stock from the API (features/home/stores/branch-directory.ts, api/inventory.ts).
 export interface StoreBranch {
   id: string;
   name: string;
@@ -6,13 +24,6 @@ export interface StoreBranch {
   /** Approximate map position for the address; not a verified geocode. */
   location: { lat: number; lng: number };
 }
-// TODO(branch-api): Replace fictional fixture branches with active branches and
-// configured rental/retail/pickup/shipping capabilities. Only Siam fulfills delivery
-// in this first version. No transfer, split shipment or warehouse aggregation.
-// Canonical seed copy used by the dev database lives in
-// apps/api/src/maintenance/resources/seed/reference-data.json (make seed-dev);
-// keep the two sources in sync until the API replaces this file. Coordinates
-// are frontend-only approximations of the seed addresses.
 export const branches: StoreBranch[] = [
   {
     id: 'siam',

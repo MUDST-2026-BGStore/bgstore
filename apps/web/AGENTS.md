@@ -24,7 +24,11 @@ grid is appropriate. The header should expose language, account and cart control
 do not restore the redundant top menu links or visible Game library heading. Rental browsing shows branch library membership only; live copy counts and
 “Currently rented” belong only in a date/time-aware reservation or arrival flow.
 Keep development/preview notices out of customer-facing copy. Avoid redundant edition captions on product
-cards and use compact cart spacing with a single subtotal divider. No live order/payment flows are wired yet.
+cards and use compact cart spacing with a single subtotal divider. Storefront retail is live: branches, branch prices
+and stock, the server cart, card checkout and My Orders use the API, and the server is authoritative
+for prices, stock and totals. Card details go only to payment tokenization and are never stored or
+logged. PromptPay, bank transfer, cash on delivery, carriers and shipping fees have no backend; do
+not reintroduce them as working options. Reservation and staff workspace screens still use sample data.
 
 Prefer short CSS transitions for state changes and interactions. Respect reduced
 motion and keep content usable immediately. Use GSAP only when a specific complex

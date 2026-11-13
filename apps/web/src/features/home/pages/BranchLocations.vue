@@ -1,10 +1,13 @@
 <script setup lang="ts">
-// Branch directory with a map of every branch. Uses the frontend branch fixture
-// until the branch API exposes addresses and coordinates. TODO(branch-api): phone
-// numbers and per-branch hours when the backend provides them.
+// Branch directory with a map. Names, addresses, phone numbers and opening hours
+// come from the branch API; map positions are frontend approximations, because the
+// API has no coordinates. A branch without a known position is listed without a pin.
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import BranchMap from '../components/BranchMap.vue';
-import { branches, openingHours } from '../data/branches';
+import {
+  useBranchDirectoryStore,
+  type StoreBranch,
+} from '../stores/branch-directory';
 import { useStoreText } from '../data/store-text';
 import { useStoreContextStore } from '../stores/store-context';
 
@@ -15,7 +18,20 @@ const context = useStoreContextStore();
 const query = ref('');
 const openNowOnly = ref(false);
 const filterOpen = ref(false);
-const selectedId = ref(context.branch?.id ?? branches[0]?.id ?? '');
+const directoryStore = useBranchDirectoryStore();
+const branches = computed(() => directoryStore.branches);
+type MappedBranch = StoreBranch & { location: { lat: number; lng: number } };
+const mapPoints = computed(() =>
+  branches.value.filter((branch): branch is MappedBranch =>
+    Boolean(branch.location),
+  ),
+);
+const selectedId = ref(context.branch?.id ?? '');
+onMounted(async () => {
+  await directoryStore.load();
+  if (!branches.value.some((branch) => branch.id === selectedId.value))
+    selectedId.value = context.branch?.id ?? branches.value[0]?.id ?? '';
+});
 const expandedId = ref('');
 const locating = ref(false);
 const locateError = ref('');
@@ -94,50 +110,77 @@ function formatTime(time: string) {
   const [h = 0, m = 0] = time.split(':').map(Number);
   return timeFormatter.value.format(new Date(Date.UTC(2024, 0, 1, h, m)));
 }
-const status = computed(() => {
+const WEEKDAYS = [
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
+  'SUNDAY',
+] as const;
+// A branch may open more than once a day; periods are kept in opening order.
+const periodsOn = (branch: StoreBranch, day: number) =>
+  branch.openingHours
+    .filter((period) => period.dayOfWeek === WEEKDAYS[day - 1])
+    .sort((a, b) => toMinutes(a.opensAt) - toMinutes(b.opensAt));
+function statusOf(branch: StoreBranch) {
   const { day, minutes } = branchClock.value;
-  const today = openingHours.find((entry) => entry.day === day);
-  if (today && minutes >= toMinutes(today.opens)) {
-    if (minutes < toMinutes(today.closes))
-      return {
-        open: true,
-        text: t('Open until {time}', { time: formatTime(today.closes) }),
-      };
-  } else if (today) {
+  const today = periodsOn(branch, day);
+  const current = today.find(
+    (period) =>
+      minutes >= toMinutes(period.opensAt) &&
+      minutes < toMinutes(period.closesAt),
+  );
+  if (current)
+    return {
+      open: true,
+      text: t('Open until {time}', { time: formatTime(current.closesAt) }),
+    };
+  const later = today.find((period) => minutes < toMinutes(period.opensAt));
+  if (later)
     return {
       open: false,
-      text: t('Closed · Opens at {time}', { time: formatTime(today.opens) }),
+      text: t('Closed · Opens at {time}', { time: formatTime(later.opensAt) }),
     };
-  }
-  const tomorrow = openingHours.find((entry) => entry.day === (day % 7) + 1);
+  const tomorrow = periodsOn(branch, (day % 7) + 1)[0];
   return {
     open: false,
     text: tomorrow
       ? t('Closed · Opens tomorrow at {time}', {
-          time: formatTime(tomorrow.opens),
+          time: formatTime(tomorrow.opensAt),
         })
       : t('Closed'),
   };
-});
-
+}
 const dayFormatter = computed(
   () => new Intl.DateTimeFormat(locale.value, { weekday: 'long' }),
 );
 // 2024-01-01 is a Monday; ISO weekday 1..7 maps onto Jan 1..7.
-const hours = computed(() =>
-  openingHours.map((entry) => ({
-    ...entry,
-    label: dayFormatter.value.format(new Date(2024, 0, entry.day)),
-    range: `${formatTime(entry.opens)} – ${formatTime(entry.closes)}`,
-    today: entry.day === branchClock.value.day,
-  })),
-);
-
+function hoursOf(branch: StoreBranch) {
+  return WEEKDAYS.map((_, index) => {
+    const day = index + 1;
+    const periods = periodsOn(branch, day);
+    return {
+      day,
+      label: dayFormatter.value.format(new Date(2024, 0, day)),
+      range: periods.length
+        ? periods
+            .map(
+              (period) =>
+                `${formatTime(period.opensAt)} – ${formatTime(period.closesAt)}`,
+            )
+            .join(', ')
+        : t('Closed'),
+      today: day === branchClock.value.day,
+    };
+  });
+}
 const filtered = computed(() => {
   const q = query.value.trim().toLocaleLowerCase();
-  const matches = branches.filter(
+  const matches = branches.value.filter(
     (branch) =>
-      (!openNowOnly.value || status.value.open) &&
+      (!openNowOnly.value || statusOf(branch).open) &&
       (!q ||
         [branch.name, t(branch.name), branch.address].some((value) =>
           value.toLocaleLowerCase().includes(q),
@@ -166,8 +209,12 @@ function toggleInfo(id: string) {
 function toggleMyBranch(id: string) {
   context.select(context.branch?.id === id ? 'browse' : id);
 }
-const directionsUrl = (branch: (typeof branches)[number]) =>
-  `https://www.google.com/maps/dir/?api=1&destination=${branch.location.lat},${branch.location.lng}`;
+const directionsUrl = (branch: StoreBranch) =>
+  `https://www.google.com/maps/dir/?api=1&destination=${
+    branch.location
+      ? `${branch.location.lat},${branch.location.lng}`
+      : encodeURIComponent(branch.address)
+  }`;
 
 function distanceKm(
   a: { lat: number; lng: number },
@@ -193,11 +240,11 @@ function findNearest() {
       locating.value = false;
       const here = { lat: coords.latitude, lng: coords.longitude };
       const result: Record<string, number> = {};
-      for (const branch of branches)
+      for (const branch of mapPoints.value)
         result[branch.id] = distanceKm(here, branch.location);
       distances.value = result;
       query.value = '';
-      const nearest = [...branches].sort(
+      const nearest = [...mapPoints.value].sort(
         (a, b) => (result[a.id] ?? 0) - (result[b.id] ?? 0),
       )[0];
       if (nearest) void select(nearest.id);
@@ -282,9 +329,11 @@ watch(filterOpen, (open) => {
                 @click="select(branch.id)"
               >
                 <strong>{{ t(branch.name) }}</strong>
-                <span class="status" :class="{ closed: !status.open }">{{
-                  status.text
-                }}</span>
+                <span
+                  class="status"
+                  :class="{ closed: !statusOf(branch).open }"
+                  >{{ statusOf(branch).text }}</span
+                >
                 <span
                   v-if="distances[branch.id] !== undefined"
                   class="distance"
@@ -337,9 +386,12 @@ watch(filterOpen, (open) => {
               class="details"
             >
               <p>{{ branch.address }}</p>
+              <p v-if="branch.phone">
+                <a :href="`tel:${branch.phone}`">{{ branch.phone }}</a>
+              </p>
               <dl class="hours">
                 <div
-                  v-for="entry in hours"
+                  v-for="entry in hoursOf(branch)"
                   :key="entry.day"
                   :class="{ today: entry.today }"
                 >
@@ -356,7 +408,17 @@ watch(filterOpen, (open) => {
             </div>
           </li>
         </ul>
-        <p v-if="!filtered.length" class="notice" role="status">
+        <p v-if="directoryStore.status === 'error'" class="notice" role="alert">
+          {{ t('Branches could not be loaded.') }}
+        </p>
+        <p
+          v-else-if="directoryStore.status !== 'ready'"
+          class="notice"
+          role="status"
+        >
+          {{ t('Loading branches…') }}
+        </p>
+        <p v-else-if="!filtered.length" class="notice" role="status">
           {{ t('No matching branches. Try another name.') }}
         </p>
       </aside>
@@ -364,7 +426,7 @@ watch(filterOpen, (open) => {
       <div class="map-panel">
         <BranchMap
           ref="branchMap"
-          :points="branches"
+          :points="mapPoints"
           :selected-id="selectedId"
           :locating="locating"
           :occluded="occluded"

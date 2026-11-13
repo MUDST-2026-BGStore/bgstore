@@ -1,30 +1,46 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useOrdersStore, type RetailOrder } from '../stores/orders';
+import { useQueryClient } from '@tanstack/vue-query';
+import { cancelOrder, type Order } from '@theparlor/api-client';
+import { useOrdersStore } from '../stores/orders';
 import { useCartStore } from '../stores/cart';
-import { formatPrice } from '../data/catalog';
+import { useAuthStore } from '../../../shared/stores/auth';
+import { formatMinor } from '../data/catalog';
+import { useGameCovers } from '../api/catalog';
+import { MY_ORDERS_QUERY_KEY, useMyOrders } from '../api/orders';
 import { useStoreText } from '../data/store-text';
 
 const router = useRouter();
 const ordersStore = useOrdersStore();
 const cart = useCartStore();
+const auth = useAuthStore();
+const queryClient = useQueryClient();
+const coverOf = useGameCovers();
 const { locale } = useStoreText();
 
 const dialog = ref<HTMLDialogElement | null>(null);
 
-// Shopee-style Order Tabs
-export type ShopeeOrderTab = 'ALL' | 'TO_SHIP' | 'TO_RECEIVE' | 'COMPLETED';
-const activeTab = ref<ShopeeOrderTab>('ALL');
+// Orders have three server states; there is no separate "shipped" step yet.
+export type OrderTab = 'ALL' | 'PLACED' | 'FULFILLED' | 'CANCELLED';
+const activeTab = ref<OrderTab>('ALL');
 const searchQuery = ref('');
-const copiedOrderId = ref<string | null>(null);
+const actionError = ref('');
+const cancelling = ref<string | null>(null);
+
+const orders = useMyOrders(
+  () => ordersStore.isOrdersModalOpen && auth.authenticated,
+);
+const allOrders = computed(() => orders.data.value ?? []);
+const placedCount = computed(
+  () => allOrders.value.filter((order) => order.status === 'PLACED').length,
+);
 
 function syncModalState(isOpen: boolean) {
   if (!dialog.value) return;
   if (isOpen) {
-    if (ordersStore.activeOrderToTrack) {
-      activeTab.value = 'ALL';
-    }
+    if (ordersStore.activeOrderId) activeTab.value = 'ALL';
+    actionError.value = '';
     if (!dialog.value.open) {
       if (typeof dialog.value.showModal === 'function') {
         try {
@@ -36,17 +52,15 @@ function syncModalState(isOpen: boolean) {
         dialog.value.setAttribute('open', '');
       }
     }
-  } else {
-    if (dialog.value.open) {
-      if (typeof dialog.value.close === 'function') {
-        try {
-          dialog.value.close();
-        } catch {
-          dialog.value.removeAttribute('open');
-        }
-      } else {
+  } else if (dialog.value.open) {
+    if (typeof dialog.value.close === 'function') {
+      try {
+        dialog.value.close();
+      } catch {
         dialog.value.removeAttribute('open');
       }
+    } else {
+      dialog.value.removeAttribute('open');
     }
   }
 }
@@ -60,33 +74,17 @@ watch(
   { immediate: true },
 );
 
-// Map Orders to Shopee Tabs
 const filteredOrders = computed(() => {
-  let list = ordersStore.orders;
-
-  // Filter by Tab
-  if (activeTab.value === 'TO_SHIP') {
+  let list = allOrders.value;
+  if (activeTab.value !== 'ALL')
+    list = list.filter((order) => order.status === activeTab.value);
+  const q = searchQuery.value.trim().toLowerCase();
+  if (q)
     list = list.filter(
-      (o) => o.paymentStatus === 'PAID' && o.fulfillmentStatus === 'PROCESSING',
+      (order) =>
+        order.id.toLowerCase().includes(q) ||
+        order.items.some((item) => item.gameName.toLowerCase().includes(q)),
     );
-  } else if (activeTab.value === 'TO_RECEIVE') {
-    list = list.filter(
-      (o) => o.paymentStatus === 'PAID' && o.fulfillmentStatus === 'SHIPPED',
-    );
-  } else if (activeTab.value === 'COMPLETED') {
-    list = list.filter((o) => o.fulfillmentStatus === 'DELIVERED');
-  }
-
-  // Filter by Search Query (Order ID or Product Name)
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.trim().toLowerCase();
-    list = list.filter(
-      (o) =>
-        o.id.toLowerCase().includes(q) ||
-        o.items.some((item) => item.gameName.toLowerCase().includes(q)),
-    );
-  }
-
   return list;
 });
 
@@ -94,22 +92,48 @@ function handleClose() {
   ordersStore.closeOrdersModal();
 }
 
-function copyTracking(orderId: string, trackingNo: string) {
-  void navigator.clipboard.writeText(trackingNo);
-  copiedOrderId.value = orderId;
-  setTimeout(() => {
-    if (copiedOrderId.value === orderId) {
-      copiedOrderId.value = null;
-    }
-  }, 2000);
-}
-
-function buyAgain(order: RetailOrder) {
-  for (const item of order.items) {
-    cart.add(item.variantId, item.quantity);
+async function buyAgain(order: Order) {
+  actionError.value = '';
+  let added = 0;
+  for (const item of order.items)
+    if (await cart.add(item.editionId, item.quantity)) added++;
+  if (!added) {
+    actionError.value =
+      locale.value === 'th-TH'
+        ? 'ไม่สามารถเพิ่มสินค้าจากคำสั่งซื้อนี้ลงตะกร้าได้ในขณะนี้'
+        : 'None of these items can be added to your cart right now.';
+    return;
   }
   handleClose();
   router.push('/cart');
+}
+
+/** Customers can cancel an order until staff hand it over; the card is not charged. */
+async function cancel(order: Order) {
+  const confirmed = window.confirm(
+    locale.value === 'th-TH'
+      ? 'ยกเลิกคำสั่งซื้อนี้ใช่หรือไม่ ระบบจะไม่เรียกเก็บเงินจากบัตรของคุณ'
+      : 'Cancel this order? Your card will not be charged.',
+  );
+  if (!confirmed) return;
+  actionError.value = '';
+  cancelling.value = order.id;
+  try {
+    await cancelOrder(order.branchId, order.id, {
+      reason: 'Cancelled by customer',
+    });
+    await queryClient.invalidateQueries({ queryKey: MY_ORDERS_QUERY_KEY });
+    void queryClient.invalidateQueries({
+      queryKey: ['storefront', 'offering'],
+    });
+  } catch {
+    actionError.value =
+      locale.value === 'th-TH'
+        ? 'ไม่สามารถยกเลิกคำสั่งซื้อนี้ได้'
+        : 'This order could not be cancelled.';
+  } finally {
+    cancelling.value = null;
+  }
 }
 
 function contactStore() {
@@ -120,92 +144,58 @@ function contactStore() {
   );
 }
 
-function formatEditionLabel(edition: string): string {
-  if (locale.value === 'th-TH') {
-    if (edition.includes('Thai') || edition.includes('thai'))
-      return 'ฉบับภาษาไทย';
-    if (edition.includes('English') || edition.includes('english'))
-      return 'ฉบับภาษาอังกฤษ';
-  } else {
-    if (edition.includes('ไทย')) return 'Thai edition';
-    if (edition.includes('อังกฤษ')) return 'English edition';
+function editionLabel(language: string): string {
+  try {
+    return (
+      new Intl.DisplayNames([locale.value], { type: 'language' }).of(
+        language,
+      ) || language
+    );
+  } catch {
+    return language;
   }
-  return edition;
 }
 
-function formatCarrierName(carrierName?: string): string {
-  if (!carrierName) return locale.value === 'th-TH' ? 'พัสดุ' : 'Parcel';
-  const isSameDay =
-    carrierName.includes('Same-Day') ||
-    carrierName.includes('sameday') ||
-    carrierName.includes('ภายในวัน');
-  if (isSameDay) {
-    return locale.value === 'th-TH' ? 'ส่งด่วนภายในวันนี้' : 'Same-Day Courier';
-  }
-  return carrierName;
-}
-
-function formatDeliveryEta(eta?: string): string {
-  if (!eta) return '';
-  const isTomorrow = eta.includes('Tomorrow') || eta.includes('พรุ่งนี้');
-  const isDelivered = eta.includes('Delivered') || eta.includes('สำเร็จ');
-  const isBusinessDays =
-    eta.includes('business days') ||
-    eta.includes('In 1-2') ||
-    eta.includes('วันทำการ');
-  const isSameDay =
-    eta.includes('Same-Day') ||
-    eta.includes('within today') ||
-    eta.includes('Within today') ||
-    eta.includes('ภายในวันนี้');
-
-  if (locale.value === 'th-TH') {
-    if (isTomorrow) return 'จัดส่งถึงพรุ่งนี้ ภายใน 18:00 น.';
-    if (isDelivered) return 'จัดส่งสำเร็จแล้ว';
-    if (isBusinessDays) return 'จัดส่งถึงภายใน 1-2 วันทำการ';
-    if (isSameDay) return 'ได้รับภายในวันนี้ (ก่อน 21:00 น.)';
-  } else {
-    if (isTomorrow) return 'Tomorrow, by 18:00';
-    if (isDelivered) return 'Delivered';
-    if (isBusinessDays) return 'In 1-2 business days';
-    if (isSameDay) return 'Within today (by 21:00)';
-  }
-  return eta;
-}
-
-function getStatusLabel(order: RetailOrder): {
-  text: string;
-  colorClass: string;
-} {
+function paymentLabel(order: Order): string {
   const isTh = locale.value === 'th-TH';
-  if (order.paymentStatus === 'PENDING') {
+  const payment = order.payment;
+  if (payment.method === 'COUNTER')
+    return isTh ? 'ชำระที่เคาน์เตอร์' : 'Paid at the counter';
+  const card =
+    `${payment.cardBrand ?? ''} •••• ${payment.cardLast4 ?? ''}`.trim();
+  switch (payment.status) {
+    case 'CAPTURED':
+      return isTh ? `ชำระแล้วด้วย ${card}` : `Paid with ${card}`;
+    case 'VOIDED':
+      return isTh ? `ไม่มีการเรียกเก็บเงิน (${card})` : `Not charged (${card})`;
+    default:
+      return isTh
+        ? `กันวงเงินไว้ที่ ${card} จะเรียกเก็บเมื่อส่งมอบสินค้า`
+        : `Reserved on ${card}; charged at handover`;
+  }
+}
+
+function getStatusLabel(order: Order): { text: string; colorClass: string } {
+  const isTh = locale.value === 'th-TH';
+  if (order.status === 'CANCELLED')
     return {
-      text: isTh ? 'ที่ต้องชำระ' : 'To Pay',
+      text: isTh ? 'ยกเลิกแล้ว' : 'Cancelled',
       colorClass: 'status-unpaid',
     };
-  }
-  if (order.fulfillmentStatus === 'PROCESSING') {
-    return {
-      text: isTh ? 'กำลังเตรียมจัดส่ง' : 'Preparing Shipment',
-      colorClass: 'status-toship',
-    };
-  }
-  if (order.fulfillmentStatus === 'SHIPPED') {
-    return {
-      text: isTh ? 'กำลังจัดส่ง' : 'To Receive',
-      colorClass: 'status-toreceive',
-    };
-  }
-  if (order.fulfillmentStatus === 'DELIVERED') {
+  if (order.status === 'FULFILLED')
     return {
       text: isTh ? 'สำเร็จแล้ว' : 'Completed',
       colorClass: 'status-completed',
     };
-  }
-  return {
-    text: isTh ? 'สำเร็จแล้ว' : 'Completed',
-    colorClass: 'status-completed',
-  };
+  return order.fulfillmentMethod === 'SHIPPING'
+    ? {
+        text: isTh ? 'กำลังเตรียมจัดส่ง' : 'Preparing Shipment',
+        colorClass: 'status-toship',
+      }
+    : {
+        text: isTh ? 'กำลังเตรียมสินค้าให้รับที่สาขา' : 'Preparing for Pickup',
+        colorClass: 'status-toship',
+      };
 }
 </script>
 
@@ -245,7 +235,7 @@ function getStatusLabel(order: RetailOrder): {
         </button>
       </div>
 
-      <!-- 2. SHOPEE STATUS TABS (All, ที่ต้องจัดส่ง, ที่ต้องได้รับ, สำเร็จแล้ว) -->
+      <!-- 2. STATUS TABS -->
       <nav class="shopee-tabs-nav" aria-label="Order status tabs">
         <button
           type="button"
@@ -253,40 +243,34 @@ function getStatusLabel(order: RetailOrder): {
           :class="{ active: activeTab === 'ALL' }"
           @click="activeTab = 'ALL'"
         >
-          <span>All</span>
+          <span>{{ locale === 'th-TH' ? 'ทั้งหมด' : 'All' }}</span>
         </button>
         <button
           type="button"
           class="shopee-tab"
-          :class="{ active: activeTab === 'TO_SHIP' }"
-          @click="activeTab = 'TO_SHIP'"
+          :class="{ active: activeTab === 'PLACED' }"
+          @click="activeTab = 'PLACED'"
         >
-          <span>{{ locale === 'th-TH' ? 'ที่ต้องจัดส่ง' : 'To Ship' }}</span>
-          <span
-            v-if="ordersStore.pendingFulfillmentCount > 0"
-            class="tab-badge"
-          >
-            {{ ordersStore.pendingFulfillmentCount }}
-          </span>
+          <span>{{ locale === 'th-TH' ? 'กำลังเตรียม' : 'In Progress' }}</span>
+          <span v-if="placedCount > 0" class="tab-badge">{{
+            placedCount
+          }}</span>
         </button>
         <button
           type="button"
           class="shopee-tab"
-          :class="{ active: activeTab === 'TO_RECEIVE' }"
-          @click="activeTab = 'TO_RECEIVE'"
-        >
-          <span>{{ locale === 'th-TH' ? 'ที่ต้องได้รับ' : 'To Receive' }}</span>
-          <span v-if="ordersStore.inTransitCount > 0" class="tab-badge">
-            {{ ordersStore.inTransitCount }}
-          </span>
-        </button>
-        <button
-          type="button"
-          class="shopee-tab"
-          :class="{ active: activeTab === 'COMPLETED' }"
-          @click="activeTab = 'COMPLETED'"
+          :class="{ active: activeTab === 'FULFILLED' }"
+          @click="activeTab = 'FULFILLED'"
         >
           <span>{{ locale === 'th-TH' ? 'สำเร็จแล้ว' : 'Completed' }}</span>
+        </button>
+        <button
+          type="button"
+          class="shopee-tab"
+          :class="{ active: activeTab === 'CANCELLED' }"
+          @click="activeTab = 'CANCELLED'"
+        >
+          <span>{{ locale === 'th-TH' ? 'ยกเลิกแล้ว' : 'Cancelled' }}</span>
         </button>
       </nav>
 
@@ -326,22 +310,51 @@ function getStatusLabel(order: RetailOrder): {
 
       <!-- 4. ORDERS LIST AREA -->
       <div class="orders-scroll-area">
-        <!-- Empty State -->
-        <div v-if="filteredOrders.length === 0" class="empty-orders-view">
-          <svg
-            width="56"
-            height="56"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#c6ad7a"
-            stroke-width="1.3"
+        <p v-if="actionError" class="orders-alert" role="alert">
+          {{ actionError }}
+        </p>
+        <!-- Guests have no order history; orders belong to an account. -->
+        <div v-if="!auth.authenticated" class="empty-orders-view">
+          <p>
+            {{
+              locale === 'th-TH'
+                ? 'เข้าสู่ระบบเพื่อดูคำสั่งซื้อของคุณ'
+                : 'Sign in to see your orders.'
+            }}
+          </p>
+        </div>
+        <div
+          v-else-if="orders.isPending.value"
+          class="empty-orders-view"
+          role="status"
+        >
+          <p>
+            {{
+              locale === 'th-TH' ? 'กำลังโหลดคำสั่งซื้อ…' : 'Loading orders…'
+            }}
+          </p>
+        </div>
+        <div
+          v-else-if="orders.isError.value"
+          class="empty-orders-view"
+          role="alert"
+        >
+          <p>
+            {{
+              locale === 'th-TH'
+                ? 'ไม่สามารถโหลดคำสั่งซื้อได้'
+                : 'Your orders could not be loaded.'
+            }}
+          </p>
+          <button
+            type="button"
+            class="btn-shopee-secondary"
+            @click="orders.refetch()"
           >
-            <path
-              d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
-            />
-            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-            <line x1="12" y1="22.08" x2="12" y2="12" />
-          </svg>
+            {{ locale === 'th-TH' ? 'ลองอีกครั้ง' : 'Try again' }}
+          </button>
+        </div>
+        <div v-else-if="filteredOrders.length === 0" class="empty-orders-view">
           <p>
             {{
               locale === 'th-TH'
@@ -399,16 +412,16 @@ function getStatusLabel(order: RetailOrder): {
             <div class="card-items-block">
               <div
                 v-for="item in order.items"
-                :key="item.variantId"
+                :key="item.editionId"
                 class="order-item-line"
               >
                 <img
-                  :src="item.imageUrl"
+                  v-if="coverOf(item.gameId)"
+                  :src="coverOf(item.gameId)"
                   :alt="item.gameName"
                   class="order-item-thumb"
-                  width="72"
-                  height="72"
                 />
+                <span v-else class="order-item-thumb" aria-hidden="true"></span>
                 <div class="order-item-desc">
                   <h4 class="order-item-title">{{ item.gameName }}</h4>
                   <div class="order-item-options">
@@ -416,58 +429,17 @@ function getStatusLabel(order: RetailOrder): {
                       >{{
                         locale === 'th-TH' ? 'ตัวเลือกสินค้า:' : 'Edition:'
                       }}
-                      {{ formatEditionLabel(item.edition) }}</span
+                      {{ editionLabel(item.editionLanguage) }}</span
                     >
                   </div>
                   <div class="order-item-qty">x{{ item.quantity }}</div>
                 </div>
                 <div class="order-item-pricing">
                   <span class="curr-price">{{
-                    formatPrice(item.unitPrice)
+                    formatMinor(item.unitPrice.amountMinor)
                   }}</span>
                 </div>
               </div>
-            </div>
-
-            <!-- Tracking Banner if available -->
-            <div v-if="order.trackingNumber" class="tracking-snippet-bar">
-              <div class="ts-left">
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <rect x="1" y="3" width="15" height="13" />
-                  <polygon points="16 8 20 8 23 11 23 16 16 16 16 8" />
-                  <circle cx="5.5" cy="18.5" r="2.5" />
-                  <circle cx="18.5" cy="18.5" r="2.5" />
-                </svg>
-                <span
-                  >{{ formatCarrierName(order.carrierName) }}:
-                  <strong>{{ order.trackingNumber }}</strong></span
-                >
-                <span v-if="order.estimatedDeliveryDate" class="ts-eta"
-                  >({{ formatDeliveryEta(order.estimatedDeliveryDate) }})</span
-                >
-              </div>
-              <button
-                type="button"
-                class="btn-copy-code"
-                @click="copyTracking(order.id, order.trackingNumber)"
-              >
-                {{
-                  copiedOrderId === order.id
-                    ? locale === 'th-TH'
-                      ? 'คัดลอกแล้ว!'
-                      : 'Copied!'
-                    : locale === 'th-TH'
-                      ? 'คัดลอก'
-                      : 'Copy'
-                }}
-              </button>
             </div>
 
             <!-- Card Bottom: Total Price + Action Buttons -->
@@ -477,17 +449,30 @@ function getStatusLabel(order: RetailOrder): {
                   locale === 'th-TH' ? 'รวมการสั่งซื้อ:' : 'Order Total:'
                 }}</span>
                 <strong class="val-total-purchase">{{
-                  formatPrice(order.totalAmount)
+                  formatMinor(order.total.amountMinor)
                 }}</strong>
+                <span class="order-payment-line">{{
+                  paymentLabel(order)
+                }}</span>
               </div>
 
               <div class="footer-buttons-group">
                 <button
                   type="button"
                   class="btn-shopee-primary"
+                  :disabled="cart.busy"
                   @click="buyAgain(order)"
                 >
                   {{ locale === 'th-TH' ? 'ซื้ออีกครั้ง' : 'Buy Again' }}
+                </button>
+                <button
+                  v-if="order.status === 'PLACED'"
+                  type="button"
+                  class="btn-shopee-secondary"
+                  :disabled="cancelling === order.id"
+                  @click="cancel(order)"
+                >
+                  {{ locale === 'th-TH' ? 'ยกเลิกคำสั่งซื้อ' : 'Cancel Order' }}
                 </button>
                 <button
                   type="button"
@@ -506,6 +491,21 @@ function getStatusLabel(order: RetailOrder): {
 </template>
 
 <style scoped>
+.orders-alert {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #e2b4ad;
+  border-radius: 4px;
+  background: #fdf1ef;
+  color: #a12a1c;
+  font-size: 13px;
+}
+.order-payment-line {
+  display: block;
+  margin-top: 2px;
+  color: #5c6a61;
+  font-size: 12px;
+}
 .shopee-orders-modal {
   position: fixed;
   inset: 0;

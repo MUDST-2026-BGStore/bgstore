@@ -1,10 +1,10 @@
 <script setup lang="ts">
-// TODO(product-commerce-api): Catalog details/editions below are live API reads.
-// Add purchasing only after branch edition prices/stock, server cart and checkout
-// work; add rentals only with a visit interval and server availability/allocation.
+// Catalog details and editions come from the catalog API; price, sale stock and
+// play-library membership come from the branch chosen in the store selector.
+// Rental availability is never shown here: it depends on a visit date and time.
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
-import { range } from '../data/catalog';
+import { formatMinor, range } from '../data/catalog';
 import { useStoreText } from '../data/store-text';
 import {
   useProduct,
@@ -16,6 +16,9 @@ import {
 } from '../api/catalog';
 import StoreContext from '../components/StoreContext.vue';
 import StoreAccordion from '../components/StoreAccordion.vue';
+import { useBranchOffering } from '../api/inventory';
+import { useStoreContextStore } from '../stores/store-context';
+import { useCartStore } from '../stores/cart';
 
 const route = useRoute();
 const { t, locale } = useStoreText();
@@ -60,12 +63,72 @@ watch(
 onBeforeUnmount(() => {
   document.title = originalTitle;
 });
-// Catalog/edition identity is authoritative. Price, stock, branch membership and
-// checkout remain unavailable until their own APIs are implemented; no fixture join.
+
+// Price and stock follow the browsing preference only; the cart's own fulfillment
+// choice never changes what this page shows.
+const context = useStoreContextStore();
+const cart = useCartStore();
+const storeContext = ref<InstanceType<typeof StoreContext>>();
+const offering = useBranchOffering(
+  () => context.stockBranch?.id,
+  () => game.value?.id,
+);
+const stocked = computed(() => offering.data.value?.editions ?? []);
+const selectedEditionId = ref('');
+const selected = computed(
+  () =>
+    stocked.value.find(
+      (edition) => edition.editionId === selectedEditionId.value,
+    ) ?? stocked.value[0],
+);
+// Keep the select on a real option when the store, and so the stocked editions, change.
+watch(
+  stocked,
+  (editions) => {
+    if (!editions.some((e) => e.editionId === selectedEditionId.value))
+      selectedEditionId.value = editions[0]?.editionId ?? '';
+  },
+  { immediate: true },
+);
+const quantity = ref(1);
+const maxQuantity = computed(() =>
+  Math.min(99, selected.value?.saleAvailable ?? 0),
+);
+const added = ref<'added' | 'stock' | 'error' | ''>('');
+watch([() => selected.value?.editionId, () => context.stockBranch?.id], () => {
+  quantity.value = 1;
+  added.value = '';
+});
+function editionLabel(edition: { languageCode: string; editionKind: string }) {
+  const language = languageName(edition.languageCode);
+  return edition.editionKind === 'EXPANSION'
+    ? `${language} · ${t('Expansion')}`
+    : language;
+}
+async function addToCart() {
+  const edition = selected.value;
+  const branch = context.stockBranch;
+  if (!edition || !branch) return;
+  if (
+    !Number.isSafeInteger(quantity.value) ||
+    quantity.value < 1 ||
+    quantity.value > maxQuantity.value
+  ) {
+    added.value = 'stock';
+    return;
+  }
+  added.value = '';
+  const ok = await cart.add(edition.editionId, quantity.value, {
+    method: context.choice === 'online' ? 'shipping' : 'pickup',
+    branchId: branch.id,
+  });
+  added.value = ok ? 'added' : cart.lastFailure === 'stock' ? 'stock' : 'error';
+  if (ok) quantity.value = 1;
+}
 </script>
 <template>
   <div class="product-page">
-    <StoreContext />
+    <StoreContext ref="storeContext" />
     <nav class="product-breadcrumb" :aria-label="t('Breadcrumb')">
       <RouterLink :to="{ name: 'HomeIndex' }">{{ t('All games') }}</RouterLink>
       <span aria-hidden="true">/</span
@@ -149,9 +212,129 @@ onBeforeUnmount(() => {
             }}
           </li>
         </ul>
-        <p class="muted" role="status">
-          {{ t('Price and stock information is unavailable.') }}
-        </p>
+        <section class="product-purchase" :aria-label="t('Price and stock')">
+          <p v-if="!context.stockBranch" class="muted">
+            {{
+              context.choice === 'online'
+                ? t('Online orders are not available right now.')
+                : t('Choose a store to see prices and stock.')
+            }}
+            <button
+              v-if="context.choice !== 'online'"
+              type="button"
+              class="link-button"
+              @click="storeContext?.open()"
+            >
+              {{ t('Choose a store') }}
+            </button>
+          </p>
+          <p v-else-if="offering.isPending.value" class="muted" role="status">
+            {{ t('Loading price and stock…') }}
+          </p>
+          <div v-else-if="offering.isError.value" role="alert">
+            <p>{{ t('Price and stock could not be loaded.') }}</p>
+            <button
+              type="button"
+              class="link-button"
+              @click="offering.refetch()"
+            >
+              {{ t('Try again') }}
+            </button>
+          </div>
+          <p
+            v-else-if="!selected || !offering.data.value?.saleEnabled"
+            class="muted"
+          >
+            {{
+              context.choice === 'online'
+                ? t('Not sold online.')
+                : t('Not sold at {branch}.', {
+                    branch: t(context.stockBranch.name),
+                  })
+            }}
+          </p>
+          <form v-else class="purchase-form" @submit.prevent="addToCart">
+            <label v-if="stocked.length > 1">
+              <span>{{ t('Edition') }}</span>
+              <select v-model="selectedEditionId" name="edition">
+                <option
+                  v-for="edition in stocked"
+                  :key="edition.editionId"
+                  :value="edition.editionId"
+                >
+                  {{ editionLabel(edition) }}
+                </option>
+              </select>
+            </label>
+            <p v-else class="purchase-edition">{{ editionLabel(selected) }}</p>
+            <p class="product-price">
+              {{ formatMinor(selected.salePrice.amountMinor) }}
+            </p>
+            <p class="stock-line">
+              {{
+                selected.saleAvailable === 0
+                  ? t('Sold out')
+                  : selected.saleAvailable <= 3
+                    ? t('Only {count} left', { count: selected.saleAvailable })
+                    : t('In stock')
+              }}
+              <span class="stock-place">
+                ·
+                {{
+                  context.choice === 'online'
+                    ? t('For delivery')
+                    : t('Pickup at {branch}', {
+                        branch: t(context.stockBranch.name),
+                      })
+                }}
+              </span>
+            </p>
+            <label class="quantity-field">
+              <span>{{ t('Quantity') }}</span>
+              <input
+                v-model.number="quantity"
+                type="number"
+                name="quantity"
+                inputmode="numeric"
+                min="1"
+                :max="Math.max(1, maxQuantity)"
+                :disabled="maxQuantity === 0"
+              />
+            </label>
+            <button
+              type="submit"
+              class="add-to-cart"
+              :disabled="maxQuantity === 0 || cart.busy"
+            >
+              {{ t('Add to cart') }}
+            </button>
+            <p v-if="added === 'added'" class="purchase-note" role="status">
+              {{ t('Added to your cart.') }}
+              <RouterLink to="/cart">{{ t('View cart') }}</RouterLink>
+            </p>
+            <p v-else-if="added === 'stock'" class="purchase-note" role="alert">
+              {{ t('That quantity is not available for your cart.') }}
+            </p>
+            <p v-else-if="added === 'error'" class="purchase-note" role="alert">
+              {{ t('The cart could not be updated. Try again.') }}
+            </p>
+          </form>
+          <p v-if="context.branch && offering.data.value" class="library-line">
+            {{
+              offering.data.value.rentalEnabled
+                ? t('In the rental library')
+                : t('Not in this library')
+            }}
+            <span
+              v-if="
+                offering.data.value.rentalEnabled &&
+                offering.data.value.staffCanTeach
+              "
+            >
+              · {{ t('Staff can teach this game') }}
+            </span>
+          </p>
+        </section>
         <div class="product-accordions">
           <StoreAccordion :key="game.id" :title="t('Game details')">
             <dl>
@@ -327,6 +510,59 @@ button:disabled {
 h2 {
   font-size: 14px;
   font-weight: 600;
+}
+.product-purchase {
+  margin: 4px 0 28px;
+  padding: 20px 0;
+  border-block: 1px solid var(--line);
+}
+.purchase-form {
+  display: grid;
+  gap: 12px;
+  max-width: 420px;
+}
+.product-price {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.stock-line,
+.purchase-edition,
+.library-line {
+  font-size: 13px;
+  color: var(--muted);
+}
+.library-line {
+  margin-top: 14px;
+}
+.quantity-field input {
+  max-width: 120px;
+}
+.add-to-cart {
+  width: 100%;
+  padding: 13px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+.add-to-cart:hover:not(:disabled) {
+  background: #1b3a2b;
+}
+.purchase-note {
+  font-size: 13px;
+}
+.purchase-note a,
+.link-button {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .muted {
   color: var(--muted);

@@ -1,5 +1,34 @@
 import { useLocale } from './locale';
 const thai: Record<string, string> = {
+  'For delivery': 'สำหรับจัดส่ง',
+  'Prices and stock': 'ราคาและจำนวนสินค้า',
+  'Prices and stock are shown for the store you choose.':
+    'ราคาและจำนวนสินค้าจะแสดงตามร้านที่คุณเลือก',
+  'Delivery prices and stock.': 'ราคาและจำนวนสินค้าสำหรับจัดส่ง',
+  'Prices and stock at this branch.': 'ราคาและจำนวนสินค้าที่สาขานี้',
+  'Price and stock': 'ราคาและจำนวนสินค้า',
+  'Choose a store to see prices and stock.':
+    'เลือกร้านเพื่อดูราคาและจำนวนสินค้า',
+  'Online orders are not available right now.':
+    'ขณะนี้ยังไม่เปิดรับคำสั่งซื้อออนไลน์',
+  'Loading price and stock…': 'กำลังโหลดราคาและจำนวนสินค้า…',
+  'Price and stock could not be loaded.': 'ไม่สามารถโหลดราคาและจำนวนสินค้าได้',
+  'Not sold online.': 'ไม่มีจำหน่ายออนไลน์',
+  'Not sold at {branch}.': 'ไม่มีจำหน่ายที่สาขา{branch}',
+  'Only {count} left': 'เหลือเพียง {count} ชิ้น',
+  'In stock': 'มีสินค้า',
+  'Added to your cart.': 'เพิ่มลงตะกร้าแล้ว',
+  'View cart': 'ดูตะกร้า',
+  'That quantity is not available for your cart.':
+    'จำนวนที่เลือกไม่มีสำหรับตะกร้าของคุณ',
+  'The cart could not be updated. Try again.':
+    'ไม่สามารถอัปเดตตะกร้าได้ กรุณาลองอีกครั้ง',
+  'Only {count} available. Reduce the quantity.':
+    'มีสินค้าเพียง {count} ชิ้น กรุณาลดจำนวน',
+  'No longer sold. Remove this item.':
+    'สินค้านี้เลิกจำหน่ายแล้ว กรุณานำออกจากตะกร้า',
+  'Branches could not be loaded.': 'ไม่สามารถโหลดรายชื่อสาขาได้',
+  'Loading branches…': 'กำลังโหลดรายชื่อสาขา…',
   Filters: 'ตัวกรอง',
   'Close filters': 'ปิดตัวกรอง',
   'Show {count} games': 'แสดงเกม {count} รายการ',

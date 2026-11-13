@@ -1,7 +1,8 @@
 <script setup lang="ts">
-// TODO(branch-inventory-api): This unused comparison component reads fixtures.
-// Wire branch library membership and edition stock to implemented branch/inventory
-// endpoints before exposing it on live product pages. Membership is not visit availability.
+// TODO(branch-comparison): This comparison component is not mounted anywhere and
+// still reads fixture branches, libraries and stock. To use it on product pages,
+// read each branch's offering with useBranchOffering (api/inventory.ts) instead.
+// Library membership is not visit availability.
 import StoreAccordion from './StoreAccordion.vue';
 import { computed, ref } from 'vue';
 import { AppDataTable, AppField } from '../../../shared/ui';

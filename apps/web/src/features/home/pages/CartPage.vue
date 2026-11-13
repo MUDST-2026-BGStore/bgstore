@@ -1,15 +1,54 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import { useCartStore } from '../stores/cart';
 import { useOrdersStore } from '../stores/orders';
-import { formatPrice } from '../data/catalog';
+import { formatMinor } from '../data/catalog';
+import { useGameCovers } from '../api/catalog';
+import { useAuthStore } from '../../../shared/stores/auth';
 import { useStoreText } from '../data/store-text';
 
 const router = useRouter();
 const cart = useCartStore();
 const ordersStore = useOrdersStore();
 const { t, locale } = useStoreText();
+const auth = useAuthStore();
+const coverOf = useGameCovers();
+const failedCovers = ref(new Set<string>());
+onMounted(() => void cart.load());
+
+function editionLabel(language: string) {
+  try {
+    return (
+      new Intl.DisplayNames([locale.value], { type: 'language' }).of(
+        language,
+      ) || language
+    );
+  } catch {
+    return language;
+  }
+}
+
+/** Why a line blocks checkout at the cart's current fulfillment location. */
+function issueText(line: (typeof cart.lines)[number]) {
+  switch (line.issue) {
+    case 'INSUFFICIENT_STOCK':
+      return t('Only {count} available. Reduce the quantity.', {
+        count: line.available,
+      });
+    case 'NOT_SOLD_AT_LOCATION':
+      return cart.method === 'shipping'
+        ? t('Not available for delivery')
+        : t('Not available at {branch}', {
+            branch: t(cart.fulfillmentBranch?.name || ''),
+          });
+    case 'EDITION_INACTIVE':
+    case 'GAME_INACTIVE':
+      return t('No longer sold. Remove this item.');
+    default:
+      return '';
+  }
+}
 
 // Shopee-style Item Selection
 const selectedVariantIds = ref<string[]>([]);
@@ -63,10 +102,8 @@ function toggleSelectItem(variantId: string) {
   }
 }
 
-function removeSelectedItems() {
-  for (const id of [...selectedVariantIds.value]) {
-    cart.update(id, 0);
-  }
+async function removeSelectedItems() {
+  for (const id of [...selectedVariantIds.value]) await cart.update(id, 0);
   selectedVariantIds.value = [];
 }
 
@@ -82,19 +119,21 @@ const selectedSubtotal = computed(() =>
   selectedLines.value.reduce((sum, l) => sum + l.total, 0),
 );
 
-function updateQty(id: string, qty: number) {
-  if (qty >= 1) {
-    cart.update(id, qty);
-  }
+async function updateQty(id: string, qty: number) {
+  formError.value = '';
+  if (qty >= 1 && !(await cart.update(id, qty)))
+    formError.value = changeFailed();
 }
 
-function removeItem(id: string) {
-  cart.update(id, 0);
+async function removeItem(id: string) {
+  formError.value = '';
+  if (!(await cart.update(id, 0))) formError.value = changeFailed();
 }
 
 const formError = ref('');
+const changeFailed = () => t('The cart could not be updated. Try again.');
 
-function proceedToCheckout() {
+async function proceedToCheckout() {
   formError.value = '';
   if (selectedCount.value === 0) {
     formError.value =
@@ -104,13 +143,15 @@ function proceedToCheckout() {
     return;
   }
 
-  // Remove any unselected items before navigating to checkout,
-  // or keep them by updating cart to reflect the checkout items
+  // The server checks out a whole cart, so lines left unticked are removed first.
   const unselected = cart.lines.filter(
     (l) => !selectedVariantIds.value.includes(l.variantId),
   );
   for (const item of unselected) {
-    cart.update(item.variantId, 0);
+    if (!(await cart.update(item.variantId, 0))) {
+      formError.value = changeFailed();
+      return;
+    }
   }
 
   router.push('/checkout');
@@ -156,7 +197,7 @@ function proceedToCheckout() {
         </h1>
 
         <button
-          v-if="ordersStore.orders.length > 0"
+          v-if="auth.authenticated"
           type="button"
           class="btn-view-history"
           @click="ordersStore.openOrdersModal()"
@@ -179,7 +220,6 @@ function proceedToCheckout() {
           <span>{{
             locale === 'th-TH' ? 'คำสั่งซื้อของฉัน' : 'My Orders'
           }}</span>
-          <span class="history-badge">{{ ordersStore.orders.length }}</span>
         </button>
       </div>
 
@@ -340,29 +380,37 @@ function proceedToCheckout() {
               <!-- Product Details -->
               <div class="col-product item-product-cell">
                 <img
-                  :src="`/images/games/${line.game.id}.jpg`"
+                  v-if="
+                    coverOf(line.game.id) && !failedCovers.has(line.game.id)
+                  "
+                  :src="coverOf(line.game.id)"
                   :alt="line.game.name"
                   class="item-img"
-                  width="80"
-                  height="80"
+                  @error="
+                    failedCovers = new Set([...failedCovers, line.game.id])
+                  "
                 />
+                <span
+                  v-else
+                  class="item-img item-img-fallback"
+                  aria-hidden="true"
+                ></span>
                 <div class="item-text">
                   <RouterLink :to="`/games/${line.game.id}`" class="item-title">
                     {{ line.game.name }}
                   </RouterLink>
                   <span class="item-edition-tag">
-                    {{
-                      line.variant.language === 'th'
-                        ? 'ฉบับภาษาไทย'
-                        : 'ฉบับภาษาอังกฤษ'
-                    }}
+                    {{ editionLabel(line.variant.language) }}
+                  </span>
+                  <span v-if="line.problem" class="item-issue" role="alert">
+                    {{ issueText(line) }}
                   </span>
                 </div>
               </div>
 
               <!-- Unit Price -->
               <div class="col-unit-price item-unit-price">
-                {{ formatPrice(line.variant.price) }}
+                {{ formatMinor(line.variant.price) }}
               </div>
 
               <!-- Quantity Stepper -->
@@ -409,7 +457,7 @@ function proceedToCheckout() {
 
               <!-- Total Price for Line -->
               <div class="col-total item-total-price">
-                {{ formatPrice(line.total) }}
+                {{ formatMinor(line.total) }}
               </div>
 
               <!-- Delete Action -->
@@ -485,7 +533,7 @@ function proceedToCheckout() {
                   }}
                 </span>
                 <strong class="total-amt">{{
-                  formatPrice(selectedSubtotal)
+                  formatMinor(selectedSubtotal)
                 }}</strong>
               </div>
             </div>
@@ -506,6 +554,17 @@ function proceedToCheckout() {
 </template>
 
 <style scoped>
+.item-issue {
+  display: block;
+  margin-top: 4px;
+  color: #a12a1c;
+  font-size: 12px;
+  font-weight: 600;
+}
+.item-img-fallback {
+  display: block;
+  background: #f0f2ef;
+}
 .shopee-cart-page {
   background: #f4f5f7;
   min-height: calc(100vh - 70px);

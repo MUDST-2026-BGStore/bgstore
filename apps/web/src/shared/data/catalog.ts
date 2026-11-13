@@ -25,14 +25,11 @@ export interface CatalogGame {
   retailPrice: number | null;
 }
 
-// TODO(cart-catalog-api): These legacy fixtures still supply cart display data;
-// HomeIndex and GameProduct already use live catalog reads in api/catalog.ts.
-// Replace cart fixture joins with real game/edition IDs when server carts work,
-// then remove these fixtures (retain shared formatting helpers).
-// TODO(branch-inventory): Resolve play-copy availability and retail stock/prices
-// independently for the selected branch. Never derive one from the other. Staff
-// teaching and teach/setup estimates must also come from branch-owned records.
-// All prices, availability and teaching estimates below are sample data.
+// TODO(workspace-inventory-api): These fixture games are used only by the staff
+// workspace samples (useWorkspaceGames). The storefront, cart and orders read the
+// catalog, branch prices and stock from the API. Remove this array once the
+// workspace is wired, keeping the formatting helpers below.
+// All prices, availability and teaching estimates in it are sample data.
 export const games: CatalogGame[] = [
   {
     id: 'azul',
@@ -298,5 +295,13 @@ export const formatPrice = (price: number) =>
     currency: 'THB',
     maximumFractionDigits: 0,
   }).format(price);
+/** Formats THB minor units (satang) from the API; satang show only when present. */
+export const formatMinor = (amountMinor: number) =>
+  new Intl.NumberFormat('th-TH', {
+    style: 'currency',
+    currency: 'THB',
+    minimumFractionDigits: amountMinor % 100 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(amountMinor / 100);
 export const range = ([min, max]: [number, number]) =>
   min === max ? String(min) : `${min}–${max}`;
