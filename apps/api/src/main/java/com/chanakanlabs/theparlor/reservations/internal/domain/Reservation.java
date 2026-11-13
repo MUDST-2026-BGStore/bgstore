@@ -122,6 +122,9 @@ public class Reservation {
       UUID tableId, Instant startsAt, Instant endsAt, int partySize, long tableHourlyRateMinor) {
     public Plan {
       java.util.Objects.requireNonNull(tableId);
+      // PostgreSQL keeps microseconds; never answer with precision that is not stored.
+      if (startsAt != null) startsAt = startsAt.truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+      if (endsAt != null) endsAt = endsAt.truncatedTo(java.time.temporal.ChronoUnit.MICROS);
       if (startsAt == null || endsAt == null || !endsAt.isAfter(startsAt))
         throw new IllegalArgumentException("A booking must end after it starts");
       if (partySize < 1 || partySize > MAX_PARTY_SIZE)
