@@ -28,7 +28,11 @@ cards and use compact cart spacing with a single subtotal divider. Storefront re
 and stock, the server cart, card checkout and My Orders use the API, and the server is authoritative
 for prices, stock and totals. Card details go only to payment tokenization and are never stored or
 logged. PromptPay, bank transfer, cash on delivery, carriers and shipping fees have no backend; do
-not reintroduce them as working options. Reservation and staff workspace screens still use sample data.
+not reintroduce them as working options. Customer reservations are live: the booking wizard reads branch
+availability, rental games and the branch menu, books through the API and pays food pre-orders by card
+(authorized at booking, captured at check-in, only for visits within six days); My Reservations cancels,
+reschedules and shows rental charges from the API. In-play ordering and the table-bill QR have no backend
+and stay off customer pages. Staff workspace screens still use sample data.
 
 Prefer short CSS transitions for state changes and interactions. Respect reduced
 motion and keep content usable immediately. Use GSAP only when a specific complex
