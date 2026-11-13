@@ -42,7 +42,8 @@ function branchParts(instant: Date) {
     minute: '2-digit',
     hourCycle: 'h23',
   }).formatToParts(instant);
-  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  const part = (type: string) =>
+    parts.find((p) => p.type === type)?.value ?? '';
   return part;
 }
 
@@ -56,6 +57,38 @@ export function branchDate(instant: Date): string {
 export function branchTime(instant: Date): string {
   const part = branchParts(instant);
   return `${part('hour')}:${part('minute')}`;
+}
+
+/** A branch-local date (YYYY-MM-DD) shifted by whole days. */
+export function addBranchDays(date: string, days: number): string {
+  const instant = branchInstant(date, '12:00');
+  return instant
+    ? branchDate(new Date(Date.parse(instant) + days * 86_400_000))
+    : '';
+}
+
+/** The visit's day on the branch calendar, e.g. "Friday 20 November 2026". */
+export function formatBranchDay(iso: string, locale: string): string {
+  const instant = Date.parse(iso);
+  if (Number.isNaN(instant)) return '';
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: BRANCH_TIME_ZONE,
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(instant);
+}
+
+/** Branch wall-clock start and end, e.g. "23:00–01:00" for a visit past midnight. */
+export function formatBranchTimeRange(
+  startsAt: string,
+  endsAt: string,
+): string {
+  const start = Date.parse(startsAt);
+  const end = Date.parse(endsAt);
+  if (Number.isNaN(start) || Number.isNaN(end)) return '';
+  return `${branchTime(new Date(start))}–${branchTime(new Date(end))}`;
 }
 
 /** Adds whole hours to an ISO instant. */

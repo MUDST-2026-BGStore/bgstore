@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   BRANCH_TIME_ZONE,
   PRE_ORDER_WINDOW_DAYS,
+  addBranchDays,
   branchDate,
+  formatBranchDay,
+  formatBranchTimeRange,
   branchInstant,
   branchTime,
   canPreOrder,
@@ -26,6 +29,26 @@ describe('branch-local booking times', () => {
     const instant = new Date('2026-11-20T18:30:00Z');
     expect(branchDate(instant)).toBe('2026-11-21');
     expect(branchTime(instant)).toBe('01:30');
+  });
+
+  it('moves between branch calendar days across month and year ends', () => {
+    expect(addBranchDays('2026-11-30', 1)).toBe('2026-12-01');
+    expect(addBranchDays('2026-12-31', 1)).toBe('2027-01-01');
+    expect(addBranchDays('2026-03-01', -1)).toBe('2026-02-28');
+    expect(addBranchDays('', 1)).toBe('');
+  });
+
+  it('displays the visit on the branch clock, including past midnight', () => {
+    // 16:00Z is 23:00 in Bangkok; two hours later is 01:00 the next day.
+    expect(
+      formatBranchTimeRange('2026-11-20T16:00:00Z', '2026-11-20T18:00:00Z'),
+    ).toBe('23:00–01:00');
+    // 20:00Z on the 19th is already the 20th in Bangkok.
+    expect(formatBranchDay('2026-11-19T20:00:00Z', 'en-US')).toBe(
+      'Friday, November 20, 2026',
+    );
+    expect(formatBranchDay('nonsense', 'en-US')).toBe('');
+    expect(formatBranchTimeRange('', '2026-11-20T18:00:00Z')).toBe('');
   });
 });
 

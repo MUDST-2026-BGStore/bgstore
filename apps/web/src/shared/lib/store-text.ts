@@ -763,6 +763,128 @@ const thai: Record<string, string> = {
   Close: 'ปิด',
   'Order #': 'คำสั่งซื้อเลขที่',
   'Ordered on': 'สั่งซื้อเมื่อ',
+  // Customer table booking
+  'Reservation progress': 'ขั้นตอนการจอง',
+  'Table & Games': 'โต๊ะและเกม',
+  'Food & Drinks': 'อาหารและเครื่องดื่ม',
+  'Review & Confirm': 'ตรวจสอบและยืนยัน',
+  'Times are in Bangkok time at the branch.':
+    'เวลาทั้งหมดเป็นเวลากรุงเทพฯ ตามเวลาของสาขา',
+  'Booking as': 'จองในชื่อ',
+  'Sign in to reserve a table.': 'กรุณาเข้าสู่ระบบเพื่อจองโต๊ะ',
+  'No branches are taking reservations right now.':
+    'ขณะนี้ยังไม่มีสาขาที่เปิดรับการจอง',
+  'Choose a start time that has not passed.':
+    'กรุณาเลือกเวลาเริ่มที่ยังไม่ผ่านไป',
+  'Party size must be between 1 and 20.':
+    'จำนวนผู้เล่นต้องอยู่ระหว่าง 1 ถึง 20 คน',
+  'Choose a Table & Games': 'เลือกโต๊ะและเกม',
+  'Checking availability…': 'กำลังตรวจสอบโต๊ะและเกมที่ว่าง…',
+  'Availability could not be loaded.': 'ไม่สามารถโหลดข้อมูลที่ว่างได้',
+  'The branch is not open for this whole visit':
+    'สาขาไม่ได้เปิดตลอดช่วงเวลาที่คุณเลือก',
+  'The branch is not open for this whole visit.':
+    'สาขาไม่ได้เปิดตลอดช่วงเวลาที่คุณเลือก',
+  'Try another time, a shorter visit or another branch.':
+    'ลองเลือกเวลาอื่น ลดระยะเวลา หรือเลือกสาขาอื่น',
+  'Your table is not free for this time. Choose another table.':
+    'โต๊ะที่คุณเลือกไม่ว่างในช่วงเวลานี้ กรุณาเลือกโต๊ะอื่น',
+  'Games (optional)': 'เกม (ไม่บังคับ)',
+  'Copies are held for your whole visit. Only games free for this time are shown.':
+    'เกมจะถูกกันไว้ให้ตลอดช่วงเวลาที่จอง แสดงเฉพาะเกมที่ว่างในช่วงเวลานี้',
+  'Some games you chose are no longer free for this time. Your game list was updated.':
+    'บางเกมที่คุณเลือกไม่ว่างแล้วในช่วงเวลานี้ รายการเกมของคุณได้รับการปรับแล้ว',
+  'No games are free at this branch for this time.':
+    'ไม่มีเกมว่างที่สาขานี้ในช่วงเวลานี้',
+  '{min}–{max} players · {count} free': '{min}–{max} คน · ว่าง {count} ชุด',
+  'Fewer copies of {game}': 'ลดจำนวน {game}',
+  'More copies of {game}': 'เพิ่มจำนวน {game}',
+  'Notes for the branch (optional)': 'หมายเหตุถึงสาขา (ไม่บังคับ)',
+  'Continue →': 'ดำเนินการต่อ →',
+  'Pre-Order Food & Drinks (optional)':
+    'สั่งอาหารและเครื่องดื่มล่วงหน้า (ไม่บังคับ)',
+  'Pre-orders get 10% off. Your card is authorized when you book and charged when you check in.':
+    'สั่งล่วงหน้าลด 10% บัตรจะถูกอนุมัติวงเงินเมื่อจอง และเรียกเก็บเงินเมื่อเช็กอิน',
+  'Food can be pre-ordered only for visits starting within {days} days.':
+    'สั่งอาหารล่วงหน้าได้เฉพาะการจองที่เริ่มภายใน {days} วัน',
+  'Loading the menu…': 'กำลังโหลดเมนู…',
+  'The menu could not be loaded.': 'ไม่สามารถโหลดเมนูได้',
+  'This branch has no menu items to pre-order.':
+    'สาขานี้ไม่มีรายการอาหารให้สั่งล่วงหน้า',
+  'The branch menu changed. Updated: {items}. Check your food order.':
+    'เมนูของสาขามีการเปลี่ยนแปลง ปรับรายการ: {items} กรุณาตรวจสอบรายการอาหาร',
+  'Prices and totals are estimates. The branch confirms the final total when you book.':
+    'ราคาและยอดรวมเป็นค่าประมาณ สาขาจะยืนยันยอดสุดท้ายเมื่อจอง',
+  'Review & Pay →': 'ตรวจสอบและชำระเงิน →',
+  'Continue without food →': 'ดำเนินการต่อโดยไม่สั่งอาหาร →',
+  When: 'วันและเวลา',
+  Games: 'เกม',
+  Game: 'เกม',
+  None: 'ไม่มี',
+  Notes: 'หมายเหตุ',
+  'Table and game time is charged at the branch at the hourly rates shown.':
+    'ค่าโต๊ะและค่าเกมชำระที่สาขาตามอัตรารายชั่วโมงที่แสดง',
+  'Food Pre-Order': 'อาหารสั่งล่วงหน้า',
+  Payment: 'การชำระเงิน',
+  Subtotal: 'ยอดรวมก่อนส่วนลด',
+  'Final total is confirmed by the branch when you book.':
+    'สาขาจะยืนยันยอดสุดท้ายเมื่อจอง',
+  'Authorized now and charged when you check in. Released if you cancel or miss the visit.':
+    'อนุมัติวงเงินตอนนี้และเรียกเก็บเมื่อเช็กอิน จะคืนวงเงินหากยกเลิกหรือไม่มาตามนัด',
+  'Card number': 'หมายเลขบัตร',
+  'Enter a valid card number.': 'กรุณากรอกหมายเลขบัตรให้ถูกต้อง',
+  'Expiry (MM/YY)': 'วันหมดอายุ (ดด/ปป)',
+  'Enter a valid, unexpired date.':
+    'กรุณากรอกวันหมดอายุที่ถูกต้องและยังไม่หมดอายุ',
+  'Security code': 'รหัสความปลอดภัย',
+  'Enter the 3 or 4 digit code.': 'กรุณากรอกรหัส 3 หรือ 4 หลัก',
+  'Name on card': 'ชื่อบนบัตร',
+  'Enter the name on the card.': 'กรุณากรอกชื่อบนบัตร',
+  'Nothing is charged now.': 'ยังไม่มีการเรียกเก็บเงินในขณะนี้',
+  'The card was declined. Nothing was booked or charged. Check the card details or use another card.':
+    'บัตรถูกปฏิเสธ ยังไม่มีการจองหรือเรียกเก็บเงิน กรุณาตรวจสอบข้อมูลบัตรหรือใช้บัตรอื่น',
+  'Part of this booking was just taken: the table, a game or a menu item. Nothing was booked or charged. Review your choices and confirm again.':
+    'บางรายการในการจองนี้เพิ่งถูกจองไป (โต๊ะ เกม หรืออาหาร) ยังไม่มีการจองหรือเรียกเก็บเงิน กรุณาตรวจสอบแล้วยืนยันอีกครั้ง',
+  'Card payment is unavailable right now. Nothing was booked or charged. Try again shortly, or book without food.':
+    'ขณะนี้ไม่สามารถชำระด้วยบัตรได้ ยังไม่มีการจองหรือเรียกเก็บเงิน กรุณาลองใหม่ภายหลังหรือจองโดยไม่สั่งอาหาร',
+  'The booking or card details were not accepted. Check them and try again.':
+    'ข้อมูลการจองหรือข้อมูลบัตรไม่ถูกต้อง กรุณาตรวจสอบแล้วลองอีกครั้ง',
+  'Your session has ended. Sign in again to book.':
+    'เซสชันของคุณหมดอายุแล้ว กรุณาเข้าสู่ระบบอีกครั้งเพื่อจอง',
+  'We could not confirm whether your booking went through. Check your connection and select Confirm again: retrying from this page will not book twice. You can also check My Reservations.':
+    'ไม่สามารถยืนยันได้ว่าการจองสำเร็จหรือไม่ กรุณาตรวจสอบการเชื่อมต่อแล้วกดยืนยันอีกครั้ง การลองใหม่จากหน้านี้จะไม่ทำให้จองซ้ำ หรือตรวจสอบที่การจองของฉัน',
+  'An earlier attempt may already have booked this visit. Check My Reservations before booking again.':
+    'การจองก่อนหน้าอาจสำเร็จแล้ว กรุณาตรวจสอบที่การจองของฉันก่อนจองอีกครั้ง',
+  'Enter your card details again to retry.':
+    'กรุณากรอกข้อมูลบัตรอีกครั้งเพื่อลองใหม่',
+  'Availability could not be checked. Check your connection and try again.':
+    'ไม่สามารถตรวจสอบที่ว่างได้ กรุณาตรวจสอบการเชื่อมต่อแล้วลองอีกครั้ง',
+  'Availability changed since you chose. Review the changes below, then confirm again.':
+    'ที่ว่างมีการเปลี่ยนแปลงหลังจากที่คุณเลือก กรุณาตรวจสอบรายการด้านล่างแล้วยืนยันอีกครั้ง',
+  'The booking could not be completed and nothing was confirmed. Try again.':
+    'ไม่สามารถทำการจองได้และยังไม่มีการยืนยันใด ๆ กรุณาลองอีกครั้ง',
+  'Your table is no longer free for this time.':
+    'โต๊ะที่คุณเลือกไม่ว่างแล้วในช่วงเวลานี้',
+  'A game': 'เกมหนึ่ง',
+  '{game}: only {count} free for this time.':
+    '{game}: ว่างเพียง {count} ชุดในช่วงเวลานี้',
+  '{game} is no longer free for this time.': '{game} ไม่ว่างแล้วในช่วงเวลานี้',
+  'It is not there: book again': 'ไม่พบการจอง: จองอีกครั้ง',
+  'Review table & games': 'ตรวจสอบโต๊ะและเกม',
+  'Review food': 'ตรวจสอบรายการอาหาร',
+  'Confirming…': 'กำลังยืนยัน…',
+  'Confirm & Authorize Card': 'ยืนยันและอนุมัติวงเงินบัตร',
+  'Confirm Reservation': 'ยืนยันการจอง',
+  'Reservation Confirmed': 'ยืนยันการจองแล้ว',
+  '/ hour each': '/ ชั่วโมง ต่อชุด',
+  'Pre-Order Discount': 'ส่วนลดสั่งล่วงหน้า',
+  Total: 'ยอดรวม',
+  'Book Another Visit': 'จองอีกครั้ง',
+  '{card}: authorized, charged when you check in':
+    '{card}: อนุมัติวงเงินแล้ว จะเรียกเก็บเมื่อเช็กอิน',
+  '{card}: charged': '{card}: เรียกเก็บเงินแล้ว',
+  '{card}: released, not charged': '{card}: คืนวงเงินแล้ว ไม่มีการเรียกเก็บ',
+  '{card}: pending': '{card}: รอดำเนินการ',
 };
 export function useStoreText() {
   const { locale } = useLocale();
