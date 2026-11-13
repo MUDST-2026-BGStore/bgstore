@@ -64,27 +64,50 @@ function onChange(event: Event) {
   </div>
 </template>
 <style scoped>
+/* One joined control: [−][value][+] inside a single border. */
 .app-number-stepper {
   display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-.app-number-stepper > .app-button {
-  min-width: max(30px, calc(var(--ui-control-height) - 4px));
-  min-height: calc(var(--ui-control-height) - 2px);
-  padding-inline: 6px;
-}
-.app-number-stepper input {
-  width: 56px;
-  min-width: 0;
-  height: calc(var(--ui-control-height) - 2px);
-  padding: 4px;
+  align-items: stretch;
+  height: var(--ui-control-height);
   border: 1px solid var(--ui-stroke);
   border-radius: var(--ui-radius);
   background: var(--ui-surface);
+  overflow: hidden;
+}
+.app-number-stepper:focus-within {
+  border-color: var(--ui-stroke-strong);
+}
+.app-number-stepper > .app-button {
+  min-width: var(--ui-control-height);
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ui-text);
+  font-size: calc(var(--ui-control-font-size) + 4px);
+  line-height: 1;
+}
+.app-number-stepper > .app-button:hover:enabled {
+  background: var(--ui-surface-hover);
+}
+.app-number-stepper > .app-button:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: -2px;
+}
+.app-number-stepper input {
+  width: calc(var(--ui-control-height) + 12px);
+  min-width: 0;
+  height: 100%;
+  padding: 0 4px;
+  border: 0;
+  border-inline: 1px solid var(--ui-stroke);
+  border-radius: 0;
+  background: transparent;
   color: var(--ui-text);
   font: inherit;
   font-size: var(--ui-control-font-size);
+  font-weight: 600;
   text-align: center;
   font-variant-numeric: tabular-nums;
   appearance: textfield;
@@ -96,6 +119,11 @@ function onChange(event: Event) {
 }
 .app-number-stepper input:focus-visible {
   outline: 2px solid var(--ui-focus);
-  outline-offset: 1px;
+  outline-offset: -2px;
+}
+@media (forced-colors: active) {
+  .app-number-stepper {
+    border-color: ButtonText;
+  }
 }
 </style>

@@ -421,7 +421,7 @@ function viewOrdersAndExit() {
 </script>
 
 <template>
-  <main class="shopee-checkout-page">
+  <div class="shopee-checkout-page">
     <div class="checkout-container">
       <!-- Breadcrumb Navigation -->
       <div class="checkout-top-bar">
@@ -1078,7 +1078,7 @@ function viewOrdersAndExit() {
         </div>
       </div>
     </div>
-  </main>
+  </div>
 </template>
 
 <style scoped>

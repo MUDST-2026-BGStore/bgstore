@@ -159,7 +159,7 @@ async function proceedToCheckout() {
 </script>
 
 <template>
-  <main class="shopee-cart-page">
+  <div class="shopee-cart-page">
     <div class="cart-container">
       <!-- Breadcrumb Navigation -->
       <div class="cart-top-bar">
@@ -495,7 +495,7 @@ async function proceedToCheckout() {
         </div>
       </div>
     </div>
-  </main>
+  </div>
 </template>
 
 <style scoped>
@@ -639,7 +639,7 @@ async function proceedToCheckout() {
 }
 .empty-sub {
   font-size: 14px;
-  color: #777777;
+  color: #4e5b53;
   max-width: 400px;
   margin: 0;
 }

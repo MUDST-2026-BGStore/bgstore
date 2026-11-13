@@ -139,7 +139,7 @@ const copy = computed(() =>
 );
 </script>
 <template>
-  <main class="profile-page">
+  <div class="profile-page">
     <div class="profile-shell">
       <RouterLink class="back-link" :to="{ name: 'WorkspaceIndex' }">
         <span aria-hidden="true">←</span> {{ copy.back }}
@@ -365,7 +365,7 @@ const copy = computed(() =>
         </section>
       </div>
     </div>
-  </main>
+  </div>
 </template>
 
 <style scoped>

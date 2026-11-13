@@ -224,7 +224,7 @@ it('shows the chosen branch’s price and stock and adds the edition to the serv
   await render();
 
   expect(page.get('.product-price').text()).toContain('1,490');
-  expect(page.get('.stock-line').text()).toContain('Only 2 left');
+  expect(page.get('.stock-badge').text()).toContain('Only 2 left');
   expect(page.get('.stock-line').text()).toContain('Pickup at Siam');
   // Library membership only: no live rental copy count on a product page.
   expect(page.get('.library-line').text()).toContain('In the rental library');

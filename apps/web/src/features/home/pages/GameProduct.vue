@@ -101,6 +101,17 @@ watch([() => selected.value?.editionId, () => context.stockBranch?.id], () => {
   quantity.value = 1;
   added.value = '';
 });
+const otherBranches = ref<InstanceType<typeof BranchAvailability>>();
+const stockState = computed(() => {
+  const available = selected.value?.saleAvailable ?? 0;
+  if (available === 0) return { tone: 'out', text: t('Sold out') };
+  if (available <= 3)
+    return { tone: 'low', text: t('Only {count} left', { count: available }) };
+  return { tone: 'in', text: t('In stock') };
+});
+const inLibrary = computed(
+  () => !!context.branch && !!offering.data.value?.rentalEnabled,
+);
 const editionOptions = computed(() =>
   stocked.value.map((edition) => ({
     value: edition.editionId,
@@ -272,6 +283,26 @@ async function addToCart() {
             }}
           </p>
           <form v-else class="purchase-form" @submit.prevent="addToCart">
+            <div class="price-row">
+              <p class="product-price">
+                {{ formatMinor(selected.salePrice.amountMinor) }}
+              </p>
+              <span class="stock-badge" :class="`stock-${stockState.tone}`">{{
+                stockState.text
+              }}</span>
+            </div>
+            <p class="stock-line">
+              <span v-if="stocked.length === 1" class="purchase-edition"
+                >{{ t('Edition') }}: {{ editionLabel(selected) }} ·
+              </span>
+              <span class="stock-place">{{
+                context.choice === 'online'
+                  ? t('For delivery')
+                  : t('Pickup at {branch}', {
+                      branch: t(context.stockBranch.name),
+                    })
+              }}</span>
+            </p>
             <div v-if="stocked.length > 1" class="edition-field">
               <span>{{ t('Edition') }}</span>
               <AppSelect
@@ -282,46 +313,37 @@ async function addToCart() {
                 :options="editionOptions"
               />
             </div>
-            <p v-else class="purchase-edition">{{ editionLabel(selected) }}</p>
-            <p class="product-price">
-              {{ formatMinor(selected.salePrice.amountMinor) }}
-            </p>
-            <p class="stock-line">
-              {{
-                selected.saleAvailable === 0
-                  ? t('Sold out')
-                  : selected.saleAvailable <= 3
-                    ? t('Only {count} left', { count: selected.saleAvailable })
-                    : t('In stock')
-              }}
-              <span class="stock-place">
-                ·
+            <div v-if="maxQuantity > 0" class="buy-row">
+              <div class="quantity-field">
+                <AppNumberStepper
+                  v-model="quantity"
+                  :label="t('Quantity')"
+                  :min="1"
+                  :max="maxQuantity"
+                />
+              </div>
+              <button type="submit" class="add-to-cart" :disabled="cart.busy">
+                {{ t('Add to cart') }}
+              </button>
+            </div>
+            <div v-else class="sold-out">
+              <p>
                 {{
                   context.choice === 'online'
-                    ? t('For delivery')
-                    : t('Pickup at {branch}', {
+                    ? t('This edition is sold out online.')
+                    : t('This edition is sold out at {branch}.', {
                         branch: t(context.stockBranch.name),
                       })
                 }}
-              </span>
-            </p>
-            <div class="quantity-field">
-              <span>{{ t('Quantity') }}</span>
-              <AppNumberStepper
-                v-model="quantity"
-                :label="t('Quantity')"
-                :min="1"
-                :max="Math.max(1, maxQuantity)"
-                :disabled="maxQuantity === 0"
-              />
+              </p>
+              <button
+                type="button"
+                class="secondary-action"
+                @click="otherBranches?.open()"
+              >
+                {{ t('Check other branches') }}
+              </button>
             </div>
-            <button
-              type="submit"
-              class="add-to-cart"
-              :disabled="maxQuantity === 0 || cart.busy"
-            >
-              {{ t('Add to cart') }}
-            </button>
             <p v-if="added === 'added'" class="purchase-note" role="status">
               {{ t('Added to your cart.') }}
               <RouterLink to="/cart">{{ t('View cart') }}</RouterLink>
@@ -333,41 +355,64 @@ async function addToCart() {
               {{ t('The cart could not be updated. Try again.') }}
             </p>
           </form>
-          <p v-if="context.branch && offering.data.value" class="library-line">
-            {{
-              offering.data.value.rentalEnabled
-                ? t('In the rental library')
-                : t('Not in this library')
-            }}
-            <span
-              v-if="
-                offering.data.value.rentalEnabled &&
-                offering.data.value.staffCanTeach
-              "
+          <aside class="play-card" :aria-label="t('Play in store')">
+            <svg
+              class="play-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.6"
+              aria-hidden="true"
             >
-              · {{ t('Staff can teach this game') }}
-            </span>
-          </p>
-          <div class="play-here">
-            <p>
-              {{
-                context.branch && offering.data.value?.rentalEnabled
-                  ? t('Play it at {branch}: book a table and add this game.', {
-                      branch: t(context.branch.name),
-                    })
-                  : t(
-                      'Play it in store: book a table at a branch with this game.',
-                    )
-              }}
-            </p>
+              <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+              <circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" />
+              <circle cx="15.5" cy="15.5" r="1.2" fill="currentColor" />
+              <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+            </svg>
+            <div class="play-copy">
+              <h2>
+                {{
+                  inLibrary
+                    ? t('Play it at {branch}', {
+                        branch: t(context.branch!.name),
+                      })
+                    : t('Play it in store')
+                }}
+              </h2>
+              <p
+                v-if="context.branch && offering.data.value"
+                class="library-line"
+              >
+                {{
+                  offering.data.value.rentalEnabled
+                    ? t('In the rental library')
+                    : t('Not in this library')
+                }}<span
+                  v-if="
+                    offering.data.value.rentalEnabled &&
+                    offering.data.value.staffCanTeach
+                  "
+                >
+                  · {{ t('Staff can teach this game') }}</span
+                >
+              </p>
+              <p class="play-hint">
+                {{
+                  inLibrary
+                    ? t('Book a table and choose this game for your visit.')
+                    : t('Book a table at a branch whose library has it.')
+                }}
+              </p>
+            </div>
             <RouterLink class="play-reserve" :to="playLink">{{
               t('Reserve a table to play')
             }}</RouterLink>
-          </div>
+          </aside>
         </section>
         <div class="product-accordions">
           <BranchAvailability
             v-if="context.stockBranch"
+            ref="otherBranches"
             :game-id="game.id"
             :variant-id="
               selected?.editionId || product.editions.data.value?.[0]?.id
@@ -549,57 +594,129 @@ h2 {
   font-weight: 600;
 }
 .product-purchase {
-  margin: 4px 0 28px;
-  padding: 20px 0;
-  border-block: 1px solid var(--line);
+  display: grid;
+  gap: 18px;
+  margin: 4px 0 8px;
+  padding: 22px 0 24px;
+  /* The accordions below draw the closing rule. */
+  border-top: 1px solid var(--line);
 }
 .purchase-form {
   display: grid;
-  gap: 12px;
-  max-width: 420px;
+  gap: 14px;
+}
+.price-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
 }
 .product-price {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 600;
-  line-height: 1.2;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.stock-badge {
+  padding: 3px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+.stock-in {
+  color: #2f6b45;
+  background: #edf4ec;
+}
+.stock-low {
+  color: #82551b;
+  background: #fff4df;
+}
+.stock-out {
+  color: #8a3b30;
+  background: #fbf1ee;
 }
 .stock-line,
-.purchase-edition,
-.library-line {
+.library-line,
+.play-hint {
   font-size: 13px;
   color: var(--muted);
 }
-.library-line {
-  margin-top: 14px;
+.stock-line {
+  margin-top: -6px;
 }
-.edition-field,
-.quantity-field {
+.edition-field {
   display: grid;
   gap: 7px;
   min-width: 0;
   font-size: 13px;
 }
-.quantity-field {
-  justify-items: start;
+.buy-row {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  --ui-control-height: 48px;
 }
-.play-here {
+.buy-row .add-to-cart {
+  flex: 1 1 auto;
+  width: auto;
+}
+.sold-out {
   display: grid;
   gap: 10px;
-  max-width: 420px;
-  margin-top: 18px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line, #d3d9d4);
-}
-.play-here p {
+  padding: 14px 16px;
+  border: 1px solid #e6d4cf;
+  border-radius: 4px;
+  background: #fbf6f4;
   font-size: 13px;
-  color: var(--muted);
 }
-.play-reserve {
-  display: block;
-  padding: 12px 16px;
+.secondary-action {
+  justify-self: start;
+  padding: 9px 14px;
   border: 1px solid var(--accent);
   border-radius: 3px;
+  background: #fff;
   color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+}
+.secondary-action:hover {
+  background: #e9f0ea;
+}
+.play-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 14px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f3f6f3;
+}
+.play-icon {
+  grid-row: span 2;
+  width: 28px;
+  height: 28px;
+  color: var(--accent);
+}
+.play-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.play-copy h2 {
+  font-size: 16px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.play-reserve {
+  grid-column: 2;
+  justify-self: start;
+  margin-top: 10px;
+  padding: 10px 16px;
+  border-radius: 3px;
+  background: var(--accent);
+  color: #fff;
   font-size: 14px;
   font-weight: 600;
   text-align: center;
@@ -607,7 +724,7 @@ h2 {
   transition: background-color 150ms ease;
 }
 .play-reserve:hover {
-  background: #e9f0ea;
+  background: #1b3a2b;
 }
 .add-to-cart {
   width: 100%;
