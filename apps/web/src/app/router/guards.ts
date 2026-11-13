@@ -5,6 +5,7 @@ import { login, useAuth } from '@theparlor/auth';
 import { clearAccount, ensureAccount, useAccount } from '@theparlor/account';
 
 import { pageAccess, safeReturnPath, workspaceDestination } from './access';
+import { useLocale } from '../../shared/lib/locale';
 
 const returnPathKey = 'theparlor.returnTo';
 const onboardingRoute = 'AccountOnboarding';
@@ -71,7 +72,7 @@ export function installAuthGuards(router: Router): void {
         sessionStorage.setItem(returnPathKey, next);
       }
 
-      await login();
+      await login(useLocale().locale.value);
       return false;
     }
 

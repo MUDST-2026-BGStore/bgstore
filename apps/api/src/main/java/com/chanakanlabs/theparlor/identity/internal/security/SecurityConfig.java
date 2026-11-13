@@ -1,6 +1,7 @@
 package com.chanakanlabs.theparlor.identity.internal.security;
 
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
 import java.util.Collection;
 import java.util.HashSet;
@@ -25,8 +26,10 @@ import org.springframework.security.oauth2.client.registration.InMemoryClientReg
 import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestCustomizers;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.oidc.user.OidcUserAuthority;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
@@ -83,10 +86,7 @@ public class SecurityConfig {
       @Value("${theparlor.auth.public-origin}") String origin)
       throws Exception {
     String publicOrigin = origin.replaceAll("/+$", "");
-    var authorization =
-        new DefaultOAuth2AuthorizationRequestResolver(registrations, "/api/auth/login");
-    authorization.setAuthorizationRequestCustomizer(
-        OAuth2AuthorizationRequestCustomizers.withPkce());
+    var authorization = authorizationRequests(registrations);
     var logout = new OidcClientInitiatedLogoutSuccessHandler(registrations);
     logout.setPostLogoutRedirectUri(publicOrigin + "/");
     logout.setDefaultTargetUrl(publicOrigin + "/");
@@ -107,6 +107,7 @@ public class SecurityConfig {
                         "/api/auth/session",
                         "/api/auth/csrf",
                         "/api/auth/login/keycloak",
+                        "/api/auth/login-locale",
                         "/api/auth/callback/keycloak")
                     .permitAll()
                     .requestMatchers(HttpMethod.POST, "/api/auth/logout")
@@ -173,6 +174,41 @@ public class SecurityConfig {
                     .deleteCookies("THEPARLOR_SESSION")
                     .logoutSuccessHandler(logout));
     return http.build();
+  }
+
+  static OAuth2AuthorizationRequestResolver authorizationRequests(
+      ClientRegistrationRepository registrations) {
+    var delegate = new DefaultOAuth2AuthorizationRequestResolver(registrations, "/api/auth/login");
+    delegate.setAuthorizationRequestCustomizer(OAuth2AuthorizationRequestCustomizers.withPkce());
+    return new OAuth2AuthorizationRequestResolver() {
+      @Override
+      public OAuth2AuthorizationRequest resolve(HttpServletRequest request) {
+        return withLoginLocale(request, delegate.resolve(request));
+      }
+
+      @Override
+      public OAuth2AuthorizationRequest resolve(
+          HttpServletRequest request, String clientRegistrationId) {
+        return withLoginLocale(request, delegate.resolve(request, clientRegistrationId));
+      }
+    };
+  }
+
+  private static OAuth2AuthorizationRequest withLoginLocale(
+      HttpServletRequest request, OAuth2AuthorizationRequest authorization) {
+    if (authorization == null) return null;
+    String requested = request.getParameter("ui_locales");
+    if (requested == null) return authorization;
+    String locale =
+        switch (requested) {
+          case "en-US" -> "en";
+          case "th-TH" -> "th";
+          default -> null;
+        };
+    if (locale == null) return authorization;
+    return OAuth2AuthorizationRequest.from(authorization)
+        .additionalParameters(parameters -> parameters.put("ui_locales", locale))
+        .build();
   }
 
   /** Realm roles must be present in the signed ID token, never supplied by the browser. */
