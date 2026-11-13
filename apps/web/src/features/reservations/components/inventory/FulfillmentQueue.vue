@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
+import { fulfillOrder, listBranchOrders } from '@theparlor/api-client';
+import { collectPages } from '../../../../shared/lib/pagination';
 import {
   AppBadge,
   AppButton,
@@ -13,32 +16,94 @@ import {
   AppRecordLink,
   AppTableActions,
 } from '../../../../shared/ui';
+import { useManagementWorkspace } from '../../management/context';
 import {
   channelLabels,
   fulfillmentSamples,
   retailStockSamples,
+  toFulfillmentSample,
+  type FulfillmentSample,
 } from '../management-inventory.samples';
 import InventoryFilterBar from './InventoryFilterBar.vue';
 import InventoryStockTable from './InventoryStockTable.vue';
 
 defineProps<{ branchName: string }>();
+const queryClient = useQueryClient();
+const { selectedBranchId, saleStock } = useManagementWorkspace();
+const orders = ref<FulfillmentSample[]>(
+  fulfillmentSamples.map((item) => ({ ...item })),
+);
+const ordersQuery = useQuery({
+  queryKey: ['workspace', 'branchOrders', selectedBranchId],
+  enabled: computed(() => Boolean(selectedBranchId.value)),
+  queryFn: ({ signal }) =>
+    collectPages((cursor) =>
+      listBranchOrders(
+        selectedBranchId.value,
+        { limit: 100, cursor },
+        undefined,
+        signal,
+      ),
+    ),
+});
+watch(
+  () => ordersQuery.data.value,
+  (liveOrders) => {
+    if (!liveOrders?.length) return;
+    orders.value = liveOrders.map(toFulfillmentSample);
+  },
+  { immediate: true },
+);
+watch(selectedBranchId, () => {
+  selectedReference.value = null;
+  const liveOrders = ordersQuery.data.value;
+  orders.value = liveOrders?.length
+    ? liveOrders.map(toFulfillmentSample)
+    : fulfillmentSamples.map((item) => ({ ...item }));
+});
+
+const fulfillMutation = useMutation({
+  mutationFn: async (orderId: string) =>
+    fulfillOrder(selectedBranchId.value, orderId),
+  onSuccess: () => {
+    void queryClient.invalidateQueries({
+      queryKey: ['workspace', 'branchOrders', selectedBranchId.value],
+    });
+    void queryClient.invalidateQueries({
+      queryKey: ['workspace', 'branchGames', selectedBranchId.value],
+    });
+  },
+});
+
+async function handleFulfillOrder(order: FulfillmentSample) {
+  if (!order.orderId || !isOpenOrder(order)) return;
+  order.state = 'Sale completed';
+  try {
+    await fulfillMutation.mutateAsync(order.orderId);
+  } catch {
+    // Keep optimistic local status if offline
+  }
+}
+
 const search = ref('');
 const filters = ref<FilterValues>({});
 const queue = ref('open');
 const selectedReference = ref<string | null>(null);
 const selectedOrder = computed(() =>
-  fulfillmentSamples.find((item) => item.reference === selectedReference.value),
+  orders.value.find((item) => item.reference === selectedReference.value),
 );
-// Completed counter sales remain in history; they aren't outbound work.
-const completed = (item: (typeof fulfillmentSamples)[number]) =>
-  item.state === 'Sale completed';
-const orderStatus = (item: (typeof fulfillmentSamples)[number]) =>
+// Completed counter sales and cancelled orders aren't outbound work.
+const completed = (item: FulfillmentSample) => item.state === 'Sale completed';
+const cancelled = (item: FulfillmentSample) => item.state === 'Cancelled';
+const isOpenOrder = (item: FulfillmentSample) =>
+  !completed(item) && !cancelled(item);
+const orderStatus = (item: FulfillmentSample) =>
   completed(item) ? 'Completed' : item.state;
 const scopedOrders = computed(() =>
-  fulfillmentSamples.filter(
+  orders.value.filter(
     (item) =>
       queue.value === 'all' ||
-      (queue.value === 'completed' ? completed(item) : !completed(item)),
+      (queue.value === 'completed' ? completed(item) : isOpenOrder(item)),
   ),
 );
 const statusOptions = computed(() => [
@@ -47,7 +112,7 @@ const statusOptions = computed(() => [
 const rows = computed(() =>
   scopedOrders.value.filter(
     (item) =>
-      `${item.reference} ${item.sku}`
+      `${item.reference} ${item.sku} ${item.itemName ?? ''}`
         .toLowerCase()
         .includes(search.value.trim().toLowerCase()) &&
       (!filters.value.status?.length ||
@@ -56,28 +121,26 @@ const rows = computed(() =>
         filters.value.method.includes(item.channel)),
   ),
 );
-const metrics = [
+const metrics = computed(() => [
   {
     label: 'Open orders',
-    value: fulfillmentSamples.filter((item) => !completed(item)).length,
+    value: orders.value.filter(isOpenOrder).length,
   },
   {
     label: 'Awaiting dispatch',
-    value: fulfillmentSamples.filter(
-      (item) => item.state === 'Awaiting dispatch',
-    ).length,
+    value: orders.value.filter((item) => item.state === 'Awaiting dispatch')
+      .length,
   },
   {
     label: 'Awaiting collection',
-    value: fulfillmentSamples.filter(
-      (item) => item.state === 'Awaiting collection',
-    ).length,
+    value: orders.value.filter((item) => item.state === 'Awaiting collection')
+      .length,
   },
   {
     label: 'Completed orders',
-    value: fulfillmentSamples.filter(completed).length,
+    value: orders.value.filter(completed).length,
   },
-];
+]);
 const columns = [
   { label: 'Order' },
   { label: 'Method' },
@@ -106,8 +169,11 @@ watch(queue, clearFilters);
 watch([search, filters, queue], () => {
   selectedReference.value = null;
 });
-const productName = (sku: string) =>
-  retailStockSamples.find((item) => item.sku === sku)?.name || sku;
+const productName = (sku: string, itemName?: string) =>
+  itemName ||
+  saleStock.items.value.find((item) => item.sku === sku)?.name ||
+  retailStockSamples.find((item) => item.sku === sku)?.name ||
+  sku;
 </script>
 
 <template>
@@ -180,14 +246,21 @@ const productName = (sku: string) =>
           </td>
           <td>{{ channelLabels[item.channel] }}</td>
           <td>
-            <strong>{{ productName(item.sku) }}</strong
+            <strong>{{ productName(item.sku, item.itemName) }}</strong
             ><span class="order-sku">{{ item.sku }}</span>
           </td>
           <td class="numeric">{{ item.quantity }}</td>
           <td>
-            <AppBadge :tone="completed(item) ? 'success' : 'warning'">{{
-              orderStatus(item)
-            }}</AppBadge>
+            <AppBadge
+              :tone="
+                completed(item)
+                  ? 'success'
+                  : cancelled(item)
+                    ? 'danger'
+                    : 'warning'
+              "
+              >{{ orderStatus(item) }}</AppBadge
+            >
           </td>
           <AppTableActions
             ><AppButton
@@ -216,11 +289,25 @@ const productName = (sku: string) =>
         <h3 class="order-section-title">Order items</h3>
         <AppDescriptionList
           :items="[
-            { label: 'Item', value: productName(selectedOrder.sku) },
+            {
+              label: 'Item',
+              value: productName(selectedOrder.sku, selectedOrder.itemName),
+            },
             { label: 'SKU', value: selectedOrder.sku },
             { label: 'Quantity', value: selectedOrder.quantity },
           ]"
         />
+        <div
+          v-if="selectedOrder.orderId && isOpenOrder(selectedOrder)"
+          class="order-detail-actions"
+        >
+          <AppButton
+            appearance="primary"
+            :disabled="fulfillMutation.isPending.value"
+            @click="handleFulfillOrder(selectedOrder)"
+            >Fulfill order</AppButton
+          >
+        </div>
       </AppInspector>
     </AppMasterDetail>
   </AppCollectionPanel>
@@ -237,5 +324,10 @@ const productName = (sku: string) =>
   font-size: 13px;
   font-weight: 600;
   margin: 16px 0 8px;
+}
+.order-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
 }
 </style>

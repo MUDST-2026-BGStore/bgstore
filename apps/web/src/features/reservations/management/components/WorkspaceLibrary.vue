@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
-import { games, type CatalogGame } from '../../../../shared/data/catalog';
+import type { CatalogGame } from '../../../../shared/data/catalog';
 import {
   AppBadge,
   AppButton,
@@ -21,6 +21,7 @@ import {
 } from '../../../../shared/ui';
 import { useManagementWorkspace } from '../context';
 const {
+  libraryGames,
   gameSearchQuery,
   gameStatusFilter,
   getGameLocation,
@@ -92,7 +93,7 @@ watch([gameSearchQuery, gameStatusFilter, selectedBranchId], () => {
             @click="gameStatusFilter = 'ALL'"
             >All games
             <span class="workspace-count">{{
-              games.length
+              libraryGames.length
             }}</span></AppFilterButton
           >
           <AppFilterButton
@@ -100,7 +101,7 @@ watch([gameSearchQuery, gameStatusFilter, selectedBranchId], () => {
             @click="gameStatusFilter = 'AVAILABLE'"
             >On shelf
             <span class="workspace-count">{{
-              games.filter((game) => !getGameLocation(game.name)).length
+              libraryGames.filter((game) => !getGameLocation(game.name)).length
             }}</span></AppFilterButton
           >
           <AppFilterButton
@@ -108,7 +109,7 @@ watch([gameSearchQuery, gameStatusFilter, selectedBranchId], () => {
             @click="gameStatusFilter = 'IN_USE'"
             >In use
             <span class="workspace-count">{{
-              games.filter((game) => !!getGameLocation(game.name)).length
+              libraryGames.filter((game) => !!getGameLocation(game.name)).length
             }}</span></AppFilterButton
           >
         </div>

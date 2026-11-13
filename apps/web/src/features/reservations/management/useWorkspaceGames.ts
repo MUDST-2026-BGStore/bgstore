@@ -1,17 +1,87 @@
-// TODO(workspace-inventory-api): Reads the fixture catalog and local reservations.
-// Branch offerings and rental copies now have endpoints (branch games, rental
-// copies); wire this composable to them.
-import { computed, ref } from 'vue';
-import { games, type CatalogGame } from '../../../shared/data/catalog';
+import { computed, ref, type Ref } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
+import { listBranchGames, type BranchGame } from '@theparlor/api-client';
+import { collectPages } from '../../../shared/lib/pagination';
+import {
+  games,
+  type CatalogGame,
+  type Category,
+} from '../../../shared/data/catalog';
 import type { useWorkspaceReservations } from './useWorkspaceReservations';
 
+export function toCatalogGame(offering: BranchGame): CatalogGame {
+  const { game, editions } = offering;
+  const difficultyMap: Record<string, CatalogGame['difficulty']> = {
+    EASY: 'Easy',
+    MEDIUM: 'Medium',
+    ADVANCED: 'Advanced',
+  };
+  const primaryEdition = editions?.[0];
+  return {
+    id: game.id,
+    name: game.name,
+    designer: game.designer ?? '',
+    categories: (game.categories ?? []) as Category[],
+    mechanics: game.mechanics ?? [],
+    players: [game.minPlayers, game.maxPlayers],
+    playMinutes: [game.playMinutesMin, game.playMinutesMax],
+    teachMinutes: game.teachMinutes ?? 0,
+    setupMinutes: game.setupMinutes ?? 0,
+    difficulty: difficultyMap[game.difficulty ?? 'EASY'] ?? 'Easy',
+    language:
+      editions?.length > 0
+        ? editions
+            .map((e) =>
+              e.languageCode.toLowerCase() === 'th'
+                ? 'Thai'
+                : e.languageCode.toLowerCase() === 'en'
+                  ? 'English'
+                  : e.languageCode,
+            )
+            .join(' · ')
+        : 'English',
+    description: game.descriptions?.['en-US'] ?? '',
+    retailPrice: primaryEdition
+      ? Math.round(primaryEdition.salePrice.amountMinor / 100)
+      : null,
+  };
+}
+
 export function useWorkspaceGames({
+  selectedBranchId,
   branchFloorTables,
   getTableStatus,
 }: Pick<
   ReturnType<typeof useWorkspaceReservations>,
   'branchFloorTables' | 'getTableStatus'
->) {
+> & {
+  selectedBranchId?: Ref<string>;
+}) {
+  const branchGamesQuery = selectedBranchId
+    ? useQuery({
+        queryKey: ['workspace', 'branchGames', selectedBranchId],
+        enabled: computed(() => Boolean(selectedBranchId.value)),
+        queryFn: ({ signal }) =>
+          collectPages((cursor) =>
+            listBranchGames(
+              selectedBranchId.value,
+              { limit: 100, cursor },
+              undefined,
+              signal,
+            ),
+          ),
+      })
+    : undefined;
+
+  const libraryGames = computed<CatalogGame[]>(() => {
+    const live = branchGamesQuery?.data.value;
+    if (!live?.length) return games;
+    const rentalOrSale = live.filter(
+      (offering) => offering.rentalEnabled || offering.saleEnabled,
+    );
+    const source = rentalOrSale.length > 0 ? rentalOrSale : live;
+    return source.map(toCatalogGame);
+  });
   // ==========================================
   // FEATURE 1: ASSIGNED GAMES PER TABLE & STRICT RULES
   // Rule 1: Only start session can be assigned game
@@ -85,7 +155,9 @@ export function useWorkspaceGames({
     }
 
     assignGameTargetTableId.value = idStr;
-    const firstAvail = games.find((g) => !getGameLocation(g.name)) || games[0];
+    const firstAvail =
+      libraryGames.value.find((g) => !getGameLocation(g.name)) ||
+      libraryGames.value[0];
     selectedGameToAssign.value = firstAvail || null;
     assignModalSearch.value = '';
     showAssignGameModal.value = true;
@@ -136,7 +208,7 @@ export function useWorkspaceGames({
 
   const filteredGames = computed(() => {
     const q = gameSearchQuery.value.trim().toLowerCase();
-    return games.filter((g) => {
+    return libraryGames.value.filter((g) => {
       const isAssigned = !!getGameLocation(g.name);
       if (gameStatusFilter.value === 'AVAILABLE' && isAssigned) return false;
       if (gameStatusFilter.value === 'IN_USE' && !isAssigned) return false;
@@ -152,7 +224,7 @@ export function useWorkspaceGames({
 
   const assignableGamesList = computed(() => {
     const q = assignModalSearch.value.trim().toLowerCase();
-    return games.filter((g) => {
+    return libraryGames.value.filter((g) => {
       if (!q) return true;
       return (
         g.name.toLowerCase().includes(q) ||
@@ -181,6 +253,7 @@ export function useWorkspaceGames({
     );
   });
   return {
+    libraryGames,
     gameSearchQuery,
     gameStatusFilter,
     selectedGameToAssign,

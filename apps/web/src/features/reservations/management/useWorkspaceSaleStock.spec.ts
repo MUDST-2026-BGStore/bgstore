@@ -1,6 +1,12 @@
 import { ref } from 'vue';
 import { describe, expect, it } from 'vitest';
-import { createPantrySamples } from './pantry.samples';
+import {
+  toFulfillmentSample,
+  toRentalCopySample,
+  toRetailStockSamples,
+} from '../components/management-inventory.samples';
+import { createPantrySamples, toPantryStockItem } from './pantry.samples';
+import { toCatalogGame } from './useWorkspaceGames';
 import { useWorkspaceSaleStock } from './useWorkspaceSaleStock';
 
 function stock() {
@@ -80,5 +86,156 @@ describe('sale stock operations', () => {
     expect(
       first.items.value.find((item) => item.sku === 'BEV-COCA-COLA'),
     ).toMatchObject({ onHand: 10, available: 10, status: 'Low stock' });
+  });
+
+  it('maps live branch games, pantry menu items, rental copies and orders', () => {
+    const offering = {
+      branchId: 'branch-siam',
+      game: {
+        id: 'game-azul',
+        name: 'Azul',
+        designer: 'Michael Kiesling',
+        difficulty: 'EASY' as const,
+        categories: ['Strategy', 'Quick & Light'],
+        mechanics: ['Tile placement'],
+        minPlayers: 2,
+        maxPlayers: 4,
+        playMinutesMin: 30,
+        playMinutesMax: 45,
+        teachMinutes: 5,
+        setupMinutes: 5,
+        descriptions: { 'en-US': 'Draft tiles and score patterns.' },
+        active: true,
+      },
+      saleEnabled: true,
+      rentalEnabled: true,
+      staffCanTeach: true,
+      rentalHourlyRate: { amountMinor: 2000 },
+      editions: [
+        {
+          editionId: 'ed-azul-en',
+          editionKind: 'BASE_GAME' as const,
+          languageCode: 'en',
+          active: true,
+          salePrice: { amountMinor: 149000 },
+          saleOnHand: 9,
+          saleHeld: 2,
+          saleAvailable: 7,
+        },
+      ],
+      rentalTotal: 2,
+      rentalUsable: 2,
+      rentalAvailableNow: 1,
+    };
+
+    expect(toCatalogGame(offering)).toMatchObject({
+      id: 'game-azul',
+      name: 'Azul',
+      designer: 'Michael Kiesling',
+      difficulty: 'Easy',
+      players: [2, 4],
+      playMinutes: [30, 45],
+      retailPrice: 1490,
+    });
+
+    expect(toRetailStockSamples([offering])).toEqual([
+      {
+        editionId: 'ed-azul-en',
+        gameId: 'game-azul',
+        sku: 'AZUL-EN-B',
+        name: 'Azul',
+        edition: 'Base game · English',
+        onHand: 9,
+        shippingHeld: 0,
+        pickupHeld: 2,
+        reorderAt: 3,
+      },
+    ]);
+
+    expect(
+      toPantryStockItem({
+        item: {
+          id: 'menu-coke',
+          sku: 'bev-coca-cola',
+          category: 'BEVERAGES',
+          names: {
+            'en-US': 'Coca-Cola Original (Can 325ml)',
+            'th-TH': 'โคคา-โคล่า รสชาติต้นตำรับ (กระป๋อง)',
+          },
+          price: { amountMinor: 3500 },
+          popular: true,
+        },
+        available: 42,
+      }),
+    ).toMatchObject({
+      id: 'bev-coca-cola',
+      menuItemId: 'menu-coke',
+      price: 35,
+      costPrice: 18,
+      unit: 'cans',
+      currentStock: 42,
+      lowStockThreshold: 12,
+    });
+
+    expect(
+      toRentalCopySample(
+        {
+          id: 'copy-1',
+          branchId: 'branch-siam',
+          gameId: 'game-azul',
+          assetCode: 'azul-siam-01',
+          operationalStatus: 'USABLE',
+          state: 'IN_USE',
+        },
+        'Azul',
+        'Table 1',
+      ),
+    ).toEqual({
+      id: 'copy-1',
+      gameId: 'game-azul',
+      sku: 'PZ-AZUL-RE',
+      assetCode: 'azul-siam-01',
+      name: 'Azul',
+      state: 'At table',
+      location: 'Table 1',
+    });
+
+    expect(
+      toFulfillmentSample({
+        id: '1042abcd-0000-0000-0000-000000000000',
+        branchId: 'branch-siam',
+        customer: { kind: 'GUEST', displayName: 'Guest' },
+        source: 'CUSTOMER',
+        status: 'PLACED',
+        items: [
+          {
+            editionId: 'ed-azul-en',
+            gameName: 'Azul',
+            editionLanguage: 'en',
+            quantity: 2,
+            unitPrice: { amountMinor: 149000 },
+            lineTotal: { amountMinor: 298000 },
+          },
+        ],
+        total: { amountMinor: 298000 },
+        contact: { name: 'Guest', phone: '0812345678' },
+        fulfillmentMethod: 'SHIPPING',
+        payment: {
+          method: 'CARD',
+          status: 'CAPTURED',
+          amount: { amountMinor: 298000 },
+        },
+        createdAt: '2026-11-13T10:00:00Z',
+        createdBySubject: 'guest',
+      }),
+    ).toEqual({
+      orderId: '1042abcd-0000-0000-0000-000000000000',
+      reference: 'PO-1042ABCD',
+      channel: 'shipping',
+      sku: 'AZUL-EN-B',
+      itemName: 'Azul',
+      quantity: 2,
+      state: 'Awaiting dispatch',
+    });
   });
 });

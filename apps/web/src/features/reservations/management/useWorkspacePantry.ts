@@ -1,14 +1,79 @@
-// TODO(pantry-api): Pantry (food and drink) stock has no backend. Levels, restocks
-// and adjustments are local sample state; only game sale stock exists on the server.
-import { computed, ref } from 'vue';
-import { createPantrySamples, type FoodDrinkStockItem } from './pantry.samples';
+import { computed, ref, watch, type Ref } from 'vue';
+import { useQuery, useQueryClient } from '@tanstack/vue-query';
+import { adjustMenuStock, getBranchMenu } from '@theparlor/api-client';
+import {
+  createPantrySamples,
+  toPantryStockItem,
+  type FoodDrinkStockItem,
+} from './pantry.samples';
 import { useCustomerReservationsStore } from '../data/reservations-store';
 
-export function useWorkspacePantry() {
+export function useWorkspacePantry(selectedBranchId?: Ref<string>) {
+  const queryClient = selectedBranchId ? useQueryClient() : undefined;
   const reservationsStore = useCustomerReservationsStore();
   const branchStockItems = ref(createPantrySamples());
   const stockCategoryFilter = ref<string>('ALL');
   const stockStatusFilter = ref<string>('ALL');
+
+  const branchMenuQuery = selectedBranchId
+    ? useQuery({
+        queryKey: ['workspace', 'branchMenu', selectedBranchId],
+        enabled: computed(() => Boolean(selectedBranchId.value)),
+        queryFn: ({ signal }) =>
+          getBranchMenu(selectedBranchId.value, undefined, signal),
+      })
+    : undefined;
+
+  if (branchMenuQuery && selectedBranchId) {
+    watch(
+      () => branchMenuQuery.data.value,
+      (menu) => {
+        if (!menu?.items?.length) return;
+        const previousById = new Map(
+          branchStockItems.value.map((item) => [item.id.toLowerCase(), item]),
+        );
+        branchStockItems.value = menu.items.map((entry) =>
+          toPantryStockItem(
+            entry,
+            previousById.get(entry.item.sku.toLowerCase()),
+          ),
+        );
+      },
+      { immediate: true },
+    );
+    watch(selectedBranchId, () => {
+      const menu = branchMenuQuery.data.value;
+      if (!menu?.items?.length) {
+        branchStockItems.value = createPantrySamples();
+      }
+    });
+  }
+
+  function syncMenuStockDelta(
+    item: FoodDrinkStockItem,
+    delta: number,
+    reason: string,
+  ) {
+    const branchId = selectedBranchId?.value;
+    if (!branchId || !item.menuItemId || delta === 0) return;
+    void adjustMenuStock(branchId, item.menuItemId, { delta, reason })
+      .then((res) => {
+        const nextStock =
+          typeof res?.available === 'number' ? res.available : res?.onHand;
+        if (typeof nextStock === 'number') {
+          item.currentStock = nextStock;
+        }
+        void queryClient?.invalidateQueries({
+          queryKey: ['workspace', 'branchMenu', branchId],
+        });
+        void queryClient?.invalidateQueries({
+          queryKey: ['branch-menu', branchId],
+        });
+      })
+      .catch(() => {
+        // Keep optimistic local balance when offline or unauthenticated
+      });
+  }
 
   const filteredStockItems = computed(() => {
     return branchStockItems.value.filter((item) => {
@@ -48,7 +113,14 @@ export function useWorkspacePantry() {
 
   // Staff Quick +/- Adjustment
   function adjustStockQty(item: FoodDrinkStockItem, delta: number) {
-    item.currentStock = Math.max(0, item.currentStock + delta);
+    const prev = item.currentStock;
+    const next = Math.max(0, prev + delta);
+    item.currentStock = next;
+    syncMenuStockDelta(
+      item,
+      next - prev,
+      next >= prev ? 'Staff stock addition' : 'Staff stock deduction',
+    );
   }
 
   // Restock Modal
@@ -64,7 +136,10 @@ export function useWorkspacePantry() {
 
   function submitRestock() {
     if (restockTargetItem.value && restockBatchQty.value > 0) {
-      restockTargetItem.value.currentStock += restockBatchQty.value;
+      const item = restockTargetItem.value;
+      const qty = restockBatchQty.value;
+      item.currentStock += qty;
+      syncMenuStockDelta(item, qty, 'Batch restock');
     }
     showRestockModal.value = false;
     restockTargetItem.value = null;
@@ -183,10 +258,10 @@ export function useWorkspacePantry() {
     for (const it of staffSnackSelectedItems.value) {
       const stockItem = branchStockItems.value.find((s) => s.id === it.item.id);
       if (stockItem) {
-        stockItem.currentStock = Math.max(
-          0,
-          stockItem.currentStock - it.quantity,
-        );
+        const prev = stockItem.currentStock;
+        const next = Math.max(0, prev - it.quantity);
+        stockItem.currentStock = next;
+        syncMenuStockDelta(stockItem, next - prev, 'Counter refreshment order');
       }
     }
 

@@ -497,6 +497,9 @@ export function useWorkspaceReservations() {
     void queryClient.invalidateQueries({
       queryKey: ['listBranchReservations'],
     });
+    void queryClient.invalidateQueries({
+      queryKey: ['workspace'],
+    });
   }
   return {
     queryClient,

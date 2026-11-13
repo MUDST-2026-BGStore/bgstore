@@ -1,7 +1,8 @@
-// TODO(pantry-api): Sample pantry stock. There is no pantry endpoint; replace this
-// file when the backend tracks food and drink inventory.
+import type { BranchMenuItem } from '@theparlor/api-client';
+
 export interface FoodDrinkStockItem {
   id: string;
+  menuItemId?: string;
   name: string;
   nameTh: string;
   category: 'beverages' | 'snacks' | 'tea_coffee' | 'bakery_desserts';
@@ -10,6 +11,75 @@ export interface FoodDrinkStockItem {
   unit: string;
   currentStock: number;
   lowStockThreshold: number;
+}
+
+const pantrySkuMeta: Record<
+  string,
+  { costPrice: number; unit: string; lowStockThreshold: number }
+> = {
+  'bev-coca-cola': { costPrice: 18, unit: 'cans', lowStockThreshold: 12 },
+  'bev-coke-zero': { costPrice: 18, unit: 'cans', lowStockThreshold: 12 },
+  'bev-sprite': { costPrice: 18, unit: 'cans', lowStockThreshold: 10 },
+  'bev-singha-soda': { costPrice: 12, unit: 'bottles', lowStockThreshold: 10 },
+  'bev-oishi-lemon': { costPrice: 16, unit: 'bottles', lowStockThreshold: 8 },
+  'bev-oishi-genmai': { costPrice: 16, unit: 'bottles', lowStockThreshold: 8 },
+  'bev-lipton-tea': { costPrice: 18, unit: 'cans', lowStockThreshold: 10 },
+  'bev-mineral-water': {
+    costPrice: 10,
+    unit: 'bottles',
+    lowStockThreshold: 12,
+  },
+  'snack-lays-classic': { costPrice: 20, unit: 'bags', lowStockThreshold: 8 },
+  'snack-lays-seaweed': { costPrice: 20, unit: 'bags', lowStockThreshold: 8 },
+  'snack-lays-bbq': { costPrice: 20, unit: 'bags', lowStockThreshold: 8 },
+  'snack-pringles-sour-cream': {
+    costPrice: 32,
+    unit: 'cans',
+    lowStockThreshold: 6,
+  },
+  'snack-pocky-chocolate': {
+    costPrice: 14,
+    unit: 'boxes',
+    lowStockThreshold: 10,
+  },
+  'snack-taro-fish': { costPrice: 18, unit: 'packs', lowStockThreshold: 8 },
+  'snack-bento-squid': { costPrice: 14, unit: 'packs', lowStockThreshold: 8 },
+  'snack-tong-garden-nuts': {
+    costPrice: 18,
+    unit: 'packs',
+    lowStockThreshold: 8,
+  },
+};
+
+export function toPantryStockItem(
+  { item, available }: BranchMenuItem,
+  previous?: FoodDrinkStockItem,
+): FoodDrinkStockItem {
+  const id = item.sku.toLowerCase();
+  const meta = pantrySkuMeta[id];
+  const price = Math.round(item.price.amountMinor / 100);
+  const category = item.category === 'SNACKS' ? 'snacks' : 'beverages';
+  return {
+    id,
+    menuItemId: item.id,
+    name: item.names['en-US'] ?? previous?.name ?? item.sku,
+    nameTh:
+      item.names['th-TH'] ??
+      previous?.nameTh ??
+      item.names['en-US'] ??
+      item.sku,
+    category: previous?.category ?? category,
+    price,
+    costPrice:
+      previous?.costPrice ?? meta?.costPrice ?? Math.round(price * 0.5),
+    unit:
+      previous?.unit ??
+      meta?.unit ??
+      (category === 'snacks' ? 'packs' : 'cans'),
+    currentStock: available,
+    lowStockThreshold:
+      previous?.lowStockThreshold ?? meta?.lowStockThreshold ?? 10,
+  };
 }
 
 export function createPantrySamples(): FoodDrinkStockItem[] {
