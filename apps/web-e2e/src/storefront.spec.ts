@@ -92,16 +92,19 @@ for (const status of [401, 503]) {
   });
 }
 
-test('remembers a browsing preference without claiming inventory', async ({
+test('remembers a chosen branch without putting prices on catalog cards', async ({
   page,
 }) => {
   await page.locator('.context-trigger').click();
   const dialog = page.getByRole('dialog', { name: 'Choose your store' });
   await dialog.locator('input[value=branch]').check();
-  await dialog.locator('select[name=store-branch]').selectOption('ari');
+  // Branches come from the seeded API, so they are chosen by name, not by a fixed ID.
+  await dialog
+    .locator('select[name=store-branch]')
+    .selectOption({ label: 'Ari' });
   await dialog.getByRole('button', { name: 'Save & continue' }).click();
   await expect(page.locator('.context-trigger')).toContainText('Ari');
-  await expect(page.locator('.source-label')).toHaveText('Browsing preference');
+  await expect(page.locator('.source-label')).toHaveText('Prices and stock');
   await page.reload();
   await expect(page.locator('.context-trigger')).toContainText('Ari');
   await expect(page.locator('.game-availability, .game-price')).toHaveCount(0);

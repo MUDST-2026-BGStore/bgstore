@@ -6,6 +6,8 @@ test.beforeEach(async ({ page }) => {
   // Keep the dashboard's existing records while isolating UI checks from backend writes.
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname;
+    // Vite serves source modules under features/*/api/ too.
+    if (!path.startsWith('/api/')) return route.fallback();
     if (path === '/api/auth/session') {
       await route.fulfill({
         json: {

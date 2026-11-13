@@ -23,7 +23,34 @@ async function signIn(page: Page, startPath = '/workspace') {
   await page.locator('#username').fill(username);
   await page.locator('#password').fill(password);
   await page.locator('#kc-login').click();
-  await expect(page.getByLabel('Signed-in user')).toHaveText(username);
+  await page.waitForURL(
+    (url) =>
+      url.origin === new URL(test.info().project.use.baseURL as string).origin,
+  );
+  // A reset development realm has a staff identity without an application profile.
+  const profile = await page.request.get('/api/v1/me');
+  if (profile.status() === 404) {
+    const csrfResponse = await page.request.get('/api/auth/csrf');
+    expect(csrfResponse.ok()).toBeTruthy();
+    const csrf = await csrfResponse.json();
+    const created = await page.request.post('/api/v1/me', {
+      headers: { [csrf.headerName]: csrf.token },
+      data: {
+        firstName: 'Local',
+        lastName: 'Staff',
+        phoneNumber: '+66811112222',
+        preferences: { preferredLocale: 'en-US' },
+      },
+    });
+    expect(created.ok()).toBeTruthy();
+  } else {
+    expect(profile.ok()).toBeTruthy();
+  }
+  await page.goto('/workspace');
+  await expect(
+    page.getByRole('link', { name: /^Your profile\b/ }),
+  ).toBeVisible();
+  await expect(page.getByTestId('api-identity')).toHaveText(username);
   return username;
 }
 
@@ -63,9 +90,7 @@ test('restores a cookie session and reads the server profile without bearer toke
 }) => {
   const username = await signIn(page, '/');
   await expect(page.getByTestId('api-service')).toHaveText('theparlor-api');
-  await expect(page.getByTestId('api-identity')).toHaveText(
-    `API identity: ${username}`,
-  );
+  await expect(page.getByTestId('api-identity')).toHaveText(username);
   const session = (await context.cookies()).find(
     (cookie) => cookie.name === 'THEPARLOR_SESSION',
   );
@@ -74,7 +99,7 @@ test('restores a cookie session and reads the server profile without bearer toke
   const request = page.waitForRequest(
     (request) => new URL(request.url()).pathname === '/api/v1/me',
   );
-  await page.getByRole('link', { name: 'Your profile', exact: true }).click();
+  await page.getByRole('link', { name: /^Your profile\b/ }).click();
   await expect(page.getByTestId('profile-username')).toHaveText(username);
   expect((await request).headers()['authorization']).toBeUndefined();
   await page.reload();
@@ -114,7 +139,7 @@ test('logs out through a CSRF-protected POST and clears both application and SSO
   const keycloakLogout = page.waitForRequest((request) =>
     new URL(request.url()).pathname.endsWith('/protocol/openid-connect/logout'),
   );
-  await page.getByRole('button', { name: 'Sign Out' }).click();
+  await page.getByRole('button', { name: 'Sign Out', exact: true }).click();
   const post = await logoutPost;
   expect(post.method()).toBe('POST');
   expect(post.postData()).toContain('_csrf=');

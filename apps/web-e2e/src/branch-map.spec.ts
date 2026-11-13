@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 // Keep MapLibre's real camera and marker positioning while removing tile-network
-// variability. These checks exercise the public branch page without a backend.
+// variability. These checks exercise the public branch page with a mocked branch list.
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.addInitScript(() => {
@@ -10,6 +10,28 @@ test.beforeEach(async ({ page }) => {
   });
   await page.route('**/api/auth/session', (route) =>
     route.fulfill({ json: { authenticated: false } }),
+  );
+  // The page reads branches from the API; positions come from the frontend's
+  // approximate coordinates for these seeded names.
+  await page.route('**/api/v1/branches?*', (route) =>
+    route.fulfill({
+      json: {
+        items: [
+          ['00000000-0000-4000-8000-0000000000a1', 'Siam', true],
+          ['00000000-0000-4000-8000-0000000000a2', 'Ari', false],
+          ['00000000-0000-4000-8000-0000000000a3', 'Riverside', false],
+        ].map(([id, name, fulfillsDelivery]) => ({
+          id,
+          name,
+          address: `${name} address`,
+          openingHours: [
+            { dayOfWeek: 'MONDAY', opensAt: '12:00', closesAt: '21:00' },
+          ],
+          active: true,
+          fulfillsDelivery,
+        })),
+      },
+    }),
   );
   await page.route('https://tiles.openfreemap.org/**', (route) =>
     route.fulfill({
@@ -99,7 +121,8 @@ for (const width of [390, 1440]) {
         'opacity',
         '1',
       );
-      await expect(pin(page, name)).toBeInViewport({ ratio: 1 });
+      // IntersectionObserver can round a fully visible transformed marker just below 1.
+      await expect(pin(page, name)).toBeInViewport({ ratio: 0.999 });
       await expectAnchored(pin(page, name));
     }
     await expect
@@ -146,7 +169,10 @@ for (const width of [390, 1440]) {
     const overviewSpan = await span();
     // The first row is also selectable even if a saved browsing preference
     // already identifies it; repeated selections must still focus the camera.
-    await page.locator('[data-branch="siam"] .row-main').click();
+    const siamRow = page.locator(
+      '[data-branch="00000000-0000-4000-8000-0000000000a1"] .row-main',
+    );
+    await siamRow.click();
     await expectFocused(page, 'Siam');
     await expect.poll(span).toBeGreaterThan(overviewSpan * 2);
     for (const action of ['Zoom in', 'Zoom out', 'Zoom out']) {
@@ -155,13 +181,13 @@ for (const width of [390, 1440]) {
         await expectAnchored(pin(page, name));
       }
     }
-    await page.locator('[data-branch="siam"] .row-main').click();
+    await siamRow.click();
     await expectFocused(page, 'Siam');
     await page
       .getByRole('button', { name: 'Show all branches', exact: true })
       .click();
     for (const name of ['Siam', 'Ari', 'Riverside']) {
-      await expect(pin(page, name)).toBeInViewport({ ratio: 1 });
+      await expect(pin(page, name)).toBeInViewport({ ratio: 0.999 });
     }
     await pin(page, 'Ari').click();
     await expectFocused(page, 'Ari');
