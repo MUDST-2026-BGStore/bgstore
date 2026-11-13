@@ -13,6 +13,7 @@ import {
   type FilterValues,
   AppInspector,
   AppMasterDetail,
+  AppMessageBar,
   AppRecordLink,
   AppTableActions,
 } from '../../../../shared/ui';
@@ -21,20 +22,22 @@ import {
   channelLabels,
   fulfillmentSamples,
   retailStockSamples,
-  toFulfillmentSample,
+  toFulfillmentRow,
   type FulfillmentSample,
 } from '../management-inventory.samples';
+import { branchGamesKey } from '../../management/branch-games';
 import InventoryFilterBar from './InventoryFilterBar.vue';
 import InventoryStockTable from './InventoryStockTable.vue';
 
 defineProps<{ branchName: string }>();
 const queryClient = useQueryClient();
-const { selectedBranchId, saleStock } = useManagementWorkspace();
-const orders = ref<FulfillmentSample[]>(
-  fulfillmentSamples.map((item) => ({ ...item })),
-);
+const { selectedBranchId } = useManagementWorkspace();
 const ordersQuery = useQuery({
-  queryKey: ['workspace', 'branchOrders', selectedBranchId],
+  queryKey: computed(() => [
+    'workspace',
+    'branchOrders',
+    selectedBranchId.value,
+  ]),
   enabled: computed(() => Boolean(selectedBranchId.value)),
   queryFn: ({ signal }) =>
     collectPages((cursor) =>
@@ -46,42 +49,40 @@ const ordersQuery = useQuery({
       ),
     ),
 });
-watch(
-  () => ordersQuery.data.value,
-  (liveOrders) => {
-    if (!liveOrders?.length) return;
-    orders.value = liveOrders.map(toFulfillmentSample);
-  },
-  { immediate: true },
-);
+// Server orders; sample orders remain only while the branch has none.
+const orders = computed<readonly FulfillmentSample[]>(() => {
+  const live = ordersQuery.data.value;
+  return live?.length ? live.map(toFulfillmentRow) : fulfillmentSamples;
+});
 watch(selectedBranchId, () => {
   selectedReference.value = null;
-  const liveOrders = ordersQuery.data.value;
-  orders.value = liveOrders?.length
-    ? liveOrders.map(toFulfillmentSample)
-    : fulfillmentSamples.map((item) => ({ ...item }));
+  fulfillError.value = '';
 });
 
+const fulfillError = ref('');
 const fulfillMutation = useMutation({
-  mutationFn: async (orderId: string) =>
-    fulfillOrder(selectedBranchId.value, orderId),
-  onSuccess: () => {
-    void queryClient.invalidateQueries({
-      queryKey: ['workspace', 'branchOrders', selectedBranchId.value],
-    });
-    void queryClient.invalidateQueries({
-      queryKey: ['workspace', 'branchGames', selectedBranchId.value],
-    });
-  },
+  mutationFn: ({ branchId, orderId }: { branchId: string; orderId: string }) =>
+    fulfillOrder(branchId, orderId),
+  onSuccess: (_order, { branchId }) =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['workspace', 'branchOrders', branchId],
+      }),
+      queryClient.invalidateQueries({ queryKey: branchGamesKey(branchId) }),
+    ]),
 });
 
 async function handleFulfillOrder(order: FulfillmentSample) {
   if (!order.orderId || !isOpenOrder(order)) return;
-  order.state = 'Sale completed';
+  fulfillError.value = '';
   try {
-    await fulfillMutation.mutateAsync(order.orderId);
+    await fulfillMutation.mutateAsync({
+      branchId: selectedBranchId.value,
+      orderId: order.orderId,
+    });
   } catch {
-    // Keep optimistic local status if offline
+    fulfillError.value =
+      'The order could not be fulfilled. Refresh and try again.';
   }
 }
 
@@ -170,10 +171,7 @@ watch([search, filters, queue], () => {
   selectedReference.value = null;
 });
 const productName = (sku: string, itemName?: string) =>
-  itemName ||
-  saleStock.items.value.find((item) => item.sku === sku)?.name ||
-  retailStockSamples.find((item) => item.sku === sku)?.name ||
-  sku;
+  itemName || retailStockSamples.find((item) => item.sku === sku)?.name || sku;
 </script>
 
 <template>
@@ -308,6 +306,9 @@ const productName = (sku: string, itemName?: string) =>
             >Fulfill order</AppButton
           >
         </div>
+        <AppMessageBar v-if="fulfillError" tone="error">{{
+          fulfillError
+        }}</AppMessageBar>
       </AppInspector>
     </AppMasterDetail>
   </AppCollectionPanel>

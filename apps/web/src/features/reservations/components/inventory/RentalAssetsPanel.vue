@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useQuery } from '@tanstack/vue-query';
-import { listBranchGames, listRentalCopies } from '@theparlor/api-client';
+import { listRentalCopies } from '@theparlor/api-client';
 import { collectPages } from '../../../../shared/lib/pagination';
 import {
   AppCollectionPanel,
@@ -11,39 +11,28 @@ import {
   type FilterValues,
 } from '../../../../shared/ui';
 import { useManagementWorkspace } from '../../management/context';
+import { useBranchGamesQuery } from '../../management/branch-games';
 import {
   rentalCopySamples,
-  toRentalCopySample,
+  toRentalCopyRow,
   type RentalCopySample,
 } from '../management-inventory.samples';
 import InventoryFilterBar from './InventoryFilterBar.vue';
 import InventoryStockTable from './InventoryStockTable.vue';
 import InventoryRecordRow from './InventoryRecordRow.vue';
 
-const { selectedBranchId, getGameLocation } = useManagementWorkspace();
-const branchGamesQuery = useQuery({
-  queryKey: ['workspace', 'branchGames', selectedBranchId],
-  enabled: computed(() => Boolean(selectedBranchId.value)),
-  queryFn: ({ signal }) =>
-    collectPages((cursor) =>
-      listBranchGames(
-        selectedBranchId.value,
-        { limit: 100, cursor },
-        undefined,
-        signal,
-      ),
-    ),
-});
+const { selectedBranchId } = useManagementWorkspace();
+const branchGames = useBranchGamesQuery(selectedBranchId);
 const rentalOfferings = computed(() =>
-  (branchGamesQuery.data.value ?? []).filter(
-    (offering) => offering.rentalEnabled || offering.rentalTotal > 0,
-  ),
-);
-const rentalGameIdsKey = computed(() =>
-  rentalOfferings.value.map((offering) => offering.game.id).join(','),
+  (branchGames.data.value ?? []).filter((offering) => offering.rentalTotal > 0),
 );
 const rentalCopiesQuery = useQuery({
-  queryKey: ['workspace', 'rentalCopies', selectedBranchId, rentalGameIdsKey],
+  queryKey: computed(() => [
+    'workspace',
+    'rentalCopies',
+    selectedBranchId.value,
+    rentalOfferings.value.map((offering) => offering.game.id).join(','),
+  ]),
   enabled: computed(
     () => Boolean(selectedBranchId.value) && rentalOfferings.value.length > 0,
   ),
@@ -60,21 +49,16 @@ const rentalCopiesQuery = useQuery({
             signal,
           ),
         );
-        return copies.map((copy) => ({
-          copy,
-          gameName: offering.game.name,
-        }));
+        return copies.map((copy) => toRentalCopyRow(copy, offering.game.name));
       }),
     );
     return perGame.flat();
   },
 });
+// Tracked copies from the server; sample copies remain only while the branch has none.
 const assets = computed<readonly RentalCopySample[]>(() => {
   const live = rentalCopiesQuery.data.value;
-  if (!live?.length) return rentalCopySamples;
-  return live.map(({ copy, gameName }) =>
-    toRentalCopySample(copy, gameName, getGameLocation(gameName)),
-  );
+  return live?.length ? live : rentalCopySamples;
 });
 
 const search = ref('');

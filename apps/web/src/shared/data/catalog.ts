@@ -25,9 +25,10 @@ export interface CatalogGame {
   retailPrice: number | null;
 }
 
-// Default catalog fixtures used when the branch offerings endpoint returns no
-// items (such as isolated UI tests). Live storefront and workspace views read
-// catalog titles, branch prices and stock from the API.
+// Sample games for the staff workspace library while a branch offers none on the
+// server. The storefront, cart, orders and live workspace read the catalog, branch
+// prices and stock from the API. All prices, availability and teaching estimates
+// here are sample data.
 export const games: CatalogGame[] = [
   {
     id: 'azul',
@@ -227,7 +228,7 @@ export const games: CatalogGame[] = [
     designer: 'Brian Hersch',
     categories: ['Party & Casual'],
     mechanics: ['Word association', 'Team-based'],
-    players: [4, 10],
+    players: [4, 20],
     playMinutes: [20, 30],
     teachMinutes: 3,
     setupMinutes: 2,

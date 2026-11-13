@@ -1,204 +1,13 @@
-import { computed, ref, watch, type Ref } from 'vue';
-import { useQuery, useQueryClient } from '@tanstack/vue-query';
-import { adjustMenuStock, getBranchMenu } from '@theparlor/api-client';
-import {
-  createPantrySamples,
-  toPantryStockItem,
-  type FoodDrinkStockItem,
-} from './pantry.samples';
+// TODO(pantry-api): Counter refreshment orders have no backend. Their item list and
+// stock deductions are local sample state; branch pantry stock is read and adjusted
+// through the menu API in WorkspacePantryStock.
+import { computed, ref } from 'vue';
+import { createPantrySamples, type FoodDrinkStockItem } from './pantry.samples';
 import { useCustomerReservationsStore } from '../data/reservations-store';
 
-export function useWorkspacePantry(selectedBranchId?: Ref<string>) {
-  const queryClient = selectedBranchId ? useQueryClient() : undefined;
+export function useWorkspacePantry() {
   const reservationsStore = useCustomerReservationsStore();
   const branchStockItems = ref(createPantrySamples());
-  const stockCategoryFilter = ref<string>('ALL');
-  const stockStatusFilter = ref<string>('ALL');
-
-  const branchMenuQuery = selectedBranchId
-    ? useQuery({
-        queryKey: ['workspace', 'branchMenu', selectedBranchId],
-        enabled: computed(() => Boolean(selectedBranchId.value)),
-        queryFn: ({ signal }) =>
-          getBranchMenu(selectedBranchId.value, undefined, signal),
-      })
-    : undefined;
-
-  if (branchMenuQuery && selectedBranchId) {
-    watch(
-      () => branchMenuQuery.data.value,
-      (menu) => {
-        if (!menu?.items?.length) return;
-        const previousById = new Map(
-          branchStockItems.value.map((item) => [item.id.toLowerCase(), item]),
-        );
-        branchStockItems.value = menu.items.map((entry) =>
-          toPantryStockItem(
-            entry,
-            previousById.get(entry.item.sku.toLowerCase()),
-          ),
-        );
-      },
-      { immediate: true },
-    );
-    watch(selectedBranchId, () => {
-      const menu = branchMenuQuery.data.value;
-      if (!menu?.items?.length) {
-        branchStockItems.value = createPantrySamples();
-      }
-    });
-  }
-
-  function syncMenuStockDelta(
-    item: FoodDrinkStockItem,
-    delta: number,
-    reason: string,
-  ) {
-    const branchId = selectedBranchId?.value;
-    if (!branchId || !item.menuItemId || delta === 0) return;
-    void adjustMenuStock(branchId, item.menuItemId, { delta, reason })
-      .then((res) => {
-        const nextStock =
-          typeof res?.available === 'number' ? res.available : res?.onHand;
-        if (typeof nextStock === 'number') {
-          item.currentStock = nextStock;
-        }
-        void queryClient?.invalidateQueries({
-          queryKey: ['workspace', 'branchMenu', branchId],
-        });
-        void queryClient?.invalidateQueries({
-          queryKey: ['branch-menu', branchId],
-        });
-      })
-      .catch(() => {
-        // Keep optimistic local balance when offline or unauthenticated
-      });
-  }
-
-  const filteredStockItems = computed(() => {
-    return branchStockItems.value.filter((item) => {
-      const matchesCat =
-        stockCategoryFilter.value === 'ALL' ||
-        item.category === stockCategoryFilter.value;
-      let matchesStatus = true;
-      if (stockStatusFilter.value === 'NEED_REORDER') {
-        matchesStatus = item.currentStock <= item.lowStockThreshold;
-      } else if (stockStatusFilter.value === 'OUT') {
-        matchesStatus = item.currentStock === 0;
-      } else if (stockStatusFilter.value === 'HEALTHY') {
-        matchesStatus = item.currentStock > item.lowStockThreshold;
-      }
-      return matchesCat && matchesStatus;
-    });
-  });
-
-  const totalStockUnits = computed(() =>
-    branchStockItems.value.reduce((s, it) => s + it.currentStock, 0),
-  );
-  const healthyStockCount = computed(
-    () =>
-      branchStockItems.value.filter(
-        (it) => it.currentStock > it.lowStockThreshold,
-      ).length,
-  );
-  const lowStockCount = computed(
-    () =>
-      branchStockItems.value.filter(
-        (it) => it.currentStock <= it.lowStockThreshold && it.currentStock > 0,
-      ).length,
-  );
-  const outOfStockCount = computed(
-    () => branchStockItems.value.filter((it) => it.currentStock === 0).length,
-  );
-
-  // Staff Quick +/- Adjustment
-  function adjustStockQty(item: FoodDrinkStockItem, delta: number) {
-    const prev = item.currentStock;
-    const next = Math.max(0, prev + delta);
-    item.currentStock = next;
-    syncMenuStockDelta(
-      item,
-      next - prev,
-      next >= prev ? 'Staff stock addition' : 'Staff stock deduction',
-    );
-  }
-
-  // Restock Modal
-  const showRestockModal = ref(false);
-  const restockTargetItem = ref<FoodDrinkStockItem | null>(null);
-  const restockBatchQty = ref(12);
-
-  function openRestockModal(item: FoodDrinkStockItem) {
-    restockTargetItem.value = item;
-    restockBatchQty.value = 12;
-    showRestockModal.value = true;
-  }
-
-  function submitRestock() {
-    if (restockTargetItem.value && restockBatchQty.value > 0) {
-      const item = restockTargetItem.value;
-      const qty = restockBatchQty.value;
-      item.currentStock += qty;
-      syncMenuStockDelta(item, qty, 'Batch restock');
-    }
-    showRestockModal.value = false;
-    restockTargetItem.value = null;
-  }
-
-  // Higher Role Exclusive: Add New Food/Drink Type
-  const showAddFoodModal = ref(false);
-  const newFoodForm = ref({
-    name: '',
-    nameTh: '',
-    category: 'beverages' as
-      | 'beverages'
-      | 'snacks'
-      | 'tea_coffee'
-      | 'bakery_desserts',
-    price: 50,
-    costPrice: 25,
-    unit: 'cans',
-    initialStock: 24,
-    lowStockThreshold: 10,
-  });
-
-  function openAddFoodModal() {
-    newFoodForm.value = {
-      name: '',
-      nameTh: '',
-      category: 'beverages',
-      price: 50,
-      costPrice: 25,
-      unit: 'cans',
-      initialStock: 24,
-      lowStockThreshold: 10,
-    };
-    showAddFoodModal.value = true;
-  }
-
-  function submitAddNewFood() {
-    if (!newFoodForm.value.name.trim()) return;
-    const newId = `custom-${Date.now()}`;
-    branchStockItems.value.unshift({
-      id: newId,
-      name: newFoodForm.value.name.trim(),
-      nameTh: newFoodForm.value.nameTh.trim() || newFoodForm.value.name.trim(),
-      category: newFoodForm.value.category,
-      price: Number(newFoodForm.value.price) || 0,
-      costPrice: Number(newFoodForm.value.costPrice) || 0,
-      unit: newFoodForm.value.unit || 'units',
-      currentStock: Number(newFoodForm.value.initialStock) || 0,
-      lowStockThreshold: Number(newFoodForm.value.lowStockThreshold) || 10,
-    });
-    showAddFoodModal.value = false;
-  }
-
-  function removeStockItem(itemId: string) {
-    branchStockItems.value = branchStockItems.value.filter(
-      (i) => i.id !== itemId,
-    );
-  }
-
   // Staff Snack Tab Ordering
   const staffSnackReservation = ref<any>(null);
   const staffSnackQuantities = ref<Record<string, number>>({});
@@ -258,10 +67,10 @@ export function useWorkspacePantry(selectedBranchId?: Ref<string>) {
     for (const it of staffSnackSelectedItems.value) {
       const stockItem = branchStockItems.value.find((s) => s.id === it.item.id);
       if (stockItem) {
-        const prev = stockItem.currentStock;
-        const next = Math.max(0, prev - it.quantity);
-        stockItem.currentStock = next;
-        syncMenuStockDelta(stockItem, next - prev, 'Counter refreshment order');
+        stockItem.currentStock = Math.max(
+          0,
+          stockItem.currentStock - it.quantity,
+        );
       }
     }
 
@@ -275,24 +84,6 @@ export function useWorkspacePantry(selectedBranchId?: Ref<string>) {
   return {
     reservationsStore,
     branchStockItems,
-    stockCategoryFilter,
-    stockStatusFilter,
-    filteredStockItems,
-    totalStockUnits,
-    healthyStockCount,
-    lowStockCount,
-    outOfStockCount,
-    adjustStockQty,
-    showRestockModal,
-    restockTargetItem,
-    restockBatchQty,
-    openRestockModal,
-    submitRestock,
-    showAddFoodModal,
-    newFoodForm,
-    openAddFoodModal,
-    submitAddNewFood,
-    removeStockItem,
     staffSnackReservation,
     staffSnackQuantities,
     openAddSnacks,

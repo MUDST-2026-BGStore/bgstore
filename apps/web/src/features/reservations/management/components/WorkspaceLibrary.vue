@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue';
-import type { CatalogGame } from '../../../../shared/data/catalog';
+import type { WorkspaceGame } from '../useWorkspaceGames';
 import {
   AppBadge,
   AppButton,
@@ -38,7 +38,7 @@ const columns = [
   { label: 'Location' },
   { label: 'Actions', action: true },
 ];
-const selectedGame = ref<CatalogGame | null>(null);
+const selectedGame = ref<WorkspaceGame | null>(null);
 const table = ref<InstanceType<typeof AppDataTable>>();
 const page = ref<InstanceType<typeof AppPage>>();
 const selection = useTableSelection(
@@ -58,7 +58,7 @@ async function returnSelectedGames() {
   else page.value?.focusHeading();
 }
 let detailsTrigger: HTMLElement | null = null;
-function showDetails(game: CatalogGame, event: MouseEvent) {
+function showDetails(game: WorkspaceGame, event: MouseEvent) {
   const target = event.currentTarget as HTMLElement;
   detailsTrigger = target.matches('button')
     ? target
@@ -183,7 +183,7 @@ watch([gameSearchQuery, gameStatusFilter, selectedBranchId], () => {
             <td class="library-nowrap">
               {{ game.playMinutes[0] }}–{{ game.playMinutes[1] }} min
             </td>
-            <td>{{ game.difficulty }}</td>
+            <td>{{ game.difficulty ?? '—' }}</td>
             <td>
               <AppBadge
                 :tone="getGameLocation(game.name) ? 'warning' : 'success'"
@@ -224,7 +224,7 @@ watch([gameSearchQuery, gameStatusFilter, selectedBranchId], () => {
                 label: 'Play time',
                 value: `${selectedGame.playMinutes[0]}–${selectedGame.playMinutes[1]} min`,
               },
-              { label: 'Difficulty', value: selectedGame.difficulty },
+              { label: 'Difficulty', value: selectedGame.difficulty ?? '—' },
               {
                 label: 'Genre',
                 value: selectedGame.categories.join(', ') || '—',

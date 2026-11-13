@@ -10,7 +10,8 @@ export interface RetailStockSample {
   onHand: number;
   shippingHeld: number;
   pickupHeld: number;
-  reorderAt: number;
+  /** Null for live editions: the branch keeps no reorder threshold. */
+  reorderAt: number | null;
 }
 
 export const retailStockSamples: readonly RetailStockSample[] = [
@@ -147,27 +148,6 @@ export const fulfillmentSamples: readonly FulfillmentSample[] = [
   },
 ];
 
-const gameCodePrefixes: Record<string, string> = {
-  azul: 'AZUL',
-  catan: 'CATAN',
-  wingspan: 'WING',
-  codenames: 'CODE',
-  pandemic: 'PAND',
-  cascadia: 'CASC',
-  'love letter': 'LOVE',
-};
-
-function gamePrefix(name: string): string {
-  const lower = name.trim().toLowerCase();
-  if (gameCodePrefixes[lower]) return gameCodePrefixes[lower];
-  return (
-    name
-      .replace(/[^a-zA-Z0-9]/g, '')
-      .slice(0, 4)
-      .toUpperCase() || 'GAME'
-  );
-}
-
 function languageLabel(code: string): string {
   const lower = code.trim().toLowerCase();
   if (lower === 'en') return 'English';
@@ -175,73 +155,54 @@ function languageLabel(code: string): string {
   return code.toUpperCase();
 }
 
-export function editionSkuForGame(
-  gameName: string,
-  languageCode: string,
-  editionKind = 'BASE_GAME',
-): string {
-  const prefix = gamePrefix(gameName);
-  const lang = languageCode.trim().toUpperCase() || 'EN';
-  const kind = editionKind === 'EXPANSION' ? 'X' : 'B';
-  return `${prefix}-${lang}-${kind}`;
-}
+/** Live editions have no SKU; a short form of the edition ID identifies the row. */
+const shortId = (id: string) => id.slice(0, 8).toUpperCase();
 
-export function rentalSkuForGame(gameName: string): string {
-  return `PZ-${gamePrefix(gameName)}-RE`;
-}
-
-export function toRetailStockSamples(
+/**
+ * Sale stock rows for a branch's live editions. The API reports one held count
+ * for placed orders, so it is not split by channel, and branches keep no reorder
+ * threshold.
+ */
+export function toRetailStockRows(
   branchGames: readonly BranchGame[],
 ): RetailStockSample[] {
-  const rows: RetailStockSample[] = [];
-  for (const offering of branchGames) {
-    for (const edition of offering.editions ?? []) {
-      const sku = editionSkuForGame(
-        offering.game.name,
-        edition.languageCode,
-        edition.editionKind,
-      );
-      const sample = retailStockSamples.find((s) => s.sku === sku);
-      const kindLabel =
-        edition.editionKind === 'EXPANSION' ? 'Expansion' : 'Base game';
-      rows.push({
-        editionId: edition.editionId,
-        gameId: offering.game.id,
-        sku,
-        name: offering.game.name,
-        edition: `${kindLabel} · ${languageLabel(edition.languageCode)}`,
-        onHand: edition.saleOnHand,
-        shippingHeld: 0,
-        pickupHeld: edition.saleHeld,
-        reorderAt: sample?.reorderAt ?? 2,
-      });
-    }
-  }
-  return rows;
+  return branchGames.flatMap((offering) =>
+    offering.editions.map((edition) => ({
+      editionId: edition.editionId,
+      gameId: offering.game.id,
+      sku: shortId(edition.editionId),
+      name: offering.game.name,
+      edition: `${edition.editionKind === 'EXPANSION' ? 'Expansion' : 'Base game'} · ${languageLabel(edition.languageCode)}`,
+      onHand: edition.saleOnHand,
+      shippingHeld: 0,
+      pickupHeld: edition.saleHeld,
+      reorderAt: null,
+    })),
+  );
 }
 
-export function toRentalCopySample(
+/** A tracked rental copy, described only by what the server reports. */
+export function toRentalCopyRow(
   copy: RentalCopy,
   gameName: string,
-  tableLocation?: string | null,
 ): RentalCopySample {
-  const state: RentalCopySample['state'] =
-    copy.state === 'AVAILABLE'
+  const outOfService = copy.operationalStatus !== 'USABLE';
+  const state: RentalCopySample['state'] = outOfService
+    ? 'Maintenance'
+    : copy.state === 'AVAILABLE'
       ? 'On shelf'
-      : copy.state === 'IN_USE' || copy.state === 'RESERVED'
-        ? 'At table'
-        : 'Maintenance';
-  const location =
-    state === 'Maintenance'
-      ? copy.reason || 'Out-of-service check'
-      : state === 'At table'
-        ? tableLocation ||
-          (copy.state === 'RESERVED' ? 'Reserved session' : 'Active table')
-        : copy.reason || 'Shelf';
+      : 'At table';
+  const location = outOfService
+    ? copy.reason || 'Out of service'
+    : copy.state === 'RESERVED'
+      ? 'Held for a reservation'
+      : copy.state === 'IN_USE'
+        ? 'In play'
+        : 'Available';
   return {
     id: copy.id,
     gameId: copy.gameId,
-    sku: rentalSkuForGame(gameName),
+    sku: shortId(copy.gameId),
     assetCode: copy.assetCode,
     name: gameName,
     state,
@@ -249,18 +210,14 @@ export function toRentalCopySample(
   };
 }
 
-export function toFulfillmentSample(order: Order): FulfillmentSample {
+export function toFulfillmentRow(order: Order): FulfillmentSample {
   const channel: InventoryChannel =
     order.source === 'STAFF_COUNTER'
       ? 'counter'
       : order.fulfillmentMethod === 'SHIPPING'
         ? 'shipping'
         : 'pickup';
-  const first = order.items[0];
-  const sku = first
-    ? editionSkuForGame(first.gameName, first.editionLanguage, 'BASE_GAME')
-    : order.id;
-  const quantity = order.items.reduce((sum, item) => sum + item.quantity, 0);
+  const [first, ...rest] = order.items;
   const state =
     order.status === 'FULFILLED'
       ? 'Sale completed'
@@ -271,13 +228,13 @@ export function toFulfillmentSample(order: Order): FulfillmentSample {
           : 'Awaiting collection';
   return {
     orderId: order.id,
-    reference: order.id.startsWith('PO-')
-      ? order.id
-      : `PO-${order.id.slice(0, 8).toUpperCase()}`,
+    reference: shortId(order.id),
     channel,
-    sku,
-    itemName: first?.gameName,
-    quantity,
+    sku: first ? shortId(first.editionId) : '',
+    itemName: first
+      ? `${first.gameName}${rest.length ? ` and ${rest.length} more` : ''}`
+      : undefined,
+    quantity: order.items.reduce((sum, item) => sum + item.quantity, 0),
     state,
   };
 }

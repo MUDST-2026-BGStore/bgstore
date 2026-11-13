@@ -15,8 +15,6 @@ import WorkspaceAnalytics from '../management/components/WorkspaceAnalytics.vue'
 import WorkspaceSettings from '../management/components/WorkspaceSettings.vue';
 import WorkspacePolicies from '../management/components/WorkspacePolicies.vue';
 import AssignGameDialog from '../management/components/AssignGameDialog.vue';
-import AddPantryItemDialog from '../management/components/AddPantryItemDialog.vue';
-import RestockDialog from '../management/components/RestockDialog.vue';
 import WorkspaceBillDialog from '../management/components/WorkspaceBillDialog.vue';
 import CancelBookingDialog from '../management/components/CancelBookingDialog.vue';
 import WalkInDialog from '../management/components/WalkInDialog.vue';
@@ -28,6 +26,9 @@ const {
   isAdmin,
   branchesQuery,
   reservationsQuery,
+  branchAccessVerified,
+  branchAccessDenied,
+  branches,
   selectedBranchId,
   actionError,
   refreshAll,
@@ -51,8 +52,15 @@ function resetViewScroll() {
         aria-label="Management workspace"
       >
         <main id="workspace-content" class="gl-content">
+          <AppMessageBar v-if="branchAccessDenied" tone="error"
+            >You do not have access to this branch.</AppMessageBar
+          >
           <AppMessageBar
-            v-if="
+            v-else-if="branchesQuery.isSuccess.value && branches.length === 0"
+            >No branches are available.</AppMessageBar
+          >
+          <AppMessageBar
+            v-else-if="
               branchesQuery.isError.value || reservationsQuery.isError.value
             "
             tone="error"
@@ -76,7 +84,10 @@ function resetViewScroll() {
           <AppMessageBar v-if="actionError" tone="error">{{
             actionError
           }}</AppMessageBar>
+          <!-- Views, sample records and actions appear only once the server has
+               accepted this account as an operator of the selected branch. -->
           <Transition
+            v-if="branchAccessVerified"
             name="workspace-view"
             mode="out-in"
             @before-enter="resetViewScroll"
@@ -105,13 +116,13 @@ function resetViewScroll() {
           </Transition>
         </main>
       </div>
-      <AssignGameDialog />
-      <AddPantryItemDialog />
-      <RestockDialog />
-      <WorkspaceBillDialog />
-      <CancelBookingDialog />
-      <WalkInDialog />
-      <RefreshmentsDialog />
+      <template v-if="branchAccessVerified">
+        <AssignGameDialog />
+        <WorkspaceBillDialog />
+        <CancelBookingDialog />
+        <WalkInDialog />
+        <RefreshmentsDialog />
+      </template>
     </div>
   </div>
 </template>

@@ -138,7 +138,7 @@ const totalItemsCount = computed(() =>
           :class="{ 'is-active': activeCategory === cat.id }"
           @click="activeCategory = cat.id"
         >
-          {{ t(cat.label) }}
+          <span>{{ t(cat.label) }}</span>
         </button>
       </div>
 
@@ -194,7 +194,7 @@ const totalItemsCount = computed(() =>
               :aria-label="`Decrease ${item.name}`"
               @click="updateQuantity(item, -1)"
             >
-              −
+              <span>−</span>
             </button>
             <span v-if="getQuantity(item.id) > 0" class="qty-count">{{
               getQuantity(item.id)
@@ -282,6 +282,8 @@ const totalItemsCount = computed(() =>
 
 .discount-badge {
   display: inline-flex;
+  flex-shrink: 0;
+  white-space: nowrap;
   align-items: center;
   gap: 6px;
   background: #203c30;
@@ -291,10 +293,26 @@ const totalItemsCount = computed(() =>
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  white-space: nowrap;
+  line-height: 1.5;
+  min-width: 0;
+}
+
+.discount-badge .icon {
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* Center visible text with icons and controls, without the font's extra leading. */
+.discount-badge .highlight,
+.cat-tab > span,
+.step-btn > span,
+.qty-count {
+  text-box: trim-both cap alphabetic;
 }
 
 .discount-copy {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-size: 13px;
   color: #243e32;
@@ -316,6 +334,11 @@ const totalItemsCount = computed(() =>
 }
 
 .cat-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  line-height: 1.5;
   padding: 7px 14px;
   border: 1px solid #d5c8b2;
   background: #fffaf1;
@@ -339,6 +362,8 @@ const totalItemsCount = computed(() =>
 }
 
 .search-input {
+  min-height: 36px;
+  line-height: 1.5;
   padding: 8px 14px;
   border: 1px solid #d5c8b2;
   border-radius: 6px;
@@ -440,6 +465,7 @@ const totalItemsCount = computed(() =>
 
 .card-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   border-top: 1px solid #f0e9dc;
@@ -496,6 +522,12 @@ const totalItemsCount = computed(() =>
 }
 
 .step-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  line-height: 1.5;
   background: transparent;
   border: none;
   color: #203c30;
@@ -554,6 +586,7 @@ const totalItemsCount = computed(() =>
 
 .price-breakdown {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 10px;
 }
@@ -586,6 +619,10 @@ const totalItemsCount = computed(() =>
 }
 
 @media (max-width: 640px) {
+  .discount-badge {
+    max-width: 100%;
+    white-space: normal;
+  }
   .discount-banner {
     flex-direction: column;
     align-items: flex-start;

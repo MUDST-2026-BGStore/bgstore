@@ -69,7 +69,7 @@ const thai: Record<string, string> = {
     'ดูคลังเกมแต่ละสาขาสำหรับเช่าเล่นภายในร้าน ไม่สามารถนำเกมออกนอกร้านได้',
 
   'Online stock': 'สินค้าออนไลน์',
-  'Store availability': 'เกมและสินค้าที่สาขา',
+  'At this store': 'ที่สาขานี้',
   'Stock at {branch}': 'สินค้าที่สาขา{branch}',
   'Unable to add more of this edition. Check the quantity already in your cart.':
     'ไม่สามารถเพิ่มสินค้ารุ่นนี้ได้อีก กรุณาตรวจสอบจำนวนในตะกร้า',
@@ -646,6 +646,8 @@ const thai: Record<string, string> = {
   'Play Duration:': 'ระยะเวลาการเล่น:',
   hr: 'ชม.',
   'Pre-paid via PromptPay QR': 'ชำระล่วงหน้าแล้วผ่าน PromptPay QR',
+  'Pre-paid by card': 'ชำระล่วงหน้าแล้วด้วยบัตร',
+  'Pre-paid by card:': 'ชำระล่วงหน้าด้วยบัตร:',
   'In-Play Table Orders': 'รายการสั่งอาหารระหว่างเล่น',
   'No in-play food or drinks ordered yet. You can order snacks anytime while playing!':
     'ยังไม่มีการสั่งอาหารระหว่างเล่น สามารถสั่งของว่างหรือเครื่องดื่มได้ตลอดเวลา!',

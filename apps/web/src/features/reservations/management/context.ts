@@ -8,16 +8,12 @@ import { useWorkspaceSaleStock } from './useWorkspaceSaleStock';
 
 function createWorkspace() {
   const reservations = useWorkspaceReservations();
-  const pantry = useWorkspacePantry(reservations.selectedBranchId);
   return {
     ...useWorkspaceNavigation(),
     ...reservations,
     ...useWorkspaceGames(reservations),
-    ...pantry,
-    saleStock: useWorkspaceSaleStock(
-      pantry.branchStockItems,
-      reservations.selectedBranchId,
-    ),
+    ...useWorkspacePantry(),
+    saleStock: useWorkspaceSaleStock(reservations.selectedBranchId),
     ...useWorkspaceSettings(),
   };
 }

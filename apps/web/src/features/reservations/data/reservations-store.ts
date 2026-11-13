@@ -1,7 +1,12 @@
-// Local sample reservations and in-play tab orders. Customer and staff
-// reservation pages use the live reservation, check-in and rental checkout
-// endpoints when available and fall back to this store when unseeded or offline.
+// TODO(reservation-api): Local sample reservations with food pre-orders and in-play
+// orders. The reservation, check-in and rental checkout endpoints now exist on the
+// server; move the reservation and visit state to them. Food and QR payment fields
+// have no backend.
 import { ref, computed } from 'vue';
+import {
+  ACCOUNT_STORAGE_PREFIX,
+  registerProtectedState,
+} from '../../../shared/lib/protected-state';
 
 export interface PreOrderItemRecord {
   item: {
@@ -48,6 +53,7 @@ export interface CustomerReservation {
   endsAt: string;
   checkedInAt?: string;
   completedAt?: string;
+  /** Server rental started at check-in; present for live sessions. */
   rentalId?: string;
   partySize: number;
   status: 'CONFIRMED' | 'CHECKED_IN' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
@@ -62,7 +68,7 @@ export interface CustomerReservation {
   inPlayOrders?: InPlayOrder[];
 }
 
-const STORAGE_KEY = 'theparlor_customer_reservations_v3';
+const STORAGE_KEY = `${ACCOUNT_STORAGE_PREFIX}workspace-sample-reservations`;
 
 function getInitialReservations(): CustomerReservation[] {
   const now = new Date();
@@ -322,7 +328,26 @@ function loadReservations(): CustomerReservation[] {
       return initial;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : getInitialReservations();
+    if (!Array.isArray(parsed)) return getInitialReservations();
+    let repaired = false;
+    const reservations = (parsed as CustomerReservation[]).map(
+      (reservation) => {
+        if (
+          reservation.status !== 'CHECKED_IN' ||
+          !reservation.checkedInAt ||
+          !Number.isFinite(Date.parse(reservation.startsAt)) ||
+          Date.parse(reservation.checkedInAt) >=
+            Date.parse(reservation.startsAt)
+        )
+          return reservation;
+        const booking = { ...reservation, status: 'CONFIRMED' as const };
+        delete booking.checkedInAt;
+        repaired = true;
+        return booking;
+      },
+    );
+    if (repaired) saveReservations(reservations);
+    return reservations;
   } catch {
     return getInitialReservations();
   }
@@ -337,7 +362,12 @@ function saveReservations(list: CustomerReservation[]): void {
 }
 
 const reservationsList = ref<CustomerReservation[]>(loadReservations());
-const externalInPlayOrders = ref<Record<string, InPlayOrder[]>>({});
+
+// Staff add walk-in names, phones and orders here; none of it may reach the next
+// account. The storage key is removed by its account prefix; this resets memory.
+registerProtectedState(() => {
+  reservationsList.value = getInitialReservations();
+});
 
 export function useCustomerReservationsStore() {
   function autoCheckNoShows() {
@@ -438,14 +468,6 @@ export function useCustomerReservationsStore() {
     }
   }
 
-  function getInPlayOrders(reservationId: string): InPlayOrder[] {
-    const target = reservationsList.value.find((r) => r.id === reservationId);
-    if (target) {
-      return target.inPlayOrders ?? [];
-    }
-    return externalInPlayOrders.value[reservationId] ?? [];
-  }
-
   function addInPlayOrder(
     reservationId: string,
     order: {
@@ -480,25 +502,7 @@ export function useCustomerReservationsStore() {
       saveReservations([...reservationsList.value]);
       return newOrder;
     }
-    const existing = externalInPlayOrders.value[reservationId] ?? [];
-    const orderCount = existing.length + 1;
-    const newOrder: InPlayOrder = {
-      id: `ord-${Date.now().toString(36)}`,
-      orderNumber: `TAB-${String(orderCount).padStart(2, '0')}`,
-      createdAt: new Date().toISOString(),
-      items: order.items,
-      subtotal: order.subtotal,
-      status: 'SERVED',
-      paid: order.paid,
-      paymentMethod: order.paymentMethod,
-      paymentReference: order.paymentReference,
-      notes: order.notes,
-    };
-    externalInPlayOrders.value = {
-      ...externalInPlayOrders.value,
-      [reservationId]: [...existing, newOrder],
-    };
-    return newOrder;
+    return null;
   }
 
   function addStaffSnackOrder(
@@ -531,18 +535,10 @@ export function useCustomerReservationsStore() {
         ord.status = status;
         saveReservations([...reservationsList.value]);
       }
-      return;
-    }
-    const external = externalInPlayOrders.value[reservationId];
-    if (external) {
-      const ord = external.find((o) => o.id === orderId);
-      if (ord) {
-        ord.status = status;
-      }
     }
   }
 
-  function settleSessionBill(reservationId: string, _paymentMethod = 'counter') {
+  function settleSessionBill(reservationId: string, paymentMethod = 'counter') {
     const target = reservationsList.value.find((r) => r.id === reservationId);
     if (target) {
       target.status = 'COMPLETED';
@@ -558,28 +554,16 @@ export function useCustomerReservationsStore() {
       }
       saveReservations([...reservationsList.value]);
     }
-    const external = externalInPlayOrders.value[reservationId];
-    if (external) {
-      external.forEach((o) => {
-        o.paid = true;
-        o.status = 'SERVED';
-        if (!o.paymentReference) {
-          o.paymentReference = `SETTLED-${Date.now().toString().slice(-4)}`;
-        }
-      });
-    }
   }
 
   function resetToDefault() {
     reservationsList.value = getInitialReservations();
-    externalInPlayOrders.value = {};
     saveReservations(reservationsList.value);
   }
 
   return {
     reservations: allReservations,
     activeSession,
-    getInPlayOrders,
     addReservation,
     startWalkInSession,
     cancelReservation,

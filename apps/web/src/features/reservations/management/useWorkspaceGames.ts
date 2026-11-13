@@ -1,45 +1,45 @@
 import { computed, ref, type Ref } from 'vue';
-import { useQuery } from '@tanstack/vue-query';
-import { listBranchGames, type BranchGame } from '@theparlor/api-client';
-import { collectPages } from '../../../shared/lib/pagination';
+import type { BranchGame } from '@theparlor/api-client';
 import {
   games,
   type CatalogGame,
   type Category,
 } from '../../../shared/data/catalog';
+import { useBranchGamesQuery } from './branch-games';
 import type { useWorkspaceReservations } from './useWorkspaceReservations';
 
-export function toCatalogGame(offering: BranchGame): CatalogGame {
-  const { game, editions } = offering;
-  const difficultyMap: Record<string, CatalogGame['difficulty']> = {
-    EASY: 'Easy',
-    MEDIUM: 'Medium',
-    ADVANCED: 'Advanced',
-  };
-  const primaryEdition = editions?.[0];
+/** A library game; live games may have no recorded difficulty. */
+export type WorkspaceGame = Omit<CatalogGame, 'difficulty'> & {
+  difficulty: CatalogGame['difficulty'] | null;
+};
+
+const difficulties: Record<string, CatalogGame['difficulty']> = {
+  EASY: 'Easy',
+  MEDIUM: 'Medium',
+  ADVANCED: 'Advanced',
+};
+
+const languageName = (code: string) =>
+  ({ en: 'English', th: 'Thai' })[code.toLowerCase()] ?? code.toUpperCase();
+
+export function toCatalogGame({ game, editions }: BranchGame): WorkspaceGame {
+  const primaryEdition = editions[0];
   return {
     id: game.id,
     name: game.name,
     designer: game.designer ?? '',
-    categories: (game.categories ?? []) as Category[],
-    mechanics: game.mechanics ?? [],
+    categories: game.categories as Category[],
+    mechanics: game.mechanics,
     players: [game.minPlayers, game.maxPlayers],
     playMinutes: [game.playMinutesMin, game.playMinutesMax],
     teachMinutes: game.teachMinutes ?? 0,
     setupMinutes: game.setupMinutes ?? 0,
-    difficulty: difficultyMap[game.difficulty ?? 'EASY'] ?? 'Easy',
-    language:
-      editions?.length > 0
-        ? editions
-            .map((e) =>
-              e.languageCode.toLowerCase() === 'th'
-                ? 'Thai'
-                : e.languageCode.toLowerCase() === 'en'
-                  ? 'English'
-                  : e.languageCode,
-            )
-            .join(' · ')
-        : 'English',
+    difficulty: game.difficulty
+      ? (difficulties[game.difficulty] ?? null)
+      : null,
+    language: [
+      ...new Set(editions.map((edition) => languageName(edition.languageCode))),
+    ].join(' · '),
     description: game.descriptions?.['en-US'] ?? '',
     retailPrice: primaryEdition
       ? Math.round(primaryEdition.salePrice.amountMinor / 100)
@@ -55,32 +55,15 @@ export function useWorkspaceGames({
   ReturnType<typeof useWorkspaceReservations>,
   'branchFloorTables' | 'getTableStatus'
 > & {
-  selectedBranchId?: Ref<string>;
+  selectedBranchId: Ref<string>;
 }) {
-  const branchGamesQuery = selectedBranchId
-    ? useQuery({
-        queryKey: ['workspace', 'branchGames', selectedBranchId],
-        enabled: computed(() => Boolean(selectedBranchId.value)),
-        queryFn: ({ signal }) =>
-          collectPages((cursor) =>
-            listBranchGames(
-              selectedBranchId.value,
-              { limit: 100, cursor },
-              undefined,
-              signal,
-            ),
-          ),
-      })
-    : undefined;
-
-  const libraryGames = computed<CatalogGame[]>(() => {
-    const live = branchGamesQuery?.data.value;
-    if (!live?.length) return games;
-    const rentalOrSale = live.filter(
-      (offering) => offering.rentalEnabled || offering.saleEnabled,
+  const branchGames = useBranchGamesQuery(selectedBranchId);
+  // The branch's play library; sample games remain only while it offers none.
+  const libraryGames = computed<WorkspaceGame[]>(() => {
+    const live = (branchGames.data.value ?? []).filter(
+      (offering) => offering.rentalEnabled,
     );
-    const source = rentalOrSale.length > 0 ? rentalOrSale : live;
-    return source.map(toCatalogGame);
+    return live.length ? live.map(toCatalogGame) : games;
   });
   // ==========================================
   // FEATURE 1: ASSIGNED GAMES PER TABLE & STRICT RULES
@@ -89,7 +72,7 @@ export function useWorkspaceGames({
   // ==========================================
   const gameSearchQuery = ref('');
   const gameStatusFilter = ref<'ALL' | 'AVAILABLE' | 'IN_USE'>('ALL');
-  const selectedGameToAssign = ref<CatalogGame | null>(null);
+  const selectedGameToAssign = ref<WorkspaceGame | null>(null);
   const assignGameTargetTableId = ref('1');
   const showAssignGameModal = ref(false);
   const assignModalSearch = ref('');
@@ -129,7 +112,7 @@ export function useWorkspaceGames({
     );
   });
 
-  function openAssignGame(game: CatalogGame) {
+  function openAssignGame(game: WorkspaceGame) {
     selectedGameToAssign.value = game;
     assignModalSearch.value = '';
     // Default to first eligible table if available

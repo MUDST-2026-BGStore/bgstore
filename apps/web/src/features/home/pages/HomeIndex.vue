@@ -487,9 +487,9 @@ function markImageFailed(url: string) {
             v-if="context.stockBranch"
             class="branch-filters"
             role="group"
-            :aria-label="t('Store availability')"
+            :aria-label="t('At this store')"
           >
-            <h2>{{ t('Store availability') }}</h2>
+            <h2>{{ t('At this store') }}</h2>
             <label class="branch-filter-check">
               <input v-model="soldHere" type="checkbox" name="sold-here" />
               <span>{{ t('Sold here') }}</span>

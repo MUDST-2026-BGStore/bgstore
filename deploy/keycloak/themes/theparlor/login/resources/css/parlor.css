@@ -548,3 +548,45 @@ html.login-pf {
     transition: none;
   }
 }
+
+/* Match the storefront header and keep branding independent of locale. */
+:is([data-page-id='login-login'], [data-page-id='login-register']) #kc-header {
+  box-sizing: border-box;
+  height: 64px;
+  min-height: 64px;
+  padding: 10px 32px;
+}
+:is([data-page-id='login-login'], [data-page-id='login-register'])
+  #kc-header-wrapper.pf-v5-c-brand {
+  gap: 8px;
+  font:
+    600 12px/16px 'Plus Jakarta Sans',
+    Arial,
+    sans-serif;
+  letter-spacing: 0.22em;
+  color: #efe5d0 !important;
+}
+:is([data-page-id='login-login'], [data-page-id='login-register'])
+  .parlor-wordmark {
+  font: inherit;
+  text-transform: uppercase;
+}
+:is([data-page-id='login-login'], [data-page-id='login-register'])
+  .parlor-suit {
+  font:
+    400 12px/16px 'Plus Jakarta Sans',
+    Arial,
+    sans-serif;
+  letter-spacing: normal;
+  color: #c6ad7a;
+}
+@media (min-width: 601px) {
+  #kc-header .parlor-header-language {
+    inset-inline-start: max(32px, calc((100vw - 1440px) / 2));
+  }
+}
+/* Keep both auth forms at the same distance from the header. */
+#keycloak-bg:is([data-page-id='login-login'], [data-page-id='login-register'])
+  .pf-v5-c-login__main {
+  margin: 16px 16px 0;
+}

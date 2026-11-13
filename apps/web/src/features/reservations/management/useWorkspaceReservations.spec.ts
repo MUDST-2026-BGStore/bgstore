@@ -171,17 +171,17 @@ describe('reservations, rental checkout, and branch menu integration', () => {
     const liveRes = workspace.allReservations.value[0];
     expect(liveRes).toMatchObject({
       id: RES_ID,
+      live: true,
       rentalId: RENTAL_ID,
       hourlyRate: 320,
       clientType: 'RESERVED',
     });
-
-    useCustomerReservationsStore().addStaffSnackOrder(RES_ID, [
-      {
-        item: { id: 'snack-1', name: 'Crispy Chips', price: 45 },
-        quantity: 2,
-      },
-    ]);
+    // Sample visits stay off a floor whose tables come from the server.
+    expect(
+      workspace.allReservations.value.some((r) => r.id === 'res-thm-live'),
+    ).toBe(false);
+    // One started hour at the table's server rate.
+    expect(workspace.calculateCurrentPlayFee(liveRes)).toBe(320);
 
     workspace.openCheckBill(liveRes);
     expect(workspace.staffBillReservation.value).toMatchObject({
@@ -196,10 +196,8 @@ describe('reservations, rental checkout, and branch menu integration', () => {
         paid: true,
       },
     });
-    expect(workspace.staffBillReservation.value.inPlayOrders).toHaveLength(1);
-    expect(workspace.staffBillReservation.value.inPlayOrders[0].subtotal).toBe(
-      90,
-    );
+    // The in-play tab has no backend, so a server bill carries none of it.
+    expect(workspace.staffBillReservation.value.inPlayOrders).toEqual([]);
 
     wrapper.unmount();
   });
@@ -343,7 +341,152 @@ describe('reservations, rental checkout, and branch menu integration', () => {
     wrapper.unmount();
   });
 
-  it('loads live branch menu items in InPlayOrderModal and records tab orders', async () => {
+  it('keeps the session open and says so when the server refuses checkout', async () => {
+    const startedAt = new Date(Date.now() - 90 * 60000).toISOString();
+    request.mockImplementation((config: { url: string; method?: string }) => {
+      if (config.method === 'POST')
+        return Promise.reject(
+          Object.assign(new Error('Conflict'), { status: 409 }),
+        );
+      return Promise.resolve({
+        id: RENTAL_ID,
+        branchId: BRANCH_ID,
+        reservationId: RES_ID,
+        tableId: TABLE_ID,
+        customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+        status: 'ACTIVE',
+        startedAt,
+        plannedEndsAt: new Date().toISOString(),
+        checkedInBySubject: 'staff-1',
+        charges: [
+          {
+            kind: 'TABLE',
+            quantity: 1,
+            unitHourlyRate: { amountMinor: 30000 },
+          },
+        ],
+      });
+    });
+    const wrapper = mount(TableBillModal, {
+      props: {
+        isStaff: true,
+        reservation: {
+          id: RES_ID,
+          branchId: BRANCH_ID,
+          branchName: 'Siam',
+          tableId: TABLE_ID,
+          tableLabel: 'Table 1',
+          startsAt: startedAt,
+          endsAt: new Date().toISOString(),
+          checkedInAt: startedAt,
+          rentalId: RENTAL_ID,
+          partySize: 4,
+          status: 'CHECKED_IN',
+          customerName: 'Khun Ananda',
+          createdAt: startedAt,
+          inPlayOrders: [],
+        },
+      },
+      global: { plugins: [[VueQueryPlugin, { queryClient: client }]] },
+    });
+    await flushPromises();
+    // 90 minutes is two started hours.
+    expect(wrapper.find('.section-cost').text()).toBe('฿600');
+    expect(wrapper.text()).not.toContain('PromptPay QR');
+
+    await wrapper.find('.settle-btn').trigger('click');
+    await flushPromises();
+
+    expect(wrapper.find('[role="alert"]').text()).toContain('Checkout failed');
+    expect(wrapper.emitted('settled')).toBeUndefined();
+    wrapper.unmount();
+  });
+
+  it('seats a live walk-in on the server with a retry key and checks it in', async () => {
+    const created: { headers?: Record<string, string>; data?: unknown }[] = [];
+    let createFails = true;
+    request.mockImplementation(
+      (
+        config: { url: string; method?: string; data?: unknown },
+        options?: { headers?: Record<string, string> },
+      ) => {
+        if (config.url === '/api/v1/branches')
+          return Promise.resolve({ items: [{ id: BRANCH_ID, name: 'Siam' }] });
+        if (config.url === `/api/v1/branches/${BRANCH_ID}/tables`)
+          return Promise.resolve({
+            items: [
+              {
+                id: TABLE_ID,
+                branchId: BRANCH_ID,
+                label: 'T1',
+                capacity: 4,
+                hourlyRate: { amountMinor: 20000 },
+                operationalStatus: 'IN_SERVICE',
+              },
+            ],
+          });
+        if (config.url.endsWith('/staff/reservations')) {
+          created.push({ headers: options?.headers, data: config.data });
+          if (createFails) return Promise.reject(new TypeError('offline'));
+          return Promise.resolve({ id: RES_ID });
+        }
+        if (config.url.endsWith(`/reservations/${RES_ID}/check-in`))
+          return Promise.resolve({});
+        return Promise.resolve({ items: [] });
+      },
+    );
+    let workspace!: ReturnType<typeof useWorkspaceReservations>;
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          workspace = useWorkspaceReservations();
+          return () => null;
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } },
+    );
+    await flushPromises();
+    const sampleCount =
+      useCustomerReservationsStore().reservations.value.length;
+
+    workspace.openWalkInForTable(workspace.branchFloorTables[0]);
+    workspace.walkInGuestName.value = 'Party of four';
+    await workspace.handleStaffWalkInSubmit();
+    expect(workspace.walkInError.value).toBe(
+      'Seating failed. Refresh and retry.',
+    );
+    expect(workspace.showWalkInModal.value).toBe(true);
+    // Nothing is seated locally when the server did not confirm it.
+    expect(useCustomerReservationsStore().reservations.value).toHaveLength(
+      sampleCount,
+    );
+
+    createFails = false;
+    await workspace.handleStaffWalkInSubmit();
+    await flushPromises();
+    expect(created).toHaveLength(2);
+    const [first, retry] = created.map(
+      (call) => call.headers?.['Idempotency-Key'],
+    );
+    expect(first).toMatch(/^[0-9a-f-]{36}$/);
+    // A lost response is retried with the same key.
+    expect(retry).toBe(first);
+    expect(created[1].data).toMatchObject({
+      source: 'WALK_IN',
+      tableId: TABLE_ID,
+      customer: { kind: 'GUEST', displayName: 'Party of four' },
+    });
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: `/api/v1/branches/${BRANCH_ID}/reservations/${RES_ID}/check-in`,
+      }),
+      undefined,
+    );
+    expect(workspace.showWalkInModal.value).toBe(false);
+    wrapper.unmount();
+  });
+
+  it('offers the live branch menu for a sample visit tab', async () => {
     request.mockImplementation((config: { url: string }) => {
       if (config.url === `/api/v1/branches/${BRANCH_ID}/menu`) {
         return Promise.resolve({
@@ -370,17 +513,10 @@ describe('reservations, rental checkout, and branch menu integration', () => {
     const wrapper = mount(InPlayOrderModal, {
       props: {
         reservation: {
-          id: RES_ID,
+          ...useCustomerReservationsStore().reservations.value.find(
+            (r) => r.id === 'res-thm-live',
+          )!,
           branchId: BRANCH_ID,
-          branchName: 'Siam',
-          tableId: TABLE_ID,
-          tableLabel: 'Table 1',
-          startsAt: new Date().toISOString(),
-          endsAt: new Date(Date.now() + 3600000).toISOString(),
-          partySize: 2,
-          status: 'CHECKED_IN',
-          customerName: 'Khun Ananda',
-          createdAt: new Date().toISOString(),
         },
       },
       global: { plugins: [[VueQueryPlugin, { queryClient: client }]] },
@@ -393,10 +529,14 @@ describe('reservations, rental checkout, and branch menu integration', () => {
     await wrapper.find('.step-btn.plus').trigger('click');
     await wrapper.find('.submit-order-btn').trigger('click');
 
-    const orders = useCustomerReservationsStore().getInPlayOrders(RES_ID);
-    expect(orders).toHaveLength(1);
-    expect(orders[0].subtotal).toBe(85);
-    expect(orders[0].items[0].item.name).toBe('Yuzu Craft Soda');
+    const orders =
+      useCustomerReservationsStore().reservations.value.find(
+        (r) => r.id === 'res-thm-live',
+      )?.inPlayOrders ?? [];
+    expect(orders.at(-1)).toBeDefined();
+    expect(orders.length).toBeGreaterThan(0);
+    expect(orders.at(-1)!.subtotal).toBe(85);
+    expect(orders.at(-1)!.items[0].item.name).toBe('Yuzu Craft Soda');
 
     wrapper.unmount();
   });
