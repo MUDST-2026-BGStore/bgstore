@@ -8,6 +8,7 @@ export type Locale = 'en-US' | 'th-TH';
 type PendingLocale = { accountId: string; locale: Locale };
 const localeKey = 'theparlor.locale';
 const pendingKey = 'theparlor.locale.pending';
+const loginSelectionKey = 'theparlor.locale.loginSelection';
 const isLocale = (value: unknown): value is Locale =>
   value === 'en-US' || value === 'th-TH';
 
@@ -55,6 +56,10 @@ const locale = ref<Locale>(
 );
 const saveStatus = ref<'idle' | 'saving' | 'error'>('idle');
 let pending = readPending();
+const storedLoginSelection = read(loginSelectionKey);
+let loginSelection = isLocale(storedLoginSelection)
+  ? storedLoginSelection
+  : null;
 let saving = false;
 let selectedForSubject: string | null = null;
 
@@ -72,6 +77,10 @@ function apply(value: Locale): void {
 function rememberPending(value: PendingLocale | null): void {
   pending = value;
   write(pendingKey, value ? JSON.stringify(value) : null);
+}
+function rememberLoginSelection(value: Locale | null): void {
+  loginSelection = value;
+  write(loginSelectionKey, value);
 }
 
 async function retrySave(): Promise<void> {
@@ -116,19 +125,39 @@ function setLocale(value: Locale): void {
   apply(value);
   const account = currentAccount();
   if (account) {
+    rememberLoginSelection(null);
     rememberPending({ accountId: account.id, locale: value });
     void retrySave();
   } else {
-    selectedForSubject = useAuth().value.subject;
+    const identity = useAuth().value;
+    selectedForSubject = identity.subject;
+    if (!identity.authenticated) rememberLoginSelection(value);
   }
 }
 
 /** Connect once at bootstrap; the returned stop function is useful in tests. */
 export function initializeLocaleSync() {
+  const consumeLoginLocale = () => {
+    const fromLogin = document.cookie
+      .split('; ')
+      .find((entry) => entry.startsWith('theparlor.loginLocale='))
+      ?.split('=')[1];
+    if (!isLocale(fromLogin)) return;
+    document.cookie = 'theparlor.loginLocale=; Path=/; Max-Age=0; SameSite=Lax';
+    rememberLoginSelection(fromLogin);
+    setLocale(fromLogin);
+  };
+  consumeLoginLocale();
+  window.addEventListener('pageshow', consumeLoginLocale);
+  window.addEventListener('focus', consumeLoginLocale);
+  const onVisible = () => {
+    if (document.visibilityState === 'visible') consumeLoginLocale();
+  };
+  document.addEventListener('visibilitychange', onVisible);
   apply(locale.value);
   let boundAccount: string | null = null;
   let boundSubject: string | null = null;
-  return watch(
+  const stop = watch(
     () => [useAuth().value.subject, currentAccount()?.id] as const,
     ([subject]) => {
       const account = currentAccount();
@@ -141,8 +170,19 @@ export function initializeLocaleSync() {
       boundAccount = account.id;
       boundSubject = subject;
       if (selectedForSubject === subject) {
+        rememberLoginSelection(null);
         if (saving || locale.value !== account.preferences.preferredLocale) {
           rememberPending({ accountId: account.id, locale: locale.value });
+          void retrySave();
+        } else if (pending?.accountId === account.id) {
+          rememberPending(null);
+        }
+      } else if (loginSelection) {
+        const selected = loginSelection;
+        apply(selected);
+        rememberLoginSelection(null);
+        if (selected !== account.preferences.preferredLocale) {
+          rememberPending({ accountId: account.id, locale: selected });
           void retrySave();
         } else if (pending?.accountId === account.id) {
           rememberPending(null);
@@ -157,6 +197,12 @@ export function initializeLocaleSync() {
     },
     { immediate: true, flush: 'post' },
   );
+  return () => {
+    stop();
+    window.removeEventListener('pageshow', consumeLoginLocale);
+    window.removeEventListener('focus', consumeLoginLocale);
+    document.removeEventListener('visibilitychange', onVisible);
+  };
 }
 
 export function useLocale() {

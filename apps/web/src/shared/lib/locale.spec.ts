@@ -86,6 +86,58 @@ it('loads the account preference over an older browser cache without echoing a s
   expect(mocks.update).not.toHaveBeenCalled();
 });
 
+it('keeps an anonymous language choice through login and saves it to the account', async () => {
+  localStorage.setItem('theparlor.locale', 'th-TH');
+  const preference = await load();
+  preference.setLocale('en-US');
+  expect(localStorage.getItem('theparlor.locale.loginSelection')).toBe('en-US');
+
+  signedIn('account-1', 'th-TH');
+  await flushPromises();
+
+  expect(preference.locale.value).toBe('en-US');
+  expect(mocks.update).toHaveBeenCalledExactlyOnceWith({
+    preferences: { preferredLocale: 'en-US' },
+  });
+  expect(localStorage.getItem('theparlor.locale.loginSelection')).toBeNull();
+});
+
+it('accepts a language changed on the login page after returning to the storefront', async () => {
+  localStorage.setItem('theparlor.locale', 'en-US');
+  localStorage.setItem('theparlor.locale.loginSelection', 'en-US');
+  document.cookie = 'theparlor.loginLocale=th-TH; Path=/';
+  const preference = await load();
+
+  expect(preference.locale.value).toBe('th-TH');
+  expect(document.cookie).not.toContain('theparlor.loginLocale');
+  signedIn('account-1', 'en-US');
+  await flushPromises();
+  expect(preference.locale.value).toBe('th-TH');
+  expect(mocks.update).toHaveBeenCalledExactlyOnceWith({
+    preferences: { preferredLocale: 'th-TH' },
+  });
+});
+
+it('consumes an anonymous choice without saving when the account already matches', async () => {
+  const preference = await load();
+  preference.setLocale('en-US');
+  signedIn('account-1', 'en-US');
+  await flushPromises();
+
+  expect(preference.locale.value).toBe('en-US');
+  expect(mocks.update).not.toHaveBeenCalled();
+  expect(localStorage.getItem('theparlor.locale.loginSelection')).toBeNull();
+});
+
+it('receives a login language change when returning to an existing storefront tab', async () => {
+  localStorage.setItem('theparlor.locale', 'en-US');
+  const preference = await load();
+  document.cookie = 'theparlor.loginLocale=th-TH; Path=/';
+  window.dispatchEvent(new Event('focus'));
+  expect(preference.locale.value).toBe('th-TH');
+  expect(document.cookie).not.toContain('theparlor.loginLocale');
+});
+
 it('preserves a selection made while the account is loading', async () => {
   mocks.auth.value = { authenticated: true, subject: 'account-1' };
   const preference = await load();
