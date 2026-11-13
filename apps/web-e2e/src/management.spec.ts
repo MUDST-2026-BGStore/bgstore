@@ -93,8 +93,11 @@ test('keeps the complete dashboard information visible together on desktop', asy
     name: 'Pantry watch',
     exact: true,
   });
-  await expect(pantry.locator('dt')).toHaveText(['Low stock', 'Out of stock']);
-  await expect(pantry.locator('dd')).toHaveText(['4', '1']);
+  await expect(pantry.locator('dt')).toHaveText([
+    'Available items',
+    'Unavailable items',
+  ]);
+  await expect(pantry.locator('dd')).toHaveText(['0', '0']);
   await expect(pantry).toBeInViewport({ ratio: 1 });
 
   const queue = page.getByRole('region', {
