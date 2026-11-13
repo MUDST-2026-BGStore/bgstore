@@ -128,7 +128,11 @@ function closeDispatch() {
 
 async function submitDispatch() {
   const order = dispatchOrder.value;
-  if (!order?.orderId || !dispatchCarrier.value || !dispatchTracking.value.trim())
+  if (
+    !order?.orderId ||
+    !dispatchCarrier.value ||
+    !dispatchTracking.value.trim()
+  )
     return;
   dispatchError.value = '';
   try {
@@ -408,7 +412,9 @@ const productName = (sku: string, itemName?: string) =>
         dispatchError
       }}</AppMessageBar>
       <template #footer>
-        <AppButton :disabled="fulfillMutation.isPending.value" @click="closeDispatch"
+        <AppButton
+          :disabled="fulfillMutation.isPending.value"
+          @click="closeDispatch"
           >Cancel</AppButton
         >
         <AppButton
@@ -420,7 +426,9 @@ const productName = (sku: string, itemName?: string) =>
             !dispatchTracking.trim()
           "
         >
-          {{ fulfillMutation.isPending.value ? 'Fulfilling…' : 'Fulfill order' }}
+          {{
+            fulfillMutation.isPending.value ? 'Fulfilling…' : 'Fulfill order'
+          }}
         </AppButton>
       </template>
     </AppDialogPanel>

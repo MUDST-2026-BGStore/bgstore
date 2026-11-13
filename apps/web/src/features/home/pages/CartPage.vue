@@ -478,7 +478,9 @@ async function proceedToCheckout() {
                       : `Total (${selectedCount} items):`
                   }}
                 </span>
-                <strong class="total-amt">{{ formatMinor(cart.subtotal) }}</strong>
+                <strong class="total-amt">{{
+                  formatMinor(cart.subtotal)
+                }}</strong>
               </div>
               <div v-if="cart.method === 'shipping'" class="breakdown-line">
                 <span class="lbl-total">

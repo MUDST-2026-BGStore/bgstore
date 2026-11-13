@@ -2,10 +2,7 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import type { Order } from '@theparlor/api-client';
-import {
-  FREE_SHIPPING_FROM_MINOR,
-  useCartStore,
-} from '../stores/cart';
+import { FREE_SHIPPING_FROM_MINOR, useCartStore } from '../stores/cart';
 import { useOrdersStore } from '../stores/orders';
 import { formatMinor } from '../data/catalog';
 import { useGameCovers } from '../api/catalog';
@@ -1068,7 +1065,9 @@ function viewOrdersAndExit() {
                 <span>{{
                   locale === 'th-TH' ? 'ยอดรวมสินค้า:' : 'Subtotal:'
                 }}</span>
-                <strong>{{ formatMinor(placedOrder.subtotal.amountMinor) }}</strong>
+                <strong>{{
+                  formatMinor(placedOrder.subtotal.amountMinor)
+                }}</strong>
               </div>
               <div
                 v-if="placedOrder.fulfillmentMethod === 'SHIPPING'"
