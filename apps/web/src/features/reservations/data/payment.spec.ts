@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { calculatePreOrderDiscount, generateReservationQrCode } from './payment';
+import {
+  calculatePreOrderDiscount,
+  generateReservationQrCode,
+} from './payment';
 
 describe('Reservation Payment & Discount Logic', () => {
   it('applies a 10% discount on food & drinks pre-orders', () => {
     const calculation = calculatePreOrderDiscount(500);
-    expect(calculation.discountRate).toBe(0.10);
+    expect(calculation.discountRate).toBe(0.1);
     expect(calculation.discountAmount).toBe(50);
     expect(calculation.discountedTotal).toBe(450);
   });
@@ -30,4 +33,3 @@ describe('Reservation Payment & Discount Logic', () => {
     expect(new Date(qr.expiresAt).getTime()).toBeGreaterThan(Date.now());
   });
 });
-

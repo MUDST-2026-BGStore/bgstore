@@ -1,8 +1,13 @@
 <script setup lang="ts">
+// TODO(qr-payment-api): PromptPay QR payment has no backend. The QR code is generated
+// in the browser for display only and confirming it charges nothing.
 import { ref, onMounted, onUnmounted, computed } from 'vue';
-import { generateReservationQrCode, type PromptPayQrDetails } from '../data/payment';
+import {
+  generateReservationQrCode,
+  type PromptPayQrDetails,
+} from '../data/payment';
 import type { FoodOrderItem } from '../types';
-import { useStoreText } from '../../home/data/store-text';
+import { useStoreText } from '../../../shared/lib/store-text';
 
 const props = defineProps<{
   totalAmount: number;
@@ -15,7 +20,9 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  'payment-completed': [details: { reference: string; paidAtTimestamp: string }];
+  'payment-completed': [
+    details: { reference: string; paidAtTimestamp: string },
+  ];
   cancel: [];
 }>();
 
@@ -38,7 +45,7 @@ onMounted(async () => {
     qrData.value = await generateReservationQrCode(
       props.reservationRef,
       props.totalAmount,
-      'The Parlor Board Game Cafe'
+      'The Parlor Board Game Cafe',
     );
   } finally {
     isGenerating.value = false;
@@ -73,15 +80,38 @@ function confirmPayment() {
 </script>
 
 <template>
-  <div class="qr-payment-container" role="dialog" aria-modal="true" aria-labelledby="qr-title">
+  <div
+    class="qr-payment-container"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="qr-title"
+  >
     <div class="qr-card">
       <div class="qr-header">
         <div class="logo-strip">
-          <svg class="gold-icon mini-crest" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"></path></svg>
+          <svg
+            class="gold-icon mini-crest"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path
+              d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"
+            ></path>
+          </svg>
           <span class="brand-text">THE PARLOR</span>
-          <svg class="gold-icon mini-crest" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"></path></svg>
+          <svg
+            class="gold-icon mini-crest"
+            viewBox="0 0 24 24"
+            fill="currentColor"
+          >
+            <path
+              d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"
+            ></path>
+          </svg>
         </div>
-        <h3 id="qr-title" class="payment-title">{{ t('PromptPay QR Checkout') }}</h3>
+        <h3 id="qr-title" class="payment-title">
+          {{ t('PromptPay QR Checkout') }}
+        </h3>
         <p class="payment-subtitle">
           {{ t('Scan to pay with any Thai Mobile Banking app') }}
         </p>
@@ -95,7 +125,11 @@ function confirmPayment() {
         </div>
         <div v-if="foodItems.length > 0" class="line-row food-row">
           <span>
-            {{ t('Pre-ordered Refreshments ({count} items)', { count: foodItems.reduce((a, b) => a + b.quantity, 0) }) }}
+            {{
+              t('Pre-ordered Refreshments ({count} items)', {
+                count: foodItems.reduce((a, b) => a + b.quantity, 0),
+              })
+            }}
             <small class="discount-label">{{ t('10% OFF applied') }}</small>
           </span>
           <div class="food-vals">
@@ -115,10 +149,17 @@ function confirmPayment() {
           <span>{{ t('Generating Dynamic QR Code…') }}</span>
         </div>
         <div v-else-if="qrData" class="qr-image-wrapper">
-          <img :src="qrData.dataUrl" alt="PromptPay QR Code for Payment" class="qr-img" />
+          <img
+            :src="qrData.dataUrl"
+            alt="PromptPay QR Code for Payment"
+            class="qr-img"
+          />
           <div class="qr-meta">
             <div class="ref-pill">Ref: {{ qrData.reference }}</div>
-            <div class="timer-pill" :class="{ 'is-expiring': secondsLeft < 180 }">
+            <div
+              class="timer-pill"
+              :class="{ 'is-expiring': secondsLeft < 180 }"
+            >
               {{ t('Payment window expires in') }}: {{ formattedTime }}
             </div>
           </div>
@@ -139,7 +180,17 @@ function confirmPayment() {
         </button>
 
         <div v-else class="paid-success-banner">
-          <svg class="gold-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          <svg
+            class="gold-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
           <span>{{ t('Payment Verified & Confirmed!') }}</span>
         </div>
 
@@ -383,13 +434,23 @@ function confirmPayment() {
 }
 
 @keyframes qrModalFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes qrCardSlideUp {
-  from { opacity: 0; transform: translateY(18px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .gold-icon {
@@ -406,4 +467,3 @@ function confirmPayment() {
   height: 14px;
 }
 </style>
-

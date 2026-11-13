@@ -100,3 +100,48 @@ e2e: ## Run Chromium login/API/logout tests against the live stack
 	node tools/run-e2e.mjs
 k8s-dry-run: ## Render manifests without contacting a cluster (ENV=dev|staging|prod)
 	kubectl kustomize deploy/k8s/overlays/$(ENV)
+
+.PHONY: aws-tools aws-login aws-init aws-validate aws-plan aws-adopt aws-apply aws-setup-check aws-setup aws-ssh aws-argocd aws-kube-tunnel aws-kubeconfig aws-status
+aws-tools: ## Install pinned OpenTofu/Ansible locally (requires curl and Python 3.12–3.14)
+	pnpm nx run aws-infra:tools
+aws-login: ## Refresh the Chanakan Labs AWS SSO session
+	aws sso login --profile chanakanlabs
+aws-init: ## Download the locked AWS provider for OpenTofu
+	pnpm nx run aws-infra:init
+aws-validate: ## Validate OpenTofu and Ansible syntax
+	pnpm nx run aws-infra:validate
+aws-plan: ## Save a proposed AWS plan for review; creates/changes nothing in AWS
+	pnpm nx run aws-infra:plan
+aws-adopt: ## Import current AWS resources; refuses plans that would change AWS
+	pnpm nx run aws-infra:adopt
+aws-apply: ## Apply the saved plan from aws-plan after reviewing it
+	pnpm nx run aws-infra:apply
+aws-setup-check: ## Preview Ansible changes on the running k3s server
+	pnpm nx run aws-infra:setup-check
+aws-setup: ## Configure single-node k3s and Argo CD using ~/aws (override SSH_KEY)
+	pnpm nx run aws-infra:setup
+aws-ssh: ## SSH to the current AWS public IP using ~/aws (override SSH_KEY)
+	pnpm nx run aws-infra:ssh
+aws-argocd: ## Open an encrypted SSH tunnel to Argo CD at http://localhost:8085
+	pnpm nx run aws-infra:argocd
+aws-kube-tunnel: ## Tunnel the Kubernetes API to localhost:6443 without opening AWS ports
+	pnpm nx run aws-infra:kube-tunnel
+aws-kubeconfig: ## Fetch private local admin kubeconfig; use with aws-kube-tunnel
+	pnpm nx run aws-infra:kubeconfig
+aws-status: ## Show live Kubernetes nodes, pods and Argo CD application health
+	pnpm nx run aws-infra:status
+.PHONY: aws-secrets aws-gitops-enable aws-build-images aws-publish-images
+aws-secrets: ## Create the new namespace/runtime Secret once; credentials stay outside Git
+	pnpm nx run aws-infra:secrets
+aws-build-images: ## Build/load ARM64 application images locally (IMAGE_TAG=dev)
+	IMAGE_TAG=$(IMAGE_TAG) pnpm nx run aws-infra:build-images
+aws-publish-images: ## Publish built images to private ECR using AWS SSO (IMAGE_TAG=dev)
+	IMAGE_TAG=$(IMAGE_TAG) pnpm nx run aws-infra:publish-images
+aws-gitops-enable: ## After publishing code/images and setting DNS, enable manual Argo comparisons
+	pnpm nx run aws-infra:gitops-enable
+
+.PHONY: aws-publish-snapshot aws-deploy
+aws-publish-snapshot: ## Publish an isolated sandbox Git branch with ECR images and IP-based HTTPS names
+	pnpm nx run aws-infra:publish-snapshot
+aws-deploy: ## Sync the published sandbox snapshot through Argo CD and wait for readiness
+	pnpm nx run aws-infra:deploy

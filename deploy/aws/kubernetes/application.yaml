@@ -1,0 +1,40 @@
+# Publish this checkout and ARM64 images, provision theparlor-runtime, set DNS,
+# then run make aws-gitops-enable. Sync both applications explicitly in Argo CD.
+# No automatic pruning is enabled during the initial rollout.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: theparlor-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: 'true'
+spec:
+  project: theparlor
+  source:
+    repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
+    targetRevision: main
+    path: deploy/k8s/overlays/aws
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: theparlor-dev
+  syncPolicy:
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: theparlor-routing
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/skip-reconcile: 'true'
+spec:
+  project: theparlor
+  source:
+    repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
+    targetRevision: main
+    path: deploy/aws/kubernetes/routing
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gateway
+  syncPolicy:
+    syncOptions: [CreateNamespace=true, ServerSideApply=true]

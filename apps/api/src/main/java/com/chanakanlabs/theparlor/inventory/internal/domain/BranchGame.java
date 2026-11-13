@@ -15,8 +15,6 @@ import org.hibernate.annotations.UpdateTimestamp;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class BranchGame {
-  // TODO(inventory-domain): add create/configure methods that require IDs and a nonnegative
-  // hourly rate. Offering changes must preserve stock/copies and existing price snapshots.
   @EmbeddedId private BranchGameId id;
 
   @Column(name = "sale_enabled", nullable = false)
@@ -38,4 +36,20 @@ public class BranchGame {
   @UpdateTimestamp
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
+
+  public static BranchGame create(BranchGameId id) {
+    var offering = new BranchGame();
+    offering.id = java.util.Objects.requireNonNull(id);
+    java.util.Objects.requireNonNull(id.branchId());
+    java.util.Objects.requireNonNull(id.gameId());
+    return offering;
+  }
+
+  public void configure(boolean sale, boolean rental, boolean teach, long rate) {
+    if (rate < 0) throw new IllegalArgumentException("Rate must be nonnegative");
+    saleEnabled = sale;
+    rentalEnabled = rental;
+    staffCanTeach = teach;
+    rentalHourlyRateMinor = rate;
+  }
 }

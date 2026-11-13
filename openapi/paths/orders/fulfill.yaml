@@ -8,7 +8,7 @@ post:
   summary: Staff-only handover of purchased games
   description:
     Only PLACED -> FULFILLED is allowed. Atomically decrement saleOnHand and saleHeld by
-    the ordered quantities, then record server time and staff subject. Customers always receive 403.
+    the ordered quantities, capture the payment, then record server time and staff subject. Customers always receive 403.
     Repeating fulfillment returns the same order without decrementing stock twice. Cancelled orders
     return 409.
   security:
@@ -27,9 +27,13 @@ post:
       $ref: ../../components/responses/BadRequest.yaml
     '401':
       $ref: ../../components/responses/Unauthorized.yaml
+    '402':
+      $ref: ../../components/responses/PaymentDeclined.yaml
     '403':
       $ref: ../../components/responses/Forbidden.yaml
     '404':
       $ref: ../../components/responses/NotFound.yaml
     '409':
       $ref: ../../components/responses/Conflict.yaml
+    '502':
+      $ref: ../../components/responses/PaymentGatewayError.yaml

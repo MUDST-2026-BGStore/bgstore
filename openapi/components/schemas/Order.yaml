@@ -13,6 +13,9 @@ required:
   - status
   - items
   - total
+  - contact
+  - fulfillmentMethod
+  - payment
   - createdAt
   - createdBySubject
 properties:
@@ -38,6 +41,18 @@ properties:
     minItems: 1
   total:
     $ref: ./Money.yaml
+  contact:
+    $ref: ./OrderContact.yaml
+  fulfillmentMethod:
+    type: string
+    description: PICKUP orders are handed over at branchId; SHIPPING orders are sent from it, the delivery branch.
+    enum:
+      - PICKUP
+      - SHIPPING
+  shippingAddress:
+    $ref: ./ShippingAddress.yaml
+  payment:
+    $ref: ./OrderPayment.yaml
   notes:
     type: string
   createdAt:

@@ -8,3 +8,15 @@ node_modules
 .env
 **/test-output
 **/test-results
+
+# Infrastructure state, downloaded tools and generated credentials stay local.
+**/.terraform
+**/.local
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfplan
+**/*.auto.tfvars
+**/*.auto.tfvars.json
+**/__pycache__
+.env.local
+.env.*.local

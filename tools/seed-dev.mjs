@@ -8,12 +8,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 await import('./seed-dev-user.mjs');
 process.loadEnvFile(process.env['THEPARLOR_ENV_FILE'] || '.env');
 console.log('\nSeeding API reference data…');
-const isWin = process.platform === 'win32';
-const cmd = isWin ? 'cmd.exe' : './gradlew';
-const args = isWin
-  ? ['/c', 'gradlew.bat', '--console=plain', 'seedReferenceData']
-  : ['--console=plain', 'seedReferenceData'];
-const child = spawn(cmd, args, {
+const child = spawn('./gradlew', ['--console=plain', 'seedReferenceData'], {
   cwd: `${root}apps/api`,
   stdio: 'inherit',
   env: process.env,

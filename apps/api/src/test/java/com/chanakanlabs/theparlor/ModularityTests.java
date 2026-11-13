@@ -22,6 +22,8 @@ class ModularityTests {
             "identity",
             "inventory",
             "orders",
+            "pantry",
+            "payments",
             "rentals",
             "reservations",
             "shared",

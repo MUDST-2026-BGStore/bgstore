@@ -55,4 +55,61 @@ public class Cart {
   public byte[] getTokenHash() {
     return tokenHash == null ? null : tokenHash.clone();
   }
+
+  /**
+   * Opens an empty cart. It starts as a delivery cart because pickup needs a branch the shopper has
+   * not chosen yet. tokenHash is the SHA-256 of the bearer token; the token is never stored.
+   */
+  public static Cart open(UUID accountId, byte[] tokenHash) {
+    var cart = new Cart();
+    cart.accountId = accountId;
+    cart.status = CartStatus.OPEN;
+    cart.fulfillmentMethod = CartFulfillmentMethod.SHIPPING;
+    cart.rotateToken(tokenHash);
+    return cart;
+  }
+
+  public boolean isOpen() {
+    return status == CartStatus.OPEN;
+  }
+
+  public boolean isShipping() {
+    return fulfillmentMethod == CartFulfillmentMethod.SHIPPING;
+  }
+
+  /** Replaces the bearer token; whoever held the previous one loses access. */
+  public void rotateToken(byte[] tokenHash) {
+    if (tokenHash == null || tokenHash.length != 32)
+      throw new IllegalArgumentException("Cart token hash must be a SHA-256 digest");
+    this.tokenHash = tokenHash.clone();
+  }
+
+  public void pickUpAt(UUID branchId) {
+    requireOpen();
+    pickupBranchId = java.util.Objects.requireNonNull(branchId);
+    fulfillmentMethod = CartFulfillmentMethod.PICKUP;
+  }
+
+  public void ship() {
+    requireOpen();
+    pickupBranchId = null;
+    fulfillmentMethod = CartFulfillmentMethod.SHIPPING;
+  }
+
+  /** The cart became an order. It keeps its lines as a record and can never change again. */
+  public void convert() {
+    requireOpen();
+    status = CartStatus.CONVERTED;
+  }
+
+  /** Gives the cart up and replaces its token with one nobody holds. */
+  public void abandon(byte[] unknownTokenHash) {
+    requireOpen();
+    status = CartStatus.ABANDONED;
+    rotateToken(unknownTokenHash);
+  }
+
+  private void requireOpen() {
+    if (!isOpen()) throw new IllegalStateException("Cart is no longer open");
+  }
 }

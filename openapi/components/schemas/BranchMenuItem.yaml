@@ -1,0 +1,12 @@
+type: object
+description: A menu item and how many units this branch can serve right now, after units held by paid pre-orders.
+required:
+  - item
+  - available
+properties:
+  item:
+    $ref: ./MenuItem.yaml
+  available:
+    type: integer
+    format: int32
+    minimum: 0

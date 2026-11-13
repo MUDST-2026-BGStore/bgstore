@@ -8,8 +8,10 @@ post:
   summary: Place an order from a cart
   description: >-
     Validates every line atomically against the fulfillment location, holds
-    stock (branch_editions stock_held), creates one PLACED order and marks the
-    cart CONVERTED; the cart keeps its lines and cannot be reused. Requires
+    stock (branch_editions stock_held), authorizes the payment token for the
+    total, creates one PLACED order and marks the cart CONVERTED; the cart keeps
+    its lines and cannot be reused. A declined payment returns 402 and leaves the
+    cart open with nothing held. Requires
     Idempotency-Key. Replays with the same key and body return the original
     order. Guests require X-Cart-Token; signed-in accounts may also check out
     a guest cart they hold. 409 when the cart is empty, has issues, is not
@@ -19,6 +21,12 @@ post:
   parameters:
     - $ref: ../../components/parameters/CsrfToken.yaml
     - $ref: ../../components/parameters/IdempotencyKey.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/CheckoutCartRequest.yaml
   responses:
     '201':
       description: Order placed from the cart
@@ -30,9 +38,13 @@ post:
       $ref: ../../components/responses/BadRequest.yaml
     '401':
       $ref: ../../components/responses/Unauthorized.yaml
+    '402':
+      $ref: ../../components/responses/PaymentDeclined.yaml
     '403':
       $ref: ../../components/responses/Forbidden.yaml
     '404':
       $ref: ../../components/responses/NotFound.yaml
     '409':
       $ref: ../../components/responses/Conflict.yaml
+    '502':
+      $ref: ../../components/responses/PaymentGatewayError.yaml

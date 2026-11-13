@@ -1,8 +1,13 @@
 <script setup lang="ts">
+// TODO(in-play-orders-api): Orders placed during a visit have no backend. Items,
+// status and payment below are local sample state and are lost on reload.
 import { ref, computed } from 'vue';
 import { FOOD_MENU_ITEMS, FOOD_CATEGORIES } from '../data/food-menu';
-import { useCustomerReservationsStore, type CustomerReservation } from '../data/reservations-store';
-import { useStoreText } from '../../home/data/store-text';
+import {
+  useCustomerReservationsStore,
+  type CustomerReservation,
+} from '../data/reservations-store';
+import { useStoreText } from '../../../shared/lib/store-text';
 
 const props = defineProps<{
   reservation: CustomerReservation;
@@ -70,7 +75,7 @@ const selectedOrderList = computed(() => {
 const orderTotal = computed(() => {
   return selectedOrderList.value.reduce(
     (sum, entry) => sum + entry.item.price * entry.quantity,
-    0
+    0,
   );
 });
 
@@ -105,11 +110,27 @@ function submitOrder() {
           </span>
           <h2 class="dialog-title">{{ t('Order Food & Drinks to Table') }}</h2>
           <p class="dialog-sub">
-            {{ t('Items will be prepared immediately and served to your playing table. Pay at counter with staff when finished.') }}
+            {{
+              t(
+                'Items will be prepared immediately and served to your playing table. Pay at counter with staff when finished.',
+              )
+            }}
           </p>
         </div>
-        <button type="button" class="btn-close" :aria-label="t('Cancel')" @click="emit('close')">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button
+          type="button"
+          class="btn-close"
+          :aria-label="t('Cancel')"
+          @click="emit('close')"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -119,13 +140,24 @@ function submitOrder() {
       <!-- Success Screen -->
       <div v-if="orderSuccess" class="success-screen">
         <div class="success-icon-ring">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="3"
+          >
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </div>
         <h3 class="success-title">{{ t('Order Sent to Kitchen!') }}</h3>
         <p class="success-sub">
-          {{ t('Your refreshments are being prepared and will be brought directly to your table.') }}
+          {{
+            t(
+              'Your refreshments are being prepared and will be brought directly to your table.',
+            )
+          }}
         </p>
         <span class="success-method">
           {{ t('Added to your Table Tab (Pay at Counter)') }}
@@ -158,17 +190,31 @@ function submitOrder() {
 
         <!-- Clean Text-Only Menu Items List (No pictures) -->
         <div class="menu-items-scroll">
-          <div v-for="item in filteredItems" :key="item.id" class="menu-item-row">
+          <div
+            v-for="item in filteredItems"
+            :key="item.id"
+            class="menu-item-row"
+          >
             <div class="item-info">
               <div class="item-title-row">
                 <span class="item-name">
-                  {{ locale === 'th-TH' && item.nameTh ? item.nameTh : item.name }}
+                  {{
+                    locale === 'th-TH' && item.nameTh ? item.nameTh : item.name
+                  }}
                 </span>
-                <span v-if="item.popular" class="popular-tag">{{ t('popular') }}</span>
-                <span v-if="item.dietary" class="dietary-tag">{{ t(item.dietary) }}</span>
+                <span v-if="item.popular" class="popular-tag">{{
+                  t('popular')
+                }}</span>
+                <span v-if="item.dietary" class="dietary-tag">{{
+                  t(item.dietary)
+                }}</span>
               </div>
               <p class="item-desc">
-                {{ locale === 'th-TH' && item.descriptionTh ? item.descriptionTh : item.description }}
+                {{
+                  locale === 'th-TH' && item.descriptionTh
+                    ? item.descriptionTh
+                    : item.description
+                }}
               </p>
               <span class="item-price">฿{{ item.price }}</span>
             </div>
@@ -209,16 +255,30 @@ function submitOrder() {
             v-model="orderNotes"
             type="text"
             class="notes-input"
-            :placeholder="t('Special instructions (e.g. Extra ice, serve in 15 mins…)')"
+            :placeholder="
+              t('Special instructions (e.g. Extra ice, serve in 15 mins…)')
+            "
           />
 
           <div class="counter-pay-notice">
-            <svg class="gold-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              class="gold-icon"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="16" x2="12" y2="12" />
               <line x1="12" y1="8" x2="12.01" y2="8" />
             </svg>
-            <span>{{ t('All in-play orders are added to your table tab and paid at the counter with staff.') }}</span>
+            <span>{{
+              t(
+                'All in-play orders are added to your table tab and paid at the counter with staff.',
+              )
+            }}</span>
           </div>
 
           <!-- Action Button -->
@@ -260,7 +320,8 @@ function submitOrder() {
   flex-direction: column;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
   overflow: hidden;
-  font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
+  font-family:
+    'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
 }
 
 .dialog-header {

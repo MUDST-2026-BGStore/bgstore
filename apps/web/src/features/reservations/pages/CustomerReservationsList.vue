@@ -1,218 +1,399 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, reactive } from 'vue';
 import { RouterLink } from 'vue-router';
-import { useQuery } from '@tanstack/vue-query';
-import { listBranches, type Branch } from '@theparlor/api-client';
-import { useAuthStore } from '../../../shared/stores/auth';
-import { useStoreText } from '../../home/data/store-text';
+import { useQuery, useQueryClient } from '@tanstack/vue-query';
 import {
-  useCustomerReservationsStore,
-  type CustomerReservation,
-} from '../data/reservations-store';
-import InPlayOrderModal from '../components/InPlayOrderModal.vue';
-import TableBillModal from '../components/TableBillModal.vue';
+  cancelReservation,
+  getBranchAvailability,
+  getRental,
+  listBranchGames,
+  listMyReservations,
+  listTables,
+  rescheduleReservation,
+  type Rental,
+  type Reservation,
+} from '@theparlor/api-client';
+import { useAuthStore } from '../../../shared/stores/auth';
+import { useBranchDirectoryStore } from '../../../shared/stores/branch-directory';
+import { useStoreText } from '../../../shared/lib/store-text';
+import { collectPages } from '../../../shared/lib/pagination';
+import { httpStatus } from '../../../shared/lib/api-errors';
+import {
+  BRANCH_TIME_ZONE,
+  branchDate,
+  branchInstant,
+  branchTime,
+  canPreOrder,
+  formatBaht,
+  plusHours,
+} from '../data/booking';
 
 const auth = useAuthStore();
+const directory = useBranchDirectoryStore();
+const queryClient = useQueryClient();
 const { t, locale } = useStoreText();
-const reservationsStore = useCustomerReservationsStore();
 
+onMounted(() => void directory.load());
+
+const STATUSES = [
+  'ALL',
+  'CONFIRMED',
+  'CHECKED_IN',
+  'COMPLETED',
+  'CANCELLED',
+  'NO_SHOW',
+] as const;
 const selectedStatusFilter = ref<string>('ALL');
 const selectedBranchFilter = ref<string>('ALL');
-const cancellingReservation = ref<CustomerReservation | null>(null);
-const isCancelling = ref(false);
-const orderingReservation = ref<CustomerReservation | null>(null);
-const billingReservation = ref<CustomerReservation | null>(null);
-const activeSession = computed(() => reservationsStore.activeSession.value);
 
-// Query branches for lookup
-const branchesQuery = useQuery({
-  queryKey: ['branches'],
-  queryFn: ({ signal }) => listBranches({}, undefined, signal),
+const reservationsQuery = useQuery({
+  queryKey: ['reservations', 'mine'],
+  queryFn: ({ signal }) =>
+    collectPages((cursor) =>
+      listMyReservations({ limit: 100, cursor }, undefined, signal),
+    ),
+  enabled: computed(() => auth.authenticated),
 });
-const branches = computed<Branch[]>(() => branchesQuery.data.value?.items ?? []);
 
-function getLocalizedBranchName(name: string): string {
-  return t(name);
+const allReservations = computed<Reservation[]>(() =>
+  [...(reservationsQuery.data.value ?? [])].sort((a, b) =>
+    b.startsAt.localeCompare(a.startsAt),
+  ),
+);
+
+const branchIds = computed(() =>
+  [...new Set(allReservations.value.map((r) => r.branchId))].sort(),
+);
+
+/** Table labels and game names of every branch the customer has booked at. */
+const labelsQuery = useQuery({
+  queryKey: ['reservations', 'labels', branchIds],
+  meta: { public: true },
+  staleTime: 300_000,
+  enabled: computed(() => branchIds.value.length > 0),
+  queryFn: async ({ signal }) => {
+    const tables = new Map<string, string>();
+    const games = new Map<string, string>();
+    await Promise.all(
+      branchIds.value.map(async (branchId) => {
+        const [branchTables, branchGames] = await Promise.all([
+          collectPages((cursor) =>
+            listTables(branchId, { limit: 100, cursor }, undefined, signal),
+          ),
+          collectPages((cursor) =>
+            listBranchGames(
+              branchId,
+              { limit: 100, cursor },
+              undefined,
+              signal,
+            ),
+          ),
+        ]);
+        for (const table of branchTables) tables.set(table.id, table.label);
+        for (const entry of branchGames)
+          games.set(entry.game.id, entry.game.name);
+      }),
+    );
+    return { tables, games };
+  },
+});
+
+function tableLabel(r: Reservation): string {
+  return labelsQuery.data.value?.tables.get(r.tableId) ?? t('Table');
 }
+
+function gameName(gameId: string | undefined): string {
+  return (gameId && labelsQuery.data.value?.games.get(gameId)) || t('Game');
+}
+
+function branchName(branchId: string): string {
+  return directory.byId(branchId)?.name ?? '';
+}
+
+const filteredReservations = computed(() =>
+  allReservations.value.filter(
+    (r) =>
+      (selectedStatusFilter.value === 'ALL' ||
+        r.status === selectedStatusFilter.value) &&
+      (selectedBranchFilter.value === 'ALL' ||
+        r.branchId === selectedBranchFilter.value),
+  ),
+);
+
+const STATUS_LABELS: Record<string, string> = {
+  CONFIRMED: 'Confirmed',
+  CHECKED_IN: 'Checked In',
+  COMPLETED: 'Completed',
+  CANCELLED: 'Cancelled',
+  NO_SHOW: 'No-Show',
+};
 
 function formatStatus(status: string): string {
-  if (locale.value === 'th-TH') {
-    switch (status) {
-      case 'CONFIRMED':
-        return 'ยืนยันแล้ว';
-      case 'CHECKED_IN':
-        return 'เช็คอินแล้ว';
-      case 'COMPLETED':
-        return 'เสร็จสิ้น';
-      case 'CANCELLED':
-        return 'ยกเลิกแล้ว';
-      case 'NO_SHOW':
-        return 'ไม่มาตามนัด';
-      case 'PENDING':
-        return 'รอยืนยัน';
-      default:
-        return t(status);
-    }
-  }
-  switch (status) {
-    case 'CONFIRMED':
-      return 'Confirmed';
-    case 'CHECKED_IN':
-      return 'Checked In';
-    case 'COMPLETED':
-      return 'Completed';
-    case 'CANCELLED':
-      return 'Cancelled';
-    case 'NO_SHOW':
-      return 'No-Show';
-    case 'PENDING':
-      return 'Pending';
-    default:
-      return status
-        .replace(/_/g, ' ')
-        .toLowerCase()
-        .replace(/\b\w/g, (c) => c.toUpperCase());
-  }
+  return t(STATUS_LABELS[status] ?? status);
 }
 
-// Filtered reservations from the store
-const allReservations = computed(() => reservationsStore.reservations.value);
+const dateLocale = computed(() =>
+  locale.value === 'th-TH' ? 'th-TH' : 'en-US',
+);
 
-const filteredReservations = computed(() => {
-  return allReservations.value.filter((r) => {
-    const matchesStatus =
-      selectedStatusFilter.value === 'ALL' || r.status === selectedStatusFilter.value;
-    const matchesBranch =
-      selectedBranchFilter.value === 'ALL' ||
-      r.branchId === selectedBranchFilter.value ||
-      r.branchName.toLowerCase() === selectedBranchFilter.value.toLowerCase();
-    return matchesStatus && matchesBranch;
-  });
-});
-
-// Format user-friendly date and time
-function formatFriendlyDateTime(isoStr: string): string {
-  if (!isoStr) return '';
-  const d = new Date(isoStr);
-  return `${d.toLocaleDateString(locale.value === 'th-TH' ? 'th-TH' : 'en-US', {
+function formatFriendlyDateTime(iso: string): string {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString(dateLocale.value, {
+    timeZone: BRANCH_TIME_ZONE,
     weekday: 'short',
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  })} • ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  })} • ${branchTime(d)}`;
 }
 
-function formatTimeOnly(isoStr: string): string {
-  if (!isoStr) return '';
-  const d = new Date(isoStr);
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+function formatTimeOnly(iso: string): string {
+  return branchTime(new Date(iso));
 }
 
-function openCancelModal(res: CustomerReservation) {
-  cancellingReservation.value = res;
+function paymentLabel(r: Reservation): string {
+  const payment = r.preOrder?.payment;
+  if (!payment) return '';
+  const card = payment.cardLast4
+    ? ` (${payment.cardBrand ?? ''} •••• ${payment.cardLast4})`
+    : '';
+  const state: Record<string, string> = {
+    AUTHORIZED: t('Authorized; charged at check-in'),
+    CAPTURED: t('Charged'),
+    VOIDED: t('Released; not charged'),
+    PENDING: t('Pending'),
+  };
+  return `${state[payment.status] ?? payment.status}${card}`;
 }
 
-function confirmCancel() {
-  if (!cancellingReservation.value) return;
+const isUpcoming = (r: Reservation) =>
+  r.status === 'CONFIRMED' && Date.parse(r.startsAt) > Date.now();
+
+async function refresh() {
+  await queryClient.invalidateQueries({ queryKey: ['reservations'] });
+}
+
+function actionError(error: unknown, fallback: string): string {
+  const status = httpStatus(error);
+  if (status === 409)
+    return t(
+      'This change is no longer possible. The reservation may have started or the time is taken.',
+    );
+  if (status === 402 || status === 502)
+    return t(
+      'The card payment could not be updated. Please try again shortly.',
+    );
+  return fallback;
+}
+
+// Cancel: releases the table, games and food, and voids any pre-order card hold.
+const cancellingReservation = ref<Reservation | null>(null);
+const cancelReason = ref('');
+const isCancelling = ref(false);
+const cancelError = ref('');
+
+function openCancelModal(r: Reservation) {
+  cancellingReservation.value = r;
+  cancelReason.value = '';
+  cancelError.value = '';
+}
+
+async function confirmCancel() {
+  const r = cancellingReservation.value;
+  if (!r || isCancelling.value) return;
   isCancelling.value = true;
+  cancelError.value = '';
   try {
-    reservationsStore.cancelReservation(cancellingReservation.value.id);
+    await cancelReservation(r.branchId, r.id, {
+      reason: cancelReason.value.trim() || 'Cancelled by customer',
+    });
     cancellingReservation.value = null;
+    await refresh();
+  } catch (error) {
+    cancelError.value = actionError(
+      error,
+      t('The reservation could not be cancelled. Please try again.'),
+    );
   } finally {
     isCancelling.value = false;
   }
+}
+
+// Reschedule: same table and games when they are free at the new time, otherwise
+// another free table that seats the party.
+const reschedulingReservation = ref<Reservation | null>(null);
+const reschedule = reactive({ date: '', time: '', hours: 2, partySize: 2 });
+const isRescheduling = ref(false);
+const rescheduleError = ref('');
+const todayDate = computed(() => branchDate(new Date()));
+
+function openReschedule(r: Reservation) {
+  const start = new Date(r.startsAt);
+  reschedulingReservation.value = r;
+  reschedule.date = branchDate(start);
+  reschedule.time = branchTime(start);
+  reschedule.hours = Math.max(
+    1,
+    Math.round((Date.parse(r.endsAt) - Date.parse(r.startsAt)) / 3_600_000),
+  );
+  reschedule.partySize = r.partySize;
+  rescheduleError.value = '';
+}
+
+async function confirmReschedule() {
+  const r = reschedulingReservation.value;
+  if (!r || isRescheduling.value) return;
+  const startsAt = branchInstant(reschedule.date, reschedule.time);
+  if (!startsAt || Date.parse(startsAt) < Date.now() + 30 * 60_000) {
+    rescheduleError.value = t('Choose a time at least 30 minutes from now.');
+    return;
+  }
+  // The card hold ages from booking, when the pre-order was authorized, so the
+  // server measures the window from then, not from now.
+  if (r.preOrder && !canPreOrder(startsAt, new Date(r.createdAt))) {
+    rescheduleError.value = t(
+      'A reservation with pre-ordered food can only move to a time within 6 days of when it was booked.',
+    );
+    return;
+  }
+  const endsAt = plusHours(startsAt, reschedule.hours);
+  isRescheduling.value = true;
+  rescheduleError.value = '';
+  try {
+    const availability = await getBranchAvailability(r.branchId, {
+      startsAt,
+      endsAt,
+      partySize: reschedule.partySize,
+    });
+    // The booking's own holds count against it until the move replaces them.
+    const sameWindow =
+      Date.parse(startsAt) < Date.parse(r.endsAt) &&
+      Date.parse(endsAt) > Date.parse(r.startsAt);
+    const fits = (tableId: string, capacity: number, available: boolean) =>
+      capacity >= reschedule.partySize &&
+      (available || (sameWindow && tableId === r.tableId));
+    const table =
+      availability.tables.find(
+        (tbl) =>
+          tbl.tableId === r.tableId &&
+          fits(tbl.tableId, tbl.capacity, tbl.available),
+      ) ??
+      availability.tables.find((tbl) =>
+        fits(tbl.tableId, tbl.capacity, tbl.available),
+      );
+    if (!availability.withinOpeningHours || !table) {
+      rescheduleError.value = t(
+        'No table is free for that time and party size.',
+      );
+      return;
+    }
+    const free = new Map(
+      availability.games.map((game) => [game.gameId, game.availableQuantity]),
+    );
+    const short = r.games.find(
+      (game) => !sameWindow && (free.get(game.gameId) ?? 0) < game.quantity,
+    );
+    if (short) {
+      rescheduleError.value = t('{game} is not free at that time.', {
+        game: gameName(short.gameId),
+      });
+      return;
+    }
+    await rescheduleReservation(r.branchId, r.id, {
+      tableId: table.tableId,
+      startsAt,
+      endsAt,
+      partySize: reschedule.partySize,
+      games: r.games.map(({ gameId, quantity }) => ({ gameId, quantity })),
+    });
+    reschedulingReservation.value = null;
+    await refresh();
+  } catch (error) {
+    rescheduleError.value = actionError(
+      error,
+      t('The reservation could not be moved. Please try again.'),
+    );
+  } finally {
+    isRescheduling.value = false;
+  }
+}
+
+// Read-only charges of a visit that has started, loaded when asked for.
+const rentals = ref<Record<string, Rental | 'error' | 'loading'>>({});
+
+async function toggleCharges(r: Reservation) {
+  if (!r.rentalId) return;
+  if (rentals.value[r.id] && rentals.value[r.id] !== 'error') {
+    const { [r.id]: _, ...rest } = rentals.value;
+    rentals.value = rest;
+    return;
+  }
+  rentals.value = { ...rentals.value, [r.id]: 'loading' };
+  try {
+    const rental = await getRental(r.branchId, r.rentalId);
+    rentals.value = { ...rentals.value, [r.id]: rental };
+  } catch {
+    rentals.value = { ...rentals.value, [r.id]: 'error' };
+  }
+}
+
+function rentalOf(r: Reservation): Rental | undefined {
+  const value = rentals.value[r.id];
+  return typeof value === 'object' ? value : undefined;
 }
 </script>
 
 <template>
   <div class="my-reservations-page">
     <div class="container">
-      <!-- Page Header -->
       <header class="page-header">
         <div class="header-titles">
-          <div class="header-eyebrow">
-            <span class="gold-sparkle">✦</span>
-            <span>THE PARLOR RESERVATION HISTORY</span>
-          </div>
           <h1 class="page-title">{{ t('My Reservations') }}</h1>
           <p class="page-subtitle">
-            {{ t('Manage your booked gaming tables and pre-ordered food & refreshments.') }}
+            {{
+              t(
+                'Manage your booked gaming tables and pre-ordered food & refreshments.',
+              )
+            }}
           </p>
         </div>
         <div class="header-actions">
-          <RouterLink to="/reservations/new" class="btn btn-primary add-res-btn">
+          <RouterLink
+            to="/reservations/new"
+            class="btn btn-primary add-res-btn"
+          >
             + {{ t('Reserve Table') }}
           </RouterLink>
         </div>
       </header>
 
-      <!-- Auth Gate Check -->
-      <section v-if="!auth.authenticated" class="auth-required-box" aria-live="polite">
-        <div class="auth-icon-circle">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-        </div>
+      <section
+        v-if="!auth.authenticated"
+        class="auth-required-box"
+        aria-live="polite"
+      >
         <h2 class="auth-title">{{ t('Please Sign In') }}</h2>
         <p class="auth-text">
           {{ t('Sign in to your Parlor account to view your reservations.') }}
         </p>
-        <RouterLink :to="{ name: 'AuthLogin', query: { redirect: '/reservations' } }" class="btn btn-primary">
+        <RouterLink
+          :to="{ name: 'AuthLogin', query: { redirect: '/reservations' } }"
+          class="btn btn-primary"
+        >
           {{ t('Sign In / Register') }} →
         </RouterLink>
       </section>
 
       <section v-else class="reservations-content">
-        <!-- Active Ongoing Session Spotlight Card -->
-        <div v-if="activeSession" class="active-session-banner">
-          <div class="active-session-left">
-            <div class="session-eyebrow">
-              <span class="live-pulse-dot"></span>
-              <strong>{{ t('ACTIVE ON-GOING SESSION') }}</strong>
-            </div>
-            <h2 class="active-table-name">
-              {{ t(activeSession.tableLabel) }} • {{ t(activeSession.branchName) }}
-            </h2>
-            <div class="active-meta-chips">
-              <span class="meta-chip"><span class="gold-bullet">◆</span> {{ t('Playing for') }}: {{ formatTimeOnly(activeSession.checkedInAt || activeSession.startsAt) }}</span>
-              <span class="meta-chip">{{ activeSession.partySize }} {{ t('players') }}</span>
-              <span class="meta-chip">฿{{ activeSession.hourlyRate || 200 }}/{{ t('hr') }}</span>
-              <span v-if="activeSession.inPlayOrders && activeSession.inPlayOrders.length > 0" class="meta-chip chip-orders">
-                <span class="gold-bullet">◆</span> {{ activeSession.inPlayOrders.length }} {{ t('In-Play Orders') }}
-              </span>
-            </div>
-          </div>
-
-          <div class="active-session-actions">
-            <button
-              type="button"
-              class="btn btn-order-table"
-              @click="orderingReservation = activeSession"
-            >
-              + {{ t('Order Food & Drinks to Table') }}
-            </button>
-            <button
-              type="button"
-              class="btn btn-view-bill"
-              @click="billingReservation = activeSession"
-            >
-              {{ t('Live Table Bill & Tab') }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Filter Bar -->
         <div class="filters-card">
           <div class="filter-group">
             <span class="filter-label">{{ t('Status') }}:</span>
-            <div class="status-pills" role="tablist">
+            <div class="status-pills">
               <button
-                v-for="st in ['ALL', 'CONFIRMED', 'CHECKED_IN', 'COMPLETED', 'CANCELLED']"
+                v-for="st in STATUSES"
                 :key="st"
                 type="button"
-                role="tab"
-                :aria-selected="selectedStatusFilter === st"
+                :aria-pressed="selectedStatusFilter === st"
                 class="pill-btn"
                 :class="{ active: selectedStatusFilter === st }"
                 @click="selectedStatusFilter = st"
@@ -223,24 +404,51 @@ function confirmCancel() {
           </div>
 
           <div class="filter-group branch-filter-group">
-            <label for="branch-filter" class="filter-label">{{ t('Branch') }}:</label>
-            <select id="branch-filter" v-model="selectedBranchFilter" class="branch-select-input">
+            <label for="branch-filter" class="filter-label"
+              >{{ t('Branch') }}:</label
+            >
+            <select
+              id="branch-filter"
+              v-model="selectedBranchFilter"
+              class="branch-select-input"
+            >
               <option value="ALL">{{ t('All Branches') }}</option>
-              <option v-for="b in branches" :key="b.id" :value="b.name">{{ t(b.name) }}</option>
+              <option v-for="b in directory.branches" :key="b.id" :value="b.id">
+                {{ b.name }}
+              </option>
             </select>
           </div>
         </div>
 
-        <!-- Empty State -->
-        <div v-if="filteredReservations.length === 0" class="empty-reservations-box">
-          <div class="empty-icon-wrap">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-          </div>
+        <div
+          v-if="reservationsQuery.isLoading.value"
+          class="empty-reservations-box"
+          role="status"
+        >
+          <p class="empty-text">{{ t('Loading your reservations…') }}</p>
+        </div>
+
+        <div
+          v-else-if="reservationsQuery.isError.value"
+          class="empty-reservations-box"
+          role="alert"
+        >
+          <h3 class="empty-title">
+            {{ t('Your reservations could not be loaded.') }}
+          </h3>
+          <button
+            type="button"
+            class="btn btn-secondary"
+            @click="reservationsQuery.refetch()"
+          >
+            {{ t('Try again') }}
+          </button>
+        </div>
+
+        <div
+          v-else-if="filteredReservations.length === 0"
+          class="empty-reservations-box"
+        >
           <h3 class="empty-title">{{ t('No Reservations Found') }}</h3>
           <p class="empty-text">
             {{ t('You have no reservations matching this filter.') }}
@@ -250,7 +458,6 @@ function confirmCancel() {
           </RouterLink>
         </div>
 
-        <!-- Reservations List -->
         <div v-else class="reservations-grid">
           <article
             v-for="res in filteredReservations"
@@ -258,191 +465,263 @@ function confirmCancel() {
             class="reservation-card"
             :class="`status-${res.status.toLowerCase()}`"
           >
-            <!-- Card Header: Branch, Ref, Status -->
             <div class="card-header">
               <div class="branch-meta">
-                <span class="branch-name">
-                  <span class="gold-bullet">◆</span>
-                  {{ getLocalizedBranchName(res.branchName) }}
-                </span>
-                <span class="ref-badge">{{ t('Ref:') }} {{ res.id }}</span>
+                <span class="branch-name">{{ branchName(res.branchId) }}</span>
+                <span class="ref-badge"
+                  >{{ t('Ref:') }} {{ res.id.slice(-8).toUpperCase() }}</span
+                >
               </div>
-              <span class="status-badge" :class="`badge-${res.status.toLowerCase()}`">
+              <span
+                class="status-badge"
+                :class="`badge-${res.status.toLowerCase()}`"
+              >
                 {{ formatStatus(res.status) }}
               </span>
             </div>
 
-            <!-- Card Body: Date, Times, ISO Timestamps, Table, Pre-orders -->
             <div class="card-body">
-              <!-- Primary Schedule Display -->
               <div class="schedule-block">
                 <div class="date-main">
-                  <svg class="schedule-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10" />
-                    <polyline points="12 6 12 12 16 14" />
-                  </svg>
                   <span class="schedule-text">
-                    {{ formatFriendlyDateTime(res.startsAt) }} – {{ formatTimeOnly(res.endsAt) }}
+                    {{ formatFriendlyDateTime(res.startsAt) }} –
+                    {{ formatTimeOnly(res.endsAt) }}
                   </span>
-                </div>
-
-                <!-- Dedicated ISO Timestamps Callout (Requirement: ISO timestamp in reservation history) -->
-                <div class="iso-timestamps-box">
-                  <span class="iso-label">{{ t('ISO Timestamps (System Record):') }}</span>
-                  <div class="iso-codes">
-                    <code>{{ res.startsAt }}</code>
-                    <span class="iso-arrow">→</span>
-                    <code>{{ res.endsAt }}</code>
-                  </div>
                 </div>
               </div>
 
-              <!-- Table and Party Size -->
               <div class="details-row">
                 <div class="detail-item">
                   <span class="detail-lbl">{{ t('Table') }}:</span>
-                  <span class="detail-val table-highlight">{{ t(res.tableLabel) }}</span>
+                  <span class="detail-val table-highlight">{{
+                    tableLabel(res)
+                  }}</span>
                 </div>
                 <div class="detail-item">
                   <span class="detail-lbl">{{ t('Party size') }}:</span>
-                  <span class="detail-val">{{ res.partySize }} {{ t('players') }}</span>
+                  <span class="detail-val"
+                    >{{ res.partySize }} {{ t('players') }}</span
+                  >
                 </div>
-                <div v-if="res.customerName" class="detail-item">
-                  <span class="detail-lbl">{{ t('Reserved by') }}:</span>
-                  <span class="detail-val">{{ res.customerName }}</span>
+                <div class="detail-item">
+                  <span class="detail-lbl">{{ t('Table rate') }}:</span>
+                  <span class="detail-val"
+                    >{{ formatBaht(res.tableHourlyRate.amountMinor) }}
+                    {{ t('/ hour') }}</span
+                  >
                 </div>
               </div>
 
-              <!-- Pre-ordered Food & Drinks Section (with 10% Discount) -->
-              <div v-if="res.preOrder && res.preOrder.items && res.preOrder.items.length > 0" class="preorder-section">
+              <div v-if="res.games.length" class="details-row">
+                <div class="detail-item">
+                  <span class="detail-lbl">{{ t('Games') }}:</span>
+                  <span class="detail-val">{{
+                    res.games
+                      .map((g) => `${g.quantity}× ${gameName(g.gameId)}`)
+                      .join(', ')
+                  }}</span>
+                </div>
+              </div>
+
+              <div v-if="res.preOrder" class="preorder-section">
                 <div class="preorder-header">
                   <div class="preorder-title">
-                    <span class="gold-bullet">◆</span>
                     <strong>{{ t('Pre-ordered Food & Drinks') }}</strong>
                   </div>
-                  <span class="discount-pill">-10% {{ t('Pre-order Discount') }}</span>
+                  <span class="discount-pill"
+                    >-10% {{ t('Pre-order Discount') }}</span
+                  >
                 </div>
 
                 <div class="preorder-items-list">
                   <div
-                    v-for="itemRecord in res.preOrder.items"
-                    :key="itemRecord.item.id"
+                    v-for="line in res.preOrder.items"
+                    :key="line.menuItemId"
                     class="preorder-item-row"
                   >
                     <span class="item-name-qty">
-                      <span class="qty-badge">{{ itemRecord.quantity }}x</span>
-                      {{ locale === 'th-TH' && itemRecord.item.nameTh ? itemRecord.item.nameTh : itemRecord.item.name }}
+                      <span class="qty-badge">{{ line.quantity }}×</span>
+                      {{ line.name }}
                     </span>
-                    <span class="item-calc-price">
-                      ฿{{ Math.round(itemRecord.item.price * 0.9 * itemRecord.quantity) }}
-                    </span>
+                    <span class="item-calc-price">{{
+                      formatBaht(line.lineTotal.amountMinor)
+                    }}</span>
                   </div>
                 </div>
 
                 <div class="preorder-footer-bar">
                   <div class="payment-confirmed-tag">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                    <span>{{ t('Paid via PromptPay QR') }} (Ref: {{ res.preOrder.paymentReference }})</span>
+                    <span>{{ paymentLabel(res) }}</span>
                   </div>
                   <div class="preorder-sum">
-                    <span class="original-sum">฿{{ res.preOrder.subtotal }}</span>
-                    <span class="discounted-sum">฿{{ res.preOrder.discountedTotal }}</span>
+                    <span class="original-sum">{{
+                      formatBaht(res.preOrder.subtotal.amountMinor)
+                    }}</span>
+                    <span class="discounted-sum">{{
+                      formatBaht(res.preOrder.total.amountMinor)
+                    }}</span>
                   </div>
                 </div>
               </div>
 
-              <!-- In-Play Orders Section -->
-              <div v-if="res.inPlayOrders && res.inPlayOrders.length > 0" class="inplay-history-section">
-                <div class="inplay-history-header">
-                  <span class="gold-bullet">◆</span>
-                  <strong>{{ t('In-Play Table Orders') }} ({{ res.inPlayOrders.length }})</strong>
-                </div>
-
-                <div class="inplay-orders-grid">
-                  <div
-                    v-for="ord in res.inPlayOrders"
-                    :key="ord.id"
-                    class="inplay-mini-card"
-                  >
-                    <div class="mini-card-top">
-                      <span class="ord-ref">{{ ord.orderNumber }}</span>
-                      <span class="ord-total">฿{{ ord.subtotal }}</span>
-                    </div>
-                    <div class="mini-items">
-                      <span v-for="it in ord.items" :key="it.item.id">
-                        {{ it.quantity }}x {{ locale === 'th-TH' && it.item.nameTh ? it.item.nameTh : it.item.name }}
-                      </span>
-                    </div>
-                    <div v-if="ord.notes" class="mini-card-bottom">
-                      <span class="ord-note">{{ ord.notes }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Special Notes -->
-              <div v-if="res.notes && (!res.preOrder || !res.notes.startsWith('[Pre-order'))" class="notes-box">
-                <span class="notes-tag">{{ t('Special Requests or Notes (Optional)') }}:</span>
+              <div v-if="res.notes" class="notes-box">
+                <span class="notes-tag">{{ t('Notes') }}:</span>
                 <p class="notes-text">{{ res.notes }}</p>
+              </div>
+
+              <div v-if="res.rentalId && rentals[res.id]" class="charges-box">
+                <p v-if="rentals[res.id] === 'loading'" role="status">
+                  {{ t('Loading charges…') }}
+                </p>
+                <p v-else-if="rentals[res.id] === 'error'" role="alert">
+                  {{ t('Charges could not be loaded.') }}
+                </p>
+                <template v-else-if="rentalOf(res)">
+                  <table class="charges-table">
+                    <caption class="charges-caption">
+                      {{
+                        rentalOf(res)?.status === 'COMPLETED'
+                          ? t('Visit charges')
+                          : t('Charges so far, billed at check-out')
+                      }}
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th scope="col">{{ t('Item') }}</th>
+                        <th scope="col">{{ t('Rate') }}</th>
+                        <th scope="col">{{ t('Amount') }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="(charge, index) in rentalOf(res)?.charges"
+                        :key="index"
+                      >
+                        <td>
+                          {{
+                            charge.kind === 'TABLE'
+                              ? t('Table')
+                              : `${charge.quantity}× ${gameName(charge.gameId)}`
+                          }}
+                        </td>
+                        <td>
+                          {{ formatBaht(charge.unitHourlyRate.amountMinor) }}
+                          {{ t('/ hour') }}
+                        </td>
+                        <td>
+                          {{
+                            charge.lineTotal
+                              ? formatBaht(charge.lineTotal.amountMinor)
+                              : '—'
+                          }}
+                        </td>
+                      </tr>
+                    </tbody>
+                    <tfoot v-if="rentalOf(res)?.total">
+                      <tr>
+                        <th scope="row" colspan="2">
+                          {{
+                            t('Total for {hours} hours', {
+                              hours: rentalOf(res)?.billableHours ?? 0,
+                            })
+                          }}
+                        </th>
+                        <td>
+                          {{
+                            formatBaht(rentalOf(res)?.total?.amountMinor ?? 0)
+                          }}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </template>
               </div>
             </div>
 
-            <!-- Card Footer: In-Play Prompt & Cancel Action -->
             <div class="card-footer">
-              <div v-if="res.status === 'CHECKED_IN'" class="inplay-live-actions">
+              <div class="card-actions">
                 <button
+                  v-if="res.rentalId"
                   type="button"
-                  class="btn-live-order"
-                  @click="orderingReservation = res"
+                  class="btn btn-secondary btn-small"
+                  :aria-expanded="!!rentals[res.id]"
+                  @click="toggleCharges(res)"
                 >
-                  + {{ t('Order Food to Table') }}
+                  {{
+                    rentals[res.id] && rentals[res.id] !== 'error'
+                      ? t('Hide charges')
+                      : t('View charges')
+                  }}
                 </button>
-                <button
-                  type="button"
-                  class="btn-live-bill"
-                  @click="billingReservation = res"
-                >
-                  {{ t('Live Table Bill') }}
-                </button>
-              </div>
-              <div v-else class="inplay-prompt">
-                <span class="sparkle-gold">✦</span>
-                <span>{{ t('Need more snacks or refills while playing? You can scan your table’s menu code to order food and drinks directly to your table at any time during your visit.') }}</span>
-              </div>
-
-              <div v-if="res.status === 'CONFIRMED'" class="card-actions">
-                <button
-                  type="button"
-                  class="btn-cancel"
-                  @click="openCancelModal(res)"
-                >
-                  {{ t('Cancel Reservation') }}
-                </button>
+                <template v-if="isUpcoming(res)">
+                  <button
+                    type="button"
+                    class="btn btn-secondary btn-small"
+                    @click="openReschedule(res)"
+                  >
+                    {{ t('Reschedule') }}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-cancel"
+                    @click="openCancelModal(res)"
+                  >
+                    {{ t('Cancel Reservation') }}
+                  </button>
+                </template>
               </div>
             </div>
           </article>
         </div>
       </section>
 
-      <!-- Cancel Confirmation Modal -->
       <Transition name="fade">
         <div
           v-if="cancellingReservation"
           class="modal-overlay"
-          role="dialog"
-          aria-modal="true"
           @click.self="cancellingReservation = null"
         >
-          <div class="modal-card">
-            <h3 class="modal-heading">{{ t('Cancel Table Reservation?') }}</h3>
+          <div
+            class="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-heading"
+          >
+            <h3 id="cancel-heading" class="modal-heading">
+              {{ t('Cancel Table Reservation?') }}
+            </h3>
             <p class="modal-desc">
-              {{ t('Cancel Reservation') }}:
-              <strong>{{ getLocalizedBranchName(cancellingReservation.branchName) }}</strong> —
-              {{ formatFriendlyDateTime(cancellingReservation.startsAt) }}
+              <strong>{{ branchName(cancellingReservation.branchId) }}</strong>
+              — {{ formatFriendlyDateTime(cancellingReservation.startsAt) }}
+              <template v-if="cancellingReservation.preOrder">
+                <br />
+                {{
+                  t(
+                    'The {amount} hold on your card for pre-ordered food will be released.',
+                    {
+                      amount: formatBaht(
+                        cancellingReservation.preOrder.total.amountMinor,
+                      ),
+                    },
+                  )
+                }}
+              </template>
             </p>
-
+            <div class="modal-form-group">
+              <label for="cancel-reason" class="modal-label">{{
+                t('Reason (optional)')
+              }}</label>
+              <input
+                id="cancel-reason"
+                v-model="cancelReason"
+                type="text"
+                maxlength="500"
+                class="form-select"
+              />
+            </div>
+            <p v-if="cancelError" class="modal-error" role="alert">
+              {{ cancelError }}
+            </p>
             <div class="modal-buttons">
               <button
                 type="button"
@@ -457,28 +736,112 @@ function confirmCancel() {
                 :disabled="isCancelling"
                 @click="confirmCancel"
               >
-                <span v-if="isCancelling">{{ t('Cancelling…') }}</span>
-                <span v-else>{{ t('Cancel Reservation') }}</span>
+                {{ isCancelling ? t('Cancelling…') : t('Cancel Reservation') }}
               </button>
             </div>
           </div>
         </div>
       </Transition>
+
+      <Transition name="fade">
+        <div
+          v-if="reschedulingReservation"
+          class="modal-overlay"
+          @click.self="reschedulingReservation = null"
+        >
+          <form
+            class="modal-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reschedule-heading"
+            @submit.prevent="confirmReschedule"
+          >
+            <h3 id="reschedule-heading" class="modal-heading">
+              {{ t('Reschedule Reservation') }}
+            </h3>
+            <p class="modal-desc">
+              {{
+                t(
+                  'Your table and games move with you when they are free; otherwise another table that seats your party is chosen.',
+                )
+              }}
+            </p>
+            <div class="modal-grid">
+              <div class="modal-form-group">
+                <label for="rs-date" class="modal-label">{{ t('Date') }}</label>
+                <input
+                  id="rs-date"
+                  v-model="reschedule.date"
+                  type="date"
+                  :min="todayDate"
+                  required
+                  class="form-select"
+                />
+              </div>
+              <div class="modal-form-group">
+                <label for="rs-time" class="modal-label">{{
+                  t('Start Time')
+                }}</label>
+                <input
+                  id="rs-time"
+                  v-model="reschedule.time"
+                  type="time"
+                  required
+                  class="form-select"
+                />
+              </div>
+              <div class="modal-form-group">
+                <label for="rs-hours" class="modal-label">{{
+                  t('Duration')
+                }}</label>
+                <select
+                  id="rs-hours"
+                  v-model.number="reschedule.hours"
+                  class="form-select"
+                >
+                  <option v-for="h in [1, 2, 3, 4, 6]" :key="h" :value="h">
+                    {{ t(h === 1 ? '1 Hour' : '{count} Hours', { count: h }) }}
+                  </option>
+                </select>
+              </div>
+              <div class="modal-form-group">
+                <label for="rs-party" class="modal-label">{{
+                  t('Party Size')
+                }}</label>
+                <input
+                  id="rs-party"
+                  v-model.number="reschedule.partySize"
+                  type="number"
+                  min="1"
+                  max="20"
+                  required
+                  class="form-select"
+                />
+              </div>
+            </div>
+            <p v-if="rescheduleError" class="modal-error" role="alert">
+              {{ rescheduleError }}
+            </p>
+            <div class="modal-buttons">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                @click="reschedulingReservation = null"
+              >
+                {{ t('Keep Current Time') }}
+              </button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                :disabled="isRescheduling"
+              >
+                {{ isRescheduling ? t('Moving…') : t('Move Reservation') }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </Transition>
     </div>
-
-    <!-- In-Play Ordering Modal -->
-    <InPlayOrderModal
-      v-if="orderingReservation"
-      :reservation="orderingReservation"
-      @close="orderingReservation = null"
-    />
-
-    <!-- Live Table Bill Modal -->
-    <TableBillModal
-      v-if="billingReservation"
-      :reservation="billingReservation"
-      @close="billingReservation = null"
-    />
   </div>
 </template>
 
@@ -488,7 +851,8 @@ function confirmCancel() {
   min-height: calc(100vh - 120px);
   padding: 36px 16px 80px;
   color: #172b21;
-  font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
+  font-family:
+    'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
 }
 
 .container {
@@ -698,7 +1062,9 @@ function confirmCancel() {
 
 .reservation-card:hover {
   border-color: #c6ad7a;
-  box-shadow: 0 8px 24px rgba(20, 43, 32, 0.1), 0 0 12px rgba(198, 173, 122, 0.12);
+  box-shadow:
+    0 8px 24px rgba(20, 43, 32, 0.1),
+    0 0 12px rgba(198, 173, 122, 0.12);
   transform: translateY(-2px);
 }
 
@@ -1098,7 +1464,9 @@ function confirmCancel() {
 
 .btn-primary:hover {
   background: #1e3f2f;
-  box-shadow: 0 4px 14px rgba(20, 43, 32, 0.3), 0 0 10px rgba(198, 173, 122, 0.4);
+  box-shadow:
+    0 4px 14px rgba(20, 43, 32, 0.3),
+    0 0 10px rgba(198, 173, 122, 0.4);
   transform: translateY(-1px);
 }
 
@@ -1191,7 +1559,12 @@ function confirmCancel() {
 
 /* Active Ongoing Session Banner */
 .active-session-banner {
-  background: radial-gradient(ellipse at 50% 20%, #1f4232 0%, #142b20 70%, #0d1e16 100%);
+  background: radial-gradient(
+    ellipse at 50% 20%,
+    #1f4232 0%,
+    #142b20 70%,
+    #0d1e16 100%
+  );
   border: 2px solid #c6ad7a;
   border-radius: 14px;
   padding: 24px 28px;
@@ -1201,7 +1574,9 @@ function confirmCancel() {
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35), 0 0 20px rgba(198, 173, 122, 0.25);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.35),
+    0 0 20px rgba(198, 173, 122, 0.25);
   flex-wrap: wrap;
 }
 
@@ -1226,9 +1601,18 @@ function confirmCancel() {
 }
 
 @keyframes pulseLive {
-  0% { transform: scale(0.95); opacity: 0.8; }
-  50% { transform: scale(1.3); opacity: 1; }
-  100% { transform: scale(0.95); opacity: 0.8; }
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
 }
 
 .active-table-name {
@@ -1453,4 +1837,64 @@ function confirmCancel() {
   background: #f7f3ea;
 }
 
+.btn-small {
+  padding: 6px 12px;
+  font-size: 12.5px;
+}
+
+.card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+
+.modal-error {
+  margin: 0 0 14px;
+  font-size: 13px;
+  color: #b91c1c;
+}
+
+.charges-box {
+  border-top: 1px solid #ece4d4;
+  padding-top: 10px;
+  font-size: 13px;
+  color: #383226;
+}
+
+.charges-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.charges-caption {
+  text-align: left;
+  font-weight: 700;
+  padding-bottom: 6px;
+  color: #142b20;
+}
+
+.charges-table th,
+.charges-table td {
+  text-align: left;
+  padding: 5px 6px;
+  border-bottom: 1px solid #f0e9dc;
+}
+
+.charges-table td:last-child,
+.charges-table th:last-child {
+  text-align: right;
+}
+
+@media (max-width: 480px) {
+  .modal-grid {
+    grid-template-columns: 1fr;
+  }
+}
 </style>

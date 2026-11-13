@@ -5,6 +5,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { apiGames, apiTaxonomy } from '../api/catalog.fixtures';
 import { useLocale } from '../../../shared/lib/locale';
+import { queryClient } from '../../../shared/lib/api';
 import GameProduct from './GameProduct.vue';
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
@@ -12,11 +13,47 @@ vi.mock('../../../../../../libs/web/api-client/src/lib/transport.ts', () => ({
   apiRequest: request,
   configureApiTransport: vi.fn(),
 }));
+const BRANCH = '00000000-0000-4000-8000-0000000000a1';
+const EDITION = '00000000-0000-4000-8000-0000000000e1';
+const branches = [
+  {
+    id: BRANCH,
+    name: 'Siam',
+    address: 'A',
+    openingHours: [],
+    active: true,
+    fulfillsDelivery: true,
+  },
+];
+const offering = {
+  branchId: BRANCH,
+  game: apiGames[0],
+  saleEnabled: true,
+  rentalEnabled: true,
+  staffCanTeach: true,
+  rentalHourlyRate: { amountMinor: 4000 },
+  editions: [
+    {
+      editionId: EDITION,
+      editionKind: 'BASE_GAME',
+      languageCode: 'th',
+      active: true,
+      salePrice: { amountMinor: 149000 },
+      saleOnHand: 3,
+      saleHeld: 1,
+      saleAvailable: 2,
+    },
+  ],
+  rentalTotal: 2,
+  rentalUsable: 2,
+  rentalAvailableNow: 1,
+};
 let page: ReturnType<typeof mount>;
 let client: QueryClient;
 
 beforeEach(() => {
   localStorage.clear();
+  queryClient.clear();
   localStorage.setItem('theparlor.store-context.v1', 'browse');
   useLocale().setLocale('en-US');
   request.mockReset().mockImplementation((config) => {
@@ -32,6 +69,10 @@ beforeEach(() => {
           },
         ],
       });
+    if (config.url === '/api/v1/branches')
+      return Promise.resolve({ items: branches });
+    if (config.url === `/api/v1/branches/${BRANCH}/games/${apiGames[0].id}`)
+      return Promise.resolve(offering);
     if (config.url === '/api/v1/categories')
       return Promise.resolve({ items: apiTaxonomy });
     if (config.url === '/api/v1/mechanics')
@@ -79,13 +120,13 @@ async function render(id = apiGames[0].id) {
   return router;
 }
 
-it('loads a direct UUID route and real media/editions without preview price or stock claims', async () => {
+it('loads a direct UUID route and real media/editions, with no price until a store is chosen', async () => {
   await render();
   expect(page.get('h1').text()).toBe('Azul');
   expect(page.get('.product-media img').attributes('src')).toBe(
     '/images/games/azul.jpg',
   );
-  expect(page.text()).toContain('Price and stock information is unavailable.');
+  expect(page.text()).toContain('Choose a store to see prices and stock.');
   expect(page.find('.purchase-form').exists()).toBe(false);
   expect(page.find('.branch-table').exists()).toBe(false);
   expect(page.text()).toContain('English');
@@ -149,4 +190,57 @@ it('distinguishes a failed detail request from 404 and can retry', async () => {
   await page.get('.product-missing button').trigger('click');
   await flushPromises();
   expect(page.get('h1').text()).toBe('Azul');
+});
+
+it('shows the chosen branch’s price and stock and adds the edition to the server cart', async () => {
+  localStorage.setItem('theparlor.store-context.v1', BRANCH);
+  const cartCalls: { url: string; method: string; data?: unknown }[] = [];
+  const respond = request.getMockImplementation()!;
+  request.mockImplementation((config) => {
+    if (config.url.startsWith('/api/v1/carts')) {
+      cartCalls.push({
+        url: config.url,
+        method: config.method,
+        data: config.data,
+      });
+      const cart = {
+        id: 'cart-1',
+        fulfillment: { method: 'SHIPPING' },
+        items: [],
+        issues: [],
+        subtotal: 0,
+        checkoutReady: false,
+        createdAt: '2026-11-12T00:00:00Z',
+        updatedAt: '2026-11-12T00:00:00Z',
+      };
+      return Promise.resolve(
+        config.url === '/api/v1/carts'
+          ? { ...cart, token: 't'.repeat(40) }
+          : cart,
+      );
+    }
+    return respond(config);
+  });
+  await render();
+
+  expect(page.get('.product-price').text()).toContain('1,490');
+  expect(page.get('.stock-line').text()).toContain('Only 2 left');
+  expect(page.get('.stock-line').text()).toContain('Pickup at Siam');
+  // Library membership only: no live rental copy count on a product page.
+  expect(page.get('.library-line').text()).toContain('In the rental library');
+  expect(page.text()).not.toContain('rentalAvailableNow');
+  expect(page.get('input[name="quantity"]').attributes('max')).toBe('2');
+
+  await page.get('.purchase-form').trigger('submit');
+  await flushPromises();
+  expect(cartCalls.map((call) => `${call.method} ${call.url}`)).toEqual([
+    'POST /api/v1/carts',
+    'PATCH /api/v1/carts/cart-1',
+    'POST /api/v1/carts/cart-1/items',
+  ]);
+  expect(cartCalls[1].data).toEqual({
+    fulfillment: { method: 'PICKUP', pickupBranchId: BRANCH },
+  });
+  expect(cartCalls[2].data).toEqual({ editionId: EDITION, quantity: 1 });
+  expect(page.text()).toContain('Added to your cart.');
 });

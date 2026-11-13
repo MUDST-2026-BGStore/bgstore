@@ -4,14 +4,18 @@ import { RouterLink, RouterView, useRoute } from 'vue-router';
 import { ParlorShell, BLocaleSwitcher } from '@theparlor/ui';
 import {
   StoreCartButton,
-  StoreCartPanel,
   useStoreText,
+  MyOrdersModal,
+  useOrdersStore,
 } from '../../features/home';
 import { useLocale } from '../../shared/lib/locale';
 import { useAuthStore } from '../../shared/stores/auth';
 import { workspaceDestination } from '../router/access';
 
+defineProps<{ hideHeaderSignOut?: boolean }>();
+
 const auth = useAuthStore();
+const ordersStore = useOrdersStore();
 const route = useRoute();
 const { t } = useStoreText();
 const { locale, setLocale, saveStatus, retrySave } = useLocale();
@@ -75,7 +79,13 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
     brand-href="/"
     :class="{
       'catalog-shell':
-        route.name === 'HomeIndex' || route.name === 'GameProduct',
+        route.name === 'HomeIndex' ||
+        route.name === 'GameProduct' ||
+        route.name === 'Cart' ||
+        route.name === 'Checkout' ||
+        route.name === 'BranchLocations',
+      'cart-shell': route.name === 'Cart' || route.name === 'Checkout',
+      'map-shell': route.name === 'BranchLocations',
     }"
   >
     <template #header-left>
@@ -106,16 +116,6 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
     </template>
 
     <template #header-right>
-      <RouterLink
-        v-if="auth.authenticated"
-        to="/reservations"
-        class="header-history-btn"
-      >
-        {{ t('My Reservations') }}
-      </RouterLink>
-      <RouterLink to="/reservations/new" class="header-reserve-btn">
-        {{ t('Reserve Table') }}
-      </RouterLink>
       <StoreCartButton />
       <div
         ref="accountRoot"
@@ -189,7 +189,27 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
                   >{{ t('Open your workspace') }}
                   <span aria-hidden="true">↗</span></RouterLink
                 >
-                <button type="button" class="sign-out" @click="signOut">
+                <RouterLink to="/reservations/new">{{
+                  t('Reserve Table')
+                }}</RouterLink>
+                <RouterLink to="/reservations">{{
+                  t('My Reservations')
+                }}</RouterLink>
+                <button
+                  type="button"
+                  @click="
+                    close();
+                    ordersStore.openOrdersModal();
+                  "
+                >
+                  {{ t('My Orders') }}
+                </button>
+                <button
+                  v-if="!hideHeaderSignOut && route.name !== 'WorkspaceIndex'"
+                  type="button"
+                  class="sign-out"
+                  @click="signOut"
+                >
                   {{ t('Sign out') }} <span aria-hidden="true">→</span>
                 </button>
               </template>
@@ -203,12 +223,17 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
       </div>
     </template>
 
-    <RouterView />
-    <StoreCartPanel />
+    <slot><RouterView /></slot>
+    <MyOrdersModal />
   </ParlorShell>
 </template>
 
 <style scoped>
+.customer-shell :deep(.parlor-header) {
+  background: #203c30;
+  border-bottom: 2px solid #c6ad7a;
+}
+
 .catalog-shell {
   background: #fafbf9;
   background-image: none;
@@ -232,20 +257,20 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
 .catalog-shell :deep(> div.relative > header + div) {
   padding: 20px 32px 24px;
 }
-.catalog-shell
-  :deep(> div.relative > header > :nth-child(2) > span:first-child),
-.catalog-shell
-  :deep(> div.relative > header > :nth-child(2) > span:last-child) {
-  display: inline;
-  color: #ddc18c;
-  font-size: 13px;
+.catalog-shell.cart-shell {
+  background: #f4f5f7;
 }
-.catalog-shell
-  :deep(> div.relative > header > :nth-child(2) > span:nth-child(2)) {
-  color: #fff3dc;
-  font-size: 13px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+.catalog-shell.cart-shell :deep(> div.relative > header + div) {
+  padding: 0;
+  background: #f4f5f7;
+}
+/* Branch map page: the map fills the viewport below the header, edge to edge. */
+.catalog-shell.map-shell :deep(> div.relative) {
+  height: 100svh;
+}
+.catalog-shell.map-shell :deep(> div.relative > header + div) {
+  min-height: 0;
+  padding: 0;
 }
 .catalog-shell .header-language {
   position: relative;
@@ -404,7 +429,7 @@ button:focus-visible {
 }
 @media (max-width: 1024px) {
   .customer-shell :deep(> div.relative > header) {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     padding: 10px 18px;
     gap: 12px;
   }
@@ -413,26 +438,26 @@ button:focus-visible {
     justify-content: flex-end;
   }
   .header-history-btn {
-  display: inline-flex;
-  align-items: center;
-  padding: 8px 12px;
-  background: transparent;
-  border: 1px solid rgba(198, 173, 122, 0.4);
-  color: #efe5d0;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  border-radius: 4px;
-  text-decoration: none;
-  transition: all 140ms ease;
-  white-space: nowrap;
-}
-.header-history-btn:hover {
-  background: rgba(198, 173, 122, 0.15);
-  border-color: #c6ad7a;
-  color: #ffffff;
-}
-.header-reserve-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px solid rgba(198, 173, 122, 0.4);
+    color: #efe5d0;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: all 140ms ease;
+    white-space: nowrap;
+  }
+  .header-history-btn:hover {
+    background: rgba(198, 173, 122, 0.15);
+    border-color: #c6ad7a;
+    color: #ffffff;
+  }
+  .header-reserve-btn {
     padding: 6px 10px;
     font-size: 10.5px;
   }
@@ -446,26 +471,12 @@ button:focus-visible {
     padding: 18px 16px;
   }
   .customer-shell :deep(> div.relative > header) {
-    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     padding: 12px;
     gap: 8px;
   }
   .customer-shell :deep(> div.relative > header > :nth-child(3)) {
     gap: 0;
-  }
-  .catalog-shell :deep(> div.relative > header > :nth-child(2)) {
-    gap: 4px;
-  }
-  .catalog-shell
-    :deep(> div.relative > header > :nth-child(2) > span:nth-child(2)) {
-    font-size: 11px;
-    letter-spacing: 0.08em;
-  }
-  .catalog-shell
-    :deep(> div.relative > header > :nth-child(2) > span:first-child),
-  .catalog-shell
-    :deep(> div.relative > header > :nth-child(2) > span:last-child) {
-    font-size: 10px;
   }
   .account-trigger {
     padding: 10px 6px;
@@ -534,6 +545,47 @@ button:focus-visible {
     font-size: 10px;
   }
   .header-reserve-btn {
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+}
+
+.header-orders-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px solid rgba(198, 173, 122, 0.4);
+  color: #efe5d0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 140ms ease;
+  white-space: nowrap;
+}
+.header-orders-btn:hover {
+  background: rgba(198, 173, 122, 0.15);
+  border-color: #c6ad7a;
+  color: #ffffff;
+}
+.header-orders-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #c6ad7a;
+  color: #14281f;
+  font-size: 10px;
+  font-weight: 800;
+}
+@media (max-width: 600px) {
+  .header-orders-btn {
     padding: 6px 8px;
     font-size: 10px;
   }

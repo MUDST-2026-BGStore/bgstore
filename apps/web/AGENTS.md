@@ -1,5 +1,19 @@
 # Frontend design
 
+For management/workspace UI, use the supplied Microsoft Fabric references and
+[Fluent 2](https://fluent2.microsoft.design/) for typography, spacing, surfaces and
+control hierarchy, retaining Parlor green. Also consult the saved FortiGate,
+FortiSIEM and FortiSOAR references in `~/fortinet-research`. Use their
+dense-content patterns for navigation, toolbars, tables, filters, forms and dialogs:
+compact spacing, readable hierarchy, restrained selection states and controls next
+to the data they affect. Avoid decorative accent rails and nested dashboard cards.
+Preserve sample data and its visibility during design-only changes.
+Keep management copy terse. Do not expose sample/demo labels, session-local storage,
+backend wiring, or other implementation details in user-facing text or accessible captions.
+Keep the management overview's summary metrics, floor table, upcoming arrivals,
+service queue and pantry watch visible together. Preserve their direct actions when
+polishing the layout; do not replace this overview with shortcut tiles or tabbed panels.
+
 Keep products immediately visible. Use readable, high-contrast type and factual
 copy. Do not reintroduce promotional heroes, decorative accent punctuation,
 sparkles, tiny tracked uppercase labels, arbitrary pastel card colors, or filler
@@ -10,7 +24,15 @@ grid is appropriate. The header should expose language, account and cart control
 do not restore the redundant top menu links or visible Game library heading. Rental browsing shows branch library membership only; live copy counts and
 “Currently rented” belong only in a date/time-aware reservation or arrival flow.
 Keep development/preview notices out of customer-facing copy. Avoid redundant edition captions on product
-cards and use compact cart spacing with a single subtotal divider. No live order/payment flows are wired yet.
+cards and use compact cart spacing with a single subtotal divider. Storefront retail is live: branches, branch prices
+and stock, the server cart, card checkout and My Orders use the API, and the server is authoritative
+for prices, stock and totals. Card details go only to payment tokenization and are never stored or
+logged. PromptPay, bank transfer, cash on delivery, carriers and shipping fees have no backend; do
+not reintroduce them as working options. Customer reservations are live: the booking wizard reads branch
+availability, rental games and the branch menu, books through the API and pays food pre-orders by card
+(authorized at booking, captured at check-in, only for visits within six days); My Reservations cancels,
+reschedules and shows rental charges from the API. In-play ordering and the table-bill QR have no backend
+and stay off customer pages. Staff workspace screens still use sample data.
 
 Prefer short CSS transitions for state changes and interactions. Respect reduced
 motion and keep content usable immediately. Use GSAP only when a specific complex

@@ -1,0 +1,41 @@
+type: object
+description: >-
+  A food or drink item on the business-wide menu. Names and descriptions are
+  keyed by IETF locale tag and always include en-US. The price is the same at
+  every branch; stock is per branch.
+required:
+  - id
+  - sku
+  - category
+  - names
+  - price
+  - popular
+properties:
+  id:
+    type: string
+    format: uuid
+  sku:
+    type: string
+    description: Stable human-readable key, unique across the menu.
+    minLength: 1
+    maxLength: 60
+  category:
+    $ref: ./MenuCategory.yaml
+  names:
+    type: object
+    additionalProperties:
+      type: string
+      maxLength: 150
+  descriptions:
+    type: object
+    additionalProperties:
+      type: string
+      maxLength: 500
+  price:
+    $ref: ./Money.yaml
+  dietary:
+    type: string
+    description: Dietary note such as Vegetarian, when one applies.
+    maxLength: 40
+  popular:
+    type: boolean

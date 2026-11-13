@@ -3,6 +3,7 @@ package com.chanakanlabs.theparlor.inventory.internal.web;
 import com.chanakanlabs.theparlor.contracts.api.InventoryApi;
 import com.chanakanlabs.theparlor.contracts.model.*;
 import com.chanakanlabs.theparlor.inventory.internal.application.InventoryService;
+import com.chanakanlabs.theparlor.inventory.internal.application.RentalCopiesService;
 import java.time.*;
 import java.util.*;
 import org.jspecify.annotations.Nullable;
@@ -11,9 +12,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class InventoryController implements InventoryApi {
   private final InventoryService inventory;
+  private final RentalCopiesService rentalCopies;
 
-  public InventoryController(InventoryService inventory) {
+  public InventoryController(InventoryService inventory, RentalCopiesService rentalCopies) {
     this.inventory = inventory;
+    this.rentalCopies = rentalCopies;
   }
 
   @Override
@@ -31,7 +34,7 @@ public class InventoryController implements InventoryApi {
   @Override
   public RentalCopy createRentalCopy(
       UUID branchId, UUID gameId, CreateRentalCopyRequest createRentalCopyRequest) {
-    return inventory.createRentalCopy(branchId, gameId, createRentalCopyRequest);
+    return rentalCopies.create(branchId, gameId, createRentalCopyRequest);
   }
 
   @Override
@@ -48,13 +51,13 @@ public class InventoryController implements InventoryApi {
   @Override
   public RentalCopyPage listRentalCopies(
       UUID branchId, UUID gameId, Integer limit, @Nullable String cursor) {
-    return inventory.listRentalCopies(branchId, gameId, limit, cursor);
+    return rentalCopies.list(branchId, gameId, limit, cursor);
   }
 
   @Override
   public RentalCopy updateRentalCopy(
       UUID branchId, UUID gameId, UUID copyId, UpdateRentalCopyRequest updateRentalCopyRequest) {
-    return inventory.updateRentalCopy(branchId, gameId, copyId, updateRentalCopyRequest);
+    return rentalCopies.update(branchId, gameId, copyId, updateRentalCopyRequest);
   }
 
   @Override

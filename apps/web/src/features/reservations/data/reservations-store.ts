@@ -1,4 +1,12 @@
+// TODO(reservation-api): Local sample reservations with food pre-orders and in-play
+// orders. The reservation, check-in and rental checkout endpoints now exist on the
+// server; move the reservation and visit state to them. Food and QR payment fields
+// have no backend.
 import { ref, computed } from 'vue';
+import {
+  ACCOUNT_STORAGE_PREFIX,
+  registerProtectedState,
+} from '../../../shared/lib/protected-state';
 
 export interface PreOrderItemRecord {
   item: {
@@ -58,7 +66,7 @@ export interface CustomerReservation {
   inPlayOrders?: InPlayOrder[];
 }
 
-const STORAGE_KEY = 'theparlor_customer_reservations_v3';
+const STORAGE_KEY = `${ACCOUNT_STORAGE_PREFIX}workspace-sample-reservations`;
 
 function getInitialReservations(): CustomerReservation[] {
   const now = new Date();
@@ -110,16 +118,27 @@ function getInitialReservations(): CustomerReservation[] {
       customerPhone: '+66 81 234 5678',
       clientType: 'RESERVED',
       hourlyRate: 300,
-      notes: '[Pre-order Paid QR (-10%)]: 2x Coca-Cola Original, 2x Lay\'s Classic Rock Salt',
+      notes:
+        "[Pre-order Paid QR (-10%)]: 2x Coca-Cola Original, 2x Lay's Classic Rock Salt",
       createdAt: new Date(now.getTime() - 3600000 * 24).toISOString(),
       preOrder: {
         items: [
           {
-            item: { id: 'bev-coca-cola', name: 'Coca-Cola Original (Can 325ml)', nameTh: 'โคคา-โคล่า รสชาติต้นตำรับ (กระป๋อง 325 มล.)', price: 35 },
+            item: {
+              id: 'bev-coca-cola',
+              name: 'Coca-Cola Original (Can 325ml)',
+              nameTh: 'โคคา-โคล่า รสชาติต้นตำรับ (กระป๋อง 325 มล.)',
+              price: 35,
+            },
             quantity: 2,
           },
           {
-            item: { id: 'snack-lays-classic', name: 'Lay\'s Classic Rock Salt (Big Bag 73g)', nameTh: 'เลย์ รสมันฝรั่งแท้ คลาสสิก (ซองใหญ่ 73 กรัม)', price: 40 },
+            item: {
+              id: 'snack-lays-classic',
+              name: "Lay's Classic Rock Salt (Big Bag 73g)",
+              nameTh: 'เลย์ รสมันฝรั่งแท้ คลาสสิก (ซองใหญ่ 73 กรัม)',
+              price: 40,
+            },
             quantity: 2,
           },
         ],
@@ -139,11 +158,21 @@ function getInitialReservations(): CustomerReservation[] {
           createdAt: new Date(now.getTime() - 25 * 60000).toISOString(),
           items: [
             {
-              item: { id: 'bev-singha-soda', name: 'Singha Soda Water (Glass Bottle 325ml)', nameTh: 'สิงห์โซดา (ขวดแก้ว 325 มล.)', price: 25 },
+              item: {
+                id: 'bev-singha-soda',
+                name: 'Singha Soda Water (Glass Bottle 325ml)',
+                nameTh: 'สิงห์โซดา (ขวดแก้ว 325 มล.)',
+                price: 25,
+              },
               quantity: 2,
             },
             {
-              item: { id: 'snack-pringles-sour-cream', name: 'Pringles Sour Cream & Onion (Canister 107g)', nameTh: 'พริงเกิลส์ รสซาวครีมและหัวหอม (กระป๋อง 107 กรัม)', price: 65 },
+              item: {
+                id: 'snack-pringles-sour-cream',
+                name: 'Pringles Sour Cream & Onion (Canister 107g)',
+                nameTh: 'พริงเกิลส์ รสซาวครีมและหัวหอม (กระป๋อง 107 กรัม)',
+                price: 65,
+              },
               quantity: 1,
             },
           ],
@@ -178,11 +207,21 @@ function getInitialReservations(): CustomerReservation[] {
           createdAt: new Date(now.getTime() - 20 * 60000).toISOString(),
           items: [
             {
-              item: { id: 'bev-coke-zero', name: 'Coca-Cola Zero Sugar (Can 325ml)', nameTh: 'โค้กไม่มีน้ำตาล ซีโร่ (กระป๋อง 325 มล.)', price: 35 },
+              item: {
+                id: 'bev-coke-zero',
+                name: 'Coca-Cola Zero Sugar (Can 325ml)',
+                nameTh: 'โค้กไม่มีน้ำตาล ซีโร่ (กระป๋อง 325 มล.)',
+                price: 35,
+              },
               quantity: 2,
             },
             {
-              item: { id: 'snack-lays-seaweed', name: 'Lay\'s Nori Seaweed (Big Bag 73g)', nameTh: 'เลย์ รสโนริสาหร่าย (ซองใหญ่ 73 กรัม)', price: 40 },
+              item: {
+                id: 'snack-lays-seaweed',
+                name: "Lay's Nori Seaweed (Big Bag 73g)",
+                nameTh: 'เลย์ รสโนริสาหร่าย (ซองใหญ่ 73 กรัม)',
+                price: 40,
+              },
               quantity: 1,
             },
           ],
@@ -207,16 +246,28 @@ function getInitialReservations(): CustomerReservation[] {
       customerPhone: '+66 81 234 5678',
       clientType: 'RESERVED',
       hourlyRate: 250,
-      notes: '[Pre-order Paid QR (-10%)]: 4x Oishi Green Tea Honey Lemon, 2x Glico Pocky Chocolate (Ref: TH-PRM-9812)',
+      notes:
+        '[Pre-order Paid QR (-10%)]: 4x Oishi Green Tea Honey Lemon, 2x Glico Pocky Chocolate (Ref: TH-PRM-9812)',
       createdAt: new Date(now.getTime() - 3600000 * 4).toISOString(),
       preOrder: {
         items: [
           {
-            item: { id: 'bev-oishi-lemon', name: 'Oishi Green Tea Honey Lemon (Bottle 350ml)', nameTh: 'ชาเขียวโออิชิ น้ำผึ้งผสมมะนาว (ขวด 350 มล.)', price: 30 },
+            item: {
+              id: 'bev-oishi-lemon',
+              name: 'Oishi Green Tea Honey Lemon (Bottle 350ml)',
+              nameTh: 'ชาเขียวโออิชิ น้ำผึ้งผสมมะนาว (ขวด 350 มล.)',
+              price: 30,
+            },
             quantity: 4,
           },
           {
-            item: { id: 'snack-pocky-chocolate', name: 'Glico Pocky Chocolate (Box 45g)', nameTh: 'กูลิโกะ ป๊อกกี้ บิสกิตแท่งเคลือบช็อกโกแลต (กล่อง 45 กรัม)', price: 25 },
+            item: {
+              id: 'snack-pocky-chocolate',
+              name: 'Glico Pocky Chocolate (Box 45g)',
+              nameTh:
+                'กูลิโกะ ป๊อกกี้ บิสกิตแท่งเคลือบช็อกโกแลต (กล่อง 45 กรัม)',
+              price: 25,
+            },
             quantity: 2,
           },
         ],
@@ -275,7 +326,26 @@ function loadReservations(): CustomerReservation[] {
       return initial;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : getInitialReservations();
+    if (!Array.isArray(parsed)) return getInitialReservations();
+    let repaired = false;
+    const reservations = (parsed as CustomerReservation[]).map(
+      (reservation) => {
+        if (
+          reservation.status !== 'CHECKED_IN' ||
+          !reservation.checkedInAt ||
+          !Number.isFinite(Date.parse(reservation.startsAt)) ||
+          Date.parse(reservation.checkedInAt) >=
+            Date.parse(reservation.startsAt)
+        )
+          return reservation;
+        const booking = { ...reservation, status: 'CONFIRMED' as const };
+        delete booking.checkedInAt;
+        repaired = true;
+        return booking;
+      },
+    );
+    if (repaired) saveReservations(reservations);
+    return reservations;
   } catch {
     return getInitialReservations();
   }
@@ -291,6 +361,12 @@ function saveReservations(list: CustomerReservation[]): void {
 
 const reservationsList = ref<CustomerReservation[]>(loadReservations());
 
+// Staff add walk-in names, phones and orders here; none of it may reach the next
+// account. The storage key is removed by its account prefix; this resets memory.
+registerProtectedState(() => {
+  reservationsList.value = getInitialReservations();
+});
+
 export function useCustomerReservationsStore() {
   function autoCheckNoShows() {
     const now = Date.now();
@@ -301,7 +377,8 @@ export function useCustomerReservationsStore() {
         // If 15 minutes past start time and customer has not checked in
         if (now - startMs > 15 * 60 * 1000) {
           r.status = 'NO_SHOW';
-          const autoNote = '[System]: Customer did not arrive within 15 minutes. Auto-released table.';
+          const autoNote =
+            '[System]: Customer did not arrive within 15 minutes. Auto-released table.';
           r.notes = r.notes ? `${r.notes}\n${autoNote}` : autoNote;
           updated = true;
         }
@@ -320,7 +397,7 @@ export function useCustomerReservationsStore() {
     return reservationsList.value;
   });
   const activeSession = computed(() =>
-    reservationsList.value.find((r) => r.status === 'CHECKED_IN')
+    reservationsList.value.find((r) => r.status === 'CHECKED_IN'),
   );
 
   function addReservation(reservation: CustomerReservation) {
@@ -398,7 +475,7 @@ export function useCustomerReservationsStore() {
       paymentMethod: 'promptpay_qr' | 'on_tab' | 'cash';
       paymentReference?: string;
       notes?: string;
-    }
+    },
   ) {
     const target = reservationsList.value.find((r) => r.id === reservationId);
     if (target) {
@@ -429,9 +506,12 @@ export function useCustomerReservationsStore() {
   function addStaffSnackOrder(
     reservationId: string,
     items: PreOrderItemRecord[],
-    notes?: string
+    notes?: string,
   ) {
-    const subtotal = items.reduce((sum, it) => sum + it.item.price * it.quantity, 0);
+    const subtotal = items.reduce(
+      (sum, it) => sum + it.item.price * it.quantity,
+      0,
+    );
     return addInPlayOrder(reservationId, {
       items,
       subtotal,
@@ -444,7 +524,7 @@ export function useCustomerReservationsStore() {
   function updateInPlayOrderStatus(
     reservationId: string,
     orderId: string,
-    status: InPlayOrder['status']
+    status: InPlayOrder['status'],
   ) {
     const target = reservationsList.value.find((r) => r.id === reservationId);
     if (target && target.inPlayOrders) {

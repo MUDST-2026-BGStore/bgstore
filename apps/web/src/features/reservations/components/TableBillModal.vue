@@ -1,11 +1,15 @@
 <script setup lang="ts">
+// TODO(table-bill-api): This bill is assembled locally from sample reservations and
+// food orders. Server rental checkout bills table and game hours only and takes no
+// payment; QR payment and food lines here have no backend.
 import { computed, ref } from 'vue';
 import {
   useCustomerReservationsStore,
   type CustomerReservation,
   type InPlayOrder,
 } from '../data/reservations-store';
-import { useStoreText } from '../../home/data/store-text';
+import { useStoreText } from '../../../shared/lib/store-text';
+import QRCode from 'qrcode';
 
 const props = withDefaults(
   defineProps<{
@@ -14,7 +18,7 @@ const props = withDefaults(
   }>(),
   {
     isStaff: false,
-  }
+  },
 );
 
 const emit = defineEmits<{
@@ -25,11 +29,15 @@ const emit = defineEmits<{
 const { t, locale } = useStoreText();
 const reservationsStore = useCustomerReservationsStore();
 const settlementSuccess = ref(false);
-const selectedStaffPaymentMethod = ref<'cash' | 'promptpay_qr' | 'card'>('cash');
+const selectedStaffPaymentMethod = ref<'cash' | 'promptpay_qr' | 'card'>(
+  'cash',
+);
 
 // Calculate actual playtime duration from checkedInAt to now (or completedAt)
 const checkInTime = computed(() => {
-  return new Date(props.reservation.checkedInAt || props.reservation.startsAt).getTime();
+  return new Date(
+    props.reservation.checkedInAt || props.reservation.startsAt,
+  ).getTime();
 });
 
 const finishTime = computed(() => {
@@ -62,7 +70,8 @@ const tablePlayCost = computed(() => {
 
 // Late arrival info (e.g. booked 9-10, arrived 9:15)
 const lateArrivalInfo = computed(() => {
-  if (!props.reservation.checkedInAt || !props.reservation.startsAt) return null;
+  if (!props.reservation.checkedInAt || !props.reservation.startsAt)
+    return null;
   const scheduledStart = new Date(props.reservation.startsAt).getTime();
   const actualCheckIn = new Date(props.reservation.checkedInAt).getTime();
   const lateMinutes = Math.round((actualCheckIn - scheduledStart) / 60000);
@@ -70,7 +79,10 @@ const lateArrivalInfo = computed(() => {
     return {
       lateMinutes,
       scheduledTime: `${new Date(props.reservation.startsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} – ${new Date(props.reservation.endsAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
-      actualCheckIn: new Date(props.reservation.checkedInAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      actualCheckIn: new Date(props.reservation.checkedInAt).toLocaleTimeString(
+        [],
+        { hour: '2-digit', minute: '2-digit' },
+      ),
     };
   }
   return null;
@@ -78,7 +90,9 @@ const lateArrivalInfo = computed(() => {
 
 // Pre-order totals (paid in advance via online QR)
 const preOrderPaid = computed(() => {
-  return props.reservation.preOrder?.paid ? props.reservation.preOrder.discountedTotal : 0;
+  return props.reservation.preOrder?.paid
+    ? props.reservation.preOrder.discountedTotal
+    : 0;
 });
 
 // In-play orders breakdown (paid at counter)
@@ -92,7 +106,11 @@ const inPlayOrdersTotal = computed(() => {
 
 // Total Bill and Outstanding Balance to pay at counter
 const totalGrossBill = computed(() => {
-  return tablePlayCost.value + (props.reservation.preOrder?.discountedTotal || 0) + inPlayOrdersTotal.value;
+  return (
+    tablePlayCost.value +
+    (props.reservation.preOrder?.discountedTotal || 0) +
+    inPlayOrdersTotal.value
+  );
 });
 
 const outstandingBalanceDue = computed(() => {
@@ -101,12 +119,55 @@ const outstandingBalanceDue = computed(() => {
 
 // Settle bill (staff action at counter)
 function handleSettleBill() {
-  reservationsStore.settleSessionBill(props.reservation.id, selectedStaffPaymentMethod.value);
+  reservationsStore.settleSessionBill(
+    props.reservation.id,
+    selectedStaffPaymentMethod.value,
+  );
   settlementSuccess.value = true;
   setTimeout(() => {
     emit('settled');
     emit('close');
   }, 1400);
+}
+
+// Customer Self-Payment QR
+const showCustomerQr = ref(false);
+const customerQrDataUrl = ref('');
+const isVerifyingCustomerPayment = ref(false);
+
+async function openCustomerQr() {
+  const qrPayload = JSON.stringify({
+    service: 'PromptPay-QR',
+    merchant: 'The Parlor Session Bill',
+    reservationId: props.reservation.id,
+    table: props.reservation.tableLabel,
+    amount: outstandingBalanceDue.value,
+    currency: 'THB',
+  });
+  try {
+    customerQrDataUrl.value = await QRCode.toDataURL(qrPayload, {
+      width: 220,
+      margin: 1,
+      color: { dark: '#142a1f', light: '#ffffff' },
+    });
+  } catch (err) {
+    console.error(err);
+  }
+  showCustomerQr.value = true;
+}
+
+function confirmCustomerQrPayment() {
+  isVerifyingCustomerPayment.value = true;
+  setTimeout(() => {
+    isVerifyingCustomerPayment.value = false;
+    showCustomerQr.value = false;
+    reservationsStore.settleSessionBill(props.reservation.id, 'promptpay_qr');
+    settlementSuccess.value = true;
+    setTimeout(() => {
+      emit('settled');
+      emit('close');
+    }, 1400);
+  }, 800);
 }
 </script>
 
@@ -119,23 +180,52 @@ function handleSettleBill() {
           <div class="header-tags">
             <span class="live-pill">
               <span class="pulse-dot"></span>
-              {{ isStaff ? t('Staff Bill Inspection') : t('Live Table Bill & Tab') }}
+              {{
+                isStaff
+                  ? t('Staff Bill Inspection')
+                  : t('Live Table Bill & Tab')
+              }}
             </span>
-            <span v-if="reservation.clientType === 'WALK_IN'" class="client-badge walkin-badge">
+            <span
+              v-if="reservation.clientType === 'WALK_IN'"
+              class="client-badge walkin-badge"
+            >
               {{ t('Walk-in Session') }}
             </span>
             <span v-else class="client-badge reserved-badge">
               {{ t('Reserved Client') }}
             </span>
-            <span class="table-ref">{{ t(reservation.tableLabel) }} • {{ t(reservation.branchName) }}</span>
+            <span class="table-ref"
+              >{{ t(reservation.tableLabel) }} •
+              {{ t(reservation.branchName) }}</span
+            >
           </div>
-          <h2 class="dialog-title">{{ t('Table Session Bill') }}</h2>
+          <h2 :id="`table-bill-title-${reservation.id}`" class="dialog-title">
+            {{ t('Table Session Bill') }}
+          </h2>
           <p class="dialog-sub">
-            {{ t('Party of {count} players • Session Ref: {ref}', { count: reservation.partySize, ref: reservation.id }) }}
+            {{
+              t('Party of {count} players • Session Ref: {ref}', {
+                count: reservation.partySize,
+                ref: reservation.id,
+              })
+            }}
           </p>
         </div>
-        <button type="button" class="btn-close" :aria-label="t('Cancel')" @click="emit('close')">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <button
+          type="button"
+          class="btn-close"
+          :aria-label="t('Cancel')"
+          @click="emit('close')"
+        >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
             <line x1="18" y1="6" x2="6" y2="18" />
             <line x1="6" y1="6" x2="18" y2="18" />
           </svg>
@@ -145,13 +235,24 @@ function handleSettleBill() {
       <!-- Settlement Success Screen -->
       <div v-if="settlementSuccess" class="success-screen">
         <div class="success-ring">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+          <svg
+            width="28"
+            height="28"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="3"
+          >
             <polyline points="20 6 9 17 4 12" />
           </svg>
         </div>
         <h3 class="success-title">{{ t('Bill Settled & Session Closed!') }}</h3>
         <p class="success-sub">
-          {{ t('All table play fees and in-play food orders have been settled successfully. Thank you for playing at The Parlor!') }}
+          {{
+            t(
+              'All table play fees and in-play food orders have been settled successfully. Thank you for playing at The Parlor!',
+            )
+          }}
         </p>
       </div>
 
@@ -168,9 +269,25 @@ function handleSettleBill() {
               <span class="section-cost">฿{{ tablePlayCost }}</span>
             </div>
             <div class="section-meta">
-              <span>{{ t('Played Time:') }} <strong>{{ formattedPlayedDuration }}</strong> (@ ฿{{ reservation.hourlyRate || 200 }}/{{ t('hr') }})</span>
-              <span class="meta-tag" :class="reservation.status === 'COMPLETED' ? 'tag-completed' : 'tag-active'">
-                {{ reservation.status === 'COMPLETED' ? t('Completed') : t('Playing Now') }}
+              <span
+                >{{ t('Played Time:') }}
+                <strong>{{ formattedPlayedDuration }}</strong> (@ ฿{{
+                  reservation.hourlyRate || 200
+                }}/{{ t('hr') }})</span
+              >
+              <span
+                class="meta-tag"
+                :class="
+                  reservation.status === 'COMPLETED'
+                    ? 'tag-completed'
+                    : 'tag-active'
+                "
+              >
+                {{
+                  reservation.status === 'COMPLETED'
+                    ? t('Completed')
+                    : t('Playing Now')
+                }}
               </span>
             </div>
 
@@ -180,25 +297,37 @@ function handleSettleBill() {
               <div class="callout-text">
                 <strong>{{ t('Actual Played Time Billed:') }}</strong>
                 <span>
-                  {{ t('Scheduled {sched}, checked in at {checkin} ({late} min late). Billed for actual {mins} min played.', {
-                    sched: lateArrivalInfo.scheduledTime,
-                    checkin: lateArrivalInfo.actualCheckIn,
-                    late: lateArrivalInfo.lateMinutes,
-                    mins: playDurationMinutes
-                  }) }}
+                  {{
+                    t(
+                      'Scheduled {sched}, checked in at {checkin} ({late} min late). Billed for actual {mins} min played.',
+                      {
+                        sched: lateArrivalInfo.scheduledTime,
+                        checkin: lateArrivalInfo.actualCheckIn,
+                        late: lateArrivalInfo.lateMinutes,
+                        mins: playDurationMinutes,
+                      },
+                    )
+                  }}
                 </span>
               </div>
             </div>
           </div>
 
           <!-- 2. Pre-ordered Food & Drinks Section (Pre-paid online) -->
-          <div v-if="reservation.preOrder && reservation.preOrder.items.length > 0" class="bill-section">
+          <div
+            v-if="reservation.preOrder && reservation.preOrder.items.length > 0"
+            class="bill-section"
+          >
             <div class="section-top">
               <div class="sec-title-wrap">
                 <span class="gold-bullet">◆</span>
-                <span class="section-title">{{ t('Pre-ordered Refreshments (-10% Discount)') }}</span>
+                <span class="section-title">{{
+                  t('Pre-ordered Refreshments (-10% Discount)')
+                }}</span>
               </div>
-              <span class="section-cost">฿{{ reservation.preOrder.discountedTotal }}</span>
+              <span class="section-cost"
+                >฿{{ reservation.preOrder.discountedTotal }}</span
+              >
             </div>
             <div class="itemized-list">
               <div
@@ -208,15 +337,30 @@ function handleSettleBill() {
               >
                 <span class="line-name">
                   {{ itemRecord.quantity }}x
-                  {{ locale === 'th-TH' && itemRecord.item.nameTh ? itemRecord.item.nameTh : itemRecord.item.name }}
+                  {{
+                    locale === 'th-TH' && itemRecord.item.nameTh
+                      ? itemRecord.item.nameTh
+                      : itemRecord.item.name
+                  }}
                 </span>
                 <span class="line-price">
-                  ฿{{ Math.round(itemRecord.item.price * 0.9 * itemRecord.quantity) }}
+                  ฿{{
+                    Math.round(
+                      itemRecord.item.price * 0.9 * itemRecord.quantity,
+                    )
+                  }}
                 </span>
               </div>
             </div>
             <div class="prepaid-badge">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+              >
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               <span>{{ t('Pre-paid via PromptPay QR') }}</span>
@@ -228,13 +372,21 @@ function handleSettleBill() {
             <div class="section-top">
               <div class="sec-title-wrap">
                 <span class="gold-bullet">◆</span>
-                <span class="section-title">{{ t('In-Play Table Orders') }} ({{ inPlayOrders.length }})</span>
+                <span class="section-title"
+                  >{{ t('In-Play Table Orders') }} ({{
+                    inPlayOrders.length
+                  }})</span
+                >
               </div>
               <span class="section-cost">฿{{ inPlayOrdersTotal }}</span>
             </div>
 
             <div v-if="inPlayOrders.length === 0" class="empty-inplay-note">
-              {{ t('No in-play food or drinks ordered yet. You can order snacks anytime while playing!') }}
+              {{
+                t(
+                  'No in-play food or drinks ordered yet. You can order snacks anytime while playing!',
+                )
+              }}
             </div>
 
             <div v-else class="inplay-orders-list">
@@ -246,7 +398,12 @@ function handleSettleBill() {
                 <div class="order-card-header">
                   <span class="order-ref-num">{{ order.orderNumber }}</span>
                   <span class="order-time">
-                    {{ new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }}
+                    {{
+                      new Date(order.createdAt).toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    }}
                   </span>
                   <span class="tab-pill">{{ t('On Tab') }}</span>
                 </div>
@@ -258,7 +415,14 @@ function handleSettleBill() {
                     :key="it.item.id"
                     class="order-sub-item"
                   >
-                    <span>{{ it.quantity }}x {{ locale === 'th-TH' && it.item.nameTh ? it.item.nameTh : it.item.name }}</span>
+                    <span
+                      >{{ it.quantity }}x
+                      {{
+                        locale === 'th-TH' && it.item.nameTh
+                          ? it.item.nameTh
+                          : it.item.name
+                      }}</span
+                    >
                     <span>฿{{ it.item.price * it.quantity }}</span>
                   </div>
                 </div>
@@ -286,12 +450,21 @@ function handleSettleBill() {
 
           <div class="summary-line total-due-line">
             <div>
-              <span class="due-label">{{ t('Outstanding Balance Due at Counter:') }}</span>
+              <span class="due-label">{{
+                t('Outstanding Balance Due at Counter:')
+              }}</span>
               <small class="due-hint">
-                {{ outstandingBalanceDue === 0 ? t('All charges settled ✓') : t('Includes hourly fee & on-tab refreshments') }}
+                {{
+                  outstandingBalanceDue === 0
+                    ? t('All charges settled ✓')
+                    : t('Includes hourly fee & on-tab refreshments')
+                }}
               </small>
             </div>
-            <strong class="due-amount" :class="{ 'is-zero': outstandingBalanceDue === 0 }">
+            <strong
+              class="due-amount"
+              :class="{ 'is-zero': outstandingBalanceDue === 0 }"
+            >
               ฿{{ outstandingBalanceDue }}
             </strong>
           </div>
@@ -301,18 +474,46 @@ function handleSettleBill() {
             <!-- Staff Settle Action -->
             <template v-if="isStaff">
               <div class="staff-payment-picker">
-                <span class="staff-pm-label">{{ t('Counter Payment Method:') }}</span>
+                <span class="staff-pm-label">{{
+                  t('Counter Payment Method:')
+                }}</span>
                 <div class="staff-pm-options">
-                  <label class="pm-radio-btn" :class="{ active: selectedStaffPaymentMethod === 'cash' }">
-                    <input type="radio" v-model="selectedStaffPaymentMethod" value="cash" class="sr-only" />
+                  <label
+                    class="pm-radio-btn"
+                    :class="{ active: selectedStaffPaymentMethod === 'cash' }"
+                  >
+                    <input
+                      v-model="selectedStaffPaymentMethod"
+                      type="radio"
+                      value="cash"
+                      class="sr-only"
+                    />
                     <span>{{ t('Cash') }}</span>
                   </label>
-                  <label class="pm-radio-btn" :class="{ active: selectedStaffPaymentMethod === 'promptpay_qr' }">
-                    <input type="radio" v-model="selectedStaffPaymentMethod" value="promptpay_qr" class="sr-only" />
+                  <label
+                    class="pm-radio-btn"
+                    :class="{
+                      active: selectedStaffPaymentMethod === 'promptpay_qr',
+                    }"
+                  >
+                    <input
+                      v-model="selectedStaffPaymentMethod"
+                      type="radio"
+                      value="promptpay_qr"
+                      class="sr-only"
+                    />
                     <span>{{ t('PromptPay QR') }}</span>
                   </label>
-                  <label class="pm-radio-btn" :class="{ active: selectedStaffPaymentMethod === 'card' }">
-                    <input type="radio" v-model="selectedStaffPaymentMethod" value="card" class="sr-only" />
+                  <label
+                    class="pm-radio-btn"
+                    :class="{ active: selectedStaffPaymentMethod === 'card' }"
+                  >
+                    <input
+                      v-model="selectedStaffPaymentMethod"
+                      type="radio"
+                      value="card"
+                      class="sr-only"
+                    />
                     <span>{{ t('Card') }}</span>
                   </label>
                 </div>
@@ -327,17 +528,147 @@ function handleSettleBill() {
               </button>
             </template>
 
-            <!-- Customer Counter Notice -->
+            <!-- Customer Counter Notice & Self QR Option -->
             <template v-else>
+              <div
+                v-if="outstandingBalanceDue > 0"
+                class="customer-pay-actions"
+              >
+                <button
+                  type="button"
+                  class="btn-customer-qr"
+                  @click="openCustomerQr"
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="3" width="7" height="7" />
+                    <rect x="14" y="3" width="7" height="7" />
+                    <rect x="14" y="14" width="7" height="7" />
+                    <rect x="3" y="14" width="7" height="7" />
+                  </svg>
+                  <span>{{
+                    locale === 'th-TH'
+                      ? 'สแกนชำระผ่าน พร้อมเพย์ (PromptPay QR) ทันที'
+                      : 'Scan & Pay via PromptPay QR'
+                  }}</span>
+                </button>
+                <div class="pay-method-sep">
+                  <span>{{
+                    locale === 'th-TH'
+                      ? 'หรือเลือกชำระที่เคาน์เตอร์'
+                      : 'Or pay with staff at counter'
+                  }}</span>
+                </div>
+              </div>
+
               <div class="counter-pay-box">
-                <svg class="gold-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <svg
+                  class="gold-icon"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
                   <circle cx="12" cy="12" r="10" />
                   <line x1="12" y1="16" x2="12" y2="12" />
                   <line x1="12" y1="8" x2="12.01" y2="8" />
                 </svg>
                 <div>
                   <strong>{{ t('Pay at Counter with Staff') }}</strong>
-                  <p>{{ t('Please show this bill or quote your table number at the counter when you finish playing.') }}</p>
+                  <p>
+                    {{
+                      locale === 'th-TH'
+                        ? 'สามารถชำระด้วย เงินสด, พร้อมเพย์ QR หรือ บัตรเครดิต/เดบิต ได้ที่เคาน์เตอร์'
+                        : t(
+                            'Please show this bill or quote your table number at the counter when you finish playing.',
+                          )
+                    }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Customer PromptPay QR Modal (Centered) -->
+              <div
+                v-if="showCustomerQr"
+                class="bill-qr-backdrop"
+                @click.self="showCustomerQr = false"
+              >
+                <div class="bill-qr-card">
+                  <div class="qr-head">
+                    <div class="brand-eyebrow">
+                      ✦ THE PARLOR · TABLE SETTLEMENT ✦
+                    </div>
+                    <h3>
+                      {{
+                        locale === 'th-TH'
+                          ? 'สแกนชำระบิลค่าเล่นและอาหาร'
+                          : 'Scan PromptPay QR to Settle Bill'
+                      }}
+                    </h3>
+                    <p class="qr-desc">
+                      {{
+                        locale === 'th-TH'
+                          ? 'สแกนจ่ายได้ด้วยแอปพลิเคชันทุกธนาคารในไทย'
+                          : 'Pay with any Thai mobile banking app'
+                      }}
+                    </p>
+                  </div>
+
+                  <div class="qr-img-wrap">
+                    <img
+                      v-if="customerQrDataUrl"
+                      :src="customerQrDataUrl"
+                      alt="PromptPay QR"
+                      width="220"
+                      height="220"
+                    />
+                  </div>
+
+                  <div class="qr-amount-pill">
+                    <span>{{
+                      locale === 'th-TH' ? 'ยอดที่ต้องชำระ' : 'Amount Due'
+                    }}</span>
+                    <strong>฿{{ outstandingBalanceDue }}</strong>
+                  </div>
+
+                  <p class="qr-ref-tag">
+                    {{ locale === 'th-TH' ? 'โต๊ะ:' : 'Table:' }}
+                    <strong>{{ reservation.tableLabel }}</strong> · Ref:
+                    <code>{{ reservation.id }}</code>
+                  </p>
+
+                  <button
+                    type="button"
+                    class="btn btn-primary btn-confirm-table-paid"
+                    :disabled="isVerifyingCustomerPayment"
+                    @click="confirmCustomerQrPayment"
+                  >
+                    <span v-if="isVerifyingCustomerPayment">{{
+                      locale === 'th-TH' ? 'กำลังตรวจสอบยอดเงิน…' : 'Verifying…'
+                    }}</span>
+                    <span v-else>{{
+                      locale === 'th-TH'
+                        ? 'ฉันได้โอนเงินเรียบร้อยแล้ว'
+                        : 'I Have Paid / Simulate Transfer'
+                    }}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn-close-qr"
+                    @click="showCustomerQr = false"
+                  >
+                    {{ locale === 'th-TH' ? 'ย้อนกลับ' : 'Back' }}
+                  </button>
                 </div>
               </div>
             </template>
@@ -372,7 +703,8 @@ function handleSettleBill() {
   flex-direction: column;
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
   overflow: hidden;
-  font-family: 'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
+  font-family:
+    'FC Mee Sakul', 'Plus Jakarta Sans', system-ui, Arial, sans-serif;
 }
 
 /* Header */
@@ -435,8 +767,15 @@ function handleSettleBill() {
 }
 
 @keyframes pulse-green {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
 }
 
 .table-ref {
@@ -875,5 +1214,178 @@ function handleSettleBill() {
 .gold-icon {
   color: #c6ad7a;
   flex-shrink: 0;
+}
+
+.customer-pay-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.btn-customer-qr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 20px;
+  background: #142a1f;
+  border: 1px solid #c6ad7a;
+  border-radius: 6px;
+  color: #f6eedb;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 140ms ease;
+  box-shadow: 0 2px 8px rgba(20, 42, 31, 0.2);
+}
+
+.btn-customer-qr:hover {
+  background: #244c38;
+  border-color: #dfc999;
+  color: #ffffff;
+}
+
+.pay-method-sep {
+  text-align: center;
+  position: relative;
+  font-size: 11px;
+  color: #8c7e63;
+}
+
+.pay-method-sep::before,
+.pay-method-sep::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 25%;
+  height: 1px;
+  background: #e3d9c5;
+}
+
+.pay-method-sep::before {
+  left: 0;
+}
+.pay-method-sep::after {
+  right: 0;
+}
+
+.bill-qr-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(12, 28, 20, 0.75);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.bill-qr-card {
+  position: relative;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #c6ad7a;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  padding: 28px 24px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  margin: auto;
+  animation: modalCenterPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.qr-head h3 {
+  font-size: 18px;
+  font-weight: 800;
+  color: #142a1f;
+  margin: 6px 0;
+}
+
+.brand-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  color: #c6ad7a;
+  letter-spacing: 0.1em;
+}
+
+.qr-desc {
+  font-size: 13px;
+  color: #556b60;
+  margin: 0;
+}
+
+.qr-img-wrap {
+  display: inline-block;
+  padding: 12px;
+  background: #ffffff;
+  border: 1px solid #d4c5a6;
+  border-radius: 8px;
+  margin: 16px 0 12px;
+  box-shadow: 0 4px 12px rgba(20, 42, 31, 0.08);
+}
+
+.qr-amount-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: #fffaf0;
+  border: 1px solid #e8dbbe;
+  border-radius: 6px;
+  margin-bottom: 10px;
+}
+
+.qr-amount-pill span {
+  font-size: 13px;
+  font-weight: 600;
+  color: #5a4b2c;
+}
+
+.qr-amount-pill strong {
+  font-size: 20px;
+  font-weight: 800;
+  color: #142a1f;
+}
+
+.qr-ref-tag {
+  font-size: 12px;
+  color: #7d6e52;
+  margin-bottom: 16px;
+}
+
+.btn-confirm-table-paid {
+  width: 100%;
+  height: 44px;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.btn-close-qr {
+  background: none;
+  border: none;
+  color: #777;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 12px;
+}
+
+.btn-close-qr:hover {
+  color: #142a1f;
+  text-decoration: underline;
+}
+
+@keyframes modalCenterPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 </style>

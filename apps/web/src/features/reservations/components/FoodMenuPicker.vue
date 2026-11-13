@@ -1,13 +1,29 @@
 <script setup lang="ts">
+// The branch's menu with its live availability; the server reprices, discounts and
+// holds the lines at booking, so the totals here are a preview.
 import { computed, ref } from 'vue';
-import { FOOD_MENU_ITEMS, FOOD_CATEGORIES } from '../data/food-menu';
-import type { FoodMenuItem, FoodOrderItem } from '../types';
-import { calculatePreOrderDiscount } from '../data/payment';
-import { useStoreText } from '../../home/data/store-text';
+import type { FoodCategory, FoodMenuItem, FoodOrderItem } from '../types';
+import { preOrderPreview } from '../data/booking';
+import { useStoreText } from '../../../shared/lib/store-text';
 
 const props = defineProps<{
   modelValue: FoodOrderItem[];
+  items: FoodMenuItem[];
 }>();
+
+const CATEGORY_LABELS: Record<FoodCategory, string> = {
+  beverages: 'Drinks & Soda',
+  snacks: 'Packaged Snacks & Chips',
+  tea_coffee: 'Tea & Coffee',
+  bakery_desserts: 'Bakery & Desserts',
+};
+
+const categories = computed(() => [
+  { id: 'all', label: 'All Items' },
+  ...(Object.keys(CATEGORY_LABELS) as FoodCategory[])
+    .filter((id) => props.items.some((item) => item.category === id))
+    .map((id) => ({ id, label: CATEGORY_LABELS[id] })),
+]);
 
 const emit = defineEmits<{
   'update:modelValue': [items: FoodOrderItem[]];
@@ -21,7 +37,9 @@ function localizedItemName(item: FoodMenuItem): string {
 }
 
 function localizedItemDesc(item: FoodMenuItem): string {
-  return locale.value === 'th-TH' && item.descriptionTh ? item.descriptionTh : item.description;
+  return locale.value === 'th-TH' && item.descriptionTh
+    ? item.descriptionTh
+    : item.description;
 }
 
 function localizedDietary(dietary?: string): string {
@@ -34,7 +52,7 @@ const searchQuery = ref<string>('');
 
 const filteredItems = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
-  return FOOD_MENU_ITEMS.filter((item) => {
+  return props.items.filter((item) => {
     const matchesCategory =
       activeCategory.value === 'all' || item.category === activeCategory.value;
     const matchesSearch =
@@ -50,9 +68,14 @@ function getQuantity(itemId: string): number {
   return found ? found.quantity : 0;
 }
 
+function limit(item: FoodMenuItem): number {
+  return Math.min(50, item.available ?? 50);
+}
+
 function updateQuantity(item: FoodMenuItem, delta: number) {
   const current = getQuantity(item.id);
-  const next = Math.max(0, current + delta);
+  const next = Math.min(limit(item), Math.max(0, current + delta));
+  if (next === current) return;
   const updated = props.modelValue.filter((i) => i.item.id !== item.id);
   if (next > 0) {
     updated.push({ item, quantity: next });
@@ -61,15 +84,22 @@ function updateQuantity(item: FoodMenuItem, delta: number) {
 }
 
 const originalSubtotal = computed(() =>
-  props.modelValue.reduce((sum, line) => sum + line.item.price * line.quantity, 0)
+  props.modelValue.reduce(
+    (sum, line) => sum + line.item.price * line.quantity,
+    0,
+  ),
 );
 
-const discountSummary = computed(() =>
-  calculatePreOrderDiscount(originalSubtotal.value)
-);
+const discountSummary = computed(() => {
+  const preview = preOrderPreview(Math.round(originalSubtotal.value * 100));
+  return {
+    discountAmount: preview.discountMinor / 100,
+    discountedTotal: preview.totalMinor / 100,
+  };
+});
 
 const totalItemsCount = computed(() =>
-  props.modelValue.reduce((sum, line) => sum + line.quantity, 0)
+  props.modelValue.reduce((sum, line) => sum + line.quantity, 0),
 );
 </script>
 
@@ -78,12 +108,22 @@ const totalItemsCount = computed(() =>
     <!-- Header banner highlighting 10% discount -->
     <div class="discount-banner">
       <div class="discount-badge">
-        <span class="icon"><svg class="gold-icon" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"></path></svg></span>
-        <span class="highlight">{{ t('Pre-Order Food & Drinks (10% Discount)') }}</span>
+        <span class="icon"
+          ><svg class="gold-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path
+              d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"
+            ></path></svg
+        ></span>
+        <span class="highlight">{{
+          t('Pre-Order Food & Drinks (10% Discount)')
+        }}</span>
       </div>
       <p class="discount-copy">
-        {{ t('Enjoy an exclusive 10% discount on all food & beverages when pre-ordering with your table reservation.') }}
-        {{ t('You can also order extra food and drinks while playing at your table in the future!') }}
+        {{
+          t(
+            'Enjoy an exclusive 10% discount on all food & beverages when pre-ordering with your table reservation.',
+          )
+        }}
       </p>
     </div>
 
@@ -91,14 +131,14 @@ const totalItemsCount = computed(() =>
     <div class="menu-controls">
       <div class="category-tabs" role="tablist" aria-label="Food Categories">
         <button
-          v-for="cat in FOOD_CATEGORIES"
+          v-for="cat in categories"
           :key="cat.id"
           type="button"
           class="cat-tab"
           :class="{ 'is-active': activeCategory === cat.id }"
           @click="activeCategory = cat.id"
         >
-          {{ t(cat.label) }}
+          <span>{{ t(cat.label) }}</span>
         </button>
       </div>
 
@@ -124,8 +164,12 @@ const totalItemsCount = computed(() =>
         <div class="card-header">
           <h4 class="item-name">{{ localizedItemName(item) }}</h4>
           <div v-if="item.popular || item.dietary" class="item-tags-row">
-            <span v-if="item.popular" class="popular-pill">{{ t('popular') }}</span>
-            <span v-if="item.dietary" class="dietary-pill">{{ localizedDietary(item.dietary) }}</span>
+            <span v-if="item.popular" class="popular-pill">{{
+              t('popular')
+            }}</span>
+            <span v-if="item.dietary" class="dietary-pill">{{
+              localizedDietary(item.dietary)
+            }}</span>
           </div>
           <p class="item-desc">{{ localizedItemDesc(item) }}</p>
         </div>
@@ -133,7 +177,9 @@ const totalItemsCount = computed(() =>
         <div class="card-footer">
           <div class="price-stack">
             <div class="price-row">
-              <span class="discounted-price">฿{{ Math.round(item.price * 0.9) }}</span>
+              <span class="discounted-price"
+                >฿{{ Math.round(item.price * 0.9) }}</span
+              >
               <span class="original-price">฿{{ item.price }}</span>
             </div>
             <span class="discount-tag">{{ t('10% OFF') }}</span>
@@ -148,18 +194,25 @@ const totalItemsCount = computed(() =>
               :aria-label="`Decrease ${item.name}`"
               @click="updateQuantity(item, -1)"
             >
-              −
+              <span>−</span>
             </button>
             <span v-if="getQuantity(item.id) > 0" class="qty-count">{{
               getQuantity(item.id)
             }}</span>
+            <span v-if="limit(item) === 0" class="sold-out">{{
+              t('Sold out')
+            }}</span>
             <button
+              v-else
               type="button"
               class="step-btn plus"
               :aria-label="`Add ${item.name}`"
+              :disabled="getQuantity(item.id) >= limit(item)"
               @click="updateQuantity(item, 1)"
             >
-              <span v-if="getQuantity(item.id) === 0">+ {{ t('Add to pre-order') }}</span>
+              <span v-if="getQuantity(item.id) === 0"
+                >+ {{ t('Add to pre-order') }}</span
+              >
               <span v-else>+</span>
             </button>
           </div>
@@ -171,16 +224,28 @@ const totalItemsCount = computed(() =>
     <div v-if="totalItemsCount > 0" class="preorder-tray">
       <div class="tray-content">
         <div class="tray-info">
-          <span class="count-badge">{{ totalItemsCount }} {{ t('Pre-order items') }}</span>
+          <span class="count-badge"
+            >{{ totalItemsCount }} {{ t('Pre-order items') }}</span
+          >
           <div class="price-breakdown">
             <span class="orig-strike">฿{{ originalSubtotal }}</span>
-            <span class="discounted-sum">฿{{ discountSummary.discountedTotal }}</span>
-            <span class="saved-pill">Saved ฿{{ discountSummary.discountAmount }}</span>
+            <span class="discounted-sum"
+              >฿{{ discountSummary.discountedTotal }}</span
+            >
+            <span class="saved-pill">{{
+              t('Saved {amount}', {
+                amount: `฿${discountSummary.discountAmount}`,
+              })
+            }}</span>
           </div>
         </div>
         <p class="tray-footnote">
           <span class="gold-bullet">◆</span>
-          {{ t('Pre-ordered items will be prepared fresh upon your table check-in.') }}
+          {{
+            t(
+              'Pre-ordered items will be prepared fresh upon your table check-in.',
+            )
+          }}
         </p>
       </div>
     </div>
@@ -188,6 +253,17 @@ const totalItemsCount = computed(() =>
 </template>
 
 <style scoped>
+.sold-out {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b5b4b;
+}
+
+.step-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .food-menu-picker {
   display: flex;
   flex-direction: column;
@@ -206,6 +282,8 @@ const totalItemsCount = computed(() =>
 
 .discount-badge {
   display: inline-flex;
+  flex-shrink: 0;
+  white-space: nowrap;
   align-items: center;
   gap: 6px;
   background: #203c30;
@@ -215,10 +293,26 @@ const totalItemsCount = computed(() =>
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.04em;
-  white-space: nowrap;
+  line-height: 1.5;
+  min-width: 0;
+}
+
+.discount-badge .icon {
+  display: flex;
+  flex-shrink: 0;
+}
+
+/* Center visible text with icons and controls, without the font's extra leading. */
+.discount-badge .highlight,
+.cat-tab > span,
+.step-btn > span,
+.qty-count {
+  text-box: trim-both cap alphabetic;
 }
 
 .discount-copy {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-size: 13px;
   color: #243e32;
@@ -240,6 +334,11 @@ const totalItemsCount = computed(() =>
 }
 
 .cat-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  line-height: 1.5;
   padding: 7px 14px;
   border: 1px solid #d5c8b2;
   background: #fffaf1;
@@ -263,6 +362,8 @@ const totalItemsCount = computed(() =>
 }
 
 .search-input {
+  min-height: 36px;
+  line-height: 1.5;
   padding: 8px 14px;
   border: 1px solid #d5c8b2;
   border-radius: 6px;
@@ -303,7 +404,9 @@ const totalItemsCount = computed(() =>
 
 .menu-card:hover {
   border-color: #c6ad7a;
-  box-shadow: 0 6px 18px rgba(20, 43, 32, 0.08), 0 0 12px rgba(198, 173, 122, 0.15);
+  box-shadow:
+    0 6px 18px rgba(20, 43, 32, 0.08),
+    0 0 12px rgba(198, 173, 122, 0.15);
   transform: translateY(-2px);
 }
 
@@ -362,6 +465,7 @@ const totalItemsCount = computed(() =>
 
 .card-footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   border-top: 1px solid #f0e9dc;
@@ -418,6 +522,12 @@ const totalItemsCount = computed(() =>
 }
 
 .step-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  line-height: 1.5;
   background: transparent;
   border: none;
   color: #203c30;
@@ -476,6 +586,7 @@ const totalItemsCount = computed(() =>
 
 .price-breakdown {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   gap: 10px;
 }
@@ -508,6 +619,10 @@ const totalItemsCount = computed(() =>
 }
 
 @media (max-width: 640px) {
+  .discount-badge {
+    max-width: 100%;
+    white-space: normal;
+  }
   .discount-banner {
     flex-direction: column;
     align-items: flex-start;
@@ -531,4 +646,3 @@ const totalItemsCount = computed(() =>
   filter: drop-shadow(0 0 4px rgba(198, 173, 122, 0.35));
 }
 </style>
-

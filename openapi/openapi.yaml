@@ -34,6 +34,12 @@ paths:
     $ref: ./paths/carts/cart-item.yaml
   /api/v1/carts/{cartId}/checkout:
     $ref: ./paths/carts/checkout.yaml
+  /api/v1/branches/{branchId}/menu:
+    $ref: ./paths/pantry/branch-menu.yaml
+  /api/v1/branches/{branchId}/menu/{menuItemId}/stock-adjustments:
+    $ref: ./paths/pantry/stock-adjustments.yaml
+  /api/v1/payments/tokens:
+    $ref: ./paths/payments/tokens.yaml
   /api/v1/branches:
     $ref: ./paths/branches/collection.yaml
   /api/v1/branches/{branchId}:
@@ -269,6 +275,38 @@ components:
       $ref: ./components/schemas/OrderItem.yaml
     Order:
       $ref: ./components/schemas/Order.yaml
+    OrderContact:
+      $ref: ./components/schemas/OrderContact.yaml
+    OrderPayment:
+      $ref: ./components/schemas/OrderPayment.yaml
+    ShippingAddress:
+      $ref: ./components/schemas/ShippingAddress.yaml
+    CheckoutCartRequest:
+      $ref: ./components/schemas/CheckoutCartRequest.yaml
+    CardBrand:
+      $ref: ./components/schemas/CardBrand.yaml
+    MenuCategory:
+      $ref: ./components/schemas/MenuCategory.yaml
+    MenuItem:
+      $ref: ./components/schemas/MenuItem.yaml
+    BranchMenuItem:
+      $ref: ./components/schemas/BranchMenuItem.yaml
+    BranchMenu:
+      $ref: ./components/schemas/BranchMenu.yaml
+    MenuStock:
+      $ref: ./components/schemas/MenuStock.yaml
+    PreOrderItemRequest:
+      $ref: ./components/schemas/PreOrderItemRequest.yaml
+    PreOrderRequest:
+      $ref: ./components/schemas/PreOrderRequest.yaml
+    ReservationPreOrderItem:
+      $ref: ./components/schemas/ReservationPreOrderItem.yaml
+    ReservationPreOrder:
+      $ref: ./components/schemas/ReservationPreOrder.yaml
+    CreatePaymentTokenRequest:
+      $ref: ./components/schemas/CreatePaymentTokenRequest.yaml
+    PaymentToken:
+      $ref: ./components/schemas/PaymentToken.yaml
     BranchPage:
       $ref: ./components/schemas/BranchPage.yaml
     GamePage:
@@ -324,6 +362,8 @@ components:
       $ref: ./components/parameters/CartItemId.yaml
     CartToken:
       $ref: ./components/parameters/CartToken.yaml
+    MenuItemId:
+      $ref: ./components/parameters/MenuItemId.yaml
   responses:
     BadRequest:
       $ref: ./components/responses/BadRequest.yaml
@@ -335,6 +375,10 @@ components:
       $ref: ./components/responses/NotFound.yaml
     Conflict:
       $ref: ./components/responses/Conflict.yaml
+    PaymentDeclined:
+      $ref: ./components/responses/PaymentDeclined.yaml
+    PaymentGatewayError:
+      $ref: ./components/responses/PaymentGatewayError.yaml
 tags:
   - name: Authentication
     description: Existing browser session and CSRF endpoints.
@@ -364,4 +408,8 @@ tags:
     description: Staff-controlled hourly in-store play sessions.
   - name: Orders
     description: Branch game sales and staff fulfillment.
+  - name: Pantry
+    description: Food and drink menu and per-branch pantry stock.
+  - name: Payments
+    description: Card tokenization for checkout; money moves only through order placement, fulfillment and cancellation.
 security: []

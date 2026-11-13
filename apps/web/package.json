@@ -10,11 +10,13 @@
     ]
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.3.1",
     "@tanstack/vue-query": "^5.104.4",
     "@theparlor/account": "workspace:*",
     "@theparlor/api-client": "workspace:*",
     "@theparlor/auth": "workspace:*",
     "@theparlor/ui": "workspace:*",
+    "maplibre-gl": "^6.17.0",
     "pinia": "catalog:",
     "qrcode": "^1.5.4",
     "tailwindcss": "^4.3.3",

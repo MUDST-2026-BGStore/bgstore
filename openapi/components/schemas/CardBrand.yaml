@@ -1,0 +1,7 @@
+type: string
+enum:
+  - VISA
+  - MASTERCARD
+  - AMEX
+  - JCB
+  - UNIONPAY

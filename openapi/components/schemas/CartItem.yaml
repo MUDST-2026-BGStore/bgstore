@@ -6,6 +6,7 @@ description: >-
 required:
   - id
   - editionId
+  - gameId
   - editionKind
   - editionLanguage
   - gameName
@@ -17,9 +18,14 @@ properties:
   id:
     type: string
     format: uuid
+    description: Line identifier for item operations; equal to editionId, since a cart has one line per edition.
   editionId:
     type: string
     format: uuid
+  gameId:
+    type: string
+    format: uuid
+    description: The edition's catalog game, for linking to its product page and cover image.
   editionKind:
     type: string
     enum:

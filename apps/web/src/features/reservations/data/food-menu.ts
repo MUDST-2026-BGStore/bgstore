@@ -1,3 +1,5 @@
+// TODO(food-menu-api): Sample food and drink menu. There is no menu, pricing or
+// ordering endpoint; replace this file when the backend has one.
 import type { FoodMenuItem } from '../types';
 
 export const FOOD_MENU_ITEMS: FoodMenuItem[] = [
@@ -59,7 +61,8 @@ export const FOOD_MENU_ITEMS: FoodMenuItem[] = [
     name: 'Oishi Japanese Genmaicha (Bottle 350ml)',
     nameTh: 'ชาเขียวโออิชิ ข้าวคั่วญี่ปุ่น ไม่มีน้ำตาล (ขวด 350 มล.)',
     description: 'Aromatic roasted rice unsweetened Japanese green tea.',
-    descriptionTh: 'ชาเขียวข้าวคั่วญี่ปุ่นแท้ กลิ่นหอมกรุ่น สูตรไม่มีน้ำตาล 0 แคลอรี',
+    descriptionTh:
+      'ชาเขียวข้าวคั่วญี่ปุ่นแท้ กลิ่นหอมกรุ่น สูตรไม่มีน้ำตาล 0 แคลอรี',
     category: 'beverages',
     price: 30,
     dietary: 'Vegetarian',
@@ -79,7 +82,8 @@ export const FOOD_MENU_ITEMS: FoodMenuItem[] = [
     name: 'Minéré Natural Mineral Water (Bottle 500ml)',
     nameTh: 'น้ำแร่ธรรมชาติมิเนเร่ (ขวด 500 มล.)',
     description: 'Pure bottled natural mineral water, crisp and chilled.',
-    descriptionTh: 'น้ำแร่ธรรมชาติ 100% สะอาด บริสุทธิ์ อุดมด้วยแร่ธาตุ แช่เย็น',
+    descriptionTh:
+      'น้ำแร่ธรรมชาติ 100% สะอาด บริสุทธิ์ อุดมด้วยแร่ธาตุ แช่เย็น',
     category: 'beverages',
     price: 20,
     dietary: 'Vegetarian',
@@ -101,8 +105,10 @@ export const FOOD_MENU_ITEMS: FoodMenuItem[] = [
     id: 'snack-lays-seaweed',
     name: "Lay's Nori Seaweed (Big Bag 73g)",
     nameTh: 'เลย์ รสโนริสาหร่าย (ซองใหญ่ 73 กรัม)',
-    description: 'Ridged potato chips coated with roasted Japanese nori seaweed.',
-    descriptionTh: 'มันฝรั่งแท้ทอดกรอบแผ่นหยัก คลุกเคล้าสาหร่ายโนริสไตล์ญี่ปุ่นแท้ๆ',
+    description:
+      'Ridged potato chips coated with roasted Japanese nori seaweed.',
+    descriptionTh:
+      'มันฝรั่งแท้ทอดกรอบแผ่นหยัก คลุกเคล้าสาหร่ายโนริสไตล์ญี่ปุ่นแท้ๆ',
     category: 'snacks',
     price: 40,
     dietary: 'Vegetarian',
@@ -112,7 +118,8 @@ export const FOOD_MENU_ITEMS: FoodMenuItem[] = [
     id: 'snack-lays-bbq',
     name: "Lay's Extra Barbecue (Big Bag 73g)",
     nameTh: 'เลย์ รสบาร์บีคิว (ซองใหญ่ 73 กรัม)',
-    description: 'Smoky, sweet, and savory flame-grilled barbecue seasoned chips.',
+    description:
+      'Smoky, sweet, and savory flame-grilled barbecue seasoned chips.',
     descriptionTh: 'มันฝรั่งทอดกรอบ รสบาร์บีคิวเข้มข้น หอมกลิ่นรมควัน ยอดนิยม',
     category: 'snacks',
     price: 40,
@@ -122,7 +129,8 @@ export const FOOD_MENU_ITEMS: FoodMenuItem[] = [
     name: 'Pringles Sour Cream & Onion (Canister 107g)',
     nameTh: 'พริงเกิลส์ รสซาวครีมและหัวหอม (กระป๋อง 107 กรัม)',
     description: 'Iconic crisps in a canister. Clean, gamer-friendly snack.',
-    descriptionTh: 'มันฝรั่งทอดกรอบพริงเกิลส์ รสซาวครีมและหัวหอม ทานง่าย ไม่เลอะนิ้วมือขณะเล่นเกม',
+    descriptionTh:
+      'มันฝรั่งทอดกรอบพริงเกิลส์ รสซาวครีมและหัวหอม ทานง่าย ไม่เลอะนิ้วมือขณะเล่นเกม',
     category: 'snacks',
     price: 65,
     dietary: 'Vegetarian',
@@ -143,8 +151,10 @@ export const FOOD_MENU_ITEMS: FoodMenuItem[] = [
     id: 'snack-taro-fish',
     name: 'Taro Crispy Fish Snack Original (50g)',
     nameTh: 'ทาโร เส้นปลาอบ รสดั้งเดิม (50 กรัม)',
-    description: 'Baked seasoned white fish meat ribbons. High protein, non-greasy gaming snack.',
-    descriptionTh: 'ปลาสวรรค์อบทรงเครื่อง เส้นยาวเคี้ยวเพลิน มีโปรตีนสูง ไม่เลอะนิ้ว',
+    description:
+      'Baked seasoned white fish meat ribbons. High protein, non-greasy gaming snack.',
+    descriptionTh:
+      'ปลาสวรรค์อบทรงเครื่อง เส้นยาวเคี้ยวเพลิน มีโปรตีนสูง ไม่เลอะนิ้ว',
     category: 'snacks',
     price: 35,
   },
@@ -162,7 +172,8 @@ export const FOOD_MENU_ITEMS: FoodMenuItem[] = [
     name: 'Tong Garden Salted Mixed Nuts (40g)',
     nameTh: 'ทองการ์เด้น ถั่วรวมอบเกลือ (40 กรัม)',
     description: 'Roasted cashew nuts, almonds, and salted peanuts.',
-    descriptionTh: 'ถั่วรวมอบเกลือ เม็ดมะม่วงหิมพานต์ อัลมอนด์ และถั่วลิสง กรุบกรอบเคี้ยวมันส์',
+    descriptionTh:
+      'ถั่วรวมอบเกลือ เม็ดมะม่วงหิมพานต์ อัลมอนด์ และถั่วลิสง กรุบกรอบเคี้ยวมันส์',
     category: 'snacks',
     price: 35,
     dietary: 'Vegetarian',

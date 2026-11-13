@@ -1,0 +1,14 @@
+#cloud-config
+# Opt-in prerequisites for a NEW Amazon Linux 2023 instance. Run the Ansible
+# playbook afterwards for k3s and Argo CD. Existing hosts never receive this.
+package_update: false
+packages:
+  - git
+  - python3
+runcmd:
+  - [mkdir, -p, /opt/theparlor]
+  - [
+      sh,
+      -c,
+      'if systemctl list-unit-files amazon-ssm-agent.service --no-legend | grep -q amazon-ssm-agent; then systemctl enable --now amazon-ssm-agent; fi',
+    ]

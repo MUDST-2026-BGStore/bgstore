@@ -42,4 +42,21 @@ public class SaleStockAdjustment {
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
+
+  public static SaleStockAdjustment create(
+      UUID branchId, UUID editionId, int delta, String reason, String actor) {
+    if (delta == 0
+        || reason == null
+        || reason.isBlank()
+        || reason.length() > MAX_REASON_LENGTH
+        || actor == null
+        || actor.isBlank()) throw new IllegalArgumentException("Invalid stock adjustment");
+    var adjustment = new SaleStockAdjustment();
+    adjustment.branchId = java.util.Objects.requireNonNull(branchId);
+    adjustment.editionId = java.util.Objects.requireNonNull(editionId);
+    adjustment.delta = delta;
+    adjustment.reason = reason.strip();
+    adjustment.operatorSubject = actor;
+    return adjustment;
+  }
 }

@@ -1,0 +1,19 @@
+# Use a COPY of this configuration in a separate directory, WITHOUT .terraform,
+# terraform.tfstate*, *.auto.tfvars or .local. Never switch an adopted stack's
+# adopt_existing flag to false to make a second environment.
+# Copy this file to settings.auto.tfvars in that separate directory.
+adopt_existing             = false
+network_name               = "devopsnet-lab"
+instance_name              = "devopsandbox-lab"
+security_group_name        = "devops-app-lab"
+security_group_description = "DevOps lab HTTP, HTTPS and restricted SSH"
+ssh_key_name               = "devopsandbox-lab"
+# Replace with your own PUBLIC SSH key before planning.
+ssh_public_key         = "ssh-ed25519 REPLACE_WITH_YOUR_PUBLIC_KEY"
+ssh_cidrs              = ["203.0.113.10/32"]
+root_volume_encrypted  = true
+elastic_ip             = { create = true }
+enable_ssm             = true
+instance_state         = "running"
+bootstrap_new_instance = true
+tags                   = { Environment = "lab" }

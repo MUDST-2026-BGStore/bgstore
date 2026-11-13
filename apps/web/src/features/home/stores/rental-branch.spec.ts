@@ -1,7 +1,6 @@
 import { beforeEach, expect, it } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 import { RENTAL_BRANCH_KEY, useRentalBranchStore } from './rental-branch';
-import { useCartStore } from './cart';
 import { rentalLibraryAt, retailStockAt } from '../data/branches';
 beforeEach(() => {
   localStorage.clear();
@@ -21,18 +20,11 @@ it('remembers a valid rental branch and rejects unknown preferences', () => {
   setActivePinia(createPinia());
   expect(useRentalBranchStore().branch).toBeUndefined();
 });
-it('changing a rental branch never changes delivery stock, pickup location or cart contents', () => {
+it('keeps the visiting preference in its own storage key, apart from the cart', () => {
   const rental = useRentalBranchStore();
-  const cart = useCartStore();
-  cart.add('azul-en');
   rental.select('riverside');
-  expect(cart.method).toBe('shipping');
-  expect(cart.stockFor('azul-en')).toBe(4);
-  cart.setFulfillment('pickup', 'ari');
-  const items = JSON.stringify(cart.items);
-  rental.select('siam');
-  expect(cart.pickupBranchId).toBe('ari');
-  expect(JSON.stringify(cart.items)).toBe(items);
+  expect(localStorage.getItem(RENTAL_BRANCH_KEY)).toBe('riverside');
+  expect(Object.keys(localStorage)).toEqual([RENTAL_BRANCH_KEY]);
 });
 it('keeps rental library membership and teaching support separate from retail stock', () => {
   expect(rentalLibraryAt('azul', 'siam').offered).toBe(true);

@@ -15,7 +15,7 @@ import CustomerLayout from '../layouts/CustomerLayout.vue';
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean;
-    roles?: string[];
+    roles?: readonly string[];
     layout?: 'customer' | 'raw';
   }
 }
@@ -26,6 +26,7 @@ export function createAppRouter() {
     ...authRoutes,
     ...accountRoutes,
     ...reservationRoutes,
+    ...workspaceRoutes.filter((route) => route.meta?.layout === 'customer'),
   ];
 
   const customerRoutes = customerPages.filter(
@@ -50,7 +51,7 @@ export function createAppRouter() {
       ...rawRoutes,
 
       // Staff pages remain separate.
-      ...workspaceRoutes,
+      ...workspaceRoutes.filter((route) => route.meta?.layout !== 'customer'),
 
       {
         path: '/:pathMatch(.*)*',

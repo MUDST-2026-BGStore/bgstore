@@ -1,3 +1,5 @@
+// TODO(qr-payment-api): Builds a display-only PromptPay-style QR in the browser. The
+// backend's only payment method is card tokens for retail orders.
 import QRCode from 'qrcode';
 
 export interface PromptPayQrDetails {
@@ -13,7 +15,7 @@ export interface PromptPayQrDetails {
  * Calculates pre-order food & drink 10% discount
  */
 export function calculatePreOrderDiscount(foodTotal: number) {
-  const discountRate = 0.10; // 10% discount for pre-ordering with table reservation
+  const discountRate = 0.1; // 10% discount for pre-ordering with table reservation
   const discountAmount = Math.round(foodTotal * discountRate);
   const discountedTotal = Math.max(0, foodTotal - discountAmount);
   return {
@@ -29,11 +31,12 @@ export function calculatePreOrderDiscount(foodTotal: number) {
 export async function generateReservationQrCode(
   reservationRef: string,
   amount: number,
-  merchantName = 'The Parlor Board Game Cafe'
+  merchantName = 'The Parlor Board Game Cafe',
 ): Promise<PromptPayQrDetails> {
-  const reference = reservationRef || `PARLOR-${Math.floor(100000 + Math.random() * 900000)}`;
+  const reference =
+    reservationRef || `PARLOR-${Math.floor(100000 + Math.random() * 900000)}`;
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins expiry
-  
+
   // PromptPay/EMVCo mock payload structure containing key transaction details
   const payload = JSON.stringify({
     service: 'PromptPay-QR',
@@ -64,4 +67,3 @@ export async function generateReservationQrCode(
     expiresAt,
   };
 }
-
