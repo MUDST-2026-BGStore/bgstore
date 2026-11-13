@@ -433,7 +433,11 @@ function confirmCustomerQrPayment() {
               </span>
             </div>
 
-            <dl v-if="timing" class="session-timing" data-testid="session-timing">
+            <dl
+              v-if="timing"
+              class="session-timing"
+              data-testid="session-timing"
+            >
               <div>
                 <dt>{{ t('Checked in') }}</dt>
                 <dd data-testid="checked-in-at">{{ checkedInDisplay }}</dd>
@@ -444,11 +448,15 @@ function confirmCustomerQrPayment() {
               </div>
               <div>
                 <dt>{{ t('Elapsed play time') }}</dt>
-                <dd data-testid="elapsed">{{ formatClock(timing.elapsedSeconds) }}</dd>
+                <dd data-testid="elapsed">
+                  {{ formatClock(timing.elapsedSeconds) }}
+                </dd>
               </div>
               <div>
                 <dt>{{ t('Remaining play time') }}</dt>
-                <dd data-testid="remaining">{{ formatClock(timing.remainingSeconds) }}</dd>
+                <dd data-testid="remaining">
+                  {{ formatClock(timing.remainingSeconds) }}
+                </dd>
               </div>
               <div>
                 <dt>{{ t('Rate') }}</dt>
@@ -459,7 +467,9 @@ function confirmCustomerQrPayment() {
               </div>
               <div>
                 <dt data-testid="play-fee-label">
-                  {{ isEstimate ? t('Estimated play fee') : t('Final play fee') }}
+                  {{
+                    isEstimate ? t('Estimated play fee') : t('Final play fee')
+                  }}
                 </dt>
                 <dd>฿{{ tablePlayCost }}</dd>
               </div>

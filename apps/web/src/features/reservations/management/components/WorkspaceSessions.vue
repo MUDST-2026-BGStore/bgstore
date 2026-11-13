@@ -188,18 +188,22 @@ watch([search, selectedBranchId], selection.clear);
                 v-if="getSessionTiming(res)?.expiringSoon"
                 class="record-primary"
                 role="status"
-                >{{ Math.ceil(getSessionTiming(res)!.remainingSeconds / 60) }}
+                >{{
+                  Math.ceil(getSessionTiming(res)!.remainingSeconds / 60)
+                }}
                 min · ending soon</span
               >
               <span v-else-if="getSessionTiming(res)?.ended">Ended</span>
               <span v-else
-                >{{ Math.ceil(getSessionTiming(res)!.remainingSeconds / 60) }}
+                >{{
+                  Math.ceil(getSessionTiming(res)!.remainingSeconds / 60)
+                }}
                 min</span
               >
             </template>
             <template v-else>–</template>
           </td>
-          <td class="numeric">฿{{ res.hourlyRate || 200 }}</td>
+          <td class="numeric">฿{{ res.hourlyRate ?? 200 }}</td>
           <td class="numeric">
             <strong class="record-primary"
               >฿{{ calculateCurrentPlayFee(res) }}</strong

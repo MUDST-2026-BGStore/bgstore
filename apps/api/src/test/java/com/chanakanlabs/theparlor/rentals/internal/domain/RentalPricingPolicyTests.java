@@ -64,4 +64,20 @@ class RentalPricingPolicyTests {
     assertThatThrownBy(() -> RentalPricingPolicy.totalMinor(List.of(Long.MAX_VALUE, 1L)))
         .isInstanceOf(ArithmeticException.class);
   }
+
+  @Test
+  void billingStopsAtTheBookedEndSoLateCheckoutAddsNoOvertime() {
+    var started = Instant.parse("2026-05-01T06:10:00Z"); // 13:10 Bangkok
+    var plannedEnd = Instant.parse("2026-05-01T08:00:00Z"); // booked 13:00-15:00
+    // Early checkout is billed as it happened.
+    var early = Instant.parse("2026-05-01T07:00:00Z");
+    assertThat(RentalPricingPolicy.billingEnd(started, plannedEnd, early)).isEqualTo(early);
+    // Checkout after the end, or the automatic closure, bills to the booked end.
+    var late = Instant.parse("2026-05-01T08:03:13Z");
+    assertThat(RentalPricingPolicy.billingEnd(started, plannedEnd, late)).isEqualTo(plannedEnd);
+    assertThat(Duration.between(started, plannedEnd)).isEqualTo(Duration.ofMinutes(110));
+    assertThat(RentalPricingPolicy.billableHours(started, plannedEnd)).isEqualTo(2);
+    // An end before check-in never produces a negative visit.
+    assertThat(RentalPricingPolicy.billingEnd(plannedEnd, started, late)).isEqualTo(plannedEnd);
+  }
 }

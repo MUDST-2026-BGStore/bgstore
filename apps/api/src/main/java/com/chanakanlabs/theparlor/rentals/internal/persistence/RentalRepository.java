@@ -26,6 +26,15 @@ public interface RentalRepository
 
   List<Rental> findByReservationIdIn(Collection<UUID> reservationIds);
 
+  /** Active rentals whose booked end has passed; the auto-closer finishes each one. */
+  @Query(
+      "select r.id from Rental r where r.status = com.chanakanlabs.theparlor.rentals.internal.domain.RentalStatus.ACTIVE and r.plannedEndsAt <= :now")
+  List<UUID> findExpiredActiveIds(@Param("now") java.time.Instant now);
+
+  @Lock(LockModeType.PESSIMISTIC_WRITE)
+  @Query("select r from Rental r where r.id = :id")
+  Optional<Rental> lockById(@Param("id") UUID id);
+
   /** Serializes checkout of one rental. */
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("select r from Rental r where r.id = :id and r.branchId = :branchId")

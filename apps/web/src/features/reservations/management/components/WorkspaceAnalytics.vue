@@ -91,7 +91,7 @@ const todayTotalGross = computed(
           <td>{{ reservation.tableId }}</td>
           <td>{{ getCustomerName(reservation.customer) }}</td>
           <td>{{ getElapsedMinutes(reservation) }} min</td>
-          <td class="numeric">฿{{ reservation.hourlyRate || 200 }}</td>
+          <td class="numeric">฿{{ reservation.hourlyRate ?? 200 }}</td>
           <td class="numeric">฿{{ calculateCurrentPlayFee(reservation) }}</td>
         </tr>
         <tr v-if="!activeFloorReservations.length">

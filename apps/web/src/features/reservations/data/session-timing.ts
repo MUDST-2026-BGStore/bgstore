@@ -49,7 +49,10 @@ export function computeSessionTiming(
     ? Date.parse(input.completedAt)
     : input.serverNowMs;
   const effectiveEnd = Math.min(checkout, scheduledEnd);
-  const elapsedSeconds = Math.max(0, Math.floor((effectiveEnd - checkedIn) / 1000));
+  const elapsedSeconds = Math.max(
+    0,
+    Math.floor((effectiveEnd - checkedIn) / 1000),
+  );
   const remainingSeconds = completed
     ? 0
     : Math.max(0, Math.ceil((scheduledEnd - input.serverNowMs) / 1000));

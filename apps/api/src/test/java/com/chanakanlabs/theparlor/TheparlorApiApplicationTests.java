@@ -95,6 +95,7 @@ class TheparlorApiApplicationTests {
   @DynamicPropertySource
   static void properties(DynamicPropertyRegistry registry) {
     registry.add("server.port", () -> TEST_PORT);
+    registry.add("theparlor.rentals.auto-close.interval", () -> "PT1S");
     registry.add(
         "spring.datasource.url",
         () ->
@@ -1365,6 +1366,49 @@ class TheparlorApiApplicationTests {
                 .get("items"))
         .hasSize(1);
     assertThat(get(customer, rentalPath).statusCode()).isEqualTo(404);
+
+    // A visit left open past its booked end is closed by the server at that end, with no overtime.
+    var second =
+        send(
+            manager,
+            "POST",
+            base + "/staff/reservations",
+            walkIn,
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(second.statusCode()).as(second.body()).isEqualTo(201);
+    String secondId = JSON.readTree(second.body()).get("id").asString();
+    var secondArrived =
+        send(manager, "POST", base + "/reservations/" + secondId + "/check-in", null);
+    assertThat(secondArrived.statusCode()).as(secondArrived.body()).isEqualTo(200);
+    String secondRental = JSON.readTree(secondArrived.body()).get("rental").get("id").asString();
+    jdbc.update(
+        "UPDATE rentals SET started_at = now() - interval '3 hours',"
+            + " planned_ends_at = now() - interval '1 minute' WHERE id=?::uuid",
+        secondRental);
+    var deadline = System.nanoTime() + java.time.Duration.ofSeconds(30).toNanos();
+    String state = "ACTIVE";
+    while (state.equals("ACTIVE") && System.nanoTime() < deadline) {
+      Thread.sleep(500);
+      state =
+          jdbc.queryForObject(
+              "SELECT status FROM rentals WHERE id=?::uuid", String.class, secondRental);
+    }
+    assertThat(state).isEqualTo("COMPLETED");
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT actual_ends_at = planned_ends_at FROM rentals WHERE id=?::uuid",
+                Boolean.class,
+                secondRental))
+        .isTrue();
+    var closed = JSON.readTree(get(manager, base + "/rentals/" + secondRental).body());
+    assertThat(closed.get("billableHours").asInt()).isEqualTo(3);
+    assertThat(closed.get("serverNow")).isNotNull();
+    assertThat(
+            JSON.readTree(get(manager, base + "/reservations/" + secondId).body())
+                .get("status")
+                .asString())
+        .isEqualTo("COMPLETED");
   }
 
   @Test
