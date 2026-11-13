@@ -6,6 +6,9 @@ One board game business with multiple branches.
 Agent instructions: [AGENTS.md](AGENTS.md). Frontend rules:
 [apps/web/AGENTS.md](apps/web/AGENTS.md).
 
+AWS deployment, prerequisites, verification, recovery and shutdown:
+[deployment runbook](deploy/aws/README.md).
+
 ## Local development
 
 With mise and Docker installed:

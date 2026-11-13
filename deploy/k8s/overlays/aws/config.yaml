@@ -17,6 +17,9 @@ metadata:
 spec:
   template:
     spec:
+      # Service links inject API_PORT/VALKEY_PORT as tcp:// URLs. Use DNS and
+      # the explicit application configuration for service discovery instead.
+      enableServiceLinks: false
       containers:
         - name: api
           env:
@@ -100,3 +103,26 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: observability
       ports: [{ port: 8082, protocol: TCP }]
+---
+# Base label transformers also label peer selectors with the target workload's
+# name. Restore the actual source selectors after that transformation.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-ingress
+spec:
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: api } }
+        - podSelector: { matchLabels: { app: keycloak } }
+      ports: [{ port: 5432, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: valkey-ingress
+spec:
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: api } }
+      ports: [{ port: 6379, protocol: TCP }]

@@ -3,12 +3,44 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
 
 import manage
+
+
+@unittest.skipUnless(shutil.which("kubectl") and (manage.LOCAL / "venv/bin/python").is_file(),
+                     "Run aws-tools and install kubectl for rendered-manifest checks")
+class ManifestConnectivityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        rendered = subprocess.check_output(
+            ["kubectl", "kustomize", str(manage.ROOT.parent / "k8s/overlays/aws")], text=True)
+        # PyYAML comes from the pinned Ansible environment, without adding an
+        # application dependency just for deployment validation.
+        cls.resources = json.loads(subprocess.check_output(
+            [str(manage.LOCAL / "venv/bin/python"), "-c",
+             "import json, sys, yaml; print(json.dumps(list(yaml.safe_load_all(sys.stdin))))"],
+            input=rendered, text=True))
+
+    def test_network_policies_allow_required_application_peers(self):
+        workloads = {item["metadata"]["name"]: item["spec"]["template"]["metadata"]["labels"]
+                     for item in self.resources if item["kind"] in ["Deployment", "StatefulSet"]}
+        policies = {item["metadata"]["name"]: item["spec"]
+                    for item in self.resources if item["kind"] == "NetworkPolicy"}
+        for target, peers, denied in [("postgres", ["api", "keycloak"], ["web"]),
+                                      ("valkey", ["api"], ["web", "keycloak"])]:
+            selectors = [peer["podSelector"]["matchLabels"]
+                         for rule in policies[target + "-ingress"]["ingress"]
+                         for peer in rule.get("from", []) if "podSelector" in peer]
+            for name in peers + denied:
+                with self.subTest(target=target, peer=name):
+                    allowed = any(all(workloads[name].get(key) == value for key, value in selector.items())
+                                  for selector in selectors)
+                    self.assertEqual(allowed, name in peers)
 
 
 class AdoptionTests(unittest.TestCase):
