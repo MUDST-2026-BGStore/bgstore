@@ -1,3 +1,6 @@
+// TODO(workspace-inventory-api): Reads the fixture catalog and local reservations.
+// Branch offerings and rental copies now have endpoints (branch games, rental
+// copies); wire this composable to them.
 import { computed, ref } from 'vue';
 import { games, type CatalogGame } from '../../../shared/data/catalog';
 import type { useWorkspaceReservations } from './useWorkspaceReservations';

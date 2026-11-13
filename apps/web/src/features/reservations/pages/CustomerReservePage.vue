@@ -14,6 +14,7 @@ import FoodMenuPicker from '../components/FoodMenuPicker.vue';
 import QrPaymentDialog from '../components/QrPaymentDialog.vue';
 import type { FoodOrderItem, ReservationPreOrder } from '../types';
 import { calculatePreOrderDiscount } from '../data/payment';
+import { FOOD_MENU_ITEMS } from '../data/food-menu';
 import { useStoreText } from '../../../shared/lib/store-text';
 import { useStoreContextStore } from '../../../shared/stores/store-context';
 import { useCustomerReservationsStore } from '../data/reservations-store';
@@ -81,6 +82,7 @@ const DEFAULT_BRANCHES: Branch[] = [
     phone: '02-123-4567',
     openingHours: [],
     active: true,
+    fulfillsDelivery: true,
   },
   {
     id: 'ari',
@@ -89,6 +91,7 @@ const DEFAULT_BRANCHES: Branch[] = [
     phone: '02-234-5678',
     openingHours: [],
     active: true,
+    fulfillsDelivery: false,
   },
   {
     id: 'riverside',
@@ -97,6 +100,7 @@ const DEFAULT_BRANCHES: Branch[] = [
     phone: '02-345-6789',
     openingHours: [],
     active: true,
+    fulfillsDelivery: false,
   },
 ];
 
@@ -1245,7 +1249,7 @@ async function onPaymentCompleted(paymentMeta: {
             </p>
           </div>
 
-          <FoodMenuPicker v-model="preOrderedFood" />
+          <FoodMenuPicker v-model="preOrderedFood" :items="FOOD_MENU_ITEMS" />
 
           <div class="wizard-actions">
             <button

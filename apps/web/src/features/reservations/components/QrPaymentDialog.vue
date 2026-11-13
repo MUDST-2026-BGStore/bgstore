@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// TODO(qr-payment-api): PromptPay QR payment has no backend. The QR code is generated
+// in the browser for display only and confirming it charges nothing.
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import {
   generateReservationQrCode,

@@ -1,3 +1,5 @@
+// TODO(pantry-api): Sample pantry stock. There is no pantry endpoint; replace this
+// file when the backend tracks food and drink inventory.
 export interface FoodDrinkStockItem {
   id: string;
   name: string;

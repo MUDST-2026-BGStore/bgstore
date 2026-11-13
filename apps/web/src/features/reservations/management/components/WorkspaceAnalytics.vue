@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// TODO(analytics-api): There is no reporting endpoint. Every figure and chart here is
+// computed from local sample data.
 import { computed, ref } from 'vue';
 import {
   AppButton,

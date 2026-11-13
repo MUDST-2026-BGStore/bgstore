@@ -4,11 +4,19 @@ export interface FoodMenuItem {
   nameTh?: string;
   description: string;
   descriptionTh?: string;
-  category: 'beverages' | 'snacks';
+  category: FoodCategory;
   price: number; // in THB
   dietary?: string;
   popular?: boolean;
+  /** Units the branch can still serve; absent for sample menus without stock. */
+  available?: number;
 }
+
+export type FoodCategory =
+  | 'beverages'
+  | 'snacks'
+  | 'tea_coffee'
+  | 'bakery_desserts';
 
 export interface FoodOrderItem {
   item: FoodMenuItem;

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// TODO(settings-api): Workspace settings have no backend; they are local sample state.
 import {
   AppBadge,
   AppButton,

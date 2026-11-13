@@ -1,3 +1,5 @@
+// TODO(food-menu-api): Sample food and drink menu. There is no menu, pricing or
+// ordering endpoint; replace this file when the backend has one.
 import type { FoodMenuItem } from '../types';
 
 export const FOOD_MENU_ITEMS: FoodMenuItem[] = [

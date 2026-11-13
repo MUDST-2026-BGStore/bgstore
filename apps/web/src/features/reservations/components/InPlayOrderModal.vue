@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// TODO(in-play-orders-api): Orders placed during a visit have no backend. Items,
+// status and payment below are local sample state and are lost on reload.
 import { ref, computed } from 'vue';
 import { FOOD_MENU_ITEMS, FOOD_CATEGORIES } from '../data/food-menu';
 import {

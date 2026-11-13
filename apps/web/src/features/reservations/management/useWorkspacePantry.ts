@@ -1,3 +1,5 @@
+// TODO(pantry-api): Pantry (food and drink) stock has no backend. Levels, restocks
+// and adjustments are local sample state; only game sale stock exists on the server.
 import { computed, ref } from 'vue';
 import { createPantrySamples, type FoodDrinkStockItem } from './pantry.samples';
 import { useCustomerReservationsStore } from '../data/reservations-store';

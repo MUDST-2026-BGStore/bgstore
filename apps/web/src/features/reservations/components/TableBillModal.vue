@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// TODO(table-bill-api): This bill is assembled locally from sample reservations and
+// food orders. Server rental checkout bills table and game hours only and takes no
+// payment; QR payment and food lines here have no backend.
 import { computed, ref } from 'vue';
 import {
   useCustomerReservationsStore,

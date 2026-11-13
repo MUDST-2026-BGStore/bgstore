@@ -1,13 +1,29 @@
 <script setup lang="ts">
+// The branch's menu with its live availability; the server reprices, discounts and
+// holds the lines at booking, so the totals here are a preview.
 import { computed, ref } from 'vue';
-import { FOOD_MENU_ITEMS, FOOD_CATEGORIES } from '../data/food-menu';
-import type { FoodMenuItem, FoodOrderItem } from '../types';
-import { calculatePreOrderDiscount } from '../data/payment';
+import type { FoodCategory, FoodMenuItem, FoodOrderItem } from '../types';
+import { preOrderPreview } from '../data/booking';
 import { useStoreText } from '../../../shared/lib/store-text';
 
 const props = defineProps<{
   modelValue: FoodOrderItem[];
+  items: FoodMenuItem[];
 }>();
+
+const CATEGORY_LABELS: Record<FoodCategory, string> = {
+  beverages: 'Drinks & Soda',
+  snacks: 'Packaged Snacks & Chips',
+  tea_coffee: 'Tea & Coffee',
+  bakery_desserts: 'Bakery & Desserts',
+};
+
+const categories = computed(() => [
+  { id: 'all', label: 'All Items' },
+  ...(Object.keys(CATEGORY_LABELS) as FoodCategory[])
+    .filter((id) => props.items.some((item) => item.category === id))
+    .map((id) => ({ id, label: CATEGORY_LABELS[id] })),
+]);
 
 const emit = defineEmits<{
   'update:modelValue': [items: FoodOrderItem[]];
@@ -36,7 +52,7 @@ const searchQuery = ref<string>('');
 
 const filteredItems = computed(() => {
   const query = searchQuery.value.trim().toLowerCase();
-  return FOOD_MENU_ITEMS.filter((item) => {
+  return props.items.filter((item) => {
     const matchesCategory =
       activeCategory.value === 'all' || item.category === activeCategory.value;
     const matchesSearch =
@@ -52,9 +68,14 @@ function getQuantity(itemId: string): number {
   return found ? found.quantity : 0;
 }
 
+function limit(item: FoodMenuItem): number {
+  return Math.min(50, item.available ?? 50);
+}
+
 function updateQuantity(item: FoodMenuItem, delta: number) {
   const current = getQuantity(item.id);
-  const next = Math.max(0, current + delta);
+  const next = Math.min(limit(item), Math.max(0, current + delta));
+  if (next === current) return;
   const updated = props.modelValue.filter((i) => i.item.id !== item.id);
   if (next > 0) {
     updated.push({ item, quantity: next });
@@ -69,9 +90,13 @@ const originalSubtotal = computed(() =>
   ),
 );
 
-const discountSummary = computed(() =>
-  calculatePreOrderDiscount(originalSubtotal.value),
-);
+const discountSummary = computed(() => {
+  const preview = preOrderPreview(Math.round(originalSubtotal.value * 100));
+  return {
+    discountAmount: preview.discountMinor / 100,
+    discountedTotal: preview.totalMinor / 100,
+  };
+});
 
 const totalItemsCount = computed(() =>
   props.modelValue.reduce((sum, line) => sum + line.quantity, 0),
@@ -99,11 +124,6 @@ const totalItemsCount = computed(() =>
             'Enjoy an exclusive 10% discount on all food & beverages when pre-ordering with your table reservation.',
           )
         }}
-        {{
-          t(
-            'You can also order extra food and drinks while playing at your table in the future!',
-          )
-        }}
       </p>
     </div>
 
@@ -111,7 +131,7 @@ const totalItemsCount = computed(() =>
     <div class="menu-controls">
       <div class="category-tabs" role="tablist" aria-label="Food Categories">
         <button
-          v-for="cat in FOOD_CATEGORIES"
+          v-for="cat in categories"
           :key="cat.id"
           type="button"
           class="cat-tab"
@@ -179,10 +199,17 @@ const totalItemsCount = computed(() =>
             <span v-if="getQuantity(item.id) > 0" class="qty-count">{{
               getQuantity(item.id)
             }}</span>
+            <span
+              v-if="limit(item) === 0"
+              class="sold-out"
+              >{{ t('Sold out') }}</span
+            >
             <button
+              v-else
               type="button"
               class="step-btn plus"
               :aria-label="`Add ${item.name}`"
+              :disabled="getQuantity(item.id) >= limit(item)"
               @click="updateQuantity(item, 1)"
             >
               <span v-if="getQuantity(item.id) === 0"
@@ -208,7 +235,11 @@ const totalItemsCount = computed(() =>
               >฿{{ discountSummary.discountedTotal }}</span
             >
             <span class="saved-pill"
-              >Saved ฿{{ discountSummary.discountAmount }}</span
+              >{{
+                t('Saved {amount}', {
+                  amount: `฿${discountSummary.discountAmount}`,
+                })
+              }}</span
             >
           </div>
         </div>
@@ -226,6 +257,17 @@ const totalItemsCount = computed(() =>
 </template>
 
 <style scoped>
+.sold-out {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b5b4b;
+}
+
+.step-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 .food-menu-picker {
   display: flex;
   flex-direction: column;

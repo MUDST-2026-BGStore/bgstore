@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// TODO(policies-api): Business policies have no backend. Values here are local
+// sample settings and change nothing on the server.
 import { ref } from 'vue';
 import {
   AppBadge,

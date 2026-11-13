@@ -1,3 +1,7 @@
+// TODO(reservation-api): Local sample reservations with food pre-orders and in-play
+// orders. The reservation, check-in and rental checkout endpoints now exist on the
+// server; move the reservation and visit state to them. Food and QR payment fields
+// have no backend.
 import { ref, computed } from 'vue';
 
 export interface PreOrderItemRecord {

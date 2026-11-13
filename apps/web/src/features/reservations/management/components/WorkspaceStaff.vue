@@ -1,4 +1,7 @@
 <script setup lang="ts">
+// TODO(staff-admin-api): Staff accounts and branch assignments cannot be read or
+// changed through the API yet. The table below is local sample data; the server
+// enforces branch access from assignments this screen does not manage.
 import { ref } from 'vue';
 import {
   AppBadge,

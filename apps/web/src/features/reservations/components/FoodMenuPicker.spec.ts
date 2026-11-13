@@ -9,6 +9,7 @@ describe('FoodMenuPicker Component', () => {
     const wrapper = mount(FoodMenuPicker, {
       props: {
         modelValue: [],
+        items: FOOD_MENU_ITEMS,
       },
     });
 
@@ -21,6 +22,7 @@ describe('FoodMenuPicker Component', () => {
     const wrapper = mount(FoodMenuPicker, {
       props: {
         modelValue: [],
+        items: FOOD_MENU_ITEMS,
       },
     });
 
@@ -40,6 +42,7 @@ describe('FoodMenuPicker Component', () => {
     const wrapper = mount(FoodMenuPicker, {
       props: {
         modelValue: initialOrder,
+        items: FOOD_MENU_ITEMS,
       },
     });
 

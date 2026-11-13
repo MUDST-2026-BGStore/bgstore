@@ -1,3 +1,5 @@
+// TODO(qr-payment-api): Builds a display-only PromptPay-style QR in the browser. The
+// backend's only payment method is card tokens for retail orders.
 import QRCode from 'qrcode';
 
 export interface PromptPayQrDetails {

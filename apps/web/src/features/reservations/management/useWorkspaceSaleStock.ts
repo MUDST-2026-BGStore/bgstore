@@ -1,3 +1,6 @@
+// TODO(workspace-inventory-api): Sale stock here is sample data. Branch edition
+// prices, stock adjustments and order fulfillment now have endpoints; wire this
+// composable and the fulfillment queue to them.
 import { computed, ref, type Ref } from 'vue';
 import { retailStockSamples } from '../components/management-inventory.samples';
 import { saleStockItems } from '../components/inventory/sale-stock';
