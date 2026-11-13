@@ -1,24 +1,23 @@
-# Fast checks on every commit pushed to any branch (and on pull requests from forks,
-# which do not trigger push events here). Nothing here needs Docker.
+# Fast checks on every commit pushed to any branch. Nothing here needs Docker.
+# Push-only on purpose: a pull_request copy would add skipped duplicates of these
+# required checks, and GitHub counts skipped required checks as passing.
+# Pull requests from forks get the Integration workflow (full API and e2e suites).
 name: CI
 
 on:
   push:
-  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event_name }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   web:
     name: Web, contract and dead code
-    # Same-repo pull requests are already covered by the push run.
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -41,7 +40,6 @@ jobs:
 
   api:
     name: API unit and property tests
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
