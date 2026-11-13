@@ -75,7 +75,10 @@ test('sends a guest who opens the workspace URL to sign in', async ({
   page,
 }) => {
   await mockApi(page, { session: null, reservations: 401 });
-  const login = page.waitForRequest('**/api/auth/login/keycloak');
+  // The login URL carries the storefront language as a query parameter.
+  const login = page.waitForRequest(
+    (request) => new URL(request.url()).pathname === '/api/auth/login/keycloak',
+  );
   await page.goto('/workspace/management');
   await login;
   await expect(page.getByText(SAMPLE_CUSTOMER)).toHaveCount(0);
@@ -98,7 +101,8 @@ test('keeps a newly registered client out of the staff workspace', async ({
 
   const reservationRequests: string[] = [];
   page.on('request', (request) => {
-    if (request.url().includes('/reservations'))
+    const { pathname } = new URL(request.url());
+    if (pathname.startsWith('/api/') && pathname.includes('/reservations'))
       reservationRequests.push(request.url());
   });
   for (const path of [
