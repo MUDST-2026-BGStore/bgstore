@@ -322,6 +322,9 @@ Successful checks included:
 - Secure/HttpOnly/SameSite=Lax session cookie and no browser runtime or first-party HTTP errors.
 - BFF client secret and redirect URI matched the deployed API configuration;
   existing runtime Secret values remained unchanged.
+- Repeat deployment completed in 18 seconds; both Argo applications were Synced
+  and Healthy, all six application pods were Ready, and the browser smoke checks
+  passed again.
 
 Server-side diff resolved API-default noise. Two superseded generated Keycloak
 ConfigMaps were removed after checking Argo ownership and confirming that active
@@ -334,6 +337,11 @@ infrastructure provision and capacity/failover tests were outside this rehearsal
 The configured Tempo service was absent and trace export logged DNS failures.
 The tested deployment is suitable for continuing sandbox validation; production
 prerequisites above remain separate work.
+
+AWS confirmed `i-041c168130c959aec` was **stopped** after the final smoke checks.
+The existing Elastic IP, EBS volume and ECR images were retained. The deployment worktree is `bgstore-aws-deployment-test`, created from the
+`bgstore` checkout at `feffb73`. Private snapshot metadata and the path-dependent
+Ansible environment were refreshed after moving the worktree.
 
 Local evidence and private recovery files are under `.local/`: `build-images*.log`,
 `publish-images*.log`, `deploy*.log`, `final-tooling-tests.log`, `smoke-results.json`,
