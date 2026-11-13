@@ -67,7 +67,7 @@ test('rejected early check-in keeps the booking unchanged after reload', async (
 
   // The old code could persist an impossible early check-in in browser storage.
   await page.evaluate(() => {
-    const key = 'theparlor_customer_reservations_v3';
+    const key = 'theparlor.account:workspace-sample-reservations';
     const reservations = JSON.parse(localStorage.getItem(key) || '[]');
     const record = reservations.find(
       (item: { id: string }) => item.id === 'res-thm-9812',
@@ -85,7 +85,8 @@ test('rejected early check-in keeps the booking unchanged after reload', async (
   ).toContainText('Confirmed');
   const repaired = await page.evaluate(() => {
     const reservations = JSON.parse(
-      localStorage.getItem('theparlor_customer_reservations_v3') || '[]',
+      localStorage.getItem('theparlor.account:workspace-sample-reservations') ||
+        '[]',
     );
     return reservations.find(
       (item: { id: string }) => item.id === 'res-thm-9812',
