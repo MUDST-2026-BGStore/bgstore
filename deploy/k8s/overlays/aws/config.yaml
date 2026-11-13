@@ -4,9 +4,9 @@ metadata:
   name: api-config
 data:
   SPRING_PROFILES_ACTIVE: dev
-  THEPARLOR_PUBLIC_ORIGIN: https://theparlor.devopsandbox.chanakanlabs.com
+  THEPARLOR_PUBLIC_ORIGIN: https://theparlor.43.210.113.14.sslip.io
   SESSION_COOKIE_SECURE: 'true'
-  KEYCLOAK_ISSUER_URI: https://auth.devopsandbox.chanakanlabs.com/realms/theparlor
+  KEYCLOAK_ISSUER_URI: https://auth.43.210.113.14.sslip.io/realms/theparlor
   KEYCLOAK_BACKCHANNEL_ISSUER_URI: http://keycloak:8080/realms/theparlor
   OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo-distributor.observability.svc:4318/v1/traces
 ---
@@ -72,7 +72,7 @@ spec:
           env:
             - {
                 name: KC_HOSTNAME,
-                value: 'https://auth.devopsandbox.chanakanlabs.com',
+                value: 'https://auth.43.210.113.14.sslip.io',
               }
           volumeMounts:
             - name: prepared-realm

@@ -7,12 +7,12 @@ metadata:
   name: theparlor-dev
   namespace: argocd
   annotations:
-    argocd.argoproj.io/skip-reconcile: 'true'
+    argocd.argoproj.io/skip-reconcile: 'false'
 spec:
   project: theparlor
   source:
     repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
-    targetRevision: main
+    targetRevision: codex/aws-rehearsal-20261113
     path: deploy/k8s/overlays/aws
   destination:
     server: https://kubernetes.default.svc
@@ -26,12 +26,12 @@ metadata:
   name: theparlor-routing
   namespace: argocd
   annotations:
-    argocd.argoproj.io/skip-reconcile: 'true'
+    argocd.argoproj.io/skip-reconcile: 'false'
 spec:
   project: theparlor
   source:
     repoURL: https://github.com/MUDST-2026-BGStore/bgstore.git
-    targetRevision: main
+    targetRevision: codex/aws-rehearsal-20261113
     path: deploy/aws/kubernetes/routing
   destination:
     server: https://kubernetes.default.svc

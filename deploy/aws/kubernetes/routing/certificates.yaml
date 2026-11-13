@@ -23,7 +23,7 @@ metadata:
   namespace: gateway
 spec:
   secretName: theparlor-tls
-  dnsNames: [theparlor.devopsandbox.chanakanlabs.com]
+  dnsNames: [theparlor.43.210.113.14.sslip.io]
   issuerRef: { name: letsencrypt-production, kind: ClusterIssuer }
 ---
 apiVersion: cert-manager.io/v1
@@ -33,7 +33,7 @@ metadata:
   namespace: gateway
 spec:
   secretName: keycloak-tls
-  dnsNames: [auth.devopsandbox.chanakanlabs.com]
+  dnsNames: [auth.43.210.113.14.sslip.io]
   issuerRef: { name: letsencrypt-production, kind: ClusterIssuer }
 ---
 apiVersion: cert-manager.io/v1
@@ -43,5 +43,5 @@ metadata:
   namespace: gateway
 spec:
   secretName: argocd-tls
-  dnsNames: [argocd.devopsandbox.chanakanlabs.com]
+  dnsNames: [argocd.43.210.113.14.sslip.io]
   issuerRef: { name: letsencrypt-production, kind: ClusterIssuer }

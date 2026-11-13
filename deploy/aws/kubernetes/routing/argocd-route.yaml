@@ -8,6 +8,6 @@ spec:
     - name: public
       namespace: gateway
       sectionName: argocd
-  hostnames: [argocd.devopsandbox.chanakanlabs.com]
+  hostnames: [argocd.43.210.113.14.sslip.io]
   rules:
     - backendRefs: [{ name: argocd-server, port: 80 }]

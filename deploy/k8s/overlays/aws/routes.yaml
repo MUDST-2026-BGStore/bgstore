@@ -7,7 +7,7 @@ spec:
     - name: public
       namespace: gateway
       sectionName: theparlor
-  hostnames: [theparlor.devopsandbox.chanakanlabs.com]
+  hostnames: [theparlor.43.210.113.14.sslip.io]
   rules:
     - matches: [{ path: { type: PathPrefix, value: /api } }]
       backendRefs: [{ name: api, port: 8080 }]
@@ -23,7 +23,7 @@ spec:
     - name: public
       namespace: gateway
       sectionName: keycloak
-  hostnames: [auth.devopsandbox.chanakanlabs.com]
+  hostnames: [auth.43.210.113.14.sslip.io]
   rules:
     - backendRefs: [{ name: keycloak, port: 8080 }]
 ---
@@ -37,8 +37,8 @@ spec:
       namespace: gateway
       sectionName: http
   hostnames:
-    - theparlor.devopsandbox.chanakanlabs.com
-    - auth.devopsandbox.chanakanlabs.com
+    - theparlor.43.210.113.14.sslip.io
+    - auth.43.210.113.14.sslip.io
   rules:
     - filters:
         - type: RequestRedirect

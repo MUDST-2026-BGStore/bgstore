@@ -26,7 +26,7 @@ spec:
       allowedRoutes:
         namespaces: { from: All }
     - name: theparlor
-      hostname: theparlor.devopsandbox.chanakanlabs.com
+      hostname: theparlor.43.210.113.14.sslip.io
       protocol: HTTPS
       port: 443
       tls:
@@ -35,7 +35,7 @@ spec:
       allowedRoutes:
         namespaces: { from: All }
     - name: keycloak
-      hostname: auth.devopsandbox.chanakanlabs.com
+      hostname: auth.43.210.113.14.sslip.io
       protocol: HTTPS
       port: 443
       tls:
@@ -44,7 +44,7 @@ spec:
       allowedRoutes:
         namespaces: { from: All }
     - name: argocd
-      hostname: argocd.devopsandbox.chanakanlabs.com
+      hostname: argocd.43.210.113.14.sslip.io
       protocol: HTTPS
       port: 443
       tls:
