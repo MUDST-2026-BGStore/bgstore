@@ -178,7 +178,7 @@ function tableNumber(reservation: { id: string }): string {
           <dl v-else class="dashboard-stock-counts">
             <div>
               <dt>Available items</dt>
-              <dd class="stock-low">
+              <dd>
                 {{ pantryItems.filter((row) => row.available > 0).length }}
               </dd>
             </div>
