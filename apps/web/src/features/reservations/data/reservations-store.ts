@@ -322,7 +322,26 @@ function loadReservations(): CustomerReservation[] {
       return initial;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : getInitialReservations();
+    if (!Array.isArray(parsed)) return getInitialReservations();
+    let repaired = false;
+    const reservations = (parsed as CustomerReservation[]).map(
+      (reservation) => {
+        if (
+          reservation.status !== 'CHECKED_IN' ||
+          !reservation.checkedInAt ||
+          !Number.isFinite(Date.parse(reservation.startsAt)) ||
+          Date.parse(reservation.checkedInAt) >=
+            Date.parse(reservation.startsAt)
+        )
+          return reservation;
+        const booking = { ...reservation, status: 'CONFIRMED' as const };
+        delete booking.checkedInAt;
+        repaired = true;
+        return booking;
+      },
+    );
+    if (repaired) saveReservations(reservations);
+    return reservations;
   } catch {
     return getInitialReservations();
   }

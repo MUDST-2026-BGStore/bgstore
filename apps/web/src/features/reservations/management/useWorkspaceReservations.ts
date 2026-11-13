@@ -331,8 +331,10 @@ export function useWorkspaceReservations() {
     actionError.value = '';
     actionInProgress.value = res.id;
     try {
-      reservationsStore.checkInReservation(res.id);
       await checkInMutation.mutateAsync(res.id);
+      reservationsStore.checkInReservation(res.id);
+    } catch {
+      // The API rejected the check-in; keep the saved reservation unchanged.
     } finally {
       actionInProgress.value = null;
     }
