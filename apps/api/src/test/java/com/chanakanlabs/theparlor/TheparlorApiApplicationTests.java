@@ -1215,8 +1215,14 @@ class TheparlorApiApplicationTests {
                 + "\"}");
     assertThat(moved.statusCode()).as(moved.body()).isEqualTo(200);
     assertThat(JSON.readTree(moved.body()).get("partySize").asInt()).isEqualTo(2);
-    assertThat(JSON.readTree(get(customer, "/api/v1/me/reservations").body()).get("items"))
-        .hasSize(1);
+    // Other tests also book as this customer, so count only this branch's visits.
+    assertThat(
+            JSON.readTree(get(customer, "/api/v1/me/reservations").body())
+                .get("items")
+                .valueStream()
+                .filter(item -> item.get("branchId").asString().equals(branch.toString()))
+                .count())
+        .isEqualTo(1);
     assertThat(get(login("staff"), reservationPath).statusCode()).isEqualTo(403);
     assertThat(send(customer, "POST", reservationPath + "/check-in", null).statusCode())
         .isEqualTo(403);
