@@ -29,7 +29,7 @@ jobs:
         run: echo "JAVA_HOME=$(mise where java)" >> "$GITHUB_ENV"
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - name: Run all API checks (Testcontainers, module boundaries, user maintenance)
         working-directory: apps/api
         run: ./gradlew check --console=plain
@@ -55,7 +55,7 @@ jobs:
         run: echo "JAVA_HOME=$(mise where java)" >> "$GITHUB_ENV"
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - name: Generate local credentials
         run: node tools/configure.mjs
       - name: Start PostgreSQL, Valkey, Keycloak and Mailpit
