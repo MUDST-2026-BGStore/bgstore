@@ -1,5 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 
+import { BRANCH_OPERATOR_ROLES } from '../../shared/lib/roles';
+
 export const workspaceRoutes: RouteRecordRaw[] = [
   {
     path: '/workspace',
@@ -10,7 +12,8 @@ export const workspaceRoutes: RouteRecordRaw[] = [
   {
     path: '/workspace/management',
     name: 'WorkspaceManagement',
-    meta: { requiresAuth: true },
+    // The redirects below land here, so they inherit this role check.
+    meta: { requiresAuth: true, roles: BRANCH_OPERATOR_ROLES },
     component: () => import('../reservations/pages/StaffReservationsPage.vue'),
   },
   {

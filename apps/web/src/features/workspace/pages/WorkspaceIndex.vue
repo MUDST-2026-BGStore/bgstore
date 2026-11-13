@@ -6,8 +6,12 @@ import { useHello, useWhoami } from '@theparlor/api-client';
 import { BButton, BCard } from '@theparlor/ui';
 
 import { useLocale } from '../../../shared/lib/locale';
+import { canOperateBranches } from '../../../shared/lib/roles';
 
 const auth = useAuthStore();
+const canManage = computed(
+  () => auth.authenticated && canOperateBranches(auth.roles),
+);
 const { locale } = useLocale();
 
 const {
@@ -109,6 +113,7 @@ const copy = computed(() =>
           <span class="navigation-arrow" aria-hidden="true">→</span>
         </RouterLink>
         <RouterLink
+          v-if="canManage"
           class="navigation-card"
           :to="{ name: 'WorkspaceManagement' }"
         >

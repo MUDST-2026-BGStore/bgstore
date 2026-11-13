@@ -11,6 +11,7 @@ import {
   type Reservation,
 } from '@theparlor/api-client';
 import { useCustomerReservationsStore } from '../data/reservations-store';
+import { httpStatus } from '../../../shared/lib/api-errors';
 
 export function useWorkspaceReservations() {
   const queryClient = useQueryClient();
@@ -49,6 +50,17 @@ export function useWorkspaceReservations() {
     enabled: computed(() => !!selectedBranchId.value),
   });
 
+  // The server decides who operates a branch. Until it has answered this branch's
+  // reservation list successfully, the workspace shows no records at all, including
+  // the local sample visits merged below.
+  const branchAccessVerified = computed(
+    () => !!selectedBranchId.value && reservationsQuery.isSuccess.value,
+  );
+  const branchAccessDenied = computed(() => {
+    const status = httpStatus(reservationsQuery.error.value);
+    return status === 401 || status === 403;
+  });
+
   const currentTimeStr = computed(() => {
     const updatedAt = reservationsQuery.dataUpdatedAt.value;
     return updatedAt
@@ -75,6 +87,7 @@ export function useWorkspaceReservations() {
   });
 
   const allReservations = computed<any[]>(() => {
+    if (!branchAccessVerified.value) return [];
     const now = Date.now();
     const apiItems = (reservationsQuery.data.value?.items ?? []).map((r) => {
       if (r.status === 'CONFIRMED' && !r.checkedInAt) {
@@ -507,6 +520,8 @@ export function useWorkspaceReservations() {
     branches,
     selectedBranch,
     reservationsQuery,
+    branchAccessVerified,
+    branchAccessDenied,
     autoNoShowMutation,
     allReservations,
     activeFloorReservations,
