@@ -151,8 +151,14 @@ test('remembers a chosen branch without putting prices on catalog cards', async 
     'http://localhost',
   );
   expect(playUrl.pathname).toBe('/reservations/new');
-  expect(playUrl.searchParams.get('game')).toBeTruthy();
-  expect(playUrl.searchParams.get('branch')).toBeTruthy();
+  const branches = (await (await page.request.get('/api/v1/branches')).json())
+    .items as { id: string; name: string }[];
+  expect(playUrl.searchParams.get('game')).toBe(
+    new URL(page.url()).pathname.split('/').at(-1),
+  );
+  expect(playUrl.searchParams.get('branch')).toBe(
+    branches.find((branch) => branch.name === 'Ari')?.id,
+  );
   await expect(
     page.getByRole('link', { name: 'Reserve a table at Ari', exact: true }),
   ).toBeVisible();

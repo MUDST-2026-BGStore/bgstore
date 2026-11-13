@@ -53,6 +53,8 @@ dependencies {
 	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
 	testImplementation("org.springframework.boot:spring-boot-testcontainers")
 	testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+	// Property-based tests: invariants checked over generated inputs (JUnit Platform engine).
+	testImplementation("net.jqwik:jqwik:1.9.3")
 	testImplementation("org.testcontainers:testcontainers-postgresql")
 	testImplementation("com.github.dasniko:testcontainers-keycloak:4.4.0")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
