@@ -313,6 +313,20 @@ function getInitialReservations(): CustomerReservation[] {
   ];
 }
 
+/**
+ * Walk-ins seated by the counter used to be written here before the server had
+ * answered and kept when it refused them, so browsers may still hold sessions the
+ * server never accepted. They have this exact shape; every other record, including
+ * the sample sessions, is kept untouched.
+ */
+export function isUnconfirmedWalkIn(record: CustomerReservation): boolean {
+  return (
+    record.clientType === 'WALK_IN' &&
+    record.notes === 'Counter Walk-in Session' &&
+    /^walkin-[0-9a-z]+$/.test(record.id)
+  );
+}
+
 function loadReservations(): CustomerReservation[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -322,7 +336,12 @@ function loadReservations(): CustomerReservation[] {
       return initial;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : getInitialReservations();
+    if (!Array.isArray(parsed)) return getInitialReservations();
+    const kept = (parsed as CustomerReservation[]).filter(
+      (record) => !isUnconfirmedWalkIn(record),
+    );
+    if (kept.length !== parsed.length) saveReservations(kept);
+    return kept;
   } catch {
     return getInitialReservations();
   }
@@ -377,46 +396,6 @@ export function useCustomerReservationsStore() {
     }
     reservationsList.value = [reservation, ...reservationsList.value];
     saveReservations(reservationsList.value);
-  }
-
-  function startWalkInSession(params: {
-    branchId: string;
-    branchName: string;
-    tableId: string;
-    tableLabel: string;
-    partySize: number;
-    customerName: string;
-    customerPhone?: string;
-    hourlyRate?: number;
-    durationHours?: number;
-  }): CustomerReservation {
-    const now = new Date();
-    const duration = params.durationHours || 2;
-    const endsAt = new Date(now.getTime() + duration * 3600000);
-
-    const newWalkIn: CustomerReservation = {
-      id: `walkin-${Date.now().toString(36)}`,
-      branchId: params.branchId,
-      branchName: params.branchName,
-      tableId: params.tableId,
-      tableLabel: params.tableLabel,
-      startsAt: now.toISOString(),
-      endsAt: endsAt.toISOString(),
-      checkedInAt: now.toISOString(),
-      partySize: params.partySize,
-      status: 'CHECKED_IN',
-      customerName: params.customerName || 'Walk-in Guests',
-      customerPhone: params.customerPhone,
-      clientType: 'WALK_IN',
-      hourlyRate: params.hourlyRate || 200,
-      notes: 'Counter Walk-in Session',
-      createdAt: now.toISOString(),
-      inPlayOrders: [],
-    };
-
-    reservationsList.value = [newWalkIn, ...reservationsList.value];
-    saveReservations(reservationsList.value);
-    return newWalkIn;
   }
 
   function cancelReservation(reservationId: string, reason?: string) {
@@ -534,7 +513,6 @@ export function useCustomerReservationsStore() {
     reservations: allReservations,
     activeSession,
     addReservation,
-    startWalkInSession,
     cancelReservation,
     checkInReservation,
     addInPlayOrder,

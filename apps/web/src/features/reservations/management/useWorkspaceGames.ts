@@ -20,14 +20,14 @@ export function useWorkspaceGames({
   const gameSearchQuery = ref('');
   const gameStatusFilter = ref<'ALL' | 'AVAILABLE' | 'IN_USE'>('ALL');
   const selectedGameToAssign = ref<CatalogGame | null>(null);
-  const assignGameTargetTableId = ref('1');
+  const assignGameTargetTableId = ref('');
   const showAssignGameModal = ref(false);
   const assignModalSearch = ref('');
 
-  // Table assigned games tracking
+  // Games on tables, keyed by canonical table ID (here, the sample floor's).
   const tableAssignedGames = ref<Record<string, string[]>>({
-    '1': ['Azul'],
-    '2': ['Wingspan'],
+    't-siam-1': ['Azul'],
+    't-siam-2': ['Wingspan'],
   });
 
   function getTableAssignedGames(tableId: string | number): string[] {
@@ -37,7 +37,8 @@ export function useWorkspaceGames({
   function getGameLocation(gameName: string): string | null {
     for (const [tId, gList] of Object.entries(tableAssignedGames.value)) {
       if (gList.some((g) => g.toLowerCase() === gameName.toLowerCase())) {
-        return `Table ${tId}`;
+        const table = branchFloorTables.find((t) => t.id === tId);
+        if (table) return table.label;
       }
     }
     return null;

@@ -15,6 +15,7 @@ const {
   selectedBranch,
   allReservations,
   branchFloorTables,
+  tableLabel,
   occupiedTablesCount,
   freeTablesCount,
   upcomingReservations,
@@ -22,7 +23,6 @@ const {
   needsYouItems,
   lowStockCount,
   outOfStockCount,
-  getTableStatus,
   getElapsedMinutes,
   calculateCurrentPlayFee,
   formatTime,
@@ -41,12 +41,6 @@ const queueColumns = [
   { label: 'Table fee', numeric: true },
   { label: 'Actions', action: true },
 ];
-function tableNumber(reservation: { id: string }): string {
-  const table = branchFloorTables.find(
-    (table) => getTableStatus(table).reservation?.id === reservation.id,
-  );
-  return table ? String(table.number) : '—';
-}
 </script>
 
 <template>
@@ -142,7 +136,7 @@ function tableNumber(reservation: { id: string }): string {
               }}</time>
               <strong>{{ getCustomerName(reservation.customer) }}</strong>
               <p>
-                Table {{ tableNumber(reservation) }}
+                {{ tableLabel(reservation.tableId) }}
                 <span aria-hidden="true">·</span>
                 {{ reservation.partySize }} guests
               </p>
@@ -221,7 +215,7 @@ function tableNumber(reservation: { id: string }): string {
           <tr v-for="item in needsYouItems" :key="item.id">
             <th scope="row">
               <strong class="queue-table-label"
-                >Table {{ tableNumber(item.reservation) }}</strong
+                >{{ tableLabel(item.reservation.tableId) }}</strong
               ><AppBadge :tone="item.type === 'LATE' ? 'danger' : 'success'">{{
                 item.type === 'LATE' ? 'Late arrival' : 'In play'
               }}</AppBadge>

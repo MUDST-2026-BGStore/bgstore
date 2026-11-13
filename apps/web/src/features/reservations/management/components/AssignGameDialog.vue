@@ -26,7 +26,7 @@ const {
 const tables = computed(() =>
   branchFloorTables.map((table) => ({
     id: table.id,
-    label: `Table ${table.number}`,
+    label: table.label,
     disabled:
       getTableStatus(table).state !== 'OCCUPIED' ||
       getTableAssignedGames(table.id).length > 0,
