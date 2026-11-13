@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { PhoneNumberInput } from '@theparlor/ui';
 import { useRoute, RouterLink } from 'vue-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import {
@@ -23,6 +25,7 @@ const route = useRoute();
 const auth = useAuthStore();
 const queryClient = useQueryClient();
 const { t, locale } = useStoreText();
+const { t: phoneText } = useI18n({ useScope: 'global' });
 const storeContext = useStoreContextStore();
 const reservationsStore = useCustomerReservationsStore();
 
@@ -33,6 +36,10 @@ const currentStep = ref<number>(1);
 const selectedBranchId = ref<string>('');
 const reservationDate = ref<string>('');
 const reservationStartTime = ref<string>('14:00');
+function openNativePicker(event: MouseEvent) {
+  const input = event.currentTarget as HTMLInputElement;
+  input.showPicker?.();
+}
 const reservationDurationHours = ref<number>(2);
 const partySize = ref<number>(4);
 
@@ -245,47 +252,15 @@ const customerName = ref<string>(auth.displayName || auth.username || '');
 const customerEmail = ref<string>(
   auth.authenticated ? `${auth.username}@theparlor.test` : '',
 );
-const customerCountryCode = ref<string>('+66'); // Default +66 but freely changeable to any code!
 const customerPhone = ref<string>('');
 const specialNotes = ref<string>('');
 
-// Phone Validation: clean digits, min 8, max 15
-const cleanPhoneDigits = computed(() => customerPhone.value.replace(/\D/g, ''));
-const isPhoneValid = computed(() => {
-  const len = cleanPhoneDigits.value.length;
-  return len >= 8 && len <= 15;
-});
+const isPhoneValid = ref(false);
 const isPhoneDirty = ref(false);
 const phoneErrorMessage = computed(() => {
   if (!isPhoneDirty.value || !customerPhone.value.trim()) return '';
-  if (cleanPhoneDigits.value.length < 8) {
-    return t('Phone number must have at least 8 digits.');
-  }
-  if (cleanPhoneDigits.value.length > 15) {
-    return t('Phone number is too long.');
-  }
-  return '';
+  return isPhoneValid.value ? '' : phoneText('phone.invalid');
 });
-
-// Country codes list (flexible, does NOT have to be +66!)
-const countryCodes = [
-  { code: '+66', label: 'Thailand (+66)' },
-  { code: '+1', label: 'United States / Canada (+1)' },
-  { code: '+44', label: 'United Kingdom (+44)' },
-  { code: '+65', label: 'Singapore (+65)' },
-  { code: '+81', label: 'Japan (+81)' },
-  { code: '+61', label: 'Australia (+61)' },
-  { code: '+49', label: 'Germany (+49)' },
-  { code: '+33', label: 'France (+33)' },
-  { code: '+82', label: 'South Korea (+82)' },
-  { code: '+86', label: 'China (+86)' },
-  { code: '+852', label: 'Hong Kong (+852)' },
-  { code: '+886', label: 'Taiwan (+886)' },
-  { code: '+60', label: 'Malaysia (+60)' },
-  { code: '+84', label: 'Vietnam (+84)' },
-  { code: '+62', label: 'Indonesia (+62)' },
-  { code: '+91', label: 'India (+91)' },
-];
 
 // Query real-time branch availability for tables
 const availabilityQuery = useQuery({
@@ -579,7 +554,7 @@ async function onPaymentCompleted(paymentMeta: {
           class="step-indicator"
           :class="{ active: currentStep === 1, completed: currentStep > 1 }"
         >
-          <span class="step-num">1</span>
+          <span class="step-num"><span>1</span></span>
           <span class="step-text">{{ t('When & Where') }}</span>
         </div>
         <div class="step-divider" />
@@ -587,7 +562,7 @@ async function onPaymentCompleted(paymentMeta: {
           class="step-indicator"
           :class="{ active: currentStep === 2, completed: currentStep > 2 }"
         >
-          <span class="step-num">2</span>
+          <span class="step-num"><span>2</span></span>
           <span class="step-text">{{ t('Table & Info') }}</span>
         </div>
         <div class="step-divider" />
@@ -595,7 +570,7 @@ async function onPaymentCompleted(paymentMeta: {
           class="step-indicator"
           :class="{ active: currentStep === 3, completed: currentStep > 3 }"
         >
-          <span class="step-num">3</span>
+          <span class="step-num"><span>3</span></span>
           <span class="step-text">{{ t('Food & Drinks (-10%)') }}</span>
         </div>
         <div class="step-divider" />
@@ -603,7 +578,7 @@ async function onPaymentCompleted(paymentMeta: {
           class="step-indicator"
           :class="{ active: currentStep === 4, completed: currentStep > 4 }"
         >
-          <span class="step-num">4</span>
+          <span class="step-num"><span>4</span></span>
           <span class="step-text">{{ t('Review & Pay') }}</span>
         </div>
       </nav>
@@ -630,7 +605,12 @@ async function onPaymentCompleted(paymentMeta: {
           <!-- Registered Member Verification Callout -->
           <div v-if="auth.authenticated" class="member-status-bar">
             <div class="member-meta">
-              <span class="gold-icon">✦</span>
+              <svg class="gold-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M12 3 15 9 21 12 15 15 12 21 9 15 3 12 9 9Z"
+                />
+              </svg>
               <span class="member-text">{{
                 t('Reserving as Registered Member:')
               }}</span>
@@ -679,7 +659,7 @@ async function onPaymentCompleted(paymentMeta: {
               }"
               class="btn btn-primary auth-signin-btn"
             >
-              {{ t('Sign In / Register') }} →
+              <span>{{ t('Sign In / Register') }} →</span>
             </RouterLink>
           </div>
 
@@ -713,6 +693,7 @@ async function onPaymentCompleted(paymentMeta: {
                 type="date"
                 class="form-input"
                 required
+                @click="openNativePicker"
               />
             </div>
 
@@ -727,6 +708,7 @@ async function onPaymentCompleted(paymentMeta: {
                 type="time"
                 class="form-input"
                 required
+                @click="openNativePicker"
               />
             </div>
 
@@ -826,7 +808,7 @@ async function onPaymentCompleted(paymentMeta: {
                     d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"
                   ></path>
                 </svg>
-                The Parlor · {{ selectedBranch?.name }}
+                <span>The Parlor · {{ selectedBranch?.name }}</span>
                 <svg
                   class="gold-icon mini-crest"
                   viewBox="0 0 24 24"
@@ -850,11 +832,11 @@ async function onPaymentCompleted(paymentMeta: {
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                   <circle cx="9" cy="7" r="4"></circle>
                 </svg>
-                {{
+                <span>{{
                   t(partySize === 1 ? '{count} player' : '{count} players', {
                     count: partySize,
                   })
-                }}
+                }}</span>
               </span>
             </div>
 
@@ -946,9 +928,9 @@ async function onPaymentCompleted(paymentMeta: {
           </div>
 
           <div class="wizard-actions">
-            <RouterLink :to="{ name: 'HomeIndex' }" class="btn btn-secondary">{{
-              t('Cancel')
-            }}</RouterLink>
+            <RouterLink :to="{ name: 'HomeIndex' }" class="btn btn-secondary">
+              <span>{{ t('Cancel') }}</span>
+            </RouterLink>
             <button
               type="button"
               class="btn btn-primary"
@@ -1027,7 +1009,7 @@ async function onPaymentCompleted(paymentMeta: {
               class="btn btn-secondary"
               @click="currentStep = 1"
             >
-              {{ t('← Change Time or Branch') }}
+              <span>{{ t('← Change Time or Branch') }}</span>
             </button>
           </div>
 
@@ -1151,32 +1133,16 @@ async function onPaymentCompleted(paymentMeta: {
                 <label for="cust-phone" class="form-label">
                   {{ t('Phone Number') }}
                 </label>
-                <div class="phone-input-group">
-                  <select
-                    v-model="customerCountryCode"
-                    class="country-code-select"
-                    aria-label="Country Code"
-                  >
-                    <option
-                      v-for="c in countryCodes"
-                      :key="c.code"
-                      :value="c.code"
-                    >
-                      {{ c.label }}
-                    </option>
-                  </select>
-                  <input
-                    id="cust-phone"
-                    v-model="customerPhone"
-                    type="tel"
-                    placeholder="812345678"
-                    class="form-input phone-number-field"
-                    :class="{ 'is-invalid': isPhoneDirty && !isPhoneValid }"
-                    required
-                    @blur="isPhoneDirty = true"
-                    @input="isPhoneDirty = true"
-                  />
-                </div>
+                <PhoneNumberInput
+                  id="cust-phone"
+                  v-model="customerPhone"
+                  class="reservation-phone"
+                  :class="{ 'is-invalid': !!phoneErrorMessage }"
+                  required
+                  @validity="isPhoneValid = $event"
+                  @blur="isPhoneDirty = true"
+                  @update:model-value="isPhoneDirty = true"
+                />
                 <small
                   v-if="phoneErrorMessage"
                   class="phone-error-hint"
@@ -1214,7 +1180,7 @@ async function onPaymentCompleted(paymentMeta: {
               class="btn btn-secondary"
               @click="currentStep = 1"
             >
-              {{ t('← Back') }}
+              <span>{{ t('← Back') }}</span>
             </button>
             <button
               type="button"
@@ -1224,7 +1190,7 @@ async function onPaymentCompleted(paymentMeta: {
               "
               @click="currentStep = 3"
             >
-              {{ t('Add Food & Drinks (-10%) →') }}
+              <span>{{ t('Add Food & Drinks (-10%) →') }}</span>
             </button>
           </div>
         </section>
@@ -1257,14 +1223,14 @@ async function onPaymentCompleted(paymentMeta: {
               class="btn btn-secondary"
               @click="currentStep = 2"
             >
-              {{ t('← Back to Table') }}
+              <span>{{ t('← Back to Table') }}</span>
             </button>
             <button
               type="button"
               class="btn btn-primary"
               @click="currentStep = 4"
             >
-              {{ t('Proceed to Review & Pay →') }}
+              <span>{{ t('Proceed to Review & Pay →') }}</span>
             </button>
           </div>
         </section>
@@ -1319,8 +1285,7 @@ async function onPaymentCompleted(paymentMeta: {
               <div class="review-row">
                 <span class="label">{{ t('Guest') }}:</span>
                 <span class="val"
-                  >{{ customerName }} ({{ customerCountryCode }}
-                  {{ customerPhone }})</span
+                  >{{ customerName }} ({{ customerPhone }})</span
                 >
               </div>
 
@@ -1421,11 +1386,11 @@ async function onPaymentCompleted(paymentMeta: {
                 :disabled="isSubmitting"
                 @click="proceedToPayment"
               >
-                {{
+                <span>{{
                   t('Pay Pre-order ฿{total} with PromptPay QR →', {
                     total: payNowTotal,
                   })
-                }}
+                }}</span>
               </button>
               <button
                 v-else
@@ -1434,7 +1399,9 @@ async function onPaymentCompleted(paymentMeta: {
                 :disabled="isSubmitting"
                 @click="confirmWithoutPayment"
               >
-                {{ t('Confirm Table Reservation (Pay at Counter) →') }}
+                <span>{{
+                  t('Confirm Table Reservation (Pay at Counter)')
+                }}</span>
               </button>
               <p class="pay-note">
                 {{
@@ -1456,7 +1423,7 @@ async function onPaymentCompleted(paymentMeta: {
               class="btn btn-secondary"
               @click="currentStep = 3"
             >
-              {{ t('← Back to Food & Drinks') }}
+              <span>{{ t('← Back to Food & Drinks') }}</span>
             </button>
           </div>
         </section>
@@ -1516,10 +1483,7 @@ async function onPaymentCompleted(paymentMeta: {
               </div>
               <div class="meta-line">
                 <span class="lbl">{{ t('Guest') }}:</span>
-                <span class="v"
-                  >{{ customerName }} ({{ customerCountryCode }}
-                  {{ customerPhone }})</span
-                >
+                <span class="v">{{ customerName }} ({{ customerPhone }})</span>
               </div>
               <div class="meta-line">
                 <span class="lbl">{{ t('Table Fee') }}:</span>
@@ -1557,17 +1521,17 @@ async function onPaymentCompleted(paymentMeta: {
                 :to="{ name: 'CustomerReservationsList' }"
                 class="btn btn-primary"
               >
-                {{ t('View My Reservations') }}
+                <span>{{ t('View My Reservations') }}</span>
               </RouterLink>
               <button
                 type="button"
                 class="btn btn-secondary"
                 @click="currentStep = 1"
               >
-                + {{ t('Reserve a Table Now') }}
+                <span>+ {{ t('Reserve a Table Now') }}</span>
               </button>
               <RouterLink :to="{ name: 'HomeIndex' }" class="btn btn-secondary">
-                {{ t('Return to Catalog') }}
+                <span>{{ t('Return to Catalog') }}</span>
               </RouterLink>
             </div>
           </div>
@@ -1645,6 +1609,7 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .step-num {
+  flex-shrink: 0;
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -1655,6 +1620,18 @@ async function onPaymentCompleted(paymentMeta: {
   justify-content: center;
   font-size: 13px;
   font-weight: 700;
+}
+
+/* Trim font leading on labels, while flex centers their visible text boxes. */
+.step-num > span,
+.step-text,
+.member-text,
+.member-name,
+.member-badge-perk,
+.parlor-crest > span,
+.party-badge > span,
+.btn > span {
+  text-box: trim-both cap alphabetic;
 }
 
 .step-indicator.active .step-num {
@@ -1749,32 +1726,12 @@ async function onPaymentCompleted(paymentMeta: {
   box-shadow: 0 0 0 2px rgba(32, 60, 48, 0.15);
 }
 
-.phone-input-group {
-  display: flex;
-  gap: 8px;
-}
-
-.country-code-select {
-  padding: 10px 12px;
-  border: 1px solid #c9bda7;
-  border-radius: 6px;
-  background: #fffaf1;
-  color: #203c30;
-  font-size: 13px;
-  font-weight: 600;
-  max-width: 220px;
-}
-
-.phone-number-field {
-  flex: 1;
-}
-
 .field-hint {
   font-size: 11px;
   color: #6a6252;
 }
 
-/* Glamorous Brief Reservation Summary with Running Gold Shine Border */
+/* Reservation summary with a static gold border. */
 .glamorous-summary-card {
   position: relative;
   background: #142b20;
@@ -1799,34 +1756,7 @@ async function onPaymentCompleted(paymentMeta: {
   z-index: 0;
 }
 
-/* Continuous running gold shine animation around the perimeter */
-.glamorous-summary-card::before {
-  content: '';
-  position: absolute;
-  top: -100%;
-  left: -100%;
-  width: 300%;
-  height: 300%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    transparent 65deg,
-    rgba(198, 173, 122, 0.3) 78deg,
-    #c6ad7a 84deg,
-    #fff8e7 89deg,
-    #ffffff 90deg,
-    #fff8e7 91deg,
-    #f3e0aa 96deg,
-    rgba(198, 173, 122, 0.4) 102deg,
-    transparent 115deg,
-    transparent 360deg
-  );
-  animation: goldBorderSpin 4s linear infinite;
-  z-index: -2;
-  pointer-events: none;
-}
-
-/* Inner deep emerald parlor core to reveal only the 2px running gold border */
+/* Keep the emerald background inside the static border. */
 .glamorous-summary-card::after {
   content: '';
   position: absolute;
@@ -1848,18 +1778,11 @@ async function onPaymentCompleted(paymentMeta: {
   z-index: 1;
 }
 
-@keyframes goldBorderSpin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
 .summary-card-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
   justify-content: space-between;
   border-bottom: 1px solid rgba(198, 173, 122, 0.3);
   padding-bottom: 12px;
@@ -1867,6 +1790,9 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .parlor-crest {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
   font-family: 'Plus Jakarta Sans', Arial, sans-serif;
   font-size: 13px;
   font-weight: 700;
@@ -1876,6 +1802,11 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .party-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
   background: rgba(198, 173, 122, 0.2);
   border: 1px solid #c6ad7a;
   color: #fff3dc;
@@ -1895,11 +1826,13 @@ async function onPaymentCompleted(paymentMeta: {
 
 .summary-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
 }
 
 .summary-icon {
+  display: flex;
+  flex-shrink: 0;
   font-size: 18px;
   line-height: 1.2;
 }
@@ -2094,7 +2027,7 @@ async function onPaymentCompleted(paymentMeta: {
   font-weight: 600;
 }
 
-.form-input.phone-number-field.is-invalid {
+.reservation-phone.is-invalid :deep(.phone-control) {
   border-color: #c0392b;
   background: #fff8f8;
 }
@@ -2348,6 +2281,8 @@ async function onPaymentCompleted(paymentMeta: {
 /* Actions buttons */
 .wizard-actions {
   display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 12px;
   border-top: 1px solid #eee4d1;
@@ -2359,6 +2294,10 @@ async function onPaymentCompleted(paymentMeta: {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  line-height: 1.5;
+  text-align: center;
   padding: 10px 18px;
   border-radius: 6px;
   font-size: 14px;
@@ -2371,7 +2310,7 @@ async function onPaymentCompleted(paymentMeta: {
 .btn-primary {
   background: #203c30;
   color: #fffaf1;
-  border: none;
+  border: 1px solid transparent;
 }
 
 .btn-primary:hover:not(:disabled) {
@@ -2526,19 +2465,28 @@ async function onPaymentCompleted(paymentMeta: {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #142b20;
+  background: radial-gradient(
+    ellipse at 50% 25%,
+    #1d3e2f 0%,
+    #142b20 70%,
+    #0d1e16 100%
+  );
   border: 1px solid #c6ad7a;
   border-radius: 8px;
   padding: 10px 16px;
   margin-bottom: 20px;
   gap: 12px;
-  box-shadow: 0 4px 14px rgba(20, 43, 32, 0.15);
+  box-shadow:
+    inset 0 0 16px rgba(10, 22, 16, 0.7),
+    0 4px 14px rgba(20, 43, 32, 0.15);
   flex-wrap: wrap;
 }
 
 .member-meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
   gap: 8px;
   font-size: 13.5px;
   color: #fffaf0;
@@ -2549,17 +2497,21 @@ async function onPaymentCompleted(paymentMeta: {
 }
 
 .member-name {
+  overflow-wrap: anywhere;
   color: #ffffff;
   font-weight: 800;
 }
 
 .member-badge-perk {
+  display: block;
+  line-height: 1.5;
+  padding-block: 7px;
   font-size: 11px;
   font-weight: 800;
   background: rgba(198, 173, 122, 0.2);
   border: 1px solid #ffd98a;
   color: #ffd98a;
-  padding: 3px 10px;
+  padding-inline: 10px;
   border-radius: 12px;
 }
 
