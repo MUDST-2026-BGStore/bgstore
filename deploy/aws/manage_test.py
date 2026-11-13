@@ -26,6 +26,11 @@ class ManifestConnectivityTests(unittest.TestCase):
              "import json, sys, yaml; print(json.dumps(list(yaml.safe_load_all(sys.stdin))))"],
             input=rendered, text=True))
 
+    def test_api_port_configuration_is_not_overridden_by_service_links(self):
+        api = next(item for item in self.resources
+                   if item["kind"] == "Deployment" and item["metadata"]["name"] == "api")
+        self.assertIs(api["spec"]["template"]["spec"].get("enableServiceLinks", True), False)
+
     def test_network_policies_allow_required_application_peers(self):
         workloads = {item["metadata"]["name"]: item["spec"]["template"]["metadata"]["labels"]
                      for item in self.resources if item["kind"] in ["Deployment", "StatefulSet"]}

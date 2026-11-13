@@ -10,18 +10,18 @@ Argo CD reads a published Git snapshot and applies Kubernetes manifests.
 The following identifiers were confirmed on 2026-11-13. Always query AWS before
 using an address or starting a machine, especially after rebuilding a sandbox.
 
-| Item | Value |
-| --- | --- |
-| AWS profile / account | `chanakanlabs` / `416604074663` |
-| Region | `ap-southeast-7` (Thailand) |
-| Instance | `i-041c168130c959aec`, Name `devopsandbox`, `m8g.large` |
-| Operating system / architecture | Amazon Linux 2023 / ARM64 |
-| Public address | `43.210.113.14` (existing Elastic IP) |
-| Kubernetes | k3s `v1.36.4+k3s1`, one schedulable server/worker |
-| Application namespace | `theparlor-dev` |
-| GitOps applications | `theparlor-routing`, `theparlor-dev` in `argocd` |
-| API image repository | `416604074663.dkr.ecr.ap-southeast-7.amazonaws.com/theparlor/api` |
-| Web image repository | `416604074663.dkr.ecr.ap-southeast-7.amazonaws.com/theparlor/web` |
+| Item                            | Value                                                             |
+| ------------------------------- | ----------------------------------------------------------------- |
+| AWS profile / account           | `chanakanlabs` / `416604074663`                                   |
+| Region                          | `ap-southeast-7` (Thailand)                                       |
+| Instance                        | `i-041c168130c959aec`, Name `devopsandbox`, `m8g.large`           |
+| Operating system / architecture | Amazon Linux 2023 / ARM64                                         |
+| Public address                  | `43.210.113.14` (existing Elastic IP)                             |
+| Kubernetes                      | k3s `v1.36.4+k3s1`, one schedulable server/worker                 |
+| Application namespace           | `theparlor-dev`                                                   |
+| GitOps applications             | `theparlor-routing`, `theparlor-dev` in `argocd`                  |
+| API image repository            | `416604074663.dkr.ecr.ap-southeast-7.amazonaws.com/theparlor/api` |
+| Web image repository            | `416604074663.dkr.ecr.ap-southeast-7.amazonaws.com/theparlor/web` |
 
 Required access includes AWS SSO, permission to start/stop the instance and push
 ECR images, the existing EC2 SSH private key, and Git push access to the origin

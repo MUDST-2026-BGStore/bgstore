@@ -263,6 +263,11 @@ def main():
                  "--target", "artifacts-runtime", "--build-context", f"artifacts={artifacts}",
                  "--file", f"deploy/docker/{app}.Dockerfile",
                  "--tag", f"theparlor-{app}:{tag}", "."], cwd=ROOT.parent.parent)
+            if app == "web":
+                # Exercise the runtime UID: nginx's /health endpoint also passes
+                # when host artifacts are root-owned and unreadable (umask 077).
+                run(["docker", "run", "--rm", "--entrypoint", "sh", f"theparlor-web:{tag}", "-c",
+                     "test -r /usr/share/nginx/html/index.html && test -x /usr/share/nginx/html/assets"])
     elif args.command == "publish-images":
         tag = os.environ.get("IMAGE_TAG")
         if not tag:
