@@ -15,8 +15,6 @@ import WorkspaceAnalytics from '../management/components/WorkspaceAnalytics.vue'
 import WorkspaceSettings from '../management/components/WorkspaceSettings.vue';
 import WorkspacePolicies from '../management/components/WorkspacePolicies.vue';
 import AssignGameDialog from '../management/components/AssignGameDialog.vue';
-import AddPantryItemDialog from '../management/components/AddPantryItemDialog.vue';
-import RestockDialog from '../management/components/RestockDialog.vue';
 import WorkspaceBillDialog from '../management/components/WorkspaceBillDialog.vue';
 import CancelBookingDialog from '../management/components/CancelBookingDialog.vue';
 import WalkInDialog from '../management/components/WalkInDialog.vue';
@@ -120,8 +118,6 @@ function resetViewScroll() {
       </div>
       <template v-if="branchAccessVerified">
         <AssignGameDialog />
-        <AddPantryItemDialog />
-        <RestockDialog />
         <WorkspaceBillDialog />
         <CancelBookingDialog />
         <WalkInDialog />

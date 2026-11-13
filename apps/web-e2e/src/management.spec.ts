@@ -93,8 +93,11 @@ test('keeps the complete dashboard information visible together on desktop', asy
     name: 'Pantry watch',
     exact: true,
   });
-  await expect(pantry.locator('dt')).toHaveText(['Low stock', 'Out of stock']);
-  await expect(pantry.locator('dd')).toHaveText(['4', '1']);
+  await expect(pantry.locator('dt')).toHaveText([
+    'Available items',
+    'Unavailable items',
+  ]);
+  await expect(pantry.locator('dd')).toHaveText(['0', '0']);
   await expect(pantry).toBeInViewport({ ratio: 1 });
 
   const queue = page.getByRole('region', {
@@ -303,167 +306,6 @@ test('supports visible-row selection and batch game returns without opening insp
   ).toBeVisible();
 });
 
-test('receives selected pantry items with separate quantities and clears selection', async ({
-  page,
-}) => {
-  await page
-    .getByRole('button', { name: 'Inventory & fulfillment', exact: true })
-    .click();
-  await page
-    .getByRole('button', { name: 'Food & drinks', exact: true })
-    .click();
-  const first = 'Coca-Cola Original (Can 325ml)';
-  const second = 'Coca-Cola Zero Sugar (Can 325ml)';
-  await page
-    .getByRole('checkbox', { name: `Select ${first}`, exact: true })
-    .check();
-  await page
-    .getByRole('checkbox', { name: `Select ${second}`, exact: true })
-    .check();
-  const selection = page.getByRole('region', { name: 'Selected row actions' });
-  await expect(selection).toContainText('2 selected');
-  await selection
-    .getByRole('button', { name: 'Receive stock', exact: true })
-    .click();
-  const dialog = page.getByRole('dialog', {
-    name: 'Receive stock',
-    exact: true,
-  });
-  await dialog
-    .getByRole('spinbutton', { name: `Quantity for ${first}`, exact: true })
-    .fill('6');
-  await dialog
-    .getByRole('spinbutton', { name: `Quantity for ${first}`, exact: true })
-    .press('Tab');
-  await dialog
-    .getByRole('spinbutton', { name: `Quantity for ${second}`, exact: true })
-    .fill('3');
-  await dialog
-    .getByRole('spinbutton', { name: `Quantity for ${second}`, exact: true })
-    .press('Tab');
-  await expect(dialog.getByText('54', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('39', { exact: true })).toBeVisible();
-  await dialog
-    .getByRole('button', { name: 'Receive stock', exact: true })
-    .click();
-  await expect(dialog).toHaveCount(0);
-  await expect(selection).toHaveCount(0);
-  const stock = page.getByRole('region', {
-    name: 'Stock for sale table',
-    exact: true,
-  });
-  await expect(
-    stock
-      .getByRole('row')
-      .filter({ hasText: first })
-      .locator('td.numeric')
-      .first(),
-  ).toContainText('54');
-  await expect(
-    stock
-      .getByRole('row')
-      .filter({ hasText: second })
-      .locator('td.numeric')
-      .first(),
-  ).toContainText('39');
-  await expect(stock).toBeFocused();
-  const detailsTrigger = stock.getByRole('button', {
-    name: 'View record BEV-COCA-COLA',
-    exact: true,
-  });
-  await detailsTrigger.click();
-  const details = page.getByRole('complementary', { name: first, exact: true });
-  const quantity = details.getByRole('spinbutton', {
-    name: `Stock for ${first}`,
-    exact: true,
-  });
-  await expect(quantity).toHaveValue('54');
-  await quantity.fill('55');
-  await quantity.press('Tab');
-  await expect(details.locator('dl').first().locator('dd')).toHaveText([
-    'BEV-COCA-COLA',
-    'Beverages',
-    'cans',
-    '55 cans',
-    '0 cans',
-    '55 cans',
-    '12 cans',
-    'In stock',
-  ]);
-  await details.getByRole('button', { name: 'Close details' }).click();
-  await expect(detailsTrigger).toBeFocused();
-  await expect(
-    stock
-      .getByRole('row')
-      .filter({ hasText: first })
-      .locator('td.numeric')
-      .first(),
-  ).toContainText('55');
-});
-
-test('confirms destructive row and batch actions before removing catalog items', async ({
-  page,
-}) => {
-  await page
-    .getByRole('button', { name: 'Inventory & fulfillment', exact: true })
-    .click();
-  await page
-    .getByRole('button', { name: 'Food & drinks', exact: true })
-    .click();
-  const first = 'Coca-Cola Original (Can 325ml)';
-  const second = 'Coca-Cola Zero Sugar (Can 325ml)';
-  const stock = page.getByRole('region', {
-    name: 'Stock for sale table',
-    exact: true,
-  });
-  await expect(stock.locator('tbody tr')).toHaveCount(15);
-  const firstRow = stock.getByRole('row').filter({ hasText: first });
-  await firstRow
-    .getByRole('button', { name: 'View record BEV-COCA-COLA', exact: true })
-    .click();
-  const details = page.getByRole('complementary', { name: first, exact: true });
-  await expect(details.getByText('Cost', { exact: true })).toBeVisible();
-  await expect(details.getByText('฿18', { exact: true })).toBeVisible();
-  await expect(details.getByText('49%', { exact: true })).toBeVisible();
-  const remove = details.getByRole('button', { name: 'Remove', exact: true });
-  await expect(remove).toHaveCSS('color', 'rgb(161, 55, 44)');
-  await remove.scrollIntoViewIfNeeded();
-  await expect(remove).toBeInViewport({ ratio: 1 });
-  await remove.click();
-  const single = page.getByRole('dialog', { name: 'Remove item', exact: true });
-  await expect(single.getByText(first, { exact: true })).toBeVisible();
-  await single.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect(stock.locator('tbody tr')).toHaveCount(15);
-  await expect(remove).toBeFocused();
-  await details.getByRole('button', { name: 'Close details' }).click();
-  await page
-    .getByRole('checkbox', { name: `Select ${first}`, exact: true })
-    .check();
-  await page
-    .getByRole('checkbox', { name: `Select ${second}`, exact: true })
-    .check();
-  await page
-    .getByRole('region', { name: 'Selected row actions' })
-    .getByRole('button', { name: 'Remove items', exact: true })
-    .click();
-  const batch = page.getByRole('dialog', { name: 'Remove items', exact: true });
-  await expect(batch.getByRole('listitem')).toHaveCount(2);
-  const confirm = batch.getByRole('button', {
-    name: 'Remove items',
-    exact: true,
-  });
-  await expect(confirm).toHaveCSS('background-color', 'rgb(161, 55, 44)');
-  await confirm.click();
-  await expect(batch).toHaveCount(0);
-  await expect(stock.locator('tbody tr')).toHaveCount(13);
-  await expect(stock.getByText(first, { exact: true })).toHaveCount(0);
-  await expect(stock.getByText(second, { exact: true })).toHaveCount(0);
-  await expect(
-    page.getByRole('region', { name: 'Selected row actions' }),
-  ).toHaveCount(0);
-  await expect(stock).toBeFocused();
-});
-
 test('uses the same tables and visually blank action headers throughout management', async ({
   page,
 }) => {
@@ -578,9 +420,6 @@ test('keeps manager-only cost and removal actions out of the staff inventory', a
   await page
     .getByRole('button', { name: 'Inventory & fulfillment', exact: true })
     .click();
-  await page
-    .getByRole('button', { name: 'Food & drinks', exact: true })
-    .click();
   await expect(
     page.getByRole('checkbox', {
       name: 'Select all receivable items',
@@ -597,10 +436,10 @@ test('keeps manager-only cost and removal actions out of the staff inventory', a
     page.getByRole('button', { name: /^Remove .* from catalog$/ }),
   ).toHaveCount(0);
   await page
-    .getByRole('button', { name: 'View record BEV-COCA-COLA', exact: true })
+    .getByRole('button', { name: 'View record AZUL-EN-B', exact: true })
     .click();
   const details = page.getByRole('complementary', {
-    name: 'Coca-Cola Original (Can 325ml)',
+    name: 'Azul',
     exact: true,
   });
   await expect(details.getByText('Cost', { exact: true })).toHaveCount(0);
@@ -632,7 +471,7 @@ for (const viewport of [
   { width: 390, height: 844 },
   { width: 812, height: 390 },
 ]) {
-  test(`contains all seven dialogs at ${viewport.width}×${viewport.height}`, async ({
+  test(`contains all six dialogs at ${viewport.width}×${viewport.height}`, async ({
     page,
   }) => {
     const errors: string[] = [];
@@ -695,24 +534,10 @@ for (const viewport of [
         width: 740,
         prepare: async () => {
           await page
-            .getByRole('button', { name: 'Food & drinks', exact: true })
-            .click();
-          await page
             .getByRole('button', {
-              name: 'View record BEV-COCA-COLA',
+              name: 'View record AZUL-EN-B',
               exact: true,
             })
-            .click();
-        },
-      },
-      {
-        view: 'Inventory & fulfillment',
-        button: 'Add food or drink',
-        title: 'Add menu item',
-        width: 600,
-        prepare: async () => {
-          await page
-            .getByRole('button', { name: 'Food & drinks', exact: true })
             .click();
         },
       },
@@ -776,7 +601,7 @@ for (const viewport of [
   });
 }
 
-test('uses the same selection, receipt and adjustment actions for games and food', async ({
+test('uses the same selection, receipt and adjustment actions for every sale item', async ({
   page,
 }) => {
   await page
@@ -786,12 +611,12 @@ test('uses the same selection, receipt and adjustment actions for games and food
     name: 'Stock for sale table',
     exact: true,
   });
-  await expect(stock.getByRole('checkbox')).toHaveCount(21);
+  await expect(stock.getByRole('checkbox')).toHaveCount(6);
   await page
     .getByRole('checkbox', { name: 'Select all receivable items', exact: true })
     .check();
   const selection = page.getByRole('region', { name: 'Selected row actions' });
-  await expect(selection).toContainText('20 selected');
+  await expect(selection).toContainText('5 selected');
   await selection
     .getByRole('button', { name: 'Clear selection', exact: true })
     .click();
@@ -799,10 +624,7 @@ test('uses the same selection, receipt and adjustment actions for games and food
     .getByRole('checkbox', { name: 'Select Azul', exact: true })
     .check();
   await stock
-    .getByRole('checkbox', {
-      name: 'Select Coca-Cola Original (Can 325ml)',
-      exact: true,
-    })
+    .getByRole('checkbox', { name: 'Select Pandemic', exact: true })
     .check();
   await expect(selection).toContainText('2 selected');
   await expect(
@@ -822,16 +644,10 @@ test('uses the same selection, receipt and adjustment actions for games and food
     .getByRole('spinbutton', { name: 'Quantity for Azul', exact: true })
     .press('Tab');
   await receipt
-    .getByRole('spinbutton', {
-      name: 'Quantity for Coca-Cola Original (Can 325ml)',
-      exact: true,
-    })
+    .getByRole('spinbutton', { name: 'Quantity for Pandemic', exact: true })
     .fill('6');
   await receipt
-    .getByRole('spinbutton', {
-      name: 'Quantity for Coca-Cola Original (Can 325ml)',
-      exact: true,
-    })
+    .getByRole('spinbutton', { name: 'Quantity for Pandemic', exact: true })
     .press('Tab');
   await receipt
     .getByRole('button', { name: 'Receive stock', exact: true })
@@ -841,9 +657,9 @@ test('uses the same selection, receipt and adjustment actions for games and food
   await expect(
     stock
       .getByRole('row')
-      .filter({ hasText: 'BEV-COCA-COLA' })
+      .filter({ hasText: 'PAND-EN-B' })
       .locator('td.numeric'),
-  ).toHaveText(['54cans', '0', '54']);
+  ).toHaveText(['14copies', '1', '13']);
   await expect(
     page.getByRole('complementary', { name: 'Azul', exact: true }),
   ).toHaveCount(0);
@@ -941,7 +757,7 @@ test('combines Fabric-style checkbox filters and clears them without closing the
     .all()) {
     await expect(row).toHaveCSS('height', '36px');
   }
-  await expect(table.locator('tbody > tr')).toHaveCount(5);
+  await expect(table.locator('tbody > tr')).toHaveCount(1);
   const lowRow = menu.getByText('Low stock', { exact: true }).locator('..');
   const nextRow = menu
     .getByText('Fully reserved', { exact: true })
@@ -968,7 +784,7 @@ test('combines Fabric-style checkbox filters and clears them without closing the
   await menu
     .getByRole('checkbox', { name: 'Out of stock', exact: true })
     .check();
-  await expect(table.locator('tbody > tr')).toHaveCount(7);
+  await expect(table.locator('tbody > tr')).toHaveCount(2);
   await category.click();
   await menu
     .getByRole('checkbox', { name: 'Retail games', exact: true })
@@ -976,7 +792,7 @@ test('combines Fabric-style checkbox filters and clears them without closing the
   await expect(table.locator('tbody > tr')).toHaveCount(2);
   await expect(trigger).toHaveAccessibleName('Filter (3)');
   await menu.getByRole('button', { name: 'Clear all', exact: true }).click();
-  await expect(table.locator('tbody > tr')).toHaveCount(20);
+  await expect(table.locator('tbody > tr')).toHaveCount(5);
   await expect(menu).toBeVisible();
   await expect(trigger).toHaveAccessibleName('Filter');
   await category.click();
@@ -1086,10 +902,11 @@ for (const viewport of [
       page
         .getByRole('region', { name: 'Stock for sale table' })
         .locator('tbody > tr'),
-    ).toHaveCount(20);
+    ).toHaveCount(5);
     const views = [
       {
         name: 'Stock for sale',
+        heading: 'Retail stock',
         type: 'Retail games',
         table: 'Stock for sale table',
         search: 'Search stock',
@@ -1098,17 +915,6 @@ for (const viewport of [
         filtered: 1,
         details: 'View record AZUL-EN-B',
         detailTitle: 'Azul',
-      },
-      {
-        name: 'Stock for sale',
-        type: 'Food & drinks',
-        table: 'Stock for sale table',
-        search: 'Search stock',
-        rows: 15,
-        status: 'NEED_REORDER',
-        filtered: 5,
-        details: 'View record BEV-COCA-COLA',
-        detailTitle: 'Coca-Cola Original (Can 325ml)',
       },
       {
         name: 'Rental assets',
@@ -1142,7 +948,10 @@ for (const viewport of [
           .getByRole('button', { name: view.type, exact: true })
           .click();
       await expect(
-        page.getByRole('heading', { name: view.name, exact: true }),
+        page.getByRole('heading', {
+          name: view.heading ?? view.name,
+          exact: true,
+        }),
       ).toBeVisible();
       await expect(
         page.locator(
@@ -1150,7 +959,7 @@ for (const viewport of [
         ),
       ).toHaveCount(0);
       const summary = page.getByRole('group', {
-        name: `${view.name} summary`,
+        name: `${view.heading ?? view.name} summary`,
         exact: true,
       });
       await expect(summary.locator('strong')).toHaveCount(4);
@@ -1292,7 +1101,7 @@ for (const viewport of [
           ]);
           await expect(
             details.locator('dl').first().locator('dd').nth(5),
-          ).toHaveText(view.type === 'Retail games' ? '7 copies' : '48 cans');
+          ).toHaveText('7 copies');
         }
         await details
           .getByRole('button', { name: 'Close details', exact: true })
@@ -1309,23 +1118,16 @@ for (const viewport of [
       .getByRole('button', { name: 'Stock for sale', exact: true })
       .click();
     await page
-      .getByRole('button', { name: 'Food & drinks', exact: true })
-      .click();
-    await page
-      .getByRole('checkbox', {
-        name: 'Select Coca-Cola Original (Can 325ml)',
-        exact: true,
-      })
+      .getByRole('checkbox', { name: 'Select Azul', exact: true })
       .check();
-    await page.getByRole('searchbox', { name: 'Search stock' }).fill('Zero');
+    await page
+      .getByRole('searchbox', { name: 'Search stock' })
+      .fill('Pandemic');
     await expect(
       page.getByRole('region', { name: 'Selected row actions' }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole('checkbox', {
-        name: 'Select Coca-Cola Zero Sugar (Can 325ml)',
-        exact: true,
-      }),
+      page.getByRole('checkbox', { name: 'Select Pandemic', exact: true }),
     ).not.toBeChecked();
   });
 
@@ -1355,13 +1157,9 @@ for (const viewport of [
       {
         name: 'Inventory & fulfillment',
         column: 'Item / SKU',
-        row: 'Select Coca-Cola Original (Can 325ml)',
+        row: 'Select Azul',
         all: 'Select all receivable items',
-        prepare: async () => {
-          await page
-            .getByRole('button', { name: 'Food & drinks', exact: true })
-            .click();
-        },
+        prepare: () => Promise.resolve(),
       },
     ];
     for (const view of views) {

@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { computed } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
+import { getBranchMenu } from '@theparlor/api-client';
 import {
   AppBadge,
   AppButton,
@@ -12,6 +15,7 @@ import { useManagementWorkspace } from '../context';
 import OverviewFloorTable from './OverviewFloorTable.vue';
 const {
   activeTab,
+  selectedBranchId,
   selectedBranch,
   allReservations,
   branchFloorTables,
@@ -20,8 +24,6 @@ const {
   upcomingReservations,
   activeFloorReservations,
   needsYouItems,
-  lowStockCount,
-  outOfStockCount,
   getTableStatus,
   getElapsedMinutes,
   calculateCurrentPlayFee,
@@ -34,6 +36,13 @@ const {
   openCheckBill,
   openAddSnacks,
 } = useManagementWorkspace();
+const pantryQuery = useQuery({
+  queryKey: ['branch-menu', selectedBranchId],
+  queryFn: ({ signal }) =>
+    getBranchMenu(selectedBranchId.value, undefined, signal),
+  enabled: computed(() => !!selectedBranchId.value),
+});
+const pantryItems = computed(() => pantryQuery.data.value?.items ?? []);
 const queueColumns = [
   { label: 'Table' },
   { label: 'Guest' },
@@ -65,45 +74,42 @@ function tableNumber(reservation: { id: string }): string {
       ></template
     >
     <section class="dashboard-summary" aria-label="Branch summary">
-        <AppMetricCard
-          as="button"
-          label="Bookings"
-          :value="allReservations.length"
-          caption="All statuses"
-          @click="activeTab = 'bookings'"
-        />
-        <AppMetricCard
-          as="button"
-          label="Tables in play"
-          :value="occupiedTablesCount"
-          :total="branchFloorTables.length"
-          :caption="`${freeTablesCount} free · ${branchFloorTables.length - occupiedTablesCount - freeTablesCount} reserved`"
-          @click="activeTab = 'floor'"
-        />
-        <AppMetricCard
-          as="button"
-          label="Awaiting arrival"
-          :value="upcomingReservations.length"
-          :caption="
-            upcomingReservations[0]
-              ? `Next ${formatTime(upcomingReservations[0].startsAt)}`
-              : 'No arrivals'
-          "
-          @click="activeTab = 'bookings'"
-        />
-        <AppMetricCard
-          as="button"
-          label="Active sessions"
-          :value="activeFloorReservations.length"
-          caption="Checked in"
-          @click="activeTab = 'sessions'"
-        />
+      <AppMetricCard
+        as="button"
+        label="Bookings"
+        :value="allReservations.length"
+        caption="All statuses"
+        @click="activeTab = 'bookings'"
+      />
+      <AppMetricCard
+        as="button"
+        label="Tables in play"
+        :value="occupiedTablesCount"
+        :total="branchFloorTables.length"
+        :caption="`${freeTablesCount} free · ${branchFloorTables.length - occupiedTablesCount - freeTablesCount} reserved`"
+        @click="activeTab = 'floor'"
+      />
+      <AppMetricCard
+        as="button"
+        label="Awaiting arrival"
+        :value="upcomingReservations.length"
+        :caption="
+          upcomingReservations[0]
+            ? `Next ${formatTime(upcomingReservations[0].startsAt)}`
+            : 'No arrivals'
+        "
+        @click="activeTab = 'bookings'"
+      />
+      <AppMetricCard
+        as="button"
+        label="Active sessions"
+        :value="activeFloorReservations.length"
+        caption="Checked in"
+        @click="activeTab = 'sessions'"
+      />
     </section>
     <div class="dashboard-columns">
-      <AppPanel
-        title="Floor status"
-        title-id="overview-floor-title"
-      >
+      <AppPanel title="Floor status" title-id="overview-floor-title">
         <template #meta
           ><span class="dashboard-count"
             >{{ branchFloorTables.length }} tables</span
@@ -119,10 +125,7 @@ function tableNumber(reservation: { id: string }): string {
         <OverviewFloorTable />
       </AppPanel>
       <div class="dashboard-sidebar">
-        <AppPanel
-          title="Upcoming arrivals"
-          title-id="overview-arrivals-title"
-        >
+        <AppPanel title="Upcoming arrivals" title-id="overview-arrivals-title">
           <template #command
             ><span class="dashboard-count">{{
               upcomingReservations.length
@@ -167,18 +170,23 @@ function tableNumber(reservation: { id: string }): string {
               ></i></AppButton
           ></template>
         </AppPanel>
-        <AppPanel
-          title="Pantry watch"
-          title-id="overview-pantry-title"
-        >
-          <dl class="dashboard-stock-counts">
+        <AppPanel title="Pantry watch" title-id="overview-pantry-title">
+          <p v-if="pantryQuery.isPending.value">Loading pantry stock…</p>
+          <p v-else-if="pantryQuery.isError.value" role="alert">
+            Pantry stock could not be loaded.
+          </p>
+          <dl v-else class="dashboard-stock-counts">
             <div>
-              <dt>Low stock</dt>
-              <dd class="stock-low">{{ lowStockCount }}</dd>
+              <dt>Available items</dt>
+              <dd>
+                {{ pantryItems.filter((row) => row.available > 0).length }}
+              </dd>
             </div>
             <div>
-              <dt>Out of stock</dt>
-              <dd class="stock-out">{{ outOfStockCount }}</dd>
+              <dt>Unavailable items</dt>
+              <dd class="stock-out">
+                {{ pantryItems.filter((row) => row.available === 0).length }}
+              </dd>
             </div>
           </dl>
           <template #footer
@@ -192,10 +200,7 @@ function tableNumber(reservation: { id: string }): string {
       </div>
     </div>
     <aside aria-label="Service tasks">
-      <AppPanel
-        title="Service queue"
-        title-id="overview-attention-title"
-      >
+      <AppPanel title="Service queue" title-id="overview-attention-title">
         <template #meta
           ><span class="dashboard-count">{{
             needsYouItems.length
