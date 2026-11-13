@@ -32,8 +32,10 @@ not reintroduce them as working options. Customer reservations are live: the boo
 availability, rental games and the branch menu, books through the API and pays food pre-orders by card
 (authorized at booking, captured at check-in, only for visits within six days); My Reservations cancels,
 reschedules and shows rental charges from the API. In-play ordering and the table-bill QR have no backend
-and stay off customer pages. Staff pantry stock reads and adjusts the branch menu API; other staff
-workspace screens still use sample data.
+and stay off customer pages. Staff workspace reads tables, reservations, rentals, the game
+library, retail and pantry stock, rental copies and orders from the API; every write waits for the server and
+shows its errors. Sample records appear only for a branch with no server data of that kind, and the in-play
+food tab and table-bill QR remain sample-only and hidden for live sessions.
 
 Prefer short CSS transitions for state changes and interactions. Respect reduced
 motion and keep content usable immediately. Use GSAP only when a specific complex

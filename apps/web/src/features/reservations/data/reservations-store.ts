@@ -53,6 +53,8 @@ export interface CustomerReservation {
   endsAt: string;
   checkedInAt?: string;
   completedAt?: string;
+  /** Server rental started at check-in; present for live sessions. */
+  rentalId?: string;
   partySize: number;
   status: 'CONFIRMED' | 'CHECKED_IN' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
   customerName: string;

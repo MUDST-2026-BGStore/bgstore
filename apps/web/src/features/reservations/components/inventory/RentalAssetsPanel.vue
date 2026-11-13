@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
+import { listRentalCopies } from '@theparlor/api-client';
+import { collectPages } from '../../../../shared/lib/pagination';
 import {
   AppCollectionPanel,
   AppDescriptionList,
@@ -7,19 +10,62 @@ import {
   AppMasterDetail,
   type FilterValues,
 } from '../../../../shared/ui';
+import { useManagementWorkspace } from '../../management/context';
+import { useBranchGamesQuery } from '../../management/branch-games';
 import {
   rentalCopySamples,
+  toRentalCopyRow,
   type RentalCopySample,
 } from '../management-inventory.samples';
 import InventoryFilterBar from './InventoryFilterBar.vue';
 import InventoryStockTable from './InventoryStockTable.vue';
 import InventoryRecordRow from './InventoryRecordRow.vue';
 
+const { selectedBranchId } = useManagementWorkspace();
+const branchGames = useBranchGamesQuery(selectedBranchId);
+const rentalOfferings = computed(() =>
+  (branchGames.data.value ?? []).filter((offering) => offering.rentalTotal > 0),
+);
+const rentalCopiesQuery = useQuery({
+  queryKey: computed(() => [
+    'workspace',
+    'rentalCopies',
+    selectedBranchId.value,
+    rentalOfferings.value.map((offering) => offering.game.id).join(','),
+  ]),
+  enabled: computed(
+    () => Boolean(selectedBranchId.value) && rentalOfferings.value.length > 0,
+  ),
+  queryFn: async ({ signal }) => {
+    const branchId = selectedBranchId.value;
+    const perGame = await Promise.all(
+      rentalOfferings.value.map(async (offering) => {
+        const copies = await collectPages((cursor) =>
+          listRentalCopies(
+            branchId,
+            offering.game.id,
+            { limit: 100, cursor },
+            undefined,
+            signal,
+          ),
+        );
+        return copies.map((copy) => toRentalCopyRow(copy, offering.game.name));
+      }),
+    );
+    return perGame.flat();
+  },
+});
+// Tracked copies from the server; sample copies remain only while the branch has none.
+const assets = computed<readonly RentalCopySample[]>(() => {
+  const live = rentalCopiesQuery.data.value;
+  return live?.length ? live : rentalCopySamples;
+});
+
 const search = ref('');
 const filters = ref<FilterValues>({});
 const selectedCode = ref<string | null>(null);
 const selectedItem = computed(() =>
-  rentalCopySamples.find((item) => item.assetCode === selectedCode.value),
+  assets.value.find((item) => item.assetCode === selectedCode.value),
 );
 const assetStatus = (item: RentalCopySample) =>
   item.state === 'On shelf'
@@ -28,7 +74,7 @@ const assetStatus = (item: RentalCopySample) =>
       ? 'In use'
       : 'Maintenance';
 const rows = computed(() =>
-  rentalCopySamples.filter(
+  assets.value.filter(
     (item) =>
       `${item.name} ${item.sku} ${item.assetCode} ${item.location}`
         .toLowerCase()
@@ -44,22 +90,20 @@ const columns = [
   { label: 'Actions', action: true },
 ];
 const metrics = computed(() => [
-  { label: 'Assets', value: rentalCopySamples.length },
+  { label: 'Assets', value: assets.value.length },
   {
     label: 'Available',
-    value: rentalCopySamples.filter((item) => assetStatus(item) === 'Available')
+    value: assets.value.filter((item) => assetStatus(item) === 'Available')
       .length,
   },
   {
     label: 'In use',
-    value: rentalCopySamples.filter((item) => assetStatus(item) === 'In use')
-      .length,
+    value: assets.value.filter((item) => assetStatus(item) === 'In use').length,
   },
   {
     label: 'Maintenance',
-    value: rentalCopySamples.filter(
-      (item) => assetStatus(item) === 'Maintenance',
-    ).length,
+    value: assets.value.filter((item) => assetStatus(item) === 'Maintenance')
+      .length,
     tone: 'danger' as const,
   },
 ]);
@@ -79,7 +123,7 @@ function clearFilters() {
   search.value = '';
   filters.value = {};
 }
-watch([search, filters], () => {
+watch([search, filters, selectedBranchId], () => {
   selectedCode.value = null;
 });
 </script>
@@ -89,7 +133,7 @@ watch([search, filters], () => {
     title="Rental assets"
     title-id="rental-assets-title"
     :metrics="metrics"
-    :result-label="`${rows.length} of ${rentalCopySamples.length} assets`"
+    :result-label="`${rows.length} of ${assets.length} assets`"
   >
     <template #filters>
       <InventoryFilterBar

@@ -2,7 +2,10 @@
 // TODO(in-play-orders-api): Orders placed during a visit have no backend. Items,
 // status and payment below are local sample state and are lost on reload.
 import { ref, computed } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
+import { getBranchMenu } from '@theparlor/api-client';
 import { FOOD_MENU_ITEMS, FOOD_CATEGORIES } from '../data/food-menu';
+import { toFoodMenuItem } from '../data/menu';
 import {
   useCustomerReservationsStore,
   type CustomerReservation,
@@ -21,6 +24,21 @@ const emit = defineEmits<{
 const { t, locale } = useStoreText();
 const reservationsStore = useCustomerReservationsStore();
 
+const branchId = computed(() => props.reservation.branchId);
+const menuQuery = useQuery({
+  queryKey: ['branch-menu', branchId],
+  meta: { public: true },
+  queryFn: ({ signal }) => getBranchMenu(branchId.value, undefined, signal),
+  enabled: computed(() => Boolean(branchId.value)),
+});
+
+const menuItems = computed(() => {
+  const live = (menuQuery.data.value?.items ?? [])
+    .map(toFoodMenuItem)
+    .filter((item) => (item.available ?? 1) > 0);
+  return live.length > 0 ? live : FOOD_MENU_ITEMS;
+});
+
 const activeCategory = ref('all');
 const searchQuery = ref('');
 const orderQuantities = ref<Record<string, number>>({});
@@ -28,7 +46,7 @@ const orderNotes = ref('');
 const orderSuccess = ref(false);
 
 const filteredItems = computed(() => {
-  return FOOD_MENU_ITEMS.filter((item) => {
+  return menuItems.value.filter((item) => {
     const matchCat =
       activeCategory.value === 'all' || item.category === activeCategory.value;
     const q = searchQuery.value.toLowerCase().trim();
@@ -47,7 +65,9 @@ function getQuantity(itemId: string): number {
 
 function updateQuantity(itemId: string, delta: number) {
   const current = getQuantity(itemId);
-  const next = Math.max(0, current + delta);
+  const item = menuItems.value.find((m) => m.id === itemId);
+  const maxQty = Math.min(50, item?.available ?? 50);
+  const next = Math.min(maxQty, Math.max(0, current + delta));
   if (next === 0) {
     delete orderQuantities.value[itemId];
   } else {
@@ -58,17 +78,22 @@ function updateQuantity(itemId: string, delta: number) {
 const selectedOrderList = computed(() => {
   return Object.entries(orderQuantities.value)
     .filter(([_, qty]) => qty > 0)
-    .map(([id, qty]) => {
-      const item = FOOD_MENU_ITEMS.find((m) => m.id === id)!;
-      return {
-        item: {
-          id: item.id,
-          name: item.name,
-          nameTh: item.nameTh,
-          price: item.price,
+    .flatMap(([id, qty]) => {
+      const item =
+        menuItems.value.find((m) => m.id === id) ??
+        FOOD_MENU_ITEMS.find((m) => m.id === id);
+      if (!item) return [];
+      return [
+        {
+          item: {
+            id: item.id,
+            name: item.name,
+            nameTh: item.nameTh,
+            price: item.price,
+          },
+          quantity: qty,
         },
-        quantity: qty,
-      };
+      ];
     });
 });
 

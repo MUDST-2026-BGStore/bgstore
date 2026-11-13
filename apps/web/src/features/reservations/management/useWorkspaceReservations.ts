@@ -1,17 +1,77 @@
-import { computed, ref, watch } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import {
   listBranches,
   listBranchReservations,
+  listBranchRentals,
+  listTables,
   checkInReservation,
   cancelReservation,
   markReservationNoShow,
   createStaffReservation,
   type Branch,
   type Reservation,
+  type ReservationPreOrder,
+  type Table,
 } from '@theparlor/api-client';
-import { useCustomerReservationsStore } from '../data/reservations-store';
+import {
+  useCustomerReservationsStore,
+  type CustomerReservationPreOrder,
+} from '../data/reservations-store';
 import { httpStatus } from '../../../shared/lib/api-errors';
+
+const baht = (amountMinor: number) => Math.round(amountMinor / 100);
+
+/** A server pre-order in the bill's shape; it is paid once its card is captured. */
+function toBillPreOrder(
+  preOrder: ReservationPreOrder | undefined,
+): CustomerReservationPreOrder | undefined {
+  if (!preOrder) return undefined;
+  return {
+    items: preOrder.items.map((line) => ({
+      item: {
+        id: line.menuItemId,
+        name: line.name,
+        price: baht(line.unitPrice.amountMinor),
+      },
+      quantity: line.quantity,
+    })),
+    subtotal: baht(preOrder.subtotal.amountMinor),
+    discountAmount: baht(preOrder.discount.amountMinor),
+    discountedTotal: baht(preOrder.total.amountMinor),
+    paid: preOrder.payment.status === 'CAPTURED',
+    paymentMethod: preOrder.payment.method.toLowerCase(),
+  };
+}
+
+interface FloorTable {
+  id: string;
+  number: number;
+  seats: number;
+  rate: number;
+  label?: string;
+}
+
+// Sample floor for branches whose tables are not set up on the server yet.
+const sampleFloorTables = (): FloorTable[] => [
+  { id: '1', number: 1, seats: 2, rate: 150 },
+  { id: '2', number: 2, seats: 4, rate: 200 },
+  { id: '3', number: 3, seats: 4, rate: 200 },
+  { id: '4', number: 4, seats: 4, rate: 200 },
+  { id: '5', number: 5, seats: 6, rate: 300 },
+  { id: '6', number: 6, seats: 6, rate: 300 },
+];
+
+function toFloorTable(table: Table, index: number): FloorTable {
+  const number = Number(/\d+/.exec(table.label)?.[0] ?? index + 1);
+  return {
+    id: table.id,
+    number: number > 0 ? number : index + 1,
+    seats: table.capacity,
+    rate: baht(table.hourlyRate.amountMinor),
+    label: table.label,
+  };
+}
 
 export function useWorkspaceReservations() {
   const queryClient = useQueryClient();
@@ -49,6 +109,44 @@ export function useWorkspaceReservations() {
       listBranchReservations(selectedBranchId.value, {}, undefined, signal),
     enabled: computed(() => !!selectedBranchId.value),
   });
+
+  const tablesQuery = useQuery({
+    queryKey: ['listBranchTables', selectedBranchId],
+    queryFn: ({ signal }) =>
+      listTables(selectedBranchId.value, { limit: 100 }, undefined, signal),
+    enabled: computed(() => !!selectedBranchId.value),
+  });
+
+  const rentalsQuery = useQuery({
+    queryKey: ['listBranchRentals', selectedBranchId],
+    queryFn: ({ signal }) =>
+      listBranchRentals(
+        selectedBranchId.value,
+        { limit: 100 },
+        undefined,
+        signal,
+      ),
+    enabled: computed(() => !!selectedBranchId.value),
+  });
+
+  // Tables Floor Plan Roster. A branch with server tables runs entirely on server
+  // records; otherwise the sample floor and local sample visits stand in.
+  const branchFloorTables = reactive<FloorTable[]>(sampleFloorTables());
+  const isLiveFloor = computed(
+    () => (tablesQuery.data.value?.items.length ?? 0) > 0,
+  );
+  watch(
+    () => tablesQuery.data.value,
+    (page) => {
+      const live = page?.items ?? [];
+      branchFloorTables.splice(
+        0,
+        branchFloorTables.length,
+        ...(live.length ? live.map(toFloorTable) : sampleFloorTables()),
+      );
+    },
+    { immediate: true },
+  );
 
   // The server decides who operates a branch. Until it has answered this branch's
   // reservation list successfully, the workspace shows no records at all, including
@@ -89,7 +187,19 @@ export function useWorkspaceReservations() {
   const allReservations = computed<any[]>(() => {
     if (!branchAccessVerified.value) return [];
     const now = Date.now();
-    const apiItems = (reservationsQuery.data.value?.items ?? []).map((r) => {
+    const rentals = rentalsQuery.data.value?.items ?? [];
+    const apiItems = (reservationsQuery.data.value?.items ?? []).map((item) => {
+      const r = {
+        ...item,
+        live: true,
+        rentalId:
+          item.rentalId ??
+          rentals.find((rental) => rental.reservationId === item.id)?.id,
+        clientType: item.source === 'WALK_IN' ? 'WALK_IN' : 'RESERVED',
+        hourlyRate: item.tableHourlyRate
+          ? baht(item.tableHourlyRate.amountMinor)
+          : undefined,
+      };
       if (r.status === 'CONFIRMED' && !r.checkedInAt) {
         const startMs = new Date(r.startsAt).getTime();
         if (now - startMs > 15 * 60 * 1000) {
@@ -105,6 +215,8 @@ export function useWorkspaceReservations() {
       }
       return r;
     });
+
+    if (isLiveFloor.value) return apiItems;
 
     const localItems = reservationsStore.reservations.value.filter(
       (r) =>
@@ -162,23 +274,6 @@ export function useWorkspaceReservations() {
           new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
       );
   });
-
-  // Tables Floor Plan Roster
-  interface FloorTable {
-    id: string;
-    number: number;
-    seats: number;
-    rate: number;
-  }
-
-  const branchFloorTables: FloorTable[] = [
-    { id: '1', number: 1, seats: 2, rate: 150 },
-    { id: '2', number: 2, seats: 4, rate: 200 },
-    { id: '3', number: 3, seats: 4, rate: 200 },
-    { id: '4', number: 4, seats: 4, rate: 200 },
-    { id: '5', number: 5, seats: 6, rate: 300 },
-    { id: '6', number: 6, seats: 6, rate: 300 },
-  ];
 
   function getTableStatus(table: FloorTable) {
     const occupied = activeFloorReservations.value.find((r) => {
@@ -309,7 +404,9 @@ export function useWorkspaceReservations() {
 
   function calculateCurrentPlayFee(res: any): number {
     const mins = getElapsedMinutes(res);
-    const rate = res.hourlyRate || 200;
+    const rate = res.hourlyRate ?? 0;
+    // The server bills started hours, minimum one; samples keep a running estimate.
+    if (res.live) return Math.max(1, Math.ceil(mins / 60)) * rate;
     return Math.round((mins / 60) * rate);
   }
 
@@ -334,6 +431,7 @@ export function useWorkspaceReservations() {
       void queryClient.invalidateQueries({
         queryKey: ['listBranchReservations'],
       });
+      void queryClient.invalidateQueries({ queryKey: ['listBranchRentals'] });
     },
     onError: () => {
       actionError.value = 'Check-in failed. Refresh and retry.';
@@ -420,62 +518,92 @@ export function useWorkspaceReservations() {
   }
 
   const staffCreateMutation = useMutation({
-    mutationFn: async (payload: any) => {
-      return createStaffReservation(selectedBranchId.value, payload);
-    },
-    onSuccess: () => {
-      showWalkInModal.value = false;
-      void queryClient.invalidateQueries({
-        queryKey: ['listBranchReservations'],
-      });
-    },
-    onError: () => {
-      walkInError.value = 'Seating failed. Refresh and retry.';
-    },
+    mutationFn: ({
+      branchId,
+      key,
+      payload,
+    }: {
+      branchId: string;
+      key: string;
+      payload: Parameters<typeof createStaffReservation>[1];
+    }) =>
+      createStaffReservation(branchId, payload, {
+        headers: { 'Idempotency-Key': key },
+      }),
   });
+
+  // One key per walk-in attempt, reused when a lost response is retried.
+  let walkInAttempt: { key: string; body: string } | null = null;
 
   async function handleStaffWalkInSubmit() {
     walkInError.value = '';
     const matchedTable =
       branchFloorTables.find((t) => t.id === walkInTableId.value) ||
       branchFloorTables[0];
-    const startsAtIso = new Date().toISOString();
-    const endsAtIso = new Date(
-      Date.now() + walkInDuration.value * 3600000,
-    ).toISOString();
+    if (!matchedTable) return;
+    const customerName = walkInGuestName.value.trim() || 'Walk-in Guests';
 
-    reservationsStore.startWalkInSession({
-      branchId: selectedBranchId.value,
-      branchName: selectedBranch.value?.name ?? 'Siam',
-      tableId: matchedTable.id,
-      tableLabel: `Table ${matchedTable.number}`,
-      partySize: walkInPartySize.value,
-      customerName: walkInGuestName.value || 'Walk-in Guests',
-      customerPhone: walkInPhone.value || undefined,
-      hourlyRate: matchedTable.rate,
-      durationHours: walkInDuration.value,
-    });
-
-    try {
-      const payload = {
-        source: 'WALK_IN',
+    if (!isLiveFloor.value) {
+      reservationsStore.startWalkInSession({
+        branchId: selectedBranchId.value,
+        branchName: selectedBranch.value?.name ?? '',
         tableId: matchedTable.id,
-        startsAt: startsAtIso,
-        endsAt: endsAtIso,
+        tableLabel: `Table ${matchedTable.number}`,
         partySize: walkInPartySize.value,
-        customer: {
-          type: 'GUEST',
-          name: walkInGuestName.value || 'Walk-in Guests',
-          phone: walkInPhone.value || undefined,
-        },
-        games: [],
-        notes: 'Counter Walk-in Session',
-      };
-      await staffCreateMutation.mutateAsync(payload);
-    } catch {
-      // local store maintains the session
+        customerName,
+        customerPhone: walkInPhone.value || undefined,
+        hourlyRate: matchedTable.rate,
+        durationHours: walkInDuration.value,
+      });
+      showWalkInModal.value = false;
+      return;
     }
 
+    const branchId = selectedBranchId.value;
+    const payload = {
+      source: 'WALK_IN' as const,
+      tableId: matchedTable.id,
+      endsAt: new Date(
+        Date.now() + walkInDuration.value * 3_600_000,
+      ).toISOString(),
+      partySize: walkInPartySize.value,
+      customer: {
+        kind: 'GUEST' as const,
+        displayName: customerName,
+        ...(walkInPhone.value.trim()
+          ? { phone: walkInPhone.value.trim() }
+          : {}),
+      },
+      games: [],
+    };
+    // endsAt moves with the clock, so the retry key follows table, party and guest.
+    const body = JSON.stringify({ ...payload, endsAt: undefined, branchId });
+    if (walkInAttempt?.body !== body)
+      walkInAttempt = { key: crypto.randomUUID(), body };
+    let created: Reservation;
+    try {
+      created = await staffCreateMutation.mutateAsync({
+        branchId,
+        key: walkInAttempt.key,
+        payload,
+      });
+    } catch (error) {
+      // A definite rejection ends this attempt; a lost response keeps its key.
+      if (httpStatus(error) !== undefined) walkInAttempt = null;
+      walkInError.value = 'Seating failed. Refresh and retry.';
+      return;
+    }
+    walkInAttempt = null;
+    void queryClient.invalidateQueries({
+      queryKey: ['listBranchReservations'],
+    });
+    try {
+      await checkInMutation.mutateAsync(created.id);
+    } catch {
+      walkInError.value =
+        'The walk-in is booked but not checked in. Check it in from Bookings.';
+      return;
+    }
     showWalkInModal.value = false;
   }
 
@@ -486,7 +614,30 @@ export function useWorkspaceReservations() {
     const found = reservationsStore.reservations.value.find(
       (r) => r.id === res.id,
     );
-    if (found) {
+    if (res.live) {
+      staffBillReservation.value = {
+        id: res.id,
+        branchId: res.branchId,
+        branchName: selectedBranch.value?.name ?? '',
+        tableId: res.tableId,
+        tableLabel:
+          branchFloorTables.find((table) => table.id === res.tableId)?.label ??
+          'Table',
+        startsAt: res.startsAt,
+        endsAt: res.endsAt,
+        checkedInAt: res.checkedInAt,
+        completedAt: res.completedAt,
+        rentalId: res.rentalId,
+        partySize: res.partySize,
+        status: res.status,
+        customerName: getCustomerName(res.customer),
+        customerPhone: getCustomerPhone(res.customer) || undefined,
+        clientType: res.clientType,
+        hourlyRate: res.hourlyRate,
+        preOrder: toBillPreOrder(res.preOrder),
+        inPlayOrders: [],
+      };
+    } else if (found) {
       staffBillReservation.value = found;
     } else {
       staffBillReservation.value = {
@@ -509,9 +660,13 @@ export function useWorkspaceReservations() {
   }
 
   function refreshAll() {
-    void queryClient.invalidateQueries({
-      queryKey: ['listBranchReservations'],
-    });
+    for (const key of [
+      'listBranchReservations',
+      'listBranchRentals',
+      'listBranchTables',
+      'workspace',
+    ])
+      void queryClient.invalidateQueries({ queryKey: [key] });
   }
   return {
     queryClient,
@@ -522,6 +677,9 @@ export function useWorkspaceReservations() {
     branches,
     selectedBranch,
     reservationsQuery,
+    tablesQuery,
+    rentalsQuery,
+    isLiveFloor,
     branchAccessVerified,
     branchAccessDenied,
     autoNoShowMutation,

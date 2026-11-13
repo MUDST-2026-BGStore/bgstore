@@ -251,7 +251,9 @@ function tableNumber(reservation: { id: string }): string {
             </td>
             <AppTableActions>
               <template v-if="item.type === 'IN_PLAY'"
-                ><AppButton @click="openAddSnacks(item.reservation)"
+                ><AppButton
+                  v-if="!item.reservation.live"
+                  @click="openAddSnacks(item.reservation)"
                   >Refreshments</AppButton
                 ><AppButton
                   appearance="primary"

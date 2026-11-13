@@ -8,6 +8,8 @@ export const useCatalogBrowseStore = defineStore('catalog-browse', () => {
   const players = ref('');
   const time = ref('');
   const difficulty = ref('');
+  const soldHere = ref(false);
+  const inLibrary = ref(false);
   const sort = ref('shelf');
   const view = ref<'grid' | 'list'>('grid');
   return {
@@ -16,6 +18,8 @@ export const useCatalogBrowseStore = defineStore('catalog-browse', () => {
     players,
     time,
     difficulty,
+    soldHere,
+    inLibrary,
     sort,
     view,
   };

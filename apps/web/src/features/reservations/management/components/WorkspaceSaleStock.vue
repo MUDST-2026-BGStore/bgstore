@@ -8,6 +8,7 @@ import {
   AppDescriptionList,
   AppInspector,
   AppMasterDetail,
+  AppMessageBar,
   AppTableSelect,
   useTableSelection,
   type FilterValues,
@@ -21,7 +22,7 @@ import InventoryRecordRow from '../../components/inventory/InventoryRecordRow.vu
 import StockReceiveDialog from './StockReceiveDialog.vue';
 import StockAdjustmentDialog from './StockAdjustmentDialog.vue';
 
-const { isManager, selectedBranchId, saleStock } = useManagementWorkspace();
+const { selectedBranchId, saleStock } = useManagementWorkspace();
 const itemTypes = [{ id: 'retail', label: 'Retail games' }] as const;
 const itemType = ref<'retail'>('retail');
 const search = ref('');
@@ -34,7 +35,7 @@ const columns = [
   { label: 'Status' },
   { label: 'Actions', action: true },
 ];
-const { items, setOnHand, receive } = saleStock;
+const { items, saving, error, setOnHand, receive } = saleStock;
 const scopedItems = computed(() =>
   items.value.filter((item) => item.type === 'retail'),
 );
@@ -138,12 +139,12 @@ async function restoreCommandFocus() {
   else table.value?.focus();
 }
 async function saveAdjustment(id: string, quantity: number) {
-  if (!setOnHand(id, quantity)) return;
+  if (!(await setOnHand(id, quantity))) return;
   pendingAdjustmentId.value = null;
   await restoreCommandFocus();
 }
 async function receiveStock(entries: StockReceiptEntry[]) {
-  if (!receive(entries)) return;
+  if (!(await receive(entries))) return;
   pendingReceiveIds.value = [];
   selection.clear();
   await restoreCommandFocus();
@@ -215,6 +216,7 @@ watch(selectedBranchId, () => {
         >Receive stock</AppButton
       >
     </template>
+    <AppMessageBar v-if="error" tone="error">{{ error }}</AppMessageBar>
     <AppMasterDetail :inspecting="!!selectedItem">
       <InventoryStockTable
         ref="table"
@@ -300,42 +302,24 @@ watch(selectedBranchId, () => {
               label: 'Available',
               value: `${selectedItem.available} ${selectedItem.unit}`,
             },
-            {
-              label: 'Reorder point',
-              value: `${selectedItem.reorderPoint} ${selectedItem.unit}`,
-            },
+            ...(selectedItem.reorderPoint === null
+              ? []
+              : [
+                  {
+                    label: 'Reorder point',
+                    value: `${selectedItem.reorderPoint} ${selectedItem.unit}`,
+                  },
+                ]),
             { label: 'Status', value: selectedItem.status },
           ]"
         />
-        <template v-if="selectedItem.type === 'retail'">
+        <!-- Live editions report one held count, already shown as Reserved. -->
+        <template v-if="!selectedItem.source.editionId">
           <h3 class="stock-section-title">Reservations</h3>
           <AppDescriptionList
             :items="[
               { label: 'Delivery', value: selectedItem.source.shippingHeld },
               { label: 'Store pickup', value: selectedItem.source.pickupHeld },
-            ]"
-          />
-        </template>
-        <template v-if="selectedItem.type === 'food'">
-          <h3 class="stock-section-title">Pricing</h3>
-          <AppDescriptionList
-            :items="[
-              { label: 'Price', value: `฿${selectedItem.source.price}` },
-              ...(isManager
-                ? [
-                    {
-                      label: 'Cost',
-                      value: `฿${selectedItem.source.costPrice}`,
-                    },
-                    {
-                      label: 'Margin',
-                      value:
-                        selectedItem.source.price > 0
-                          ? `${Math.round(((selectedItem.source.price - selectedItem.source.costPrice) / selectedItem.source.price) * 100)}%`
-                          : '—',
-                    },
-                  ]
-                : []),
             ]"
           />
         </template>
@@ -348,6 +332,7 @@ watch(selectedBranchId, () => {
             input-id="sale-stock-adjust"
             :model-value="selectedItem.onHand"
             :min="selectedItem.reserved"
+            :disabled="saving"
             :label="`Stock for ${selectedItem.name}`"
             @update:model-value="setOnHand(selectedItem.id, $event)"
           />

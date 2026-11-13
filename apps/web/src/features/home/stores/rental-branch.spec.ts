@@ -1,42 +1,80 @@
-import { beforeEach, expect, it } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
+import { queryClient } from '../../../shared/lib/api';
+import { useBranchDirectoryStore } from './branch-directory';
 import { RENTAL_BRANCH_KEY, useRentalBranchStore } from './rental-branch';
-import { rentalLibraryAt, retailStockAt } from '../data/branches';
+
+const { request } = vi.hoisted(() => ({ request: vi.fn() }));
+vi.mock('../../../../../../libs/web/api-client/src/lib/transport.ts', () => ({
+  apiRequest: request,
+  configureApiTransport: vi.fn(),
+}));
+
+const SIAM = '00000000-0000-4000-8000-0000000000a1';
+const ARI = '00000000-0000-4000-8000-0000000000a2';
+const RIVERSIDE = '00000000-0000-4000-8000-0000000000a3';
+
 beforeEach(() => {
   localStorage.clear();
+  queryClient.clear();
   setActivePinia(createPinia());
+  request.mockReset().mockResolvedValue({
+    items: [
+      {
+        id: SIAM,
+        name: 'Siam',
+        address: 'A',
+        openingHours: [],
+        active: true,
+        fulfillsDelivery: true,
+      },
+      {
+        id: ARI,
+        name: 'Ari',
+        address: 'B',
+        openingHours: [],
+        active: true,
+        fulfillsDelivery: false,
+      },
+      {
+        id: RIVERSIDE,
+        name: 'Riverside',
+        address: 'C',
+        openingHours: [],
+        active: true,
+        fulfillsDelivery: false,
+      },
+    ],
+  });
 });
-it('remembers a valid rental branch and rejects unknown preferences', () => {
+
+it('remembers a valid rental branch from the live directory and forgets stale preferences', async () => {
+  await useBranchDirectoryStore().load();
   const rental = useRentalBranchStore();
   expect(rental.branch).toBeUndefined();
-  rental.select('ari');
+  rental.select(ARI);
   rental.select('unknown');
-  expect(rental.branchId).toBe('ari');
+  expect(rental.branchId).toBe(ARI);
+  expect(rental.branch?.name).toBe('Ari');
   rental.$dispose();
+
   setActivePinia(createPinia());
-  expect(useRentalBranchStore().branchId).toBe('ari');
+  await useBranchDirectoryStore().load();
+  expect(useRentalBranchStore().branchId).toBe(ARI);
+  expect(useRentalBranchStore().branch?.name).toBe('Ari');
   useRentalBranchStore().$dispose();
+
   localStorage.setItem(RENTAL_BRANCH_KEY, 'deleted');
   setActivePinia(createPinia());
+  await useBranchDirectoryStore().load();
+  expect(useRentalBranchStore().branchId).toBe('');
   expect(useRentalBranchStore().branch).toBeUndefined();
 });
-it('keeps the visiting preference in its own storage key, apart from the cart', () => {
+
+it('keeps the visiting preference in its own storage key, apart from the cart', async () => {
+  await useBranchDirectoryStore().load();
   const rental = useRentalBranchStore();
-  rental.select('riverside');
-  expect(localStorage.getItem(RENTAL_BRANCH_KEY)).toBe('riverside');
+  rental.select(RIVERSIDE);
+  expect(localStorage.getItem(RENTAL_BRANCH_KEY)).toBe(RIVERSIDE);
   expect(Object.keys(localStorage)).toEqual([RENTAL_BRANCH_KEY]);
-});
-it('keeps rental library membership and teaching support separate from retail stock', () => {
-  expect(rentalLibraryAt('azul', 'siam').offered).toBe(true);
-  expect(rentalLibraryAt('azul', 'ari')).toMatchObject({
-    offered: true,
-    staffCanTeach: true,
-  });
-  expect(rentalLibraryAt('cascadia', 'siam')).toMatchObject({
-    offered: true,
-    staffCanTeach: false,
-  });
-  expect(rentalLibraryAt('avalon', 'riverside').offered).toBe(false);
-  expect(retailStockAt('wingspan-en', 'siam')).toBe(0);
-  expect(retailStockAt('wingspan-en', 'ari')).toBe(2);
 });
