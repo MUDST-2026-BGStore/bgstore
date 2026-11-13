@@ -129,8 +129,8 @@ class TheparlorApiApplicationTests {
     client.setAttributes(new java.util.HashMap<>(client.getAttributes()));
     client.getAttributes().put("post.logout.redirect.uris", "http://localhost:" + TEST_PORT + "/");
     realm.clients().get(client.getId()).update(client);
-    // "customer" has no realm role: an ordinary signed-in shopper.
-    for (String role : List.of("staff", "manager", "admin", "customer")) {
+    // The customers have no realm role: ordinary signed-in shoppers.
+    for (String role : List.of("staff", "manager", "admin", "customer", "other-customer")) {
       var credential = new CredentialRepresentation();
       credential.setType("password");
       credential.setValue(PASSWORD);
@@ -147,7 +147,7 @@ class TheparlorApiApplicationTests {
         assertThat(response.getStatus()).isEqualTo(201);
       }
       var created = realm.users().searchByUsername(user.getUsername(), true).getFirst();
-      if (!role.equals("customer"))
+      if (!role.endsWith("customer"))
         realm
             .users()
             .get(created.getId())
@@ -1731,6 +1731,146 @@ class TheparlorApiApplicationTests {
     assertThat(get(login("staff"), "/api/v1/admin/test-access").statusCode()).isEqualTo(403);
     assertThat(get(login("manager"), "/api/v1/admin/test-access").statusCode()).isEqualTo(403);
     assertThat(get(login("admin"), "/api/v1/admin/test-access").statusCode()).isEqualTo(200);
+  }
+
+  /**
+   * A newly registered client has only Keycloak's default roles. No branch-operator endpoint may
+   * answer it, and substituting another client's reservation ID reveals nothing.
+   */
+  @Test
+  void clientsWithoutAnOperatorRoleCannotRunBranchesOrReachOtherClientsRecords() throws Exception {
+    var branch = UUID.randomUUID();
+    var table = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Access test', 'Address')", branch);
+    for (int day = 1; day <= 7; day++)
+      jdbc.update(
+          "INSERT INTO branch_opening_hours(branch_id,day_of_week,opens_at,closes_at) VALUES (?,?,'00:00','24:00')",
+          branch,
+          day);
+    jdbc.update(
+        "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor) VALUES (?,?,'T1',4,5000)",
+        table,
+        branch);
+    String base = "/api/v1/branches/" + branch;
+    String unknown = UUID.randomUUID().toString();
+    var startsAt = java.time.Instant.now().plus(java.time.Duration.ofDays(2));
+    String window =
+        "\"startsAt\":\""
+            + startsAt
+            + "\",\"endsAt\":\""
+            + startsAt.plus(java.time.Duration.ofHours(2))
+            + "\"";
+    String staffBooking =
+        "{\"source\":\"STAFF_BOOKING\",\"customer\":{\"kind\":\"GUEST\",\"displayName\":\"Party\"},"
+            + "\"tableId\":\""
+            + table
+            + "\",\"partySize\":2,\"games\":[],"
+            + window
+            + "}";
+    // Each body is valid, so only authorization can reject the call.
+    List<List<String>> operatorCalls =
+        java.util.Arrays.asList(
+            java.util.Arrays.asList("GET", base + "/reservations", null),
+            java.util.Arrays.asList("GET", base + "/orders", null),
+            java.util.Arrays.asList("GET", base + "/rentals", null),
+            java.util.Arrays.asList("GET", base + "/games/" + unknown + "/rental-copies", null),
+            java.util.Arrays.asList("POST", base + "/staff/reservations", staffBooking),
+            java.util.Arrays.asList(
+                "POST",
+                base + "/staff/orders",
+                "{\"customer\":{\"kind\":\"GUEST\",\"displayName\":\"Walk-in\"},"
+                    + "\"items\":[{\"editionId\":\""
+                    + unknown
+                    + "\",\"quantity\":1}]}"),
+            java.util.Arrays.asList("POST", base + "/reservations/" + unknown + "/check-in", null),
+            java.util.Arrays.asList(
+                "POST", base + "/reservations/" + unknown + "/no-show", "{\"reason\":\"Absent\"}"),
+            java.util.Arrays.asList("POST", base + "/orders/" + unknown + "/fulfill", null),
+            java.util.Arrays.asList("POST", base + "/rentals/" + unknown + "/check-out", null),
+            java.util.Arrays.asList(
+                "POST",
+                base + "/tables",
+                "{\"label\":\"T2\",\"capacity\":4,\"hourlyRate\":{\"amountMinor\":5000},"
+                    + "\"operationalStatus\":\"IN_SERVICE\"}"),
+            java.util.Arrays.asList(
+                "POST",
+                base + "/menu/" + unknown + "/stock-adjustments",
+                "{\"delta\":3,\"reason\":\"Delivery\"}"),
+            java.util.Arrays.asList(
+                "POST",
+                base + "/editions/" + unknown + "/stock-adjustments",
+                "{\"delta\":1,\"reason\":\"Receipt\"}"));
+    var anonymous = browser();
+    var client = login("customer");
+    for (var call : operatorCalls) {
+      String[] key = {"Idempotency-Key", UUID.randomUUID().toString()};
+      var guest = send(anonymous, call.get(0), call.get(1), call.get(2), key);
+      assertThat(guest.statusCode()).as("guest %s %s", call.get(0), call.get(1)).isEqualTo(401);
+      var denied = send(client, call.get(0), call.get(1), call.get(2), key);
+      assertThat(denied.statusCode())
+          .as("client %s %s: %s", call.get(0), call.get(1), denied.body())
+          .isEqualTo(403);
+    }
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM reservations WHERE branch_id=?", Integer.class, branch))
+        .isZero();
+
+    // The client's own booking is theirs alone; another client learns nothing by its ID.
+    assertThat(
+            send(
+                    client,
+                    "POST",
+                    "/api/v1/me",
+                    "{\"firstName\":\"Visit\",\"lastName\":\"Customer\",\"phoneNumber\":\"+66811112222\","
+                        + "\"preferences\":{\"preferredLocale\":\"en-US\"}}")
+                .statusCode())
+        .isIn(200, 201);
+    var booked =
+        send(
+            client,
+            "POST",
+            base + "/reservations",
+            "{\"tableId\":\"" + table + "\",\"partySize\":2,\"games\":[]," + window + "}",
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(booked.statusCode()).as(booked.body()).isEqualTo(201);
+    String reservationId = JSON.readTree(booked.body()).get("id").asString();
+    String reservationPath = base + "/reservations/" + reservationId;
+    assertThat(get(client, reservationPath).statusCode()).isEqualTo(200);
+    assertThat(send(client, "POST", reservationPath + "/check-in", null).statusCode())
+        .isEqualTo(403);
+
+    var other = login("other-customer");
+    var peek = get(other, reservationPath);
+    assertThat(peek.statusCode()).isEqualTo(404);
+    assertThat(peek.body()).doesNotContain("Visit", "+66811112222");
+    assertThat(
+            send(
+                    other,
+                    "PATCH",
+                    reservationPath,
+                    "{\"tableId\":\"" + table + "\",\"partySize\":1,\"games\":[]," + window + "}")
+                .statusCode())
+        .isEqualTo(404);
+    assertThat(
+            send(other, "POST", reservationPath + "/cancel", "{\"reason\":\"Not mine\"}")
+                .statusCode())
+        .isEqualTo(404);
+    var otherBookings = get(other, "/api/v1/me/reservations");
+    assertThat(otherBookings.statusCode()).isEqualTo(200);
+    assertThat(otherBookings.body()).doesNotContain(reservationId);
+
+    // Staff need an assignment to this branch; a manager's existing access is unchanged.
+    assertThat(get(login("staff"), base + "/reservations").statusCode()).isEqualTo(403);
+    var manager = login("manager");
+    var list = get(manager, base + "/reservations");
+    assertThat(list.statusCode()).as(list.body()).isEqualTo(200);
+    assertThat(JSON.readTree(list.body()).get("items")).hasSize(1);
+    assertThat(get(manager, reservationPath).statusCode()).isEqualTo(200);
+    assertThat(JSON.readTree(get(client, reservationPath).body()).get("status").asString())
+        .isEqualTo("CONFIRMED");
   }
 
   @Test

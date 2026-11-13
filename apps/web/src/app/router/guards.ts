@@ -4,6 +4,7 @@ import type { Router } from 'vue-router';
 import { login, useAuth } from '@theparlor/auth';
 import { clearAccount, ensureAccount, useAccount } from '@theparlor/account';
 
+import { claimProtectedState } from '../../shared/lib/protected-state';
 import { pageAccess, safeReturnPath, workspaceDestination } from './access';
 import { useLocale } from '../../shared/lib/locale';
 
@@ -96,8 +97,9 @@ export function installAuthGuards(router: Router): void {
   // React to session changes.
   watch(
     () => [useAuth().value.authenticated, useAuth().value.subject] as const,
-    ([authenticated], [wasAuthenticated]) => {
+    ([authenticated, subject], [wasAuthenticated]) => {
       clearAccount();
+      claimProtectedState(authenticated ? subject : null);
       const route = router.currentRoute.value;
 
       if (!authenticated && wasAuthenticated) {
@@ -107,6 +109,12 @@ export function installAuthGuards(router: Router): void {
             query: { redirect: route.fullPath },
           });
         }
+      } else if (
+        authenticated &&
+        pageAccess(useAuth().value, route.meta) === 'forbidden'
+      ) {
+        // Another account took over this tab; it must not keep a page it cannot open.
+        void router.replace({ name: 'AuthForbidden' });
       }
     },
     { flush: 'sync' },

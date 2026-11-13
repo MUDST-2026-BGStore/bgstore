@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { canOperateBranches } from '../../shared/lib/roles';
 import { workspaceDestination, pageAccess, safeReturnPath } from './access';
 
 describe('public and private page policy', () => {
@@ -20,6 +21,19 @@ describe('public and private page policy', () => {
         { roles: ['admin', 'manager'] },
       ),
     ).toBe('allow');
+  });
+  it('lets only staff, managers and administrators operate branches', () => {
+    expect(
+      canOperateBranches([
+        'default-roles-theparlor',
+        'uma_authorization',
+        'offline_access',
+      ]),
+    ).toBe(false);
+    expect(canOperateBranches([])).toBe(false);
+    expect(canOperateBranches(['seller'])).toBe(false);
+    for (const role of ['staff', 'manager', 'admin'])
+      expect(canOperateBranches(['offline_access', role])).toBe(true);
   });
   it('uses a predictable landing page with administrator taking precedence', () => {
     expect(workspaceDestination(['staff'])).toBe('WorkspaceIndex');
