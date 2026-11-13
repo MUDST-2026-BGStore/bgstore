@@ -1,5 +1,5 @@
 import { createApp } from 'vue';
-import { initAuth } from '@theparlor/auth';
+import { initAuth, useAuth } from '@theparlor/auth';
 import App from './App.vue';
 import { pinia } from './plugins/pinia';
 import { createAppRouter } from './router';
@@ -7,6 +7,7 @@ import { i18n } from './plugins/i18n';
 import { VueQueryPlugin } from '@tanstack/vue-query';
 import { configureApi, queryClient } from '../shared/lib/api';
 import { initializeLocaleSync } from '../shared/lib/locale';
+import { claimProtectedState } from '../shared/lib/protected-state';
 
 export async function bootstrap(): Promise<void> {
   const app = createApp(App);
@@ -26,6 +27,8 @@ export async function bootstrap(): Promise<void> {
         'The server is unavailable. Check the API and reload this page.';
     return;
   }
+  // A reload into another account (or none) must not see the last account's data.
+  claimProtectedState(useAuth().value.subject);
 
   const router = createAppRouter();
   app.use(router);
