@@ -141,7 +141,8 @@ an older image or fail on an immutable ECR tag.
 
 The build helper runs `api:build` and `web:build`, packages their outputs through
 the Dockerfiles' `artifacts-runtime` stages, and builds `linux/arm64` images.
-The web build uses a same-origin API base URL. Application tests are excluded
+It also checks that the nginx runtime user can read the packaged page and access
+the asset directory. The web build uses a same-origin API base URL. Application tests are excluded
 from this packaging path; run them separately when required by your release.
 
 The publisher reads ECR URLs from OpenTofu outputs and pushes an isolated commit
@@ -162,6 +163,13 @@ applications, syncs routing before the application at the exact snapshot commit,
 then waits for PostgreSQL, API, web, Keycloak and gateway certificates. Sync uses
 `prune: false`; obsolete resources can remain and need deliberate review.
 Check Valkey, Mailpit and overall application health separately as shown below.
+
+The Application definitions enable
+[Argo CD server-side diff](https://argo-cd.readthedocs.io/en/release-3.3/user-guide/diff-strategies/)
+so Kubernetes-defaulted Gateway/HTTPRoute/StatefulSet fields compare correctly.
+Old generated ConfigMaps can still appear as resources requiring pruning. Review
+their ownership and active pod/workload references before removing only those
+superseded objects; the deployment command keeps global pruning disabled.
 
 Publishing changes GitHub and ECR; syncing changes the server. These operations
 require the corresponding operator authorization. Rebuilding images needs a new
@@ -276,4 +284,58 @@ off-node backups and a recovery plan. The AWS tracing endpoint also assumes an
 `observability` namespace with Tempo; inspect its presence before relying on
 traces. Those services and operational policies need independent validation.
 
-The 2026-11-13 rehearsal result is recorded below after the live checks complete.
+## Rehearsal: 2026-11-13
+
+The existing server was started from `stopped`. Application source was
+`feffb73`; deployment corrections are isolated in the deployment worktree and
+the published `codex/aws-rehearsal-20261113` snapshot branch. The final image tag
+is `rehearsal-20261113-feffb73-r2`. The exact snapshot commit is recorded in the
+operator's ignored `.local/deployment.json`.
+
+The initial deployment failed its live checks. Three deployment defects were
+reproduced and corrected:
+
+| Failure                                                                                                               | Correction                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| API startup could not bind its port because Service links injected `API_PORT=tcp://...` (and similarly `VALKEY_PORT`) | Disable Service-link injection for the AWS API pod; DNS service names remain configured explicitly                                         |
+| API/Keycloak could not reach PostgreSQL; API could not reach Valkey                                                   | Restore peer selectors after Kustomize's base label transformation; retain the destination workload selectors and restricted allowed peers |
+| Web pod was Ready while `/` returned 403: host artifacts had mode 0600/0700 and root ownership                        | Copy artifacts with nginx ownership, verify readability during image builds, and probe `index.html` for readiness                          |
+
+The port failure was reproduced with the actual API image and a Kubernetes-style
+environment variable; removing that variable allowed port 8080 initialization.
+Rendered-manifest tests failed on all three blocked connections before the fix
+and passed afterward. The nginx runtime-UID check failed on the original image
+and passed on the corrected image.
+
+Successful checks included:
+
+- Pinned dependency install, Nx API/web builds, ARM64 packaging and ECR pushes.
+- OpenTofu validation/formatting and Ansible syntax validation.
+- Eight deployment-tooling tests, including rendered-manifest connectivity checks.
+- Argo routing/application sync and rollout readiness for all six application pods.
+- All nine Flyway migrations applied successfully to the previously empty
+  application database; PostgreSQL's persistent volume remained Bound.
+- Three valid HTTPS certificates and HTTP-to-HTTPS redirect behavior.
+- Browser loading of the Vue page, actual JavaScript asset and `/account` deep link.
+- JSON responses from branches, games, anonymous session and CSRF endpoints.
+- Public OIDC issuer, login redirect, callback URI, S256 PKCE and Keycloak login form.
+- Secure/HttpOnly/SameSite=Lax session cookie and no browser runtime or first-party HTTP errors.
+- BFF client secret and redirect URI matched the deployed API configuration;
+  existing runtime Secret values remained unchanged.
+
+Server-side diff resolved API-default noise. Two superseded generated Keycloak
+ConfigMaps were removed after checking Argo ownership and confirming that active
+pods/deployments/statefulsets did not reference them. Global pruning stayed off.
+
+The application database has no seeded business catalog. A full customer login
+through the authenticated callback was not exercised because no test account was
+provided. Real payment/mail delivery, Tempo export, backup restoration, a new
+infrastructure provision and capacity/failover tests were outside this rehearsal.
+The configured Tempo service was absent and trace export logged DNS failures.
+The tested deployment is suitable for continuing sandbox validation; production
+prerequisites above remain separate work.
+
+Local evidence and private recovery files are under `.local/`: `build-images*.log`,
+`publish-images*.log`, `deploy*.log`, `final-tooling-tests.log`, `smoke-results.json`,
+browser screenshots and `pre-deploy-*` backups. Preserve these privately before
+discarding the worktree; they are deliberately excluded from Git.
