@@ -4,7 +4,7 @@ metadata:
   name: api-config
 data:
   SPRING_PROFILES_ACTIVE: dev
-  THEPARLOR_PUBLIC_ORIGIN: https://theparlor.devopsandbox.chanakanlabs.com
+  THEPARLOR_PUBLIC_ORIGIN: https://bgstore.devopsandbox.chanakanlabs.com
   SESSION_COOKIE_SECURE: 'true'
   KEYCLOAK_ISSUER_URI: https://auth.devopsandbox.chanakanlabs.com/realms/theparlor
   KEYCLOAK_BACKCHANNEL_ISSUER_URI: http://keycloak:8080/realms/theparlor

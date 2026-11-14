@@ -2,6 +2,7 @@ import { defineComponent } from 'vue';
 import { mount, flushPromises } from '@vue/test-utils';
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Reservation } from '@theparlor/api-client';
 import { useLocale } from '../../../shared/lib/locale';
 import { useCustomerReservationsStore } from '../data/reservations-store';
 import { useWorkspaceReservations } from './useWorkspaceReservations';
@@ -36,6 +37,147 @@ describe('reservations, rental checkout, and branch menu integration', () => {
     client.clear();
     vi.useRealTimers();
   });
+
+  it.each([
+    {
+      name: 'an occupied table',
+      error: {
+        response: {
+          status: 409,
+          data: {
+            message: 'The reserved table is still occupied by an earlier visit',
+          },
+        },
+      },
+      expected:
+        'Check-in conflict: The reserved table is still occupied by an earlier visit',
+    },
+    {
+      name: 'an overdue game copy',
+      error: {
+        response: {
+          status: 409,
+          data: {
+            message: 'A reserved copy is still out with an earlier visit',
+          },
+        },
+      },
+      expected:
+        'Check-in conflict: A reserved copy is still out with an earlier visit',
+    },
+    {
+      name: 'a booking outside its check-in window',
+      error: {
+        response: {
+          status: 409,
+          data: {
+            message: 'Check-in is only possible during the booked window',
+          },
+        },
+      },
+      expected:
+        'Check-in conflict: Check-in is only possible during the booked window',
+    },
+    {
+      name: 'a problem detail response',
+      error: {
+        response: {
+          status: 409,
+          data: { detail: 'The reserved table is out of service' },
+        },
+      },
+      expected: 'Check-in conflict: The reserved table is out of service',
+    },
+    {
+      name: 'a conflict with no explanation',
+      error: { response: { status: 409, data: { message: ' ', detail: 123 } } },
+      expected:
+        'Check-in conflict. Refresh the reservation and check table and game availability.',
+    },
+    {
+      name: 'a network failure',
+      error: new Error('Network Error'),
+      expected: 'Check-in failed. Refresh and retry.',
+    },
+    {
+      name: 'a server failure',
+      error: {
+        response: {
+          status: 500,
+          data: { message: 'Internal database details' },
+        },
+      },
+      expected: 'Check-in failed. Refresh and retry.',
+    },
+  ])(
+    'explains $name without changing the reservation and clears the error on retry',
+    async ({ error, expected }) => {
+      const startsAt = new Date(Date.now() - 30 * 60000).toISOString();
+      const endsAt = new Date(Date.now() + 60 * 60000).toISOString();
+      const reservation: Reservation = {
+        id: RES_ID,
+        branchId: BRANCH_ID,
+        tableId: TABLE_ID,
+        customer: { kind: 'GUEST', displayName: 'Waiting party' },
+        source: 'STAFF_BOOKING',
+        status: 'CONFIRMED',
+        startsAt,
+        endsAt,
+        partySize: 2,
+        games: [],
+        tableHourlyRate: { amountMinor: 20000 },
+        createdAt: startsAt,
+        createdBySubject: 'manager-1',
+      };
+      let failure: unknown = error;
+      request.mockImplementation((config: { url: string }) => {
+        if (config.url === '/api/v1/branches')
+          return Promise.resolve({ items: [{ id: BRANCH_ID, name: 'Siam' }] });
+        if (config.url === `/api/v1/branches/${BRANCH_ID}/reservations`)
+          return Promise.resolve({ items: [{ ...reservation }] });
+        if (config.url.endsWith('/check-in')) {
+          if (failure) return Promise.reject(failure);
+          reservation.status = 'CHECKED_IN';
+          reservation.rentalId = RENTAL_ID;
+          return Promise.resolve({ reservation: { ...reservation } });
+        }
+        return Promise.resolve({ items: [] });
+      });
+
+      let workspace!: ReturnType<typeof useWorkspaceReservations>;
+      const wrapper = mount(
+        defineComponent({
+          setup() {
+            workspace = useWorkspaceReservations();
+            return () => null;
+          },
+        }),
+        { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } },
+      );
+      try {
+        await flushPromises();
+        await flushPromises();
+        await workspace.handleCheckIn(reservation);
+        expect(workspace.actionError.value).toBe(expected);
+        expect(workspace.actionInProgress.value).toBeNull();
+        expect(
+          workspace.allReservations.value.find((item) => item.id === RES_ID),
+        ).toMatchObject({ status: 'CONFIRMED', endsAt });
+        expect(reservation.rentalId).toBeUndefined();
+
+        failure = undefined;
+        await workspace.handleCheckIn(reservation);
+        await flushPromises();
+        expect(workspace.actionError.value).toBe('');
+        expect(workspace.actionInProgress.value).toBeNull();
+        expect(
+          workspace.allReservations.value.find((item) => item.id === RES_ID),
+        ).toMatchObject({ status: 'CHECKED_IN', rentalId: RENTAL_ID, endsAt });
+      } finally {
+        wrapper.unmount();
+      }
+    },
+  );
 
   it('loads live tables, reservations, and rentals and prepares the bill with rentalId and preOrder', async () => {
     const startedAt = new Date(Date.now() - 60 * 60000).toISOString();

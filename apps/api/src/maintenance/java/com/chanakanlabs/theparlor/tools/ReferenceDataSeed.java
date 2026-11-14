@@ -14,9 +14,10 @@ import tools.jackson.databind.ObjectMapper;
 /**
  * Resets all business tables and re-seeds the local dev database with the reference data (branches,
  * opening hours, catalog, editions, branch offerings, sale stock, tables and rental copies) from
- * seed/reference-data.json. Catalog reference data is authoritative for development; accounts,
- * customers and identity data are left alone. Explicitly invoked local tooling; never loaded by the
- * API. Run through `make seed-dev` (tools/seed-dev.mjs), which loads .env.
+ * seed/reference-data.json, plus time-relative demo reservations. Catalog reference data is
+ * authoritative for development; accounts, customers and identity data are left alone. Explicitly
+ * invoked local tooling; never loaded by the API. Run through `make seed-dev` (tools/seed-dev.mjs),
+ * which loads .env.
  */
 public final class ReferenceDataSeed {
   static final ObjectMapper JSON = new ObjectMapper();
@@ -256,17 +257,101 @@ public final class ReferenceDataSeed {
     }
 
     long pantryRows = seedPantry(connection, data, branchIds);
+    long reservations = seedReservations(connection, branchIds);
 
     System.out.printf(
         "Seeded %d branches, %d games, %d branch games, %d branch editions, %d tables, "
-            + "%d rental copies and %d pantry stock rows.%n",
+            + "%d rental copies, %d pantry stock rows and %d demo reservations.%n",
         branchIds.size(),
         gameIds.size(),
         branchGames,
         branchEditions,
         branchIds.size() * 4L,
         rentalCopies,
-        pantryRows);
+        pantryRows,
+        reservations);
+  }
+
+  /**
+   * Two confirmed guest bookings per branch: table-only and table with a game. They are ready for
+   * staff check-in, rental play and checkout through the real lifecycle; no rental is fabricated.
+   * The window deliberately extends beyond opening hours for off-hours development demos. Leave the
+   * other tables and game copies available for walk-ins and new bookings.
+   */
+  static long seedReservations(java.sql.Connection connection, Map<String, UUID> branchIds)
+      throws Exception {
+    var now = java.time.Instant.now();
+    var startsAt = java.sql.Timestamp.from(now.minus(java.time.Duration.ofMinutes(15)));
+    var endsAt = java.sql.Timestamp.from(now.plus(java.time.Duration.ofHours(12)));
+    long count = 0;
+    try (var tables =
+            connection.prepareStatement(
+                "SELECT id, seats, hourly_rate_minor FROM branch_tables "
+                    + "WHERE branch_id=? ORDER BY label LIMIT 2");
+        var copy =
+            connection.prepareStatement(
+                "SELECT c.id, c.game_id, bg.rental_hourly_rate_minor FROM rental_copies c "
+                    + "JOIN branch_games bg ON bg.branch_id=c.branch_id AND bg.game_id=c.game_id "
+                    + "WHERE c.branch_id=? AND c.operational_status='USABLE' AND bg.rental_enabled "
+                    + "ORDER BY c.asset_code LIMIT 1");
+        var reservation =
+            connection.prepareStatement(
+                "INSERT INTO reservations (branch_id, guest_name, source, starts_at, ends_at, "
+                    + "party_size, table_id, table_hourly_rate_minor, notes, created_by_subject) "
+                    + "VALUES (?, ?, 'STAFF_BOOKING', ?, ?, ?, ?, ?, ?, 'development-seed') "
+                    + "RETURNING id");
+        var game =
+            connection.prepareStatement(
+                "INSERT INTO reservation_games "
+                    + "(reservation_id, game_id, quantity, unit_hourly_rate_minor) VALUES (?, ?, 1, ?)");
+        var hold =
+            connection.prepareStatement(
+                "INSERT INTO reservation_copy_holds (reservation_id, branch_id, copy_id) "
+                    + "VALUES (?, ?, ?)")) {
+      for (var branch : branchIds.entrySet()) {
+        tables.setObject(1, branch.getValue());
+        try (var rows = tables.executeQuery()) {
+          int index = 0;
+          while (rows.next()) {
+            boolean withGame = index++ == 1;
+            reservation.setObject(1, branch.getValue());
+            reservation.setString(
+                2, "Demo " + branch.getKey() + (withGame ? " - game night" : " - table only"));
+            reservation.setTimestamp(3, startsAt);
+            reservation.setTimestamp(4, endsAt);
+            reservation.setInt(5, Math.min(4, rows.getInt("seats")));
+            reservation.setObject(6, rows.getObject("id", UUID.class));
+            reservation.setLong(7, rows.getLong("hourly_rate_minor"));
+            reservation.setString(
+                8,
+                "Live demo: check in, "
+                    + (withGame ? "play the reserved game, " : "add games or food, ")
+                    + "then check out. Check-in available until "
+                    + endsAt.toInstant()
+                    + ".");
+            var reservationId = insertOne(reservation);
+            if (withGame) {
+              copy.setObject(1, branch.getValue());
+              try (var selected = copy.executeQuery()) {
+                if (!selected.next())
+                  throw new IllegalStateException("No rental copy for demo at " + branch.getKey());
+                game.setObject(1, reservationId);
+                game.setObject(2, selected.getObject("game_id", UUID.class));
+                game.setLong(3, selected.getLong("rental_hourly_rate_minor"));
+                game.executeUpdate();
+                hold.setObject(1, reservationId);
+                hold.setObject(2, branch.getValue());
+                hold.setObject(3, selected.getObject("id", UUID.class));
+                hold.executeUpdate();
+              }
+            }
+            count++;
+          }
+        }
+      }
+    }
+    System.out.printf("Demo check-in window: %s to %s%n", startsAt.toInstant(), endsAt.toInstant());
+    return count;
   }
 
   /** The shared menu, then each branch's pantry stock with a matching ledger receipt. */

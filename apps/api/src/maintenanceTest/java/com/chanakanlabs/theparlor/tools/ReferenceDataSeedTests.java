@@ -101,6 +101,52 @@ class ReferenceDataSeedTests {
             assertThat(rows.getInt(2)).isEqualTo(3);
             assertThat(rows.getInt(3)).isZero();
           }
+          // Both demo paths are ready for immediate check-in, even when seeding outside
+          // opening hours. Repeating the seed replaces bookings rather than accumulating them.
+          try (var rows =
+              statement.executeQuery(
+                  "SELECT count(*), count(DISTINCT branch_id), "
+                      + "count(*) FILTER (WHERE status='CONFIRMED' AND starts_at <= now() "
+                      + "AND ends_at >= now() + interval '11 hours'), "
+                      + "count(*) FILTER (WHERE guest_name IS NOT NULL AND customer_id IS NULL) "
+                      + "FROM reservations")) {
+            assertThat(rows.next()).isTrue();
+            assertThat(rows.getInt(1)).isEqualTo(6);
+            assertThat(rows.getInt(2)).isEqualTo(3);
+            assertThat(rows.getInt(3)).isEqualTo(6);
+            assertThat(rows.getInt(4)).isEqualTo(6);
+          }
+          try (var rows =
+              statement.executeQuery(
+                  "SELECT count(*), count(DISTINCT h.reservation_id) "
+                      + "FROM reservation_copy_holds h "
+                      + "JOIN rental_copies c ON c.id=h.copy_id AND c.branch_id=h.branch_id "
+                      + "JOIN reservation_games g ON g.reservation_id=h.reservation_id "
+                      + "AND g.game_id=c.game_id "
+                      + "JOIN branch_games bg ON bg.branch_id=h.branch_id AND bg.game_id=c.game_id "
+                      + "WHERE c.operational_status='USABLE' AND bg.rental_enabled "
+                      + "AND g.quantity=1 AND g.unit_hourly_rate_minor=bg.rental_hourly_rate_minor")) {
+            assertThat(rows.next()).isTrue();
+            assertThat(rows.getInt(1)).isEqualTo(3);
+            assertThat(rows.getInt(2)).isEqualTo(3);
+          }
+          try (var rows = statement.executeQuery("SELECT count(*) FROM reservation_games")) {
+            rows.next();
+            assertThat(rows.getInt(1)).isEqualTo(3);
+          }
+          try (var rows =
+              statement.executeQuery(
+                  "SELECT count(*) FROM reservations r JOIN branch_tables t "
+                      + "ON t.branch_id=r.branch_id AND t.id=r.table_id "
+                      + "WHERE r.party_size <= t.seats "
+                      + "AND r.table_hourly_rate_minor=t.hourly_rate_minor")) {
+            rows.next();
+            assertThat(rows.getInt(1)).isEqualTo(6);
+          }
+          try (var rows = statement.executeQuery("SELECT count(*) FROM rentals")) {
+            rows.next();
+            assertThat(rows.getInt(1)).isZero();
+          }
           try (var rows =
               statement.executeQuery("SELECT count(*) FROM accounts WHERE first_name='Seed'")) {
             rows.next();

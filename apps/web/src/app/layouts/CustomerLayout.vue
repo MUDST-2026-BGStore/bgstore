@@ -213,7 +213,9 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
                   {{ t('Sign out') }} <span aria-hidden="true">→</span>
                 </button>
               </template>
-              <RouterLink v-else :to="{ name: 'AuthLogin' }"
+              <RouterLink
+                v-else
+                :to="{ name: 'AuthLogin', query: { redirect: '/' } }"
                 >{{ t('Sign in') }}
                 <span aria-hidden="true">→</span></RouterLink
               >

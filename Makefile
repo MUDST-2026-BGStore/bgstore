@@ -72,7 +72,7 @@ generate-api: ## Lint/validate the OpenAPI contract and regenerate Java/TypeScri
 	pnpm generate:api
 modulith-check: ## Verify module dependencies and generate module documentation (no Docker needed)
 	pnpm nx run api:test --args="test --tests '*ModularityTests' generateModuleDocumentation"
-seed-dev: ## Sync local BFF client/roles and staff user from .env, then reset and reseed branches, catalog, editions, stock and tables, then the role users
+seed-dev: ## Sync local BFF client/roles and staff user from .env, then reset/reseed reference data and live-demo reservations, then the role users
 	node tools/seed-dev.mjs
 seed-users: ## Create or reset the customer, staff, unassigned staff, manager and admin sign-ins (password: E2E_PASSWORD); keeps business data
 	node tools/seed-dev-users.mjs
