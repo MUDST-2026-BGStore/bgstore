@@ -1340,6 +1340,7 @@ class TheparlorApiApplicationTests {
       var result = JSON.readTree(left.body());
       assertThat(result.get("rental").get("status").asString()).isEqualTo("COMPLETED");
       assertThat(result.get("rental").get("billableHours").asInt()).isEqualTo(2);
+      assertThat(result.get("rental").get("serverNow")).isNotNull();
       assertThat(result.get("rental").get("total").get("amountMinor").asLong()).isEqualTo(18000);
       assertThat(result.get("rental").get("charges").get(0).get("kind").asString())
           .isEqualTo("TABLE");

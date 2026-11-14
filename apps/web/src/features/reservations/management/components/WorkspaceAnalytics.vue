@@ -26,7 +26,7 @@ const columns = [
   { label: 'Guest' },
   { label: 'Played' },
   { label: 'Hourly rate', numeric: true },
-  { label: 'Table fee', numeric: true },
+  { label: 'Est. table fee', numeric: true },
 ];
 const totalTableFeesToday = computed(() =>
   activeFloorReservations.value.reduce(
@@ -92,7 +92,7 @@ const todayTotalGross = computed(
           <td>{{ tableLabel(reservation.tableId) }}</td>
           <td>{{ getCustomerName(reservation.customer) }}</td>
           <td>{{ getElapsedMinutes(reservation) }} min</td>
-          <td class="numeric">฿{{ reservation.hourlyRate || 200 }}</td>
+          <td class="numeric">฿{{ reservation.hourlyRate ?? 200 }}</td>
           <td class="numeric">฿{{ calculateCurrentPlayFee(reservation) }}</td>
         </tr>
         <tr v-if="!activeFloorReservations.length">
