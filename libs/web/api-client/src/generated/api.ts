@@ -2389,11 +2389,11 @@ export const useRevokeStaffAssignment = <TError = ErrorType<UnauthorizedResponse
     }
 
 /**
- * One result per identity. Queries shorter than 2 characters return no results; at most 20 results.
- * @summary Search onboarded accounts by name or phone
+ * One result per identity. Blank or single-character queries list the first page of onboarded accounts; at most 20 results.
+ * @summary List onboarded accounts, optionally filtered by name or phone
  */
 export const searchAccounts = (
-    params: MaybeRefOrGetter<SearchAccountsParams>,
+    params?: MaybeRefOrGetter<SearchAccountsParams>,
  options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
 ) => {
       params = toValue(params);
@@ -2415,7 +2415,7 @@ export const getSearchAccountsQueryKey = (params?: MaybeRefOrGetter<SearchAccoun
     }
 
 
-export const getSearchAccountsQueryOptions = <TData = Awaited<ReturnType<typeof searchAccounts>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(params: MaybeRefOrGetter<SearchAccountsParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchAccounts>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
+export const getSearchAccountsQueryOptions = <TData = Awaited<ReturnType<typeof searchAccounts>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(params?: MaybeRefOrGetter<SearchAccountsParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchAccounts>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
@@ -2438,11 +2438,11 @@ export type SearchAccountsQueryError = ErrorType<BadRequestResponse | Unauthoriz
 
 
 /**
- * One result per identity. Queries shorter than 2 characters return no results; at most 20 results.
- * @summary Search onboarded accounts by name or phone
+ * One result per identity. Blank or single-character queries list the first page of onboarded accounts; at most 20 results.
+ * @summary List onboarded accounts, optionally filtered by name or phone
  */
 export function useSearchAccounts<TData = Awaited<ReturnType<typeof searchAccounts>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(
- params: MaybeRefOrGetter<SearchAccountsParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchAccounts>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
+ params?: MaybeRefOrGetter<SearchAccountsParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchAccounts>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
  ): UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 

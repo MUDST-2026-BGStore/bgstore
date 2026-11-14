@@ -73,31 +73,32 @@ const searching = ref(false);
 const searchError = ref<string | null>(null);
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 let searchSequence = 0;
-watch(query, (value) => {
-  clearTimeout(searchTimer);
-  const text = value.trim();
-  if (text.length < 2) {
-    searchSequence++;
-    matches.value = [];
-    searching.value = false;
-    searchError.value = null;
-    return;
-  }
-  searchTimer = setTimeout(async () => {
-    const sequence = ++searchSequence;
-    searching.value = true;
-    searchError.value = null;
-    try {
-      const result = await searchAccounts({ q: text });
+/** Lists the first page of onboarded accounts when the query is blank. */
+function searchAccountsByText(text: string) {
+  const sequence = ++searchSequence;
+  searching.value = true;
+  searchError.value = null;
+  return searchAccounts(text ? { q: text } : {})
+    .then((result) => {
       if (sequence === searchSequence) matches.value = result.items;
-    } catch (err) {
+    })
+    .catch((err) => {
       if (sequence === searchSequence)
         searchError.value = problemMessage(err) ?? 'Search failed. Try again.';
-    } finally {
+    })
+    .finally(() => {
       if (sequence === searchSequence) searching.value = false;
-    }
-  }, 300);
-});
+    });
+}
+watch(
+  query,
+  (value) => {
+    clearTimeout(searchTimer);
+    const text = value.trim();
+    searchTimer = setTimeout(() => void searchAccountsByText(text), 300);
+  },
+  { immediate: true },
+);
 onBeforeUnmount(() => clearTimeout(searchTimer));
 
 const pending = ref(false);
@@ -222,18 +223,14 @@ const dateFormat = new Intl.DateTimeFormat('en-GB', {
           label="Search accounts by name or phone"
         />
         <p class="note">
-          Branch access applies to accounts with the staff role.
+          Branch access applies to accounts with the staff role. Showing up to
+          20 accounts; filter by name or phone to narrow the list.
         </p>
         <p v-if="searching" role="status">Searching…</p>
         <AppMessageBar v-else-if="searchError" tone="error">{{
           searchError
         }}</AppMessageBar>
-        <p
-          v-else-if="query.trim().length >= 2 && !matches.length"
-          role="status"
-        >
-          No matching accounts.
-        </p>
+        <p v-else-if="!matches.length" role="status">No matching accounts.</p>
         <ul v-if="matches.length" class="matches">
           <li v-for="match in matches" :key="match.subject">
             <span

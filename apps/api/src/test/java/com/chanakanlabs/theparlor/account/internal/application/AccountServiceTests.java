@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -234,7 +235,7 @@ class AccountServiceTests {
   }
 
   @Test
-  void searchRequiresTwoCharactersEscapesWildcardsAndCapsLimitAtTwenty() {
+  void searchListsAccountsWhenQueryIsBlankEscapesWildcardsAndCapsLimitAtTwenty() {
     var identities = mock(AccountIdentityRepository.class);
     var service =
         new AccountService(
@@ -244,10 +245,26 @@ class AccountServiceTests {
             mock(JdbcTemplate.class),
             List.of());
 
-    assertThat(service.search(" ", 10)).isEmpty();
-    assertThat(service.search("a", 10)).isEmpty();
+    var directory =
+        Account.create(
+            "Ada", "Lovelace", "+66812345678", java.util.Map.of("preferredLocale", "en-US"));
+    when(identities.search("%%", PageRequest.of(0, 10)))
+        .thenReturn(List.of(new AccountIdentity("issuer", "sub-1", directory)));
+    when(identities.search("%a%", PageRequest.of(0, 10)))
+        .thenReturn(List.of(new AccountIdentity("issuer", "sub-1", directory)));
+
+    // Blank and short queries list the first page so administrators can browse everyone onboarded.
+    assertThat(service.search(" ", 10))
+        .containsExactly(
+            new com.chanakanlabs.theparlor.account.AccountDirectory.AccountMatch(
+                "sub-1", "Ada Lovelace", "+66812345678"));
+    assertThat(service.search("a", 10))
+        .containsExactly(
+            new com.chanakanlabs.theparlor.account.AccountDirectory.AccountMatch(
+                "sub-1", "Ada Lovelace", "+66812345678"));
     assertThat(service.search("ab", 0)).isEmpty();
-    org.mockito.Mockito.verifyNoInteractions(identities);
+    org.mockito.Mockito.verify(identities, times(1)).search("%%", PageRequest.of(0, 10));
+    org.mockito.Mockito.verify(identities, times(1)).search("%a%", PageRequest.of(0, 10));
 
     var account =
         Account.create(

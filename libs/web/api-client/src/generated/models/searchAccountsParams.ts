@@ -8,5 +8,5 @@
 
 export type SearchAccountsParams = {
   /** @maxLength 100 */
-  q: string;
+  q?: string;
 };

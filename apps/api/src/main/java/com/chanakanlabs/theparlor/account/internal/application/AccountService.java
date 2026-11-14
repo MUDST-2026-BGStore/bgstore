@@ -98,9 +98,15 @@ public class AccountService implements CurrentAccount, AccountProvisioning, Acco
   @Transactional(readOnly = true)
   public List<AccountMatch> search(String query, int limit) {
     String text = query == null ? "" : query.strip();
-    if (text.length() < 2 || limit < 1) return List.of();
+    if (limit < 1) return List.of();
     String escaped =
-        text.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        text.isEmpty()
+            ? ""
+            : text
+                .toLowerCase(Locale.ROOT)
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_");
     return identities
         .search("%" + escaped + "%", PageRequest.of(0, Math.min(limit, MAX_SEARCH_RESULTS)))
         .stream()

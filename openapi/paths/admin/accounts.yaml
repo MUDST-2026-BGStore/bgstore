@@ -2,17 +2,17 @@ get:
   tags:
     - Staff Assignments
   operationId: searchAccounts
-  summary: Search onboarded accounts by name or phone
+  summary: List onboarded accounts, optionally filtered by name or phone
   description:
-    One result per identity. Queries shorter than 2 characters return no results; at most 20
-    results.
+    One result per identity. Blank or single-character queries list the first page of onboarded
+    accounts; at most 20 results.
   security:
     - sessionCookie: []
   x-access-policy: administrator
   parameters:
     - name: q
       in: query
-      required: true
+      required: false
       schema:
         type: string
         maxLength: 100

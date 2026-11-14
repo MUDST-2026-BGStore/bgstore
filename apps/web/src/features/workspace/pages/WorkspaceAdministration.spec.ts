@@ -114,11 +114,14 @@ it('lists branch assignments, searches onboarded accounts, grants and revokes', 
     'Branch access applies to accounts with the staff role.',
   );
 
-  await page.get('input[type="search"]').setValue('Natt');
-
-  await vi.waitFor(() => expect(page.text()).toContain('Natt Worapat'), {
-    timeout: 2000,
-  });
+  // Onboarded accounts are listed without typing, so administrators can browse everyone.
+  await vi.waitFor(
+    () => expect(page.text()).toContain('Natt Worapat'),
+    { timeout: 2000 },
+  );
+  expect(page.text()).toContain(
+    'Showing up to 20 accounts; filter by name or phone to narrow the list.',
+  );
   await page.get('button[aria-label="Assign Natt Worapat"]').trigger('click');
   await vi.waitFor(
     () => expect(page.get('table').text()).toContain('Natt Worapat'),
