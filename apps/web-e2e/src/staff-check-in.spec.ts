@@ -80,9 +80,7 @@ test('rejected early check-in keeps the booking unchanged after reload', async (
   const booking = page.getByRole('row').filter({ hasText: 'Table 3' });
   await expect(booking).toContainText('Confirmed');
   await booking.getByRole('button', { name: 'Check in & seat' }).click();
-  await expect(
-    page.getByText('Check-in conflict: Too early'),
-  ).toBeVisible();
+  await expect(page.getByText('Check-in conflict: Too early')).toBeVisible();
   await expect(booking).toContainText('Confirmed');
   expect(checkInRequests).toBe(1);
 
