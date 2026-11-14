@@ -10,45 +10,43 @@ import type { Difficulty } from './difficulty';
 import type { LimitParameter } from './limitParameter';
 
 export type ListGamesParams = {
-/**
- * Maximum number of results in one page.
- * @minimum 1
- * @maximum 100
- */
-limit?: LimitParameter;
-/**
- * Opaque cursor from the previous page. Reuse the same filters; invalid or mismatched cursors return 400. Lists use stable ID ordering.
- * @minLength 1
- * @maxLength 2048
- */
-cursor?: CursorParameter;
-/**
- * Case-insensitive search across game name and designer.
- * @minLength 1
- * @maxLength 200
- */
-q?: string;
-/**
- * Canonical English category names; repeatable. Games match all listed categories.
- * @maxItems 10
- * @items.minLength 1
- * @items.maxLength 100
- */
-categories?: string[];
-/**
- * Canonical English mechanic names; repeatable. Games match all listed mechanics.
- * @maxItems 10
- * @items.minLength 1
- * @items.maxLength 100
- */
-mechanics?: string[];
-/**
- * Filter by catalog difficulty label.
- */
-difficulty?: Difficulty;
-/**
- * Games supporting this player count.
- * @minimum 1
- */
-players?: number;
+  /**
+   * Maximum number of results in one page.
+   * @minimum 1
+   * @maximum 100
+   */
+  limit?: LimitParameter;
+  /**
+   * Opaque cursor from the previous page. Reuse the same filters; invalid or mismatched cursors return 400. Lists use stable ID ordering.
+   * @minLength 1
+   * @maxLength 2048
+   */
+  cursor?: CursorParameter;
+  /**
+   * Case-insensitive search across game name and designer.
+   * @minLength 1
+   * @maxLength 200
+   */
+  q?: string;
+  /**
+   * Canonical English category names; repeatable. Games match all listed categories.
+   * @maxItems 10
+   * @items.minLength 1
+   * @items.maxLength 100
+   */
+  categories?: string[];
+  /**
+   * Canonical English mechanic names; repeatable. Games match all listed mechanics.
+   * @maxItems 10
+   * @items.minLength 1
+   * @items.maxLength 100
+   */
+  mechanics?: string[];
+  /** Filter by catalog difficulty label. */
+  difficulty?: Difficulty;
+  /**
+   * Games supporting this player count.
+   * @minimum 1
+   */
+  players?: number;
 };

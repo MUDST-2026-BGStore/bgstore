@@ -1,0 +1,32 @@
+type: object
+description: A served food or drink line with immutable name and price snapshots.
+required:
+  - id
+  - menuItemId
+  - name
+  - quantity
+  - unitPrice
+  - lineTotal
+  - servedAt
+properties:
+  id:
+    type: string
+    format: uuid
+  menuItemId:
+    type: string
+    format: uuid
+  name:
+    type: string
+    maxLength: 150
+  quantity:
+    type: integer
+    format: int32
+    minimum: 1
+    maximum: 50
+  unitPrice:
+    $ref: ./Money.yaml
+  lineTotal:
+    $ref: ./Money.yaml
+  servedAt:
+    type: string
+    format: date-time

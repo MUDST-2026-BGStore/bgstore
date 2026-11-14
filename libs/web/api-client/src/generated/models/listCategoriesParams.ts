@@ -9,16 +9,16 @@ import type { CursorParameter } from './cursorParameter';
 import type { LimitParameter } from './limitParameter';
 
 export type ListCategoriesParams = {
-/**
- * Maximum number of results in one page.
- * @minimum 1
- * @maximum 100
- */
-limit?: LimitParameter;
-/**
- * Opaque cursor from the previous page. Reuse the same filters; invalid or mismatched cursors return 400. Lists use stable ID ordering.
- * @minLength 1
- * @maxLength 2048
- */
-cursor?: CursorParameter;
+  /**
+   * Maximum number of results in one page.
+   * @minimum 1
+   * @maximum 100
+   */
+  limit?: LimitParameter;
+  /**
+   * Opaque cursor from the previous page. Reuse the same filters; invalid or mismatched cursors return 400. Lists use stable ID ordering.
+   * @minLength 1
+   * @maxLength 2048
+   */
+  cursor?: CursorParameter;
 };

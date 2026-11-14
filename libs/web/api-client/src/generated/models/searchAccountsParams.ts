@@ -7,8 +7,6 @@
  */
 
 export type SearchAccountsParams = {
-/**
- * @maxLength 100
- */
-q: string;
+  /** @maxLength 100 */
+  q: string;
 };

@@ -11,6 +11,7 @@ import {
   type InPlayOrder,
 } from '../data/reservations-store';
 import { useStoreText } from '../../../shared/lib/store-text';
+import { formatBaht } from '../data/booking';
 import QRCode from 'qrcode';
 import {
   computeSessionTiming,
@@ -170,7 +171,14 @@ const gameRentalCost = computed(() =>
 // Live: table and game hours as the server bills them. Sample: a running estimate.
 const tablePlayCost = computed(() => {
   if (activeRental.value?.total)
-    return Math.round(activeRental.value.total.amountMinor / 100);
+    return (
+      (activeRental.value.total.amountMinor -
+        (activeRental.value.refreshments ?? []).reduce(
+          (sum, line) => sum + line.lineTotal.amountMinor,
+          0,
+        )) /
+      100
+    );
   if (isLive.value)
     return (
       effectiveHourlyRate.value * billableHours.value + gameRentalCost.value
@@ -209,26 +217,53 @@ const preOrderPaid = computed(() => {
 });
 
 // In-play orders breakdown (paid at counter)
-const inPlayOrders = computed<InPlayOrder[]>(
-  () => props.reservation.inPlayOrders || [],
+const inPlayOrders = computed<Array<InPlayOrder & { lineTotalMinor?: number }>>(
+  () => {
+    if (!isLive.value) return props.reservation.inPlayOrders ?? [];
+    return (activeRental.value?.refreshments ?? []).map((line, index) => ({
+      id: line.id,
+      orderNumber: `TAB-${String(index + 1).padStart(2, '0')}`,
+      createdAt: line.servedAt,
+      items: [
+        {
+          item: {
+            id: line.menuItemId,
+            name: line.name,
+            price: line.unitPrice.amountMinor / 100,
+          },
+          quantity: line.quantity,
+        },
+      ],
+      subtotal: line.lineTotal.amountMinor / 100,
+      lineTotalMinor: line.lineTotal.amountMinor,
+      status: 'SERVED',
+      paid: activeRental.value?.status === 'COMPLETED',
+      paymentMethod: 'on_tab',
+    }));
+  },
 );
 
-const inPlayOrdersTotal = computed(() => {
-  return inPlayOrders.value.reduce((sum, o) => sum + o.subtotal, 0);
-});
+const inPlayOrdersTotalMinor = computed(() =>
+  inPlayOrders.value.reduce(
+    (sum, order) =>
+      sum + (order.lineTotalMinor ?? Math.round(order.subtotal * 100)),
+    0,
+  ),
+);
 
-// Total Bill and Outstanding Balance to pay at counter
-const totalGrossBill = computed(() => {
-  return (
-    tablePlayCost.value +
-    (props.reservation.preOrder?.discountedTotal || 0) +
-    inPlayOrdersTotal.value
-  );
-});
-
-const outstandingBalanceDue = computed(() => {
-  return Math.max(0, totalGrossBill.value - preOrderPaid.value);
-});
+// Sum integer minor units; convert only at display and sample QR boundaries.
+const totalGrossBillMinor = computed(
+  () =>
+    Math.round(tablePlayCost.value * 100) +
+    Math.round((props.reservation.preOrder?.discountedTotal ?? 0) * 100) +
+    inPlayOrdersTotalMinor.value,
+);
+const outstandingBalanceDueMinor = computed(() =>
+  Math.max(0, totalGrossBillMinor.value - Math.round(preOrderPaid.value * 100)),
+);
+const outstandingBalanceDue = computed(
+  () => outstandingBalanceDueMinor.value / 100,
+);
 
 async function checkOutLiveRental() {
   const { branchId, rentalId } = props.reservation;
@@ -584,7 +619,9 @@ function confirmCustomerQrPayment() {
                   }})</span
                 >
               </div>
-              <span class="section-cost">฿{{ inPlayOrdersTotal }}</span>
+              <span class="section-cost">{{
+                formatBaht(inPlayOrdersTotalMinor)
+              }}</span>
             </div>
 
             <div v-if="inPlayOrders.length === 0" class="empty-inplay-note">
@@ -629,7 +666,12 @@ function confirmCustomerQrPayment() {
                           : it.item.name
                       }}</span
                     >
-                    <span>฿{{ it.item.price * it.quantity }}</span>
+                    <span>{{
+                      formatBaht(
+                        order.lineTotalMinor ??
+                          Math.round(it.item.price * 100) * it.quantity,
+                      )
+                    }}</span>
                   </div>
                 </div>
 
@@ -649,7 +691,7 @@ function confirmCustomerQrPayment() {
                 ? t('Estimated total (Play + Food):')
                 : t('Total Session Bill (Play + Food):')
             }}</span>
-            <strong class="val">฿{{ totalGrossBill }}</strong>
+            <strong class="val">{{ formatBaht(totalGrossBillMinor) }}</strong>
           </div>
           <div v-if="preOrderPaid > 0" class="summary-line text-muted">
             <span>{{
@@ -679,7 +721,7 @@ function confirmCustomerQrPayment() {
               class="due-amount"
               :class="{ 'is-zero': outstandingBalanceDue === 0 }"
             >
-              ฿{{ outstandingBalanceDue }}
+              {{ formatBaht(outstandingBalanceDueMinor) }}
             </strong>
           </div>
 

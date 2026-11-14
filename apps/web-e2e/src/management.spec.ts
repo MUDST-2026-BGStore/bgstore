@@ -1586,7 +1586,7 @@ test('wires branch games, pantry menu, rental copies, stock adjustments and orde
   ).toHaveCount(0);
 });
 
-test('loads live branch tables, reservations and rentals and checks out the rental on bill settlement', async ({
+test('adds water during a live session, refreshes stock and retains it on the settled bill', async ({
   page,
 }) => {
   const branchId = 'siam';
@@ -1597,6 +1597,40 @@ test('loads live branch tables, reservations and rentals and checks out the rent
   const startedAt = new Date(Date.now() - 50 * 60_000).toISOString();
   const endsAt = new Date(Date.now() + 60 * 60_000).toISOString();
   const checkedOutRentals: string[] = [];
+  let waterStock = 5;
+  const appliedKeys = new Set<string>();
+  const refreshments: Array<{
+    id: string;
+    menuItemId: string;
+    name: string;
+    quantity: number;
+    unitPrice: { amountMinor: number };
+    lineTotal: { amountMinor: number };
+    servedAt: string;
+  }> = [];
+  await page.route('**/api/auth/csrf', (route) =>
+    route.fulfill({ json: { headerName: 'X-CSRF-Token', token: 'test' } }),
+  );
+  await page.route(`**/api/v1/branches/${branchId}/menu`, (route) =>
+    route.fulfill({
+      json: {
+        branchId,
+        items: [
+          {
+            item: {
+              id: 'water',
+              sku: 'WATER',
+              category: 'BEVERAGES',
+              names: { 'en-US': 'Water' },
+              price: { amountMinor: 2000 },
+              popular: false,
+            },
+            available: waterStock,
+          },
+        ],
+      },
+    }),
+  );
 
   await page.route(`**/api/v1/branches/${branchId}/tables*`, (route) =>
     route.fulfill({
@@ -1656,6 +1690,35 @@ test('loads live branch tables, reservations and rentals and checks out the rent
       const url = new URL(route.request().url());
       if (
         route.request().method() === 'POST' &&
+        url.pathname.endsWith(`/rentals/${rentalId}/refreshments`)
+      ) {
+        expect(route.request().postDataJSON()).toEqual({
+          items: [{ menuItemId: 'water', quantity: 2 }],
+        });
+        const key = route.request().headers()['idempotency-key'];
+        expect(key).toBeTruthy();
+        if (!appliedKeys.has(key)) {
+          appliedKeys.add(key);
+          waterStock -= 2;
+          refreshments.push({
+            id: 'served-water',
+            menuItemId: 'water',
+            name: 'Water',
+            quantity: 2,
+            unitPrice: { amountMinor: 2000 },
+            lineTotal: { amountMinor: 4000 },
+            servedAt: new Date().toISOString(),
+          });
+          // The write committed, but the gateway lost its response.
+          return route.fulfill({
+            status: 502,
+            json: { message: 'Gateway unavailable' },
+          });
+        }
+        return route.fulfill({ json: { id: rentalId, refreshments } });
+      }
+      if (
+        route.request().method() === 'POST' &&
         url.pathname.endsWith(`/rentals/${rentalId}/check-out`)
       ) {
         checkedOutRentals.push(rentalId);
@@ -1705,7 +1768,8 @@ test('loads live branch tables, reservations and rentals and checks out the rent
                   lineTotal: { amountMinor: 30000 },
                 },
               ],
-              total: { amountMinor: 30000 },
+              refreshments,
+              total: { amountMinor: 34000 },
             },
           }),
         });
@@ -1727,6 +1791,7 @@ test('loads live branch tables, reservations and rentals and checks out the rent
             plannedEndsAt: endsAt,
             serverNow: new Date().toISOString(),
             checkedInBySubject: 'staff-1',
+            refreshments,
             charges: [
               {
                 kind: 'TABLE',
@@ -1774,10 +1839,49 @@ test('loads live branch tables, reservations and rentals and checks out the rent
     .getByRole('button', { name: 'Live sessions', exact: true })
     .click();
   await expect(page.getByText('Khun Ananda').first()).toBeVisible();
-  // In-play food ordering has no backend, so live sessions do not offer it.
+  await page.getByRole('button', { name: /^Add refreshments/ }).click();
+  const orderDialog = page.getByRole('dialog', {
+    name: 'Add refreshments',
+    exact: true,
+  });
+  await expect(orderDialog.getByText('5 in stock')).toBeVisible();
+  await orderDialog
+    .getByRole('spinbutton', { name: 'Quantity of Water' })
+    .fill('2');
+  await orderDialog
+    .getByRole('spinbutton', { name: 'Quantity of Water' })
+    .press('Tab');
+  await orderDialog
+    .getByRole('button', { name: 'Add to table', exact: true })
+    .click();
+  await expect(orderDialog.getByRole('alert')).toContainText(
+    'No confirmed answer',
+  );
+  expect(waterStock).toBe(3);
+  await page.reload();
+  await page
+    .getByRole('button', { name: 'Live sessions', exact: true })
+    .click();
+  await page.getByRole('button', { name: /^Add refreshments/ }).click();
   await expect(
-    page.getByRole('button', { name: /^Add refreshments/ }),
-  ).toHaveCount(0);
+    orderDialog.getByRole('spinbutton', { name: 'Quantity of Water' }),
+  ).toHaveValue('2');
+  await orderDialog
+    .getByRole('button', { name: 'Retry order', exact: true })
+    .click();
+  await expect(orderDialog).toHaveCount(0);
+  expect(waterStock).toBe(3);
+  expect(refreshments).toHaveLength(1);
+  await page.getByRole('button', { name: /^Add refreshments/ }).click();
+  await expect(orderDialog.getByText('3 in stock')).toBeVisible();
+  await orderDialog
+    .getByRole('button', { name: 'Cancel', exact: true })
+    .click();
+  // Reload before reading the bill to prove it comes from the API, rather than sample state.
+  await page.reload();
+  await page
+    .getByRole('button', { name: 'Live sessions', exact: true })
+    .click();
   await page.getByRole('button', { name: /^Check bill for / }).click();
 
   const dialog = page.getByRole('dialog', {
@@ -1787,9 +1891,18 @@ test('loads live branch tables, reservations and rentals and checks out the rent
   await expect(dialog).toBeVisible();
   // One started hour at the table rate, as the server bills it.
   await expect(dialog.locator('.section-cost').first()).toHaveText('฿300');
+  await expect(dialog.getByText('2x Water')).toBeVisible();
+  await expect(dialog.locator('.total-due-line .due-amount')).toContainText(
+    '฿340',
+  );
   await dialog
     .getByRole('button', { name: 'Settle Bill & Complete Session ✓' })
     .click();
 
   await expect.poll(() => checkedOutRentals).toEqual([rentalId]);
+  await expect(
+    dialog.getByText(
+      'All table play fees and in-play food orders have been settled successfully. Thank you for playing at The Parlor!',
+    ),
+  ).toBeVisible();
 });

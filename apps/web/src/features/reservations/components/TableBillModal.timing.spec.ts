@@ -110,6 +110,71 @@ describe('table bill timing for an active session', () => {
     await flushPromises();
   }
 
+  it.each(['ACTIVE', 'COMPLETED'])(
+    'includes served water exactly once on the %s bill',
+    async (status) => {
+      vi.setSystemTime(bkk('14:20'));
+      rentalOverrides = () => ({
+        status,
+        refreshments: [
+          {
+            id: 'water-line',
+            menuItemId: 'water',
+            name: 'Water',
+            quantity: 2,
+            unitPrice: { amountMinor: 2000 },
+            lineTotal: { amountMinor: 4000 },
+            servedAt: CHECKED_IN,
+          },
+        ],
+        ...(status === 'COMPLETED'
+          ? {
+              endedAt: serverNow(),
+              billableHours: 2,
+              total: { amountMinor: 64000 },
+            }
+          : {}),
+      });
+      const w = await open();
+      expect(w.text()).toContain('2x Water');
+      expect(w.find('.section-cost').text()).toBe('฿600');
+      expect(w.find('.total-due-line .due-amount').text()).toBe('฿640');
+      w.unmount();
+    },
+  );
+
+  it('formats fractional-baht refreshments from integer server amounts', async () => {
+    vi.setSystemTime(bkk('14:20'));
+    rentalOverrides = () => ({
+      refreshments: [
+        {
+          id: 'a',
+          menuItemId: 'water',
+          name: 'Water',
+          quantity: 3,
+          unitPrice: { amountMinor: 1010 },
+          lineTotal: { amountMinor: 3030 },
+          servedAt: CHECKED_IN,
+        },
+        {
+          id: 'b',
+          menuItemId: 'snack',
+          name: 'Snack',
+          quantity: 1,
+          unitPrice: { amountMinor: 1020 },
+          lineTotal: { amountMinor: 1020 },
+          servedAt: CHECKED_IN,
+        },
+      ],
+    });
+    const w = await open();
+    expect(w.find('.inplay-orders-list').text()).toContain('฿30.30');
+    expect(w.findAll('.section-cost').at(-1)?.text()).toBe('฿40.50');
+    expect(w.find('.total-due-line .due-amount').text()).toBe('฿640.50');
+    expect(w.text()).not.toContain('999999');
+    w.unmount();
+  });
+
   it('shows check-in, scheduled end, elapsed, remaining, rate and estimate labels', async () => {
     vi.setSystemTime(bkk('14:10'));
     const w = await open();

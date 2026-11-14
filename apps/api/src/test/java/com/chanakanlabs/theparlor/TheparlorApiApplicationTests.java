@@ -1703,6 +1703,226 @@ class TheparlorApiApplicationTests {
     assertThat(get(customer, rentalPath).statusCode()).isEqualTo(404);
   }
 
+  record RefreshmentVisit(UUID branch, UUID water, String rentalPath) {}
+
+  RefreshmentVisit openRefreshmentVisit(HttpClient manager, int onHand) throws Exception {
+    var branch = UUID.randomUUID();
+    var table = UUID.randomUUID();
+    var water = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Refreshment test', 'Address')", branch);
+    for (int day = 1; day <= 7; day++)
+      jdbc.update(
+          "INSERT INTO branch_opening_hours(branch_id,day_of_week,opens_at,closes_at) VALUES (?,?,'00:00','24:00')",
+          branch,
+          day);
+    jdbc.update(
+        "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor,operational_status) VALUES (?,?,'T1',4,5000,'IN_SERVICE')",
+        table,
+        branch);
+    jdbc.update(
+        "INSERT INTO menu_items(id,sku,category,names,price_minor) VALUES (?,?,'BEVERAGES','{\"en-US\":\"Water\"}'::jsonb,2000)",
+        water,
+        "WATER-" + water);
+    jdbc.update(
+        "INSERT INTO branch_menu_stock(branch_id,menu_item_id,on_hand) VALUES (?,?,?)",
+        branch,
+        water,
+        onHand);
+    String base = "/api/v1/branches/" + branch;
+    var seated =
+        send(
+            manager,
+            "POST",
+            base + "/staff/reservations",
+            walkIn(table, 2, java.time.Duration.ofHours(2)),
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(seated.statusCode()).as(seated.body()).isEqualTo(201);
+    String rentalPath =
+        base + "/rentals/" + JSON.readTree(seated.body()).get("rentalId").asString();
+    return new RefreshmentVisit(branch, water, rentalPath);
+  }
+
+  @Test
+  void refreshmentsAddedDuringPlayReduceStockAndRemainOnTheBill() throws Exception {
+    var manager = login("manager");
+    var fixture = openRefreshmentVisit(manager, 5);
+    var branch = fixture.branch();
+    var water = fixture.water();
+    var anonymous = browser();
+    String base = "/api/v1/branches/" + branch;
+    String rentalPath = fixture.rentalPath();
+    String body = "{\"items\":[{\"menuItemId\":\"" + water + "\",\"quantity\":2}]}";
+    String key = UUID.randomUUID().toString();
+    var added = send(manager, "POST", rentalPath + "/refreshments", body, "Idempotency-Key", key);
+    assertThat(added.statusCode()).as(added.body()).isEqualTo(200);
+    assertThat(available(get(anonymous, base + "/menu").body(), water)).isEqualTo(3);
+    var bill = JSON.readTree(get(manager, rentalPath).body());
+    assertThat(bill.get("refreshments")).hasSize(1);
+    assertThat(bill.get("refreshments").get(0).get("name").asString()).isEqualTo("Water");
+    assertThat(bill.get("refreshments").get(0).get("lineTotal").get("amountMinor").asLong())
+        .isEqualTo(4000);
+    var replay = send(manager, "POST", rentalPath + "/refreshments", body, "Idempotency-Key", key);
+    assertThat(replay.statusCode()).as(replay.body()).isEqualTo(200);
+    assertThat(JSON.readTree(replay.body()).get("refreshments")).hasSize(1);
+    assertThat(available(get(anonymous, base + "/menu").body(), water)).isEqualTo(3);
+    for (String invalid :
+        List.of(
+            "{\"items\":[{\"menuItemId\":\"" + water + "\",\"quantity\":4}]}",
+            "{\"items\":[{\"menuItemId\":\""
+                + water
+                + "\",\"quantity\":1},{\"menuItemId\":\""
+                + water
+                + "\",\"quantity\":1}]}")) {
+      var rejected =
+          send(
+              manager,
+              "POST",
+              rentalPath + "/refreshments",
+              invalid,
+              "Idempotency-Key",
+              UUID.randomUUID().toString());
+      assertThat(rejected.statusCode()).as(rejected.body()).isIn(400, 409);
+      assertThat(available(get(anonymous, base + "/menu").body(), water)).isEqualTo(3);
+    }
+    String oneWater = "{\"items\":[{\"menuItemId\":\"" + water + "\",\"quantity\":1}]}";
+    assertThat(
+            send(manager, "POST", rentalPath + "/refreshments", oneWater, "Idempotency-Key", key)
+                .statusCode())
+        .isEqualTo(409);
+    assertThat(
+            send(
+                    login("customer"),
+                    "POST",
+                    rentalPath + "/refreshments",
+                    body,
+                    "Idempotency-Key",
+                    UUID.randomUUID().toString())
+                .statusCode())
+        .isEqualTo(403);
+    assertThat(
+            send(
+                    login("staff"),
+                    "POST",
+                    rentalPath + "/refreshments",
+                    body,
+                    "Idempotency-Key",
+                    UUID.randomUUID().toString())
+                .statusCode())
+        .isEqualTo(403);
+    // Pre-order holds belong to another party and cannot be served by this one.
+    jdbc.update(
+        "UPDATE branch_menu_stock SET held=2 WHERE branch_id=? AND menu_item_id=?", branch, water);
+    var held =
+        send(
+            manager,
+            "POST",
+            rentalPath + "/refreshments",
+            body,
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(held.statusCode()).as(held.body()).isEqualTo(409);
+    assertThat(available(get(anonymous, base + "/menu").body(), water)).isEqualTo(1);
+    jdbc.update(
+        "UPDATE branch_menu_stock SET held=0 WHERE branch_id=? AND menu_item_id=?", branch, water);
+    // A later menu change must not reprice water already served.
+    jdbc.update(
+        "UPDATE menu_items SET price_minor=9900,names='{\"en-US\":\"Renamed water\"}'::jsonb WHERE id=?",
+        water);
+    var completed = send(manager, "POST", rentalPath + "/check-out", "{}");
+    assertThat(completed.statusCode()).as(completed.body()).isEqualTo(200);
+    assertThat(
+            JSON.readTree(completed.body()).get("rental").get("total").get("amountMinor").asLong())
+        .isEqualTo(9000);
+    var stored = JSON.readTree(get(manager, rentalPath).body()).get("refreshments");
+    assertThat(stored).hasSize(1);
+    assertThat(stored.get(0).get("name").asString()).isEqualTo("Water");
+    assertThat(stored.get(0).get("unitPrice").get("amountMinor").asLong()).isEqualTo(2000);
+    assertThat(
+            send(manager, "POST", rentalPath + "/refreshments", body, "Idempotency-Key", key)
+                .statusCode())
+        .isEqualTo(200);
+    assertThat(
+            send(
+                    manager,
+                    "POST",
+                    rentalPath + "/refreshments",
+                    body,
+                    "Idempotency-Key",
+                    UUID.randomUUID().toString())
+                .statusCode())
+        .isEqualTo(409);
+    assertThat(available(get(anonymous, base + "/menu").body(), water)).isEqualTo(3);
+  }
+
+  @Test
+  void refreshmentOrdersRollBackOnFailureAndNeverOversell() throws Exception {
+    var manager = login("manager");
+    var fixture = openRefreshmentVisit(manager, 3);
+    String rentalPath = fixture.rentalPath();
+    String menuPath = "/api/v1/branches/" + fixture.branch() + "/menu";
+    String body = "{\"items\":[{\"menuItemId\":\"" + fixture.water() + "\",\"quantity\":2}]}";
+    String key = UUID.randomUUID().toString();
+    jdbc.execute(
+        "CREATE FUNCTION fail_refreshment_write() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'refreshment storage unavailable'; END $$ LANGUAGE plpgsql");
+    jdbc.execute(
+        "CREATE TRIGGER fail_refreshment_write BEFORE INSERT ON rental_refreshments FOR EACH ROW EXECUTE FUNCTION fail_refreshment_write()");
+    try {
+      var failed =
+          send(manager, "POST", rentalPath + "/refreshments", body, "Idempotency-Key", key);
+      assertThat(failed.statusCode()).as(failed.body()).isEqualTo(500);
+    } finally {
+      jdbc.execute("DROP TRIGGER fail_refreshment_write ON rental_refreshments");
+      jdbc.execute("DROP FUNCTION fail_refreshment_write()");
+    }
+    assertThat(available(get(browser(), menuPath).body(), fixture.water())).isEqualTo(3);
+    assertThat(JSON.readTree(get(manager, rentalPath).body()).get("refreshments")).isEmpty();
+    var retried = send(manager, "POST", rentalPath + "/refreshments", body, "Idempotency-Key", key);
+    assertThat(retried.statusCode()).as(retried.body()).isEqualTo(200);
+    String one = "{\"items\":[{\"menuItemId\":\"" + fixture.water() + "\",\"quantity\":1}]}";
+    try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+      var start = new java.util.concurrent.CountDownLatch(1);
+      var first =
+          executor.submit(
+              () -> {
+                start.await();
+                return send(
+                    manager,
+                    "POST",
+                    rentalPath + "/refreshments",
+                    one,
+                    "Idempotency-Key",
+                    UUID.randomUUID().toString());
+              });
+      var second =
+          executor.submit(
+              () -> {
+                start.await();
+                return send(
+                    manager,
+                    "POST",
+                    rentalPath + "/refreshments",
+                    one,
+                    "Idempotency-Key",
+                    UUID.randomUUID().toString());
+              });
+      start.countDown();
+      assertThat(
+              List.of(
+                  first.get(20, java.util.concurrent.TimeUnit.SECONDS).statusCode(),
+                  second.get(20, java.util.concurrent.TimeUnit.SECONDS).statusCode()))
+          .containsExactlyInAnyOrder(200, 409);
+    }
+    assertThat(available(get(browser(), menuPath).body(), fixture.water())).isZero();
+    assertThat(JSON.readTree(get(manager, rentalPath).body()).get("refreshments")).hasSize(2);
+    var completed = send(manager, "POST", rentalPath + "/check-out", "{}");
+    assertThat(completed.statusCode()).as(completed.body()).isEqualTo(200);
+    assertThat(
+            JSON.readTree(completed.body()).get("rental").get("total").get("amountMinor").asLong())
+        .isEqualTo(11000);
+  }
+
   static String walkIn(UUID table, int partySize, java.time.Duration length) {
     return "{\"source\":\"WALK_IN\",\"checkIn\":true,"
         + "\"customer\":{\"kind\":\"GUEST\",\"displayName\":\"QA Capacity Test\"},"

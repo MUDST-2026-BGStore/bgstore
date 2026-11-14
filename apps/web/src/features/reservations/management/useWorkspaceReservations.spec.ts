@@ -338,7 +338,7 @@ describe('reservations, rental checkout, and branch menu integration', () => {
         paid: true,
       },
     });
-    // The in-play tab has no backend, so a server bill carries none of it.
+    // Live refreshment lines are loaded by TableBillModal from the rental API.
     expect(workspace.staffBillReservation.value.inPlayOrders).toEqual([]);
 
     wrapper.unmount();

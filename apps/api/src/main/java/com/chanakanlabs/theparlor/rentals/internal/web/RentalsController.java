@@ -16,6 +16,12 @@ public class RentalsController implements RentalsApi {
   }
 
   @Override
+  public Rental addRentalRefreshments(
+      UUID branchId, UUID rentalId, UUID idempotencyKey, AddRentalRefreshmentsRequest request) {
+    return rentals.addRefreshments(branchId, rentalId, idempotencyKey, request);
+  }
+
+  @Override
   public CheckOutResult checkOutRental(UUID branchId, UUID rentalId) {
     return rentals.checkOut(branchId, rentalId);
   }

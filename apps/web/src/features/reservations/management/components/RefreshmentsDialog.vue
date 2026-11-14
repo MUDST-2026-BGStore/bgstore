@@ -17,6 +17,12 @@ const {
   staffSnackSelectedItems,
   staffSnackSubtotal,
   submitStaffSnackOrder,
+  staffSnackError,
+  staffSnackSubmitting,
+  staffSnackLoading,
+  staffSnackMenuError,
+  staffSnackUncertain,
+  staffSnackRecoveryBlocked,
 } = useManagementWorkspace();
 </script>
 <template>
@@ -32,6 +38,16 @@ const {
       :description="`${tableLabel(staffSnackReservation.tableId)} · ${getCustomerName(staffSnackReservation.customer)}`"
       @close="staffSnackReservation = null"
     >
+      <p v-if="staffSnackError" role="alert">{{ staffSnackError }}</p>
+      <p v-if="staffSnackMenuError" role="alert">
+        Could not load food and drink stock. Close and reopen to retry.
+      </p>
+      <p v-else-if="staffSnackLoading" role="status">
+        Loading food and drinks…
+      </p>
+      <p v-else-if="branchStockItems.length === 0">
+        No food or drinks stocked at this branch.
+      </p>
       <div class="refreshment-list">
         <div
           v-for="item in branchStockItems"
@@ -52,8 +68,13 @@ const {
           <AppNumberStepper
             :model-value="getStaffSnackQty(item.id)"
             :label="`Quantity of ${item.name}`"
-            :max="item.currentStock"
-            :disabled="item.currentStock <= 0"
+            :max="Math.min(50, item.currentStock)"
+            :disabled="
+              item.currentStock <= 0 ||
+              staffSnackSubmitting ||
+              staffSnackUncertain ||
+              staffSnackRecoveryBlocked
+            "
             @update:model-value="
               adjustStaffSnackQty(item, $event - getStaffSnackQty(item.id))
             "
@@ -66,9 +87,20 @@ const {
         ><AppButton @click="staffSnackReservation = null">Cancel</AppButton
         ><AppButton
           appearance="primary"
-          :disabled="staffSnackSelectedItems.length === 0"
+          :disabled="
+            staffSnackSelectedItems.length === 0 ||
+            staffSnackSubmitting ||
+            staffSnackRecoveryBlocked ||
+            (staffSnackMenuError && !staffSnackUncertain)
+          "
           @click="submitStaffSnackOrder"
-          >Add to table</AppButton
+          >{{
+            staffSnackSubmitting
+              ? 'Adding…'
+              : staffSnackUncertain
+                ? 'Retry order'
+                : 'Add to table'
+          }}</AppButton
         ></template
       >
     </AppDialogPanel>

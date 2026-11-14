@@ -1,0 +1,11 @@
+type: object
+required:
+  - items
+properties:
+  items:
+    type: array
+    minItems: 1
+    maxItems: 50
+    description: Unique menu items; names and prices are resolved by the server.
+    items:
+      $ref: ./PreOrderItemRequest.yaml

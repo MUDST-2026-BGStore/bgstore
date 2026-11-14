@@ -1,18 +1,23 @@
 package com.chanakanlabs.theparlor.rentals.internal.application;
 
 import com.chanakanlabs.theparlor.branches.BranchAccess;
+import com.chanakanlabs.theparlor.contracts.model.AddRentalRefreshmentsRequest;
 import com.chanakanlabs.theparlor.contracts.model.CheckOutResult;
 import com.chanakanlabs.theparlor.contracts.model.Money;
 import com.chanakanlabs.theparlor.contracts.model.Rental;
 import com.chanakanlabs.theparlor.contracts.model.RentalPage;
 import com.chanakanlabs.theparlor.contracts.model.RentalStatus;
+import com.chanakanlabs.theparlor.idempotency.Idempotency;
 import com.chanakanlabs.theparlor.identity.CurrentUser;
+import com.chanakanlabs.theparlor.pantry.Pantry;
 import com.chanakanlabs.theparlor.rentals.internal.domain.RentalCharge;
 import com.chanakanlabs.theparlor.rentals.internal.domain.RentalChargeType;
 import com.chanakanlabs.theparlor.rentals.internal.domain.RentalCopyAllocation;
 import com.chanakanlabs.theparlor.rentals.internal.domain.RentalPricingPolicy;
+import com.chanakanlabs.theparlor.rentals.internal.domain.RentalRefreshment;
 import com.chanakanlabs.theparlor.rentals.internal.persistence.RentalChargeRepository;
 import com.chanakanlabs.theparlor.rentals.internal.persistence.RentalCopyAllocationRepository;
+import com.chanakanlabs.theparlor.rentals.internal.persistence.RentalRefreshmentRepository;
 import com.chanakanlabs.theparlor.rentals.internal.persistence.RentalRepository;
 import com.chanakanlabs.theparlor.reservations.Visits;
 import com.chanakanlabs.theparlor.reservations.Visits.Booked;
@@ -49,6 +54,9 @@ public class RentalsService implements RentalDesk {
 
   private final RentalRepository rentals;
   private final RentalChargeRepository charges;
+  private final RentalRefreshmentRepository refreshments;
+  private final Pantry pantry;
+  private final Idempotency idempotency;
   private final RentalCopyAllocationRepository allocations;
   private final Visits visits;
   private final BranchAccess branches;
@@ -58,6 +66,9 @@ public class RentalsService implements RentalDesk {
   RentalsService(
       RentalRepository rentals,
       RentalChargeRepository charges,
+      RentalRefreshmentRepository refreshments,
+      Pantry pantry,
+      Idempotency idempotency,
       RentalCopyAllocationRepository allocations,
       Visits visits,
       BranchAccess branches,
@@ -65,6 +76,9 @@ public class RentalsService implements RentalDesk {
       Clock clock) {
     this.rentals = rentals;
     this.charges = charges;
+    this.refreshments = refreshments;
+    this.pantry = pantry;
+    this.idempotency = idempotency;
     this.allocations = allocations;
     this.visits = visits;
     this.branches = branches;
@@ -157,6 +171,54 @@ public class RentalsService implements RentalDesk {
     return result;
   }
 
+  /** Record served refreshments atomically with stock consumption and retry-safe pricing. */
+  @Transactional
+  public Rental addRefreshments(
+      UUID branchId, UUID rentalId, UUID key, AddRentalRefreshmentsRequest request) {
+    String staff = branches.requireOperator(branchId);
+    var scope =
+        new Idempotency.Scope(
+            staff,
+            "POST",
+            "/api/v1/branches/" + branchId + "/rentals/" + rentalId + "/refreshments");
+    idempotency.once(
+        scope,
+        key,
+        request.toString(),
+        () -> {
+          // Shares checkout's lock: a concurrent checkout either includes this order or rejects it.
+          var rental =
+              rentals.lockByIdAndBranchId(rentalId, branchId).orElseThrow(RentalsService::missing);
+          if (!rental.isActive())
+            throw new ResponseStatusException(
+                HttpStatus.CONFLICT, "This session has already completed");
+          var selections =
+              request.getItems().stream()
+                  .map(item -> new Pantry.Selection(item.getMenuItemId(), item.getQuantity()))
+                  .toList();
+          var priced = pantry.hold(branchId, selections);
+          pantry.fulfill(branchId, selections);
+          var now = clock.instant();
+          refreshments.saveAllAndFlush(
+              priced.stream()
+                  .map(
+                      item ->
+                          RentalRefreshment.serve(
+                              rentalId,
+                              item.menuItemId(),
+                              item.name(),
+                              item.quantity(),
+                              item.unitPriceMinor(),
+                              now,
+                              staff))
+                  .toList());
+          return rentalId;
+        });
+    return view(List.of(
+            rentals.findByIdAndBranchId(rentalId, branchId).orElseThrow(RentalsService::missing)))
+        .getFirst();
+  }
+
   /**
    * Staff confirm every game is back, which ends the rental at server time, bills each started hour
    * at the locked rates and completes the reservation. Repeating a checkout returns the stored
@@ -181,11 +243,14 @@ public class RentalsService implements RentalDesk {
           RentalCharge.bill(
               rentalId, game.gameId(), game.quantity(), game.unitHourlyRateMinor(), hours));
     charges.saveAllAndFlush(lines);
-    rental.complete(
-        now,
-        staff,
+    long playTotal =
         RentalPricingPolicy.totalMinor(
-            lines.stream().map(RentalCharge::getLineTotalMinor).toList()));
+            lines.stream().map(RentalCharge::getLineTotalMinor).toList());
+    long foodTotal =
+        refreshments.findByRentalIdIn(List.of(rentalId)).stream()
+            .map(RentalRefreshment::getLineTotalMinor)
+            .reduce(0L, Math::addExact);
+    rental.complete(now, staff, Math.addExact(playTotal, foodTotal));
     rentals.flush();
     // A completed rental no longer commits its copies or table; nothing else needs releasing.
     var reservation = visits.complete(rental.getReservationId(), now);
@@ -203,6 +268,9 @@ public class RentalsService implements RentalDesk {
     Map<UUID, List<RentalCharge>> billed =
         charges.findByRentalIdIn(page.stream().map(rental -> rental.getId()).toList()).stream()
             .collect(Collectors.groupingBy(RentalCharge::getRentalId));
+    var served =
+        refreshments.findByRentalIdIn(page.stream().map(rental -> rental.getId()).toList()).stream()
+            .collect(Collectors.groupingBy(RentalRefreshment::getRentalId));
     var result = new ArrayList<Rental>();
     for (var rental : page) {
       var visit = booked.get(rental.getReservationId());
@@ -251,6 +319,20 @@ public class RentalsService implements RentalDesk {
               clock.instant().atOffset(ZoneOffset.UTC),
               rental.getCheckedInBy(),
               lines);
+      view.setRefreshments(
+          served.getOrDefault(rental.getId(), List.of()).stream()
+              .sorted(Comparator.comparing(RentalRefreshment::getId))
+              .map(
+                  line ->
+                      new com.chanakanlabs.theparlor.contracts.model.RentalRefreshment(
+                          line.getId(),
+                          line.getMenuItemId(),
+                          line.getName(),
+                          line.getQuantity(),
+                          new Money(line.getUnitPriceMinor()),
+                          new Money(line.getLineTotalMinor()),
+                          line.getServedAt().atOffset(ZoneOffset.UTC)))
+              .toList());
       if (!rental.isActive()) {
         view.setEndedAt(rental.getActualEndsAt().atOffset(ZoneOffset.UTC));
         view.setCheckedOutBySubject(rental.getCheckedOutBy());

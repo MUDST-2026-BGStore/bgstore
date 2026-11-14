@@ -108,6 +108,8 @@ paths:
     $ref: ./paths/rentals/item.yaml
   /api/v1/branches/{branchId}/rentals/{rentalId}/check-out:
     $ref: ./paths/rentals/check-out.yaml
+  /api/v1/branches/{branchId}/rentals/{rentalId}/refreshments:
+    $ref: ./paths/rentals/refreshments.yaml
   /api/v1/me/orders:
     $ref: ./paths/orders/mine.yaml
   /api/v1/branches/{branchId}/orders:

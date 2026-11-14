@@ -4,6 +4,8 @@
       "contracts::models",
       "branches",
       "identity",
+      "idempotency",
+      "pantry",
       "inventory::spi",
       "reservations",
       "reservations::spi",

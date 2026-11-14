@@ -595,6 +595,7 @@ export function useWorkspaceReservations() {
         clientType: res.clientType,
         hourlyRate: res.hourlyRate,
         preOrder: toBillPreOrder(res.preOrder),
+        // TableBillModal reads persisted refreshments from this rental.
         inPlayOrders: [],
       };
     } else if (found) {

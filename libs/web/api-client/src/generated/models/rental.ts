@@ -8,10 +8,11 @@
 import type { CustomerReference } from './customerReference';
 import type { Money } from './money';
 import type { RentalCharge } from './rentalCharge';
+import type { RentalRefreshment } from './rentalRefreshment';
 import type { RentalStatus } from './rentalStatus';
 
 /**
- * total is present only when COMPLETED and is the sum of charge line totals. The owning customer may view the result but cannot start or end the rental. COMPLETED requires endedAt, checkedOutBySubject, billableHours, total and billableHours/lineTotal on every charge. ACTIVE omits those completion fields.
+ * total is present only when COMPLETED and is the sum of hourly charge line totals and served refreshment line totals. Refreshments are one-time charges, independent of billable hours. The owning customer may view the result but cannot start or end the rental. COMPLETED requires endedAt, checkedOutBySubject, billableHours, total and billableHours/lineTotal on every charge. ACTIVE omits those completion fields.
  */
 export interface Rental {
   id: string;
@@ -29,6 +30,8 @@ export interface Rental {
   checkedInBySubject: string;
   /** @minItems 1 */
   charges: RentalCharge[];
+  /** Served refreshments, retained after checkout; empty when none were ordered. */
+  refreshments?: RentalRefreshment[];
   /** Server checkout time; present when COMPLETED. */
   endedAt?: string;
   /** Present when COMPLETED. */

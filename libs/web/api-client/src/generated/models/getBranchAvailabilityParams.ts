@@ -9,21 +9,15 @@ import type { EndsAtParameter } from './endsAtParameter';
 import type { StartsAtParameter } from './startsAtParameter';
 
 export type GetBranchAvailabilityParams = {
-/**
- * Inclusive window start, including UTC offset.
- */
-startsAt: StartsAtParameter;
-/**
- * Exclusive window end; must be after startsAt.
- */
-endsAt: EndsAtParameter;
-/**
- * @minimum 1
- */
-partySize: number;
-/**
- * Optionally restrict games; form-style repeated gameId parameters.
- * @maxItems 50
- */
-gameId?: string[];
+  /** Inclusive window start, including UTC offset. */
+  startsAt: StartsAtParameter;
+  /** Exclusive window end; must be after startsAt. */
+  endsAt: EndsAtParameter;
+  /** @minimum 1 */
+  partySize: number;
+  /**
+   * Optionally restrict games; form-style repeated gameId parameters.
+   * @maxItems 50
+   */
+  gameId?: string[];
 };

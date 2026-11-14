@@ -101,6 +101,6 @@ public class PantryService implements Pantry {
 
   private static ResponseStatusException unavailable() {
     return new ResponseStatusException(
-        HttpStatus.CONFLICT, "Some pre-ordered food is not available at this branch");
+        HttpStatus.CONFLICT, "Some food or drinks are not available at this branch");
   }
 }

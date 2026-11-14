@@ -253,9 +253,7 @@ const queueColumns = [
             </td>
             <AppTableActions>
               <template v-if="item.type === 'IN_PLAY'"
-                ><AppButton
-                  v-if="!item.reservation.live"
-                  @click="openAddSnacks(item.reservation)"
+                ><AppButton @click="openAddSnacks(item.reservation)"
                   >Refreshments</AppButton
                 ><AppButton
                   appearance="primary"

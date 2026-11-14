@@ -10,28 +10,22 @@ import type { LimitParameter } from './limitParameter';
 import type { ReservationStatus } from './reservationStatus';
 
 export type ListBranchReservationsParams = {
-/**
- * Maximum number of results in one page.
- * @minimum 1
- * @maximum 100
- */
-limit?: LimitParameter;
-/**
- * Opaque cursor from the previous page. Reuse the same filters; invalid or mismatched cursors return 400. Lists use stable ID ordering.
- * @minLength 1
- * @maxLength 2048
- */
-cursor?: CursorParameter;
-/**
- * Filter by lifecycle status.
- */
-status?: ReservationStatus;
-/**
- * Include reservations ending after this inclusive range start.
- */
-from?: string;
-/**
- * Include reservations starting before this exclusive range end.
- */
-until?: string;
+  /**
+   * Maximum number of results in one page.
+   * @minimum 1
+   * @maximum 100
+   */
+  limit?: LimitParameter;
+  /**
+   * Opaque cursor from the previous page. Reuse the same filters; invalid or mismatched cursors return 400. Lists use stable ID ordering.
+   * @minLength 1
+   * @maxLength 2048
+   */
+  cursor?: CursorParameter;
+  /** Filter by lifecycle status. */
+  status?: ReservationStatus;
+  /** Include reservations ending after this inclusive range start. */
+  from?: string;
+  /** Include reservations starting before this exclusive range end. */
+  until?: string;
 };

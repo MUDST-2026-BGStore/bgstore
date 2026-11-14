@@ -1,6 +1,8 @@
 type: object
 description: >-
-  total is present only when COMPLETED and is the sum of charge line totals. The
+  total is present only when COMPLETED and is the sum of hourly charge line totals
+  and served refreshment line totals. Refreshments are one-time charges, independent
+  of billable hours. The
   owning customer may view the result but cannot start or end the rental.
   COMPLETED requires endedAt, checkedOutBySubject, billableHours, total and
   billableHours/lineTotal on every charge. ACTIVE omits those completion fields.
@@ -54,6 +56,11 @@ properties:
     items:
       $ref: ./RentalCharge.yaml
     minItems: 1
+  refreshments:
+    type: array
+    description: Served refreshments, retained after checkout; empty when none were ordered.
+    items:
+      $ref: ./RentalRefreshment.yaml
   endedAt:
     type: string
     description: Server checkout time; present when COMPLETED.

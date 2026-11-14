@@ -1,0 +1,43 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/RentalId.yaml
+post:
+  tags:
+    - Rentals
+  operationId: addRentalRefreshments
+  summary: Add served food and drinks to an active session's counter bill
+  description: >-
+    Branch operators record refreshments served during play. The server snapshots menu names
+    and prices and consumes available pantry stock atomically. Held pre-order stock cannot be
+    consumed. Only active rentals accept new orders. Replaying the same key and body never
+    consumes stock or adds charges twice, including after checkout. Payment is collected at
+    the counter on checkout, together with play fees.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+    - $ref: ../../components/parameters/IdempotencyKey.yaml
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/AddRentalRefreshmentsRequest.yaml
+  responses:
+    '200':
+      description: Rental with its persisted refreshment lines
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Rental.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml

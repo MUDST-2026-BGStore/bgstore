@@ -34,6 +34,7 @@ import type {
   AccountMatchList,
   AccountSettings,
   AddCartItemRequest,
+  AddRentalRefreshmentsRequest,
   BadRequestResponse,
   Branch,
   BranchAvailability,
@@ -178,17 +179,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof session>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof session>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type SessionQueryResult = NonNullable<Awaited<ReturnType<typeof session>>>
 export type SessionQueryError = ErrorType<unknown>
 
 
-/**
- * @summary Read the browser session without forcing login
- */
-
+/** @summary Read the browser session without forcing login */
 export function useSession<TData = Awaited<ReturnType<typeof session>>, TError = ErrorType<unknown>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof session>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -196,7 +194,7 @@ export function useSession<TData = Awaited<ReturnType<typeof session>>, TError =
 
   const queryOptions = getSessionQueryOptions(options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof session>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -249,17 +247,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof csrf>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof csrf>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type CsrfQueryResult = NonNullable<Awaited<ReturnType<typeof csrf>>>
 export type CsrfQueryError = ErrorType<unknown>
 
 
-/**
- * @summary Obtain a masked CSRF token bound to the current session
- */
-
+/** @summary Obtain a masked CSRF token bound to the current session */
 export function useCsrf<TData = Awaited<ReturnType<typeof csrf>>, TError = ErrorType<unknown>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof csrf>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -267,7 +262,7 @@ export function useCsrf<TData = Awaited<ReturnType<typeof csrf>>, TError = Error
 
   const queryOptions = getCsrfQueryOptions(options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof csrf>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -320,17 +315,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof hello>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof hello>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type HelloQueryResult = NonNullable<Awaited<ReturnType<typeof hello>>>
 export type HelloQueryError = ErrorType<unknown>
 
 
-/**
- * @summary Check public API connectivity
- */
-
+/** @summary Check public API connectivity */
 export function useHello<TData = Awaited<ReturnType<typeof hello>>, TError = ErrorType<unknown>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof hello>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -338,7 +330,7 @@ export function useHello<TData = Awaited<ReturnType<typeof hello>>, TError = Err
 
   const queryOptions = getHelloQueryOptions(options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof hello>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -391,17 +383,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof whoami>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof whoami>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type WhoamiQueryResult = NonNullable<Awaited<ReturnType<typeof whoami>>>
 export type WhoamiQueryError = ErrorType<void>
 
 
-/**
- * @summary Read the authenticated identity
- */
-
+/** @summary Read the authenticated identity */
 export function useWhoami<TData = Awaited<ReturnType<typeof whoami>>, TError = ErrorType<void>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof whoami>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -409,7 +398,7 @@ export function useWhoami<TData = Awaited<ReturnType<typeof whoami>>, TError = E
 
   const queryOptions = getWhoamiQueryOptions(options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof whoami>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -463,7 +452,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof me>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof me>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type MeQueryResult = NonNullable<Awaited<ReturnType<typeof me>>>
@@ -471,9 +460,9 @@ export type MeQueryError = ErrorType<Problem>
 
 
 /**
+ * Returns the theparlor account associated with the authenticated identity. Returns 404 if the account has not been provisioned. This operation does not create or modify an account.
  * @summary Get the current account
  */
-
 export function useMe<TData = Awaited<ReturnType<typeof me>>, TError = ErrorType<Problem>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof me>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -481,7 +470,7 @@ export function useMe<TData = Awaited<ReturnType<typeof me>>, TError = ErrorType
 
   const queryOptions = getMeQueryOptions(options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof me>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -550,6 +539,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateMeMutationVariables = {data: CreateAccountRequest}
 
     /**
+ * Completes onboarding by creating a theparlor account and associating it with the authenticated identity. If an account already exists, returns the existing profile without modifying it. This operation is idempotent in behavior.
  * @summary Create the current account
  */
 export const useCreateMe = <TError = ErrorType<Problem>,
@@ -619,6 +609,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateMeMutationVariables = {data: UpdateAccountRequest}
 
     /**
+ * Updates the authenticated user's first name, last name and/or phone number. Omitted or null fields remain unchanged. At least one non-null field is required. Application preferences are updated through /api/v1/me/settings.
  * @summary Update the current account's profile
  */
 export const useUpdateMe = <TError = ErrorType<Problem>,
@@ -686,6 +677,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
     /**
+ * Deletes the authenticated user's theparlor application account. This does not delete their Keycloak identity.
  * @summary Delete the current account
  */
 export const useDeleteMe = <TError = ErrorType<Problem>,
@@ -740,7 +732,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMeSettings>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMeSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetMeSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getMeSettings>>>
@@ -748,9 +740,9 @@ export type GetMeSettingsQueryError = ErrorType<Problem>
 
 
 /**
+ * Returns settings for an existing account. Does not provision an account.
  * @summary Get the current account's settings
  */
-
 export function useGetMeSettings<TData = Awaited<ReturnType<typeof getMeSettings>>, TError = ErrorType<Problem>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMeSettings>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -758,7 +750,7 @@ export function useGetMeSettings<TData = Awaited<ReturnType<typeof getMeSettings
 
   const queryOptions = getGetMeSettingsQueryOptions(options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getMeSettings>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -827,6 +819,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateMeSettingsMutationVariables = {data: UpdateAccountSettingsRequest}
 
     /**
+ * Updates supplied settings; omitted fields remain unchanged. At least one non-null setting is required. Does not modify names or phone number.
  * @summary Update the current account's settings
  */
 export const useUpdateMeSettings = <TError = ErrorType<Problem>,
@@ -881,7 +874,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyCart>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMyCart>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetMyCartQueryResult = NonNullable<Awaited<ReturnType<typeof getMyCart>>>
@@ -889,9 +882,9 @@ export type GetMyCartQueryError = ErrorType<UnauthorizedResponse>
 
 
 /**
+ * Returns the caller's OPEN cart, creating an empty account-bound cart first if none exists. The operation is therefore safe for store-and-forward UI hydration; it never returns converted, abandoned or foreign carts. Line revalidation behaves like getCart. Signing out does not delete the cart; an anonymous caller with the former cart's token still uses carts/{cartId}.
  * @summary Get the signed-in account's open cart
  */
-
 export function useGetMyCart<TData = Awaited<ReturnType<typeof getMyCart>>, TError = ErrorType<UnauthorizedResponse>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMyCart>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -899,7 +892,7 @@ export function useGetMyCart<TData = Awaited<ReturnType<typeof getMyCart>>, TErr
 
   const queryOptions = getGetMyCartQueryOptions(options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getMyCart>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -968,6 +961,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type MergeCartMutationVariables = {data: MergeCartRequest}
 
     /**
+ * Called during sign-in flows: moves a guest cart identified by cartId and X-Cart-Token-style cartToken into the caller's account cart. Same-edition quantities add and cap at 99; shortages surface as issues on read. The merged guest cart is consumed (ABANDONED) and its token stops working even when the merge conflicts, so a compromised token cannot be replayed. Requires an open account cart; one is created when the account has none.
  * @summary Merge a guest cart into the account's open cart
  */
 export const useMergeCart = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -1035,6 +1029,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
 
     /**
+ * Creates an empty cart. Signed-in callers get it bound to the account; guests receive a one-time X-Cart-Token in the response and must store it. Opening a new cart never affects other carts. Uses and stores no device details beyond the token hash. Replaying with the same Idempotency-Key returns the same cart.
  * @summary Create a cart for the caller
  */
 export const useCreateCart = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
@@ -1089,7 +1084,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(cartId) !== null && toValue(cartId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCart>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(cartId) !== null && toValue(cartId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCart>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetCartQueryResult = NonNullable<Awaited<ReturnType<typeof getCart>>>
@@ -1097,9 +1092,9 @@ export type GetCartQueryError = ErrorType<NotFoundResponse | ConflictResponse>
 
 
 /**
+ * Recomputes each line's current price and fulfillable stock at the selected fulfillment location and reports problems in issues without changing or removing lines. Guests require X-Cart-Token; account-bound carts accept only their owner's session. Inactive editions or games flagged as issues remain in items so customers can resolve them.
  * @summary Read a cart with revalidated lines
  */
-
 export function useGetCart<TData = Awaited<ReturnType<typeof getCart>>, TError = ErrorType<NotFoundResponse | ConflictResponse>>(
  cartId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCart>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -1107,7 +1102,7 @@ export function useGetCart<TData = Awaited<ReturnType<typeof getCart>>, TError =
 
   const queryOptions = getGetCartQueryOptions(cartId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getCart>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -1178,6 +1173,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateCartMutationVariables = {cartId: string;data: UpdateCartRequest}
 
     /**
+ * PICKUP requires pickupBranchId of a known active branch in the same request; SHIPPING ignores any stored branch and uses the designated delivery branch. Lines are never deleted by this change; the next read flags lines the new location cannot fulfill. Checkout and review stay blocked while issues exist.
  * @summary Choose pickup or delivery for the whole cart
  */
 export const useUpdateCart = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
@@ -1245,6 +1241,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type DeleteCartMutationVariables = {cartId: string}
 
     /**
+ * Marks the cart ABANDONED and consumes the guest token. Creating a new cart afterwards is normal.
  * @summary Abandon a cart
  */
 export const useDeleteCart = <TError = ErrorType<ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -1316,6 +1313,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type AddCartItemMutationVariables = {cartId: string;data: AddCartItemRequest}
 
     /**
+ * Adds or increments the line for one edition. The edition must be active and currently sold at the cart's fulfillment location; conflicting requests return 409. Requests beyond currently fulfillable stock are also rejected here, so the client's local preview never diverges from the server's authoritative quantity limits.
  * @summary Add a line to a cart
  */
 export const useAddCartItem = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -1389,6 +1387,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateCartItemMutationVariables = {cartId: string;itemId: string;data: UpdateCartItemRequest}
 
     /**
+ * Replaces the quantity of one line. Quantities over currently fulfillable stock are accepted and flagged as INSUFFICIENT_STOCK on the next read; removing stock does not delete the line. The response is the revalidated cart.
  * @summary Set a line's quantity
  */
 export const useUpdateCartItem = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | NotFoundResponse>,
@@ -1458,6 +1457,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RemoveCartItemMutationVariables = {cartId: string;itemId: string}
 
     /**
+ * Deletes one line. Unknown lines return 404 even when the cart exists. Idempotent replays of the same deletion return 204.
  * @summary Remove a line from a cart
  */
 export const useRemoveCartItem = <TError = ErrorType<ForbiddenResponse | NotFoundResponse>,
@@ -1529,6 +1529,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CheckoutCartMutationVariables = {cartId: string;data: CheckoutCartRequest}
 
     /**
+ * Validates every line atomically against the fulfillment location, holds stock (branch_editions stock_held), settles how the total is paid (CARD authorizes the payment token; PROMPTPAY returns a QR payable for 15 minutes; COD waits for cash at delivery), creates one PLACED order and marks the cart CONVERTED; the cart keeps its lines and cannot be reused. A declined payment returns 402 and leaves the cart open with nothing held. Requires Idempotency-Key. Replays with the same key and body return the original order. Guests require X-Cart-Token; signed-in accounts may also check out a guest cart they hold. 409 when the cart is empty, has issues, is not OPEN, or any line no longer has enough stock.
  * @summary Place an order from a cart
  */
 export const useCheckoutCart = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
@@ -1583,7 +1584,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBranchMenu>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBranchMenu>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetBranchMenuQueryResult = NonNullable<Awaited<ReturnType<typeof getBranchMenu>>>
@@ -1591,9 +1592,9 @@ export type GetBranchMenuQueryError = ErrorType<BadRequestResponse | NotFoundRes
 
 
 /**
+ * Active menu items only, at an active branch. Availability is advisory; a pre-order holds stock atomically at booking.
  * @summary Read the food and drink menu with this branch's availability
  */
-
 export function useGetBranchMenu<TData = Awaited<ReturnType<typeof getBranchMenu>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBranchMenu>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -1601,7 +1602,7 @@ export function useGetBranchMenu<TData = Awaited<ReturnType<typeof getBranchMenu
 
   const queryOptions = getGetBranchMenuQueryOptions(branchId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getBranchMenu>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -1674,6 +1675,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type AdjustMenuStockMutationVariables = {branchId: string;menuItemId: string;data: StockAdjustmentRequest}
 
     /**
+ * Apply delta atomically to the branch's on-hand units, starting from zero the first time the branch stocks the item. Reject zero delta or any adjustment making on-hand stock less than the units held by pre-orders. The server records the actor, reason and timestamp.
  * @summary Receive or correct a branch's stock of a menu item
  */
 export const useAdjustMenuStock = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -1743,6 +1745,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreatePaymentTokenMutationVariables = {data: CreatePaymentTokenRequest}
 
     /**
+ * Validates the card (number length, Luhn check, brand, expiry and security code) and returns a short-lived token for checkout or order placement. No money moves here. The development gateway approves any valid card except its published test numbers, which force declines and gateway errors.
  * @summary Exchange card details for a single-use payment token
  */
 export const useCreatePaymentToken = <TError = ErrorType<BadRequestResponse | ForbiddenResponse | PaymentGatewayErrorResponse>,
@@ -1796,17 +1799,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPaymentConfiguration>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPaymentConfiguration>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetPaymentConfigurationQueryResult = NonNullable<Awaited<ReturnType<typeof getPaymentConfiguration>>>
 export type GetPaymentConfigurationQueryError = ErrorType<unknown>
 
 
-/**
- * @summary How the browser tokenizes cards for the active payment provider
- */
-
+/** @summary How the browser tokenizes cards for the active payment provider */
 export function useGetPaymentConfiguration<TData = Awaited<ReturnType<typeof getPaymentConfiguration>>, TError = ErrorType<unknown>>(
   options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPaymentConfiguration>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -1814,7 +1814,7 @@ export function useGetPaymentConfiguration<TData = Awaited<ReturnType<typeof get
 
   const queryOptions = getGetPaymentConfigurationQueryOptions(options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getPaymentConfiguration>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -1883,6 +1883,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ReceiveOmiseWebhookMutationVariables = {data: OmiseWebhookEvent}
 
     /**
+ * Called by Omise, not by browsers, so it takes no CSRF token. The body is not trusted: its charge ID is only used to ask Omise for the charge's current state, and a paid PromptPay charge is then recorded as captured. Unknown charges and other events are acknowledged and ignored.
  * @summary Omise event notices for charges
  */
 export const useReceiveOmiseWebhook = <TError = ErrorType<BadRequestResponse>,
@@ -1937,17 +1938,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBranches>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBranches>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListBranchesQueryResult = NonNullable<Awaited<ReturnType<typeof listBranches>>>
 export type ListBranchesQueryError = ErrorType<BadRequestResponse>
 
 
-/**
- * @summary List active store branches
- */
-
+/** @summary List active store branches */
 export function useListBranches<TData = Awaited<ReturnType<typeof listBranches>>, TError = ErrorType<BadRequestResponse>>(
  params?: MaybeRefOrGetter<ListBranchesParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBranches>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -1955,7 +1953,7 @@ export function useListBranches<TData = Awaited<ReturnType<typeof listBranches>>
 
   const queryOptions = getListBranchesQueryOptions(params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listBranches>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -2022,9 +2020,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateBranchMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
     export type CreateBranchMutationVariables = {data: CreateBranchRequest}
 
-    /**
- * @summary Create a branch
- */
+    /** @summary Create a branch */
 export const useCreateBranch = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBranch>>, TError,CreateBranchMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient): UseMutationReturnType<
@@ -2077,7 +2073,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBranch>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBranch>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetBranchQueryResult = NonNullable<Awaited<ReturnType<typeof getBranch>>>
@@ -2085,9 +2081,9 @@ export type GetBranchQueryError = ErrorType<BadRequestResponse | NotFoundRespons
 
 
 /**
+ * Inactive branches are hidden from public discovery and return 404.
  * @summary Read an active branch
  */
-
 export function useGetBranch<TData = Awaited<ReturnType<typeof getBranch>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBranch>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -2095,7 +2091,7 @@ export function useGetBranch<TData = Awaited<ReturnType<typeof getBranch>>, TErr
 
   const queryOptions = getGetBranchQueryOptions(branchId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getBranch>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -2166,6 +2162,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateBranchMutationVariables = {branchId: string;data: UpdateBranchRequest}
 
     /**
+ * Reject with 409 if deactivation or changed hours would invalidate a confirmed reservation or active rental. Operational writes at an inactive branch return 409, even for managers and administrators.
  * @summary Update branch details, hours or activation
  */
 export const useUpdateBranch = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -2220,7 +2217,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStaffAssignments>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStaffAssignments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListStaffAssignmentsQueryResult = NonNullable<Awaited<ReturnType<typeof listStaffAssignments>>>
@@ -2228,9 +2225,9 @@ export type ListStaffAssignmentsQueryError = ErrorType<UnauthorizedResponse | Fo
 
 
 /**
+ * Managers and administrators only. Inactive branches are included. Name and phone appear when the staff member completed onboarding.
  * @summary List the staff assigned to a branch
  */
-
 export function useListStaffAssignments<TData = Awaited<ReturnType<typeof listStaffAssignments>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listStaffAssignments>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -2238,7 +2235,7 @@ export function useListStaffAssignments<TData = Awaited<ReturnType<typeof listSt
 
   const queryOptions = getListStaffAssignmentsQueryOptions(branchId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listStaffAssignments>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -2307,6 +2304,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type GrantStaffAssignmentMutationVariables = {branchId: string;staffSubject: string}
 
     /**
+ * Idempotent; an existing assignment is returned unchanged. Roles stay in Keycloak.
  * @summary Assign a staff member to a branch
  */
 export const useGrantStaffAssignment = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
@@ -2376,6 +2374,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RevokeStaffAssignmentMutationVariables = {branchId: string;staffSubject: string}
 
     /**
+ * Succeeds whether or not the assignment existed.
  * @summary Remove a staff member from a branch
  */
 export const useRevokeStaffAssignment = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>,
@@ -2431,7 +2430,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchAccounts>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchAccounts>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type SearchAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof searchAccounts>>>
@@ -2439,9 +2438,9 @@ export type SearchAccountsQueryError = ErrorType<BadRequestResponse | Unauthoriz
 
 
 /**
+ * One result per identity. Queries shorter than 2 characters return no results; at most 20 results.
  * @summary Search onboarded accounts by name or phone
  */
-
 export function useSearchAccounts<TData = Awaited<ReturnType<typeof searchAccounts>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(
  params: MaybeRefOrGetter<SearchAccountsParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof searchAccounts>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -2449,7 +2448,7 @@ export function useSearchAccounts<TData = Awaited<ReturnType<typeof searchAccoun
 
   const queryOptions = getSearchAccountsQueryOptions(params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof searchAccounts>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -2503,17 +2502,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGames>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGames>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListGamesQueryResult = NonNullable<Awaited<ReturnType<typeof listGames>>>
 export type ListGamesQueryError = ErrorType<BadRequestResponse>
 
 
-/**
- * @summary Search the shared active game catalog
- */
-
+/** @summary Search the shared active game catalog */
 export function useListGames<TData = Awaited<ReturnType<typeof listGames>>, TError = ErrorType<BadRequestResponse>>(
  params?: MaybeRefOrGetter<ListGamesParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listGames>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -2521,7 +2517,7 @@ export function useListGames<TData = Awaited<ReturnType<typeof listGames>>, TErr
 
   const queryOptions = getListGamesQueryOptions(params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listGames>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -2588,9 +2584,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateGameMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
     export type CreateGameMutationVariables = {data: CreateGameRequest}
 
-    /**
- * @summary Add a board game to the shared catalog
- */
+    /** @summary Add a board game to the shared catalog */
 export const useCreateGame = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createGame>>, TError,CreateGameMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient): UseMutationReturnType<
@@ -2643,7 +2637,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(gameId) !== null && toValue(gameId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGame>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(gameId) !== null && toValue(gameId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGame>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetGameQueryResult = NonNullable<Awaited<ReturnType<typeof getGame>>>
@@ -2651,9 +2645,9 @@ export type GetGameQueryError = ErrorType<BadRequestResponse | NotFoundResponse>
 
 
 /**
+ * Inactive titles are hidden from public discovery and return 404.
  * @summary Read an active game
  */
-
 export function useGetGame<TData = Awaited<ReturnType<typeof getGame>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
  gameId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGame>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -2661,7 +2655,7 @@ export function useGetGame<TData = Awaited<ReturnType<typeof getGame>>, TError =
 
   const queryOptions = getGetGameQueryOptions(gameId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getGame>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -2732,6 +2726,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateGameMutationVariables = {gameId: string;data: UpdateGameRequest}
 
     /**
+ * Setting active=false prevents new orders and reservations. Return 409 while confirmed reservations, active rentals or placed orders reference the title; existing history is retained.
  * @summary Update game details or retire a title
  */
 export const useUpdateGame = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -2791,7 +2786,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(gameId) !== null && toValue(gameId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGameEditions>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(gameId) !== null && toValue(gameId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listGameEditions>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListGameEditionsQueryResult = NonNullable<Awaited<ReturnType<typeof listGameEditions>>>
@@ -2799,9 +2794,9 @@ export type ListGameEditionsQueryError = ErrorType<BadRequestResponse | NotFound
 
 
 /**
+ * Active editions of an active game. Inactive editions and inactive games are hidden from public discovery and return 404.
  * @summary List sellable editions of a game
  */
-
 export function useListGameEditions<TData = Awaited<ReturnType<typeof listGameEditions>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
  gameId: MaybeRefOrGetter<string>,
     params?: MaybeRefOrGetter<ListGameEditionsParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listGameEditions>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -2810,7 +2805,7 @@ export function useListGameEditions<TData = Awaited<ReturnType<typeof listGameEd
 
   const queryOptions = getListGameEditionsQueryOptions(gameId,params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listGameEditions>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -2881,6 +2876,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateGameEditionMutationVariables = {gameId: string;data: CreateGameEditionRequest}
 
     /**
+ * One edition per (game, kind, languageCode); duplicates return 409. New editions sell zero stock everywhere until branch prices and stock exist.
  * @summary Add a sellable edition to a game
  */
 export const useCreateGameEdition = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -2939,7 +2935,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(gameId) !== null && toValue(gameId) !== undefined && toValue(editionId) !== null && toValue(editionId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGameEdition>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(gameId) !== null && toValue(gameId) !== undefined && toValue(editionId) !== null && toValue(editionId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getGameEdition>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetGameEditionQueryResult = NonNullable<Awaited<ReturnType<typeof getGameEdition>>>
@@ -2947,9 +2943,9 @@ export type GetGameEditionQueryError = ErrorType<NotFoundResponse>
 
 
 /**
+ * Public callers receive active editions of active games only; managers also read inactive ones.
  * @summary Get one edition of a game
  */
-
 export function useGetGameEdition<TData = Awaited<ReturnType<typeof getGameEdition>>, TError = ErrorType<NotFoundResponse>>(
  gameId: MaybeRefOrGetter<string>,
     editionId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGameEdition>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -2958,7 +2954,7 @@ export function useGetGameEdition<TData = Awaited<ReturnType<typeof getGameEditi
 
   const queryOptions = getGetGameEditionQueryOptions(gameId,editionId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getGameEdition>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -3031,6 +3027,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateGameEditionMutationVariables = {gameId: string;editionId: string;data: UpdateGameEditionRequest}
 
     /**
+ * Partial update. Deactivation stops new sale commitments and preserves history.
  * @summary Update an edition
  */
 export const useUpdateGameEdition = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -3086,7 +3083,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCategories>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCategories>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListCategoriesQueryResult = NonNullable<Awaited<ReturnType<typeof listCategories>>>
@@ -3094,9 +3091,9 @@ export type ListCategoriesQueryError = ErrorType<BadRequestResponse>
 
 
 /**
+ * Canonical English keys plus localized display labels. Ordered by canonical name. Clients match game categories by `name`.
  * @summary List catalog categories with localized names
  */
-
 export function useListCategories<TData = Awaited<ReturnType<typeof listCategories>>, TError = ErrorType<BadRequestResponse>>(
  params?: MaybeRefOrGetter<ListCategoriesParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listCategories>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -3104,7 +3101,7 @@ export function useListCategories<TData = Awaited<ReturnType<typeof listCategori
 
   const queryOptions = getListCategoriesQueryOptions(params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listCategories>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -3173,6 +3170,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateCategoryMutationVariables = {data: CreateCategoryRequest}
 
     /**
+ * One row per canonical name; duplicates return 409.
  * @summary Add a catalog category
  */
 export const useCreateCategory = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
@@ -3226,17 +3224,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(categoryId) !== null && toValue(categoryId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCategory>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(categoryId) !== null && toValue(categoryId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCategory>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetCategoryQueryResult = NonNullable<Awaited<ReturnType<typeof getCategory>>>
 export type GetCategoryQueryError = ErrorType<NotFoundResponse>
 
 
-/**
- * @summary Get one category with localized names
- */
-
+/** @summary Get one category with localized names */
 export function useGetCategory<TData = Awaited<ReturnType<typeof getCategory>>, TError = ErrorType<NotFoundResponse>>(
  categoryId: MaybeRefOrGetter<number>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getCategory>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -3244,7 +3239,7 @@ export function useGetCategory<TData = Awaited<ReturnType<typeof getCategory>>, 
 
   const queryOptions = getGetCategoryQueryOptions(categoryId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getCategory>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -3315,6 +3310,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateCategoryMutationVariables = {categoryId: number;data: UpdateCategoryRequest}
 
     /**
+ * Replaces the localized name map wholesale; the canonical name is immutable. Updating games' category membership uses the game endpoints.
  * @summary Update a category's localized names
  */
 export const useUpdateCategory = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
@@ -3370,7 +3366,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMechanics>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMechanics>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListMechanicsQueryResult = NonNullable<Awaited<ReturnType<typeof listMechanics>>>
@@ -3378,9 +3374,9 @@ export type ListMechanicsQueryError = ErrorType<BadRequestResponse>
 
 
 /**
+ * Canonical English keys plus localized display labels. Ordered by canonical name. Clients match game mechanics by `name`.
  * @summary List catalog mechanics with localized names
  */
-
 export function useListMechanics<TData = Awaited<ReturnType<typeof listMechanics>>, TError = ErrorType<BadRequestResponse>>(
  params?: MaybeRefOrGetter<ListMechanicsParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMechanics>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -3388,7 +3384,7 @@ export function useListMechanics<TData = Awaited<ReturnType<typeof listMechanics
 
   const queryOptions = getListMechanicsQueryOptions(params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listMechanics>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -3457,6 +3453,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateMechanicMutationVariables = {data: CreateMechanicRequest}
 
     /**
+ * One row per canonical name; duplicates return 409.
  * @summary Add a catalog mechanic
  */
 export const useCreateMechanic = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
@@ -3510,17 +3507,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(mechanicId) !== null && toValue(mechanicId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMechanic>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(mechanicId) !== null && toValue(mechanicId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getMechanic>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetMechanicQueryResult = NonNullable<Awaited<ReturnType<typeof getMechanic>>>
 export type GetMechanicQueryError = ErrorType<NotFoundResponse>
 
 
-/**
- * @summary Get one mechanic with localized names
- */
-
+/** @summary Get one mechanic with localized names */
 export function useGetMechanic<TData = Awaited<ReturnType<typeof getMechanic>>, TError = ErrorType<NotFoundResponse>>(
  mechanicId: MaybeRefOrGetter<number>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getMechanic>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -3528,7 +3522,7 @@ export function useGetMechanic<TData = Awaited<ReturnType<typeof getMechanic>>, 
 
   const queryOptions = getGetMechanicQueryOptions(mechanicId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getMechanic>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -3599,6 +3593,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateMechanicMutationVariables = {mechanicId: number;data: UpdateMechanicRequest}
 
     /**
+ * Replaces the localized name map wholesale; the canonical name is immutable. Updating games' mechanic membership uses the game endpoints.
  * @summary Update a mechanic's localized names
  */
 export const useUpdateMechanic = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
@@ -3658,7 +3653,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBranchGames>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBranchGames>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListBranchGamesQueryResult = NonNullable<Awaited<ReturnType<typeof listBranchGames>>>
@@ -3666,9 +3661,9 @@ export type ListBranchGamesQueryError = ErrorType<BadRequestResponse | NotFoundR
 
 
 /**
+ * Current stock only. Use /availability for a future interval. Only active catalog titles at an active branch are listed.
  * @summary List a branch's games, prices and stock counts
  */
-
 export function useListBranchGames<TData = Awaited<ReturnType<typeof listBranchGames>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>,
     params?: MaybeRefOrGetter<ListBranchGamesParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBranchGames>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -3677,7 +3672,7 @@ export function useListBranchGames<TData = Awaited<ReturnType<typeof listBranchG
 
   const queryOptions = getListBranchGamesQueryOptions(branchId,params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listBranchGames>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -3734,17 +3729,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined && toValue(gameId) !== null && toValue(gameId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBranchGame>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined && toValue(gameId) !== null && toValue(gameId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBranchGame>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetBranchGameQueryResult = NonNullable<Awaited<ReturnType<typeof getBranchGame>>>
 export type GetBranchGameQueryError = ErrorType<BadRequestResponse | NotFoundResponse>
 
 
-/**
- * @summary Read branch game stock and prices
- */
-
+/** @summary Read branch game stock and prices */
 export function useGetBranchGame<TData = Awaited<ReturnType<typeof getBranchGame>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>,
     gameId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBranchGame>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -3753,7 +3745,7 @@ export function useGetBranchGame<TData = Awaited<ReturnType<typeof getBranchGame
 
   const queryOptions = getGetBranchGameQueryOptions(branchId,gameId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getBranchGame>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -3826,6 +3818,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ConfigureBranchGameMutationVariables = {branchId: string;gameId: string;data: ConfigureBranchGameRequest}
 
     /**
+ * Create or replace offering flags; a new entry starts with zero sale stock for every edition and no rental copies. THB minor units everywhere. Per-edition sale prices go through the branch edition endpoint; stock changes use stock-adjustments or rental-copies. Disabling an offering stops new purchases or bookings and preserves existing commitments and locked rates.
  * @summary Configure sale and hourly rental offerings
  */
 export const useConfigureBranchGame = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -3899,6 +3892,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpsertBranchEditionMutationVariables = {branchId: string;editionId: string;data: UpsertBranchEditionRequest}
 
     /**
+ * Creates the branch's entry for this edition with zero stock, or updates the price of the existing entry. Restock through /stock-adjustments. The edition must belong to this branch's branch game with saleEnabled; the edition must belong to a game that is active. THB minor units.
  * @summary Set the branch's sale price for an edition
  */
 export const useUpsertBranchEdition = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
@@ -3972,6 +3966,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type AdjustSaleStockMutationVariables = {branchId: string;editionId: string;data: StockAdjustmentRequest}
 
     /**
+ * Apply delta atomically to the branch's saleOnHand for this edition. Reject zero delta or any adjustment making on-hand stock less than stock held for placed orders. Sale stock is independent of rental copies. The edition needs a branch price first; the server records the actor and timestamp.
  * @summary Record a sale stock receipt or correction for an edition
  */
 export const useAdjustSaleStock = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -4034,17 +4029,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined && toValue(gameId) !== null && toValue(gameId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRentalCopies>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined && toValue(gameId) !== null && toValue(gameId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listRentalCopies>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListRentalCopiesQueryResult = NonNullable<Awaited<ReturnType<typeof listRentalCopies>>>
 export type ListRentalCopiesQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
 
 
-/**
- * @summary List individually tracked rental copies
- */
-
+/** @summary List individually tracked rental copies */
 export function useListRentalCopies<TData = Awaited<ReturnType<typeof listRentalCopies>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>,
     gameId: MaybeRefOrGetter<string>,
@@ -4054,7 +4046,7 @@ export function useListRentalCopies<TData = Awaited<ReturnType<typeof listRental
 
   const queryOptions = getListRentalCopiesQueryOptions(branchId,gameId,params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listRentalCopies>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -4127,6 +4119,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateRentalCopyMutationVariables = {branchId: string;gameId: string;data: CreateRentalCopyRequest}
 
     /**
+ * The asset code must be unique within the branch. A copy cannot simultaneously belong to sale stock or another branch.
  * @summary Register a physical rental copy at this branch
  */
 export const useCreateRentalCopy = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -4202,6 +4195,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateRentalCopyMutationVariables = {branchId: string;gameId: string;copyId: string;data: UpdateRentalCopyRequest}
 
     /**
+ * Availability is derived, not set by clients. OUT_OF_SERVICE or RETIRED removes the copy from the rentable pool. If allocated to a confirmed reservation or active rental, return 409 unless another usable copy of the same game can atomically cover every affected interval. Retired copies remain in history and cannot be reactivated.
  * @summary Mark a rental copy usable, out of service or retired
  */
 export const useUpdateRentalCopy = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -4261,7 +4255,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTables>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listTables>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListTablesQueryResult = NonNullable<Awaited<ReturnType<typeof listTables>>>
@@ -4269,9 +4263,9 @@ export type ListTablesQueryError = ErrorType<BadRequestResponse | NotFoundRespon
 
 
 /**
+ * A public response contains no customer, reservation or rental identifiers. Future availability is returned by /availability.
  * @summary List tables and their current derived state
  */
-
 export function useListTables<TData = Awaited<ReturnType<typeof listTables>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>,
     params?: MaybeRefOrGetter<ListTablesParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listTables>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -4280,7 +4274,7 @@ export function useListTables<TData = Awaited<ReturnType<typeof listTables>>, TE
 
   const queryOptions = getListTablesQueryOptions(branchId,params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listTables>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -4349,9 +4343,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateTableMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
     export type CreateTableMutationVariables = {branchId: string;data: CreateTableRequest}
 
-    /**
- * @summary Add a table to a branch
- */
+    /** @summary Add a table to a branch */
 export const useCreateTable = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createTable>>, TError,CreateTableMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient): UseMutationReturnType<
@@ -4407,17 +4399,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined && toValue(tableId) !== null && toValue(tableId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTable>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined && toValue(tableId) !== null && toValue(tableId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTable>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetTableQueryResult = NonNullable<Awaited<ReturnType<typeof getTable>>>
 export type GetTableQueryError = ErrorType<BadRequestResponse | NotFoundResponse>
 
 
-/**
- * @summary Read table capacity, pricing and current state
- */
-
+/** @summary Read table capacity, pricing and current state */
 export function useGetTable<TData = Awaited<ReturnType<typeof getTable>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>,
     tableId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTable>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -4426,7 +4415,7 @@ export function useGetTable<TData = Awaited<ReturnType<typeof getTable>>, TError
 
   const queryOptions = getGetTableQueryOptions(branchId,tableId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getTable>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -4499,6 +4488,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateTableMutationVariables = {branchId: string;tableId: string;data: UpdateTableRequest}
 
     /**
+ * Clients may change operationalStatus, never derived state. Return 409 if an out-of-service change or capacity reduction invalidates a confirmed reservation or active rental. Rate changes affect only subsequent bookings or reschedules.
  * @summary Update table configuration or take it out of service
  */
 export const useUpdateTable = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -4558,7 +4548,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBranchAvailability>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBranchAvailability>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetBranchAvailabilityQueryResult = NonNullable<Awaited<ReturnType<typeof getBranchAvailability>>>
@@ -4566,9 +4556,9 @@ export type GetBranchAvailabilityQueryError = ErrorType<BadRequestResponse | Not
 
 
 /**
+ * Both timestamps are required. Return all branch tables and the matching branch games with interval-specific availability, excluding unusable copies and overlapping confirmed reservations or checked-in visits. available=false for tables outside opening hours, below party size, out of service, overlapping a booking or currently occupied during the requested interval. A known game not offered at the branch has zero available quantity. Unknown game IDs return 404. Results are advisory and contain no customer details.
  * @summary Find available tables and game quantities for a time window
  */
-
 export function useGetBranchAvailability<TData = Awaited<ReturnType<typeof getBranchAvailability>>, TError = ErrorType<BadRequestResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>,
     params: MaybeRefOrGetter<GetBranchAvailabilityParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getBranchAvailability>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -4577,7 +4567,7 @@ export function useGetBranchAvailability<TData = Awaited<ReturnType<typeof getBr
 
   const queryOptions = getGetBranchAvailabilityQueryOptions(branchId,params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getBranchAvailability>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -4631,17 +4621,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyReservations>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyReservations>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListMyReservationsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyReservations>>>
 export type ListMyReservationsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse>
 
 
-/**
- * @summary List the signed-in customer's reservations across branches
- */
-
+/** @summary List the signed-in customer's reservations across branches */
 export function useListMyReservations<TData = Awaited<ReturnType<typeof listMyReservations>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse>>(
  params?: MaybeRefOrGetter<ListMyReservationsParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyReservations>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -4649,7 +4636,7 @@ export function useListMyReservations<TData = Awaited<ReturnType<typeof listMyRe
 
   const queryOptions = getListMyReservationsQueryOptions(params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listMyReservations>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -4708,7 +4695,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBranchReservations>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBranchReservations>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListBranchReservationsQueryResult = NonNullable<Awaited<ReturnType<typeof listBranchReservations>>>
@@ -4716,9 +4703,9 @@ export type ListBranchReservationsQueryError = ErrorType<BadRequestResponse | Un
 
 
 /**
+ * If both range bounds are supplied, until must be after from. Includes customer details; only branch operators can read this list.
  * @summary List branch reservations for staff
  */
-
 export function useListBranchReservations<TData = Awaited<ReturnType<typeof listBranchReservations>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>,
     params?: MaybeRefOrGetter<ListBranchReservationsParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBranchReservations>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -4727,7 +4714,7 @@ export function useListBranchReservations<TData = Awaited<ReturnType<typeof list
 
   const queryOptions = getListBranchReservationsQueryOptions(branchId,params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listBranchReservations>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -4798,6 +4785,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateMyReservationMutationVariables = {branchId: string;data: CreateReservationRequest}
 
     /**
+ * The customer subject and createdBySubject come from the session; source is CUSTOMER and status is CONFIRMED. Require a future startsAt, endsAt > startsAt, sufficient table capacity and all selected game quantities. The table and games must belong to this branch and games must be enabled for rental. Assign usable physical copies and hold them for the entire interval atomically. Failure returns 409 without a partial booking. Duplicate game IDs return 400. An optional food and drink pre-order is priced by the server with the pre-order discount, its stock is held at the branch and its total is authorized on the payment token; a declined payment returns 402 and nothing is booked. Retry-safe creation requires Idempotency-Key.
  * @summary Reserve a table and game quantities for the signed-in customer
  */
 export const useCreateMyReservation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
@@ -4869,6 +4857,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateStaffReservationMutationVariables = {branchId: string;data: CreateStaffReservationRequest}
 
     /**
+ * The staff member supplies a registered customer subject or guest contact. source=STAFF_BOOKING requires a future startsAt. source=WALK_IN uses server time as startsAt and only requires endsAt; caller-supplied startsAt is rejected for walk-ins. Both create CONFIRMED reservations and hold the table and selected games atomically. WALK_IN implies check-in only when checkIn=true, which seats the party in the same transaction (all or nothing); otherwise staff must call the dedicated check-in operation. The creator is always the authenticated operator. Apply the same opening-hour, capacity, offering and allocation checks as customer bookings.
  * @summary Book for a customer or register a walk-in
  */
 export const useCreateStaffReservation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -4926,17 +4915,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined && toValue(reservationId) !== null && toValue(reservationId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReservation>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined && toValue(reservationId) !== null && toValue(reservationId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReservation>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetReservationQueryResult = NonNullable<Awaited<ReturnType<typeof getReservation>>>
 export type GetReservationQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
 
 
-/**
- * @summary Read a reservation as its owner or branch staff
- */
-
+/** @summary Read a reservation as its owner or branch staff */
 export function useGetReservation<TData = Awaited<ReturnType<typeof getReservation>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>,
     reservationId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getReservation>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -4945,7 +4931,7 @@ export function useGetReservation<TData = Awaited<ReturnType<typeof getReservati
 
   const queryOptions = getGetReservationQueryOptions(branchId,reservationId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getReservation>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -5018,6 +5004,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type RescheduleReservationMutationVariables = {branchId: string;reservationId: string;data: RescheduleReservationRequest}
 
     /**
+ * Only CONFIRMED reservations may be changed and the new start must be in the future. Customers may change only their own not-yet-started reservation. All scheduling fields are required; games replaces the full selection (an empty array releases all selected games). Reallocate atomically, excluding the reservation's own allocations. On 409 retain the original reservation, rates and holds. The customer, source, creator and lifecycle fields cannot be changed. Successful rescheduling captures current rates. Rental offering flags must still be enabled and the table must be in service; validate branch hours and party size as on creation.
  * @summary Replace the planned table, interval, party size and game selections
  */
 export const useRescheduleReservation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -5091,6 +5078,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CancelReservationMutationVariables = {branchId: string;reservationId: string;data: ReasonRequest}
 
     /**
+ * Only CONFIRMED -> CANCELLED is allowed. Customers may cancel their own reservation before startsAt; branch operators may cancel it until check-in. Release all table, game and pre-order stock holds, void any pre-order payment atomically and record the actor and server timestamp. Repeating an already completed cancellation returns the unchanged reservation; other states return 409. Checked-in visits must use staff checkout.
  * @summary Cancel a confirmed reservation
  */
 export const useCancelReservation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
@@ -5160,6 +5148,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CheckInReservationMutationVariables = {branchId: string;reservationId: string}
 
     /**
+ * Customers always receive 403, including the reservation owner. Only CONFIRMED -> CHECKED_IN is allowed, with startsAt <= server time < endsAt. An early arrival must first be rescheduled by staff. Atomically verify table occupancy, branch access, capacity and every allocated copy, then create exactly one ACTIVE rental with server-controlled checkedInAt and checkedInBySubject. A copy or table still in use from an overdue visit causes 409. Repeating a successful check-in returns the existing reservation and rental, including their current completed representations after checkout, without changing start time or charging twice. A pre-order is served at check-in, when its held stock is consumed and its payment captured. Cancelled and no-show reservations return 409.
  * @summary Staff-only arrival confirmation and rental start
  */
 export const useCheckInReservation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
@@ -5233,6 +5222,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type MarkReservationNoShowMutationVariables = {branchId: string;reservationId: string;data: ReasonRequest}
 
     /**
+ * Only CONFIRMED -> NO_SHOW is allowed, and only at or after startsAt. Never automatic just because a customer has not self-reported arrival. Release allocations and pre-order stock, void any pre-order payment and record the staff actor and server timestamp. Repeating NO_SHOW returns the same reservation; other states return 409.
  * @summary Staff-only release of a missed reservation
  */
 export const useMarkReservationNoShow = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
@@ -5291,17 +5281,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBranchRentals>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBranchRentals>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListBranchRentalsQueryResult = NonNullable<Awaited<ReturnType<typeof listBranchRentals>>>
 export type ListBranchRentalsQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
 
 
-/**
- * @summary List active and completed hourly rentals for staff
- */
-
+/** @summary List active and completed hourly rentals for staff */
 export function useListBranchRentals<TData = Awaited<ReturnType<typeof listBranchRentals>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>,
     params?: MaybeRefOrGetter<ListBranchRentalsParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBranchRentals>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -5310,7 +5297,7 @@ export function useListBranchRentals<TData = Awaited<ReturnType<typeof listBranc
 
   const queryOptions = getListBranchRentalsQueryOptions(branchId,params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listBranchRentals>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -5368,7 +5355,7 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined && toValue(rentalId) !== null && toValue(rentalId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRental>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined && toValue(rentalId) !== null && toValue(rentalId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRental>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetRentalQueryResult = NonNullable<Awaited<ReturnType<typeof getRental>>>
@@ -5376,9 +5363,9 @@ export type GetRentalQueryError = ErrorType<BadRequestResponse | UnauthorizedRes
 
 
 /**
+ * The owning registered customer or branch operators may read this rental. Guest rentals are visible only to branch operators.
  * @summary Read a rental and its locked hourly rates
  */
-
 export function useGetRental<TData = Awaited<ReturnType<typeof getRental>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>,
     rentalId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getRental>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -5387,7 +5374,7 @@ export function useGetRental<TData = Awaited<ReturnType<typeof getRental>>, TErr
 
   const queryOptions = getGetRentalQueryOptions(branchId,rentalId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getRental>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -5456,6 +5443,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CheckOutRentalMutationVariables = {branchId: string;rentalId: string}
 
     /**
+ * Only ACTIVE -> COMPLETED is allowed. Staff confirm the physical return of every allocated game by invoking this action. The server sets endedAt and checkedOutBySubject, computes billableHours=max(1, ceil(elapsedSeconds/3600)), calculates charges from locked rates, completes the linked CHECKED_IN reservation and releases all allocations in one transaction. Checkout may be earlier or later than the planned end. Repeating checkout returns the same completed rental and reservation without recalculation. Damaged copies can then be marked OUT_OF_SERVICE through the copy operation.
  * @summary Staff-only game return, hourly charge calculation and table release
  */
 export const useCheckOutRental = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -5467,6 +5455,80 @@ export const useCheckOutRental = <TError = ErrorType<BadRequestResponse | Unauth
         TContext
       > => {
       return useMutation(getCheckOutRentalMutationOptions(options), queryClient);
+    }
+
+/**
+ * Branch operators record refreshments served during play. The server snapshots menu names and prices and consumes available pantry stock atomically. Held pre-order stock cannot be consumed. Only active rentals accept new orders. Replaying the same key and body never consumes stock or adds charges twice, including after checkout. Payment is collected at the counter on checkout, together with play fees.
+ * @summary Add served food and drinks to an active session's counter bill
+ */
+export const addRentalRefreshments = (
+    branchId: MaybeRefOrGetter<string>,
+    rentalId: MaybeRefOrGetter<string>,
+    addRentalRefreshmentsRequest: MaybeRefOrGetter<AddRentalRefreshmentsRequest>,
+ options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
+) => {
+      branchId = toValue(branchId);
+rentalId = toValue(rentalId);
+addRentalRefreshmentsRequest = toValue(addRentalRefreshmentsRequest);
+
+      return apiRequest<Rental>(
+      {url: `/api/v1/branches/${branchId}/rentals/${rentalId}/refreshments`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: addRentalRefreshmentsRequest, signal
+    },
+      options);
+    }
+
+
+
+
+export const getAddRentalRefreshmentsMutationKey = () => ['addRentalRefreshments'] as const;
+
+export const getAddRentalRefreshmentsMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addRentalRefreshments>>, TError,AddRentalRefreshmentsMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+): UseMutationOptions<Awaited<ReturnType<typeof addRentalRefreshments>>, TError,AddRentalRefreshmentsMutationVariables, TContext> => {
+
+const mutationKey = getAddRentalRefreshmentsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addRentalRefreshments>>, AddRentalRefreshmentsMutationVariables> = (props) => {
+          const {branchId,rentalId,data} = props ?? {};
+
+          return  addRentalRefreshments(branchId,rentalId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddRentalRefreshmentsMutationResult = NonNullable<Awaited<ReturnType<typeof addRentalRefreshments>>>
+    export type AddRentalRefreshmentsMutationBody = AddRentalRefreshmentsRequest
+    export type AddRentalRefreshmentsMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type AddRentalRefreshmentsMutationVariables = {branchId: string;rentalId: string;data: AddRentalRefreshmentsRequest}
+
+    /**
+ * Branch operators record refreshments served during play. The server snapshots menu names and prices and consumes available pantry stock atomically. Held pre-order stock cannot be consumed. Only active rentals accept new orders. Replaying the same key and body never consumes stock or adds charges twice, including after checkout. Payment is collected at the counter on checkout, together with play fees.
+ * @summary Add served food and drinks to an active session's counter bill
+ */
+export const useAddRentalRefreshments = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addRentalRefreshments>>, TError,AddRentalRefreshmentsMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+ , queryClient?: QueryClient): UseMutationReturnType<
+        Awaited<ReturnType<typeof addRentalRefreshments>>,
+        TError,
+        AddRentalRefreshmentsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAddRentalRefreshmentsMutationOptions(options), queryClient);
     }
 
 /**
@@ -5510,17 +5572,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData>
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListMyOrdersQueryResult = NonNullable<Awaited<ReturnType<typeof listMyOrders>>>
 export type ListMyOrdersQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse>
 
 
-/**
- * @summary List the signed-in customer's sale orders across branches
- */
-
+/** @summary List the signed-in customer's sale orders across branches */
 export function useListMyOrders<TData = Awaited<ReturnType<typeof listMyOrders>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse>>(
  params?: MaybeRefOrGetter<ListMyOrdersParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
  , queryClient?: QueryClient
@@ -5528,7 +5587,7 @@ export function useListMyOrders<TData = Awaited<ReturnType<typeof listMyOrders>>
 
   const queryOptions = getListMyOrdersQueryOptions(params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listMyOrders>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -5586,17 +5645,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBranchOrders>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBranchOrders>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type ListBranchOrdersQueryResult = NonNullable<Awaited<ReturnType<typeof listBranchOrders>>>
 export type ListBranchOrdersQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
 
 
-/**
- * @summary List branch sale orders for staff
- */
-
+/** @summary List branch sale orders for staff */
 export function useListBranchOrders<TData = Awaited<ReturnType<typeof listBranchOrders>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>,
     params?: MaybeRefOrGetter<ListBranchOrdersParams>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listBranchOrders>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -5605,7 +5661,7 @@ export function useListBranchOrders<TData = Awaited<ReturnType<typeof listBranch
 
   const queryOptions = getListBranchOrdersQueryOptions(branchId,params,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof listBranchOrders>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -5676,6 +5732,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateMyOrderMutationVariables = {branchId: string;data: CreateOrderRequest}
 
     /**
+ * The customer and creator subjects come from the session; source=CUSTOMER. Atomically hold all requested sale quantities, lock the current server-side prices, calculate the total and authorize the payment token for it; the order is picked up at this branch and contact details come from the account. A declined payment returns 402 with nothing held. Only active games with active editions enabled for sale at this active branch may be ordered. Duplicate edition IDs return 400; insufficient sale stock returns 409 without partial holds. Rental copies are never sold through this operation.
  * @summary Place an order for games sold by this branch
  */
 export const useCreateMyOrder = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
@@ -5747,6 +5804,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CreateStaffOrderMutationVariables = {branchId: string;data: CreateStaffOrderRequest}
 
     /**
+ * Creates a PLACED order with source=STAFF_COUNTER and creator from the authenticated operator. Apply the same atomic stock holds, offering and locked-price rules as customer orders. The sale is settled at the counter and never charged through the payment gateway. Staff must separately fulfill the order after handing over the games.
  * @summary Record a counter sale for a registered customer or guest
  */
 export const useCreateStaffOrder = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
@@ -5804,17 +5862,14 @@ const {query: queryOptions, request: requestOptions} = options ?? {};
 
 
 
-   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined && toValue(orderId) !== null && toValue(orderId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrder>>, TError, TData>
+   return  { queryKey, queryFn, enabled: computed(() => toValue(branchId) !== null && toValue(branchId) !== undefined && toValue(orderId) !== null && toValue(orderId) !== undefined), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrder>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
 }
 
 export type GetOrderQueryResult = NonNullable<Awaited<ReturnType<typeof getOrder>>>
 export type GetOrderQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
 
 
-/**
- * @summary Read an order as its owner or branch staff
- */
-
+/** @summary Read an order as its owner or branch staff */
 export function useGetOrder<TData = Awaited<ReturnType<typeof getOrder>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
  branchId: MaybeRefOrGetter<string>,
     orderId: MaybeRefOrGetter<string>, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOrder>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
@@ -5823,7 +5878,7 @@ export function useGetOrder<TData = Awaited<ReturnType<typeof getOrder>>, TError
 
   const queryOptions = getGetOrderQueryOptions(branchId,orderId,options)
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+  const query = useQuery(queryOptions as UseQueryOptions<Awaited<ReturnType<typeof getOrder>>, TError, TData>, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
   query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
 
@@ -5896,6 +5951,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type CancelOrderMutationVariables = {branchId: string;orderId: string;data: ReasonRequest}
 
     /**
+ * Only PLACED -> CANCELLED is allowed. Release sale holds and void the payment atomically and record the actor and timestamp. Repeating cancellation returns the unchanged order. Fulfilled orders return 409; returns/refunds are outside this contract.
  * @summary Cancel a placed sale order
  */
 export const useCancelOrder = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
@@ -5969,6 +6025,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type FulfillOrderMutationVariables = {branchId: string;orderId: string;data?: FulfillOrderRequest}
 
     /**
+ * Only PLACED -> FULFILLED is allowed. Atomically decrement saleOnHand and saleHeld by the ordered quantities, capture the payment, then record server time and staff subject. Customers always receive 403. An unpaid PromptPay order returns 409; a cash-on-delivery payment stays PENDING until confirmed. Repeating fulfillment returns the same order without decrementing stock twice. Cancelled orders return 409.
  * @summary Staff-only handover of purchased games
  */
 export const useFulfillOrder = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,
@@ -6038,6 +6095,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ConfirmOrderPaymentMutationVariables = {branchId: string;orderId: string}
 
     /**
+ * Only for a FULFILLED order paid by COD whose payment is PENDING; the payment becomes CAPTURED. Repeating it after success returns the order unchanged. Any other order returns 409.
  * @summary Staff confirm the cash for a delivered cash-on-delivery order
  */
 export const useConfirmOrderPayment = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
