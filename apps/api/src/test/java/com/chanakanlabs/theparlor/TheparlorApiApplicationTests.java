@@ -13,10 +13,16 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.keycloak.representations.idm.CredentialRepresentation;
@@ -24,8 +30,11 @@ import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -40,8 +49,13 @@ import tools.jackson.databind.ObjectMapper;
 @Tag("integration")
 @AutoConfigureMetrics
 @Testcontainers
-@Import(TheparlorApiApplicationTests.AdminAccessProbe.class)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
+@Import({
+  TheparlorApiApplicationTests.AdminAccessProbe.class,
+  TheparlorApiApplicationTests.TestTimeConfiguration.class
+})
+@SpringBootTest(
+    classes = TheparlorApiApplication.class,
+    webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
 class TheparlorApiApplicationTests {
   static final String SECRET = UUID.randomUUID().toString();
   static final String PASSWORD = UUID.randomUUID().toString();
@@ -74,6 +88,7 @@ class TheparlorApiApplicationTests {
   @LocalServerPort int port;
   @Autowired JdbcTemplate jdbc;
   @Autowired StringRedisTemplate redis;
+  @Autowired TestClock testClock;
   @Autowired com.chanakanlabs.theparlor.orders.internal.application.UnpaidOrderExpiry unpaidOrders;
 
   // Exercise the real admin security rule without requiring a production admin controller.
@@ -82,6 +97,43 @@ class TheparlorApiApplicationTests {
     @GetMapping("/api/v1/admin/test-access")
     String access() {
       return "ok";
+    }
+  }
+
+  @TestConfiguration(proxyBeanMethods = false)
+  static class TestTimeConfiguration {
+    @Bean
+    @Primary
+    TestClock testClock() {
+      return new TestClock();
+    }
+  }
+
+  /** Uses wall time for the existing suite; handover tests advance business time explicitly. */
+  static class TestClock extends Clock {
+    private volatile Clock delegate = Clock.systemUTC();
+
+    void at(Instant instant) {
+      delegate = Clock.fixed(instant, java.time.ZoneOffset.UTC);
+    }
+
+    void reset() {
+      delegate = Clock.systemUTC();
+    }
+
+    @Override
+    public ZoneId getZone() {
+      return delegate.getZone();
+    }
+
+    @Override
+    public Clock withZone(ZoneId zone) {
+      return delegate.withZone(zone);
+    }
+
+    @Override
+    public Instant instant() {
+      return delegate.instant();
     }
   }
 
@@ -1884,6 +1936,367 @@ class TheparlorApiApplicationTests {
     for (var table : List.of(contested, doubled))
       assertThat(count("SELECT count(*) FROM reservations WHERE table_id=?", table)).isEqualTo(1);
     assertThat(count(rentalsOfBranch, branch)).isEqualTo(4);
+  }
+
+  // Match the enclosing configuration explicitly so both suites share its defined-port server.
+  @Nested
+  @AutoConfigureMetrics
+  @Import({AdminAccessProbe.class, TestTimeConfiguration.class})
+  @SpringBootTest(
+      classes = TheparlorApiApplication.class,
+      webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT)
+  class ReservationHandoverBusinessTests {
+    final Instant start = Instant.parse("2030-01-07T06:00:00Z");
+    final Instant handover = start.plusSeconds(3600);
+    final Instant end = handover.plusSeconds(3600);
+    UUID branch;
+    UUID table;
+    UUID otherTable;
+    UUID game;
+    String base;
+    HttpClient manager;
+
+    @BeforeEach
+    void openBranchWithTwoTablesAndOneGameCopy() throws Exception {
+      testClock.at(start.minusSeconds(3600));
+      branch = UUID.randomUUID();
+      table = UUID.randomUUID();
+      otherTable = UUID.randomUUID();
+      game = UUID.randomUUID();
+      jdbc.update(
+          "INSERT INTO branches(id,name,address) VALUES (?, 'Reservation handover', 'Address')",
+          branch);
+      for (int day = 1; day <= 7; day++)
+        jdbc.update(
+            "INSERT INTO branch_opening_hours(branch_id,day_of_week,opens_at,closes_at) VALUES (?,?,'00:00','24:00')",
+            branch,
+            day);
+      for (var id : List.of(table, otherTable))
+        jdbc.update(
+            "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor) VALUES (?,?,?,4,5000)",
+            id,
+            branch,
+            id.equals(table) ? "T1" : "T2");
+      jdbc.update(
+          "INSERT INTO games(id,name,min_players,max_players,play_minutes_min,play_minutes_max) VALUES (?, 'Handover game',1,4,10,20)",
+          game);
+      jdbc.update(
+          "INSERT INTO game_descriptions(game_id,locale,description) VALUES (?, 'en-US', 'Game')",
+          game);
+      jdbc.update(
+          "INSERT INTO branch_games(branch_id,game_id,rental_enabled,rental_hourly_rate_minor) VALUES (?,?,true,4000)",
+          branch,
+          game);
+      jdbc.update(
+          "INSERT INTO rental_copies(branch_id,game_id,asset_code) VALUES (?,?,'ONLY-COPY')",
+          branch,
+          game);
+      base = "/api/v1/branches/" + branch;
+      manager = login("manager");
+    }
+
+    @AfterEach
+    void restoreWallClock() {
+      testClock.reset();
+    }
+
+    String booking(UUID atTable, Instant from, Instant until, boolean withGame) {
+      return "{\"source\":\"STAFF_BOOKING\",\"customer\":{\"kind\":\"GUEST\",\"displayName\":\"Handover party\"},"
+          + "\"tableId\":\""
+          + atTable
+          + "\",\"partySize\":2,\"startsAt\":\""
+          + from
+          + "\",\"endsAt\":\""
+          + until
+          + "\",\"games\":"
+          + (withGame ? "[{\"gameId\":\"" + game + "\",\"quantity\":1}]" : "[]")
+          + "}";
+    }
+
+    HttpResponse<String> bookResponse(UUID atTable, Instant from, Instant until, boolean withGame)
+        throws Exception {
+      return send(
+          manager,
+          "POST",
+          base + "/staff/reservations",
+          booking(atTable, from, until, withGame),
+          "Idempotency-Key",
+          UUID.randomUUID().toString());
+    }
+
+    String book(UUID atTable, Instant from, Instant until, boolean withGame) throws Exception {
+      var response = bookResponse(atTable, from, until, withGame);
+      assertThat(response.statusCode()).as(response.body()).isEqualTo(201);
+      return JSON.readTree(response.body()).get("id").asString();
+    }
+
+    tools.jackson.databind.JsonNode read(String path) throws Exception {
+      var response = get(manager, base + path);
+      assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+      return JSON.readTree(response.body());
+    }
+
+    tools.jackson.databind.JsonNode checkIn(String id) throws Exception {
+      var response = send(manager, "POST", base + "/reservations/" + id + "/check-in", null);
+      assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+      return JSON.readTree(response.body());
+    }
+
+    tools.jackson.databind.JsonNode checkOut(String rental) throws Exception {
+      var response = send(manager, "POST", base + "/rentals/" + rental + "/check-out", null);
+      assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+      return JSON.readTree(response.body());
+    }
+
+    void assertWaiting(String id) throws Exception {
+      var reservation = read("/reservations/" + id);
+      assertThat(reservation.get("status").asString()).isEqualTo("CONFIRMED");
+      assertThat(reservation.hasNonNull("checkedInAt")).isFalse();
+      assertThat(reservation.hasNonNull("rentalId")).isFalse();
+      assertThat(Instant.parse(reservation.get("endsAt").asString())).isEqualTo(end);
+    }
+
+    @Test
+    void twoCountersRetryingTheWaitingPartyAfterCheckoutStartOnlyOneRental() throws Exception {
+      String earlier = book(table, start, handover, true);
+      String later = book(table, handover, end, true);
+      testClock.at(start);
+      String rental = checkIn(earlier).get("rental").get("id").asString();
+      testClock.at(handover.plusSeconds(900));
+      var blocked = send(manager, "POST", base + "/reservations/" + later + "/check-in", null);
+      assertThat(blocked.statusCode()).as(blocked.body()).isEqualTo(409);
+      checkOut(rental);
+
+      var ready = new java.util.concurrent.CountDownLatch(2);
+      var go = new java.util.concurrent.CountDownLatch(1);
+      try (var executor = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+        var attempts = new java.util.ArrayList<java.util.concurrent.Future<HttpResponse<String>>>();
+        for (int counter = 0; counter < 2; counter++)
+          attempts.add(
+              executor.submit(
+                  () -> {
+                    ready.countDown();
+                    if (!go.await(10, java.util.concurrent.TimeUnit.SECONDS))
+                      throw new IllegalStateException("Check-in race was not released");
+                    return send(
+                        manager, "POST", base + "/reservations/" + later + "/check-in", null);
+                  }));
+        try {
+          assertThat(ready.await(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+        } finally {
+          go.countDown();
+        }
+        String nextRental = null;
+        for (var attempt : attempts) {
+          var response = attempt.get(20, java.util.concurrent.TimeUnit.SECONDS);
+          assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
+          var arrival = JSON.readTree(response.body());
+          String id = arrival.get("rental").get("id").asString();
+          if (nextRental != null) assertThat(id).isEqualTo(nextRental);
+          nextRental = id;
+          assertThat(arrival.get("reservation").get("status").asString()).isEqualTo("CHECKED_IN");
+          assertThat(Instant.parse(arrival.get("rental").get("startedAt").asString()))
+              .isEqualTo(handover.plusSeconds(900));
+        }
+      }
+      assertThat(read("/rentals").get("items")).hasSize(2);
+      assertThat(read("/rentals?status=ACTIVE").get("items")).hasSize(1);
+      assertThat(read("/tables/" + table).get("state").asString()).isEqualTo("OCCUPIED");
+      assertThat(read("/games/" + game).get("rentalAvailableNow").asInt()).isZero();
+    }
+
+    @Test
+    void aBookingWhoseWholeWindowWasLostToOvertimeCannotCheckInAfterTheTableIsReleased()
+        throws Exception {
+      String earlier = book(table, start, handover, true);
+      String later = book(table, handover, end, true);
+      testClock.at(start);
+      String rental = checkIn(earlier).get("rental").get("id").asString();
+      testClock.at(end);
+      checkOut(rental);
+
+      // The end of the check-in window is exclusive; releasing the table does not extend it.
+      for (var now : List.of(end, end.plusSeconds(60))) {
+        testClock.at(now);
+        var expired = send(manager, "POST", base + "/reservations/" + later + "/check-in", null);
+        assertThat(expired.statusCode()).as(expired.body()).isEqualTo(409);
+        assertThat(expired.body()).contains("Check-in is only possible during the booked window");
+        assertWaiting(later);
+        assertThat(read("/rentals").get("items")).hasSize(1);
+        assertThat(read("/rentals?status=ACTIVE").get("items")).isEmpty();
+        assertThat(read("/tables/" + table).get("state").asString()).isEqualTo("AVAILABLE");
+        assertThat(read("/games/" + game).get("rentalAvailableNow").asInt()).isEqualTo(1);
+      }
+    }
+
+    @Test
+    void cancellingTheWaitingPartyLeavesTheOverduePartyAndOtherTablesUndisturbed()
+        throws Exception {
+      String earlier = book(table, start, handover, true);
+      String later = book(table, handover, end, true);
+      String independent = book(otherTable, handover, end, false);
+      testClock.at(start);
+      String rental = checkIn(earlier).get("rental").get("id").asString();
+      testClock.at(handover.plusSeconds(900));
+      String independentRental = checkIn(independent).get("rental").get("id").asString();
+
+      var blocked = send(manager, "POST", base + "/reservations/" + later + "/check-in", null);
+      assertThat(blocked.statusCode()).as(blocked.body()).isEqualTo(409);
+      for (int attempt = 0; attempt < 2; attempt++) {
+        var cancelled =
+            send(
+                manager,
+                "POST",
+                base + "/reservations/" + later + "/cancel",
+                "{\"reason\":\"Table unavailable; party cannot wait\"}");
+        assertThat(cancelled.statusCode()).as(cancelled.body()).isEqualTo(200);
+        assertThat(JSON.readTree(cancelled.body()).get("status").asString()).isEqualTo("CANCELLED");
+      }
+      var cancelledArrival =
+          send(manager, "POST", base + "/reservations/" + later + "/check-in", null);
+      assertThat(cancelledArrival.statusCode()).as(cancelledArrival.body()).isEqualTo(409);
+      assertThat(read("/rentals?status=ACTIVE").get("items")).hasSize(2);
+      assertThat(read("/reservations/" + earlier).get("status").asString()).isEqualTo("CHECKED_IN");
+      assertThat(read("/tables/" + table).get("state").asString()).isEqualTo("OCCUPIED");
+      assertThat(read("/tables/" + otherTable).get("state").asString()).isEqualTo("OCCUPIED");
+      assertThat(read("/games/" + game).get("rentalAvailableNow").asInt()).isZero();
+
+      checkOut(rental);
+      assertThat(read("/games/" + game).get("rentalAvailableNow").asInt()).isEqualTo(1);
+      assertThat(read("/tables/" + table).get("state").asString()).isEqualTo("AVAILABLE");
+      assertThat(read("/rentals/" + independentRental).get("status").asString())
+          .isEqualTo("ACTIVE");
+      assertThat(read("/tables/" + otherTable).get("state").asString()).isEqualTo("OCCUPIED");
+      assertThat(read("/reservations/" + later).get("status").asString()).isEqualTo("CANCELLED");
+    }
+
+    @Test
+    void adjacentBookingsShareResourcesButEvenAMicrosecondOfOverlapIsRejected() throws Exception {
+      String earlier = book(table, start, handover, true);
+      var tableOverlap = bookResponse(table, handover.minusNanos(1000), end, false);
+      assertThat(tableOverlap.statusCode()).as(tableOverlap.body()).isEqualTo(409);
+      var copyOverlap = bookResponse(otherTable, handover.minusNanos(1000), end, true);
+      assertThat(copyOverlap.statusCode()).as(copyOverlap.body()).isEqualTo(409);
+      String later = book(table, handover, end, true);
+      assertThat(read("/reservations").get("items")).hasSize(2);
+
+      // Returning the resources early still does not permit arrival before the next booking.
+      testClock.at(start);
+      String rental = checkIn(earlier).get("rental").get("id").asString();
+      testClock.at(handover.minusNanos(1000));
+      checkOut(rental);
+      var early = send(manager, "POST", base + "/reservations/" + later + "/check-in", null);
+      assertThat(early.statusCode()).as(early.body()).isEqualTo(409);
+      assertThat(early.body()).contains("Check-in is only possible during the booked window");
+      assertWaiting(later);
+
+      testClock.at(handover);
+      var arrived = checkIn(later);
+      assertThat(arrived.get("reservation").get("status").asString()).isEqualTo("CHECKED_IN");
+      assertThat(Instant.parse(arrived.get("rental").get("startedAt").asString()))
+          .isEqualTo(handover);
+      assertThat(read("/rentals?status=ACTIVE").get("items")).hasSize(1);
+    }
+
+    @Test
+    void anOverdueGameCopyBlocksAnotherTableAndFailedArrivalKeepsTheBookingRetryable()
+        throws Exception {
+      String earlier = book(table, start, handover, true);
+      String later = book(otherTable, handover, end, true);
+      testClock.at(start);
+      String rental = checkIn(earlier).get("rental").get("id").asString();
+      testClock.at(handover.plusSeconds(900));
+
+      for (int attempt = 0; attempt < 2; attempt++) {
+        var blocked = send(manager, "POST", base + "/reservations/" + later + "/check-in", null);
+        assertThat(blocked.statusCode()).as(blocked.body()).isEqualTo(409);
+        assertThat(blocked.body()).contains("reserved copy is still out with an earlier visit");
+        assertWaiting(later);
+        assertThat(read("/reservations/" + later).get("games")).hasSize(1);
+        assertThat(read("/rentals").get("items")).hasSize(1);
+        assertThat(read("/tables/" + otherTable).get("state").asString()).isEqualTo("RESERVED");
+        assertThat(read("/rentals/" + rental).get("status").asString()).isEqualTo("ACTIVE");
+      }
+
+      checkOut(rental);
+      var arrived = checkIn(later);
+      assertThat(arrived.get("reservation").get("status").asString()).isEqualTo("CHECKED_IN");
+      assertThat(arrived.get("rental").get("charges")).hasSize(2);
+      assertThat(read("/rentals?status=ACTIVE").get("items")).hasSize(1);
+      assertThat(read("/tables/" + table).get("state").asString()).isEqualTo("AVAILABLE");
+      assertThat(read("/tables/" + otherTable).get("state").asString()).isEqualTo("OCCUPIED");
+      assertThat(read("/games/" + game).get("rentalAvailableNow").asInt()).isZero();
+    }
+
+    @Test
+    void overtimeKeepsTheTableAndCopiesUntilCheckoutThenTheWaitingPartyCanArrive()
+        throws Exception {
+      String earlier = book(table, start, handover, true);
+      String later = book(table, handover, end, true);
+      testClock.at(start);
+      String rental = checkIn(earlier).get("rental").get("id").asString();
+
+      // The planned end never automatically checks a party out, even at the exact boundary.
+      for (var now : List.of(handover, handover.plusSeconds(900))) {
+        testClock.at(now);
+        var blocked = send(manager, "POST", base + "/reservations/" + later + "/check-in", null);
+        assertThat(blocked.statusCode()).as(blocked.body()).isEqualTo(409);
+        assertThat(blocked.body()).contains("still occupied by an earlier visit");
+        var availability =
+            read("/availability?startsAt=" + now + "&endsAt=" + end + "&partySize=2");
+        var occupied =
+            availability
+                .get("tables")
+                .valueStream()
+                .filter(item -> item.get("tableId").asString().equals(table.toString()))
+                .findFirst()
+                .orElseThrow();
+        assertThat(occupied.get("available").asBoolean()).isFalse();
+        assertThat(occupied.get("unavailableReasons").toString()).contains("OCCUPIED");
+        assertThat(availability.get("games").get(0).get("availableQuantity").asInt()).isZero();
+        assertWaiting(later);
+        assertThat(read("/reservations/" + earlier).get("status").asString())
+            .isEqualTo("CHECKED_IN");
+        assertThat(read("/rentals/" + rental).get("status").asString()).isEqualTo("ACTIVE");
+        assertThat(read("/rentals").get("items")).hasSize(1);
+        assertThat(read("/tables/" + table).get("state").asString()).isEqualTo("OCCUPIED");
+        assertThat(read("/games/" + game).get("rentalAvailableNow").asInt()).isZero();
+      }
+
+      var left = checkOut(rental);
+      assertThat(left.get("reservation").get("status").asString()).isEqualTo("COMPLETED");
+      assertThat(left.get("rental").get("billableHours").asInt()).isEqualTo(2);
+      assertThat(left.get("rental").get("total").get("amountMinor").asLong()).isEqualTo(18000);
+      assertThat(read("/tables/" + table).get("state").asString()).isEqualTo("RESERVED");
+
+      var arrived = checkIn(later);
+      String nextRental = arrived.get("rental").get("id").asString();
+      assertThat(nextRental).isNotEqualTo(rental);
+      assertThat(Instant.parse(arrived.get("reservation").get("checkedInAt").asString()))
+          .isEqualTo(handover.plusSeconds(900));
+      assertThat(Instant.parse(arrived.get("reservation").get("endsAt").asString())).isEqualTo(end);
+      assertThat(Instant.parse(arrived.get("rental").get("plannedEndsAt").asString()))
+          .isEqualTo(end);
+      assertThat(read("/rentals?status=ACTIVE").get("items")).hasSize(1);
+
+      // Retries of either party's lifecycle cannot release the new party's table or copies.
+      testClock.at(handover.plusSeconds(1800));
+      assertThat(checkIn(later).get("rental").get("id").asString()).isEqualTo(nextRental);
+      assertThat(checkIn(earlier).get("reservation").get("status").asString())
+          .isEqualTo("COMPLETED");
+      assertThat(checkOut(rental).get("rental").get("total").get("amountMinor").asLong())
+          .isEqualTo(18000);
+      assertThat(read("/rentals").get("items")).hasSize(2);
+      assertThat(read("/tables/" + table).get("state").asString()).isEqualTo("OCCUPIED");
+      assertThat(read("/games/" + game).get("rentalAvailableNow").asInt()).isZero();
+
+      testClock.at(end);
+      var nextLeft = checkOut(nextRental);
+      assertThat(nextLeft.get("rental").get("billableHours").asInt()).isEqualTo(1);
+      assertThat(nextLeft.get("rental").get("total").get("amountMinor").asLong()).isEqualTo(9000);
+      assertThat(read("/tables/" + table).get("state").asString()).isEqualTo("AVAILABLE");
+      assertThat(read("/games/" + game).get("rentalAvailableNow").asInt()).isEqualTo(1);
+    }
   }
 
   @Test

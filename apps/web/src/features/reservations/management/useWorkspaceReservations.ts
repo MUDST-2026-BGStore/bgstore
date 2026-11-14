@@ -30,7 +30,7 @@ import {
   formatStoreTime,
   serverClockOffsetMs,
 } from '../data/session-timing';
-import { httpStatus } from '../../../shared/lib/api-errors';
+import { httpStatus, problemMessage } from '../../../shared/lib/api-errors';
 import { useWalkInSeating } from './useWalkInSeating';
 
 const baht = (amountMinor: number) => Math.round(amountMinor / 100);
@@ -439,8 +439,15 @@ export function useWorkspaceReservations() {
       });
       void queryClient.invalidateQueries({ queryKey: ['listBranchRentals'] });
     },
-    onError: () => {
-      actionError.value = 'Check-in failed. Refresh and retry.';
+    onError: (error) => {
+      if (httpStatus(error) === 409) {
+        const reason = problemMessage(error);
+        actionError.value = reason
+          ? `Check-in conflict: ${reason}`
+          : 'Check-in conflict. Refresh the reservation and check table and game availability.';
+      } else {
+        actionError.value = 'Check-in failed. Refresh and retry.';
+      }
     },
   });
 
