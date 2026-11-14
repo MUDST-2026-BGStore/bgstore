@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v4
         with:
           install_args: node pnpm
       - name: Install dependencies
@@ -44,14 +44,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - uses: jdx/mise-action@v2
+      - uses: jdx/mise-action@v4
       - name: Use the pinned JDK for Gradle
         # The runner's default JAVA_HOME is a newer JDK that google-java-format rejects.
         run: echo "JAVA_HOME=$(mise where java)" >> "$GITHUB_ENV"
       - name: Install dependencies
         # The Gradle build bundles the OpenAPI contract with Redocly from node_modules.
         run: pnpm install --frozen-lockfile
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v6
       - name: Check formatting and run tests without containers
         working-directory: apps/api
         run: ./gradlew spotlessCheck test -PskipIntegration --console=plain
