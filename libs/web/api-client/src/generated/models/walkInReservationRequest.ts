@@ -10,7 +10,7 @@ import type { GameSelection } from './gameSelection';
 import type { WalkInReservationRequestSource } from './walkInReservationRequestSource';
 
 /**
- * startsAt is assigned from server time; endsAt must be later. A separate staff check-in is required.
+ * startsAt is assigned from server time; endsAt must be later. A separate staff check-in is required unless checkIn is true.
  */
 export interface WalkInReservationRequest {
   source: WalkInReservationRequestSource;
@@ -26,4 +26,6 @@ export interface WalkInReservationRequest {
   games: GameSelection[];
   /** @maxLength 1000 */
   notes?: string;
+  /** When true the party is seated now. The walk-in is created and checked in in one transaction under the same idempotency key, so either both happen or neither does, and the response is CHECKED_IN with its rental. When false the walk-in stays CONFIRMED until the check-in operation is called. */
+  checkIn?: boolean;
 }

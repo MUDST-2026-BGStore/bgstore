@@ -1774,7 +1774,7 @@ test('loads live branch tables, reservations and rentals and checks out the rent
   await expect(
     page.getByRole('button', { name: /^Add refreshments/ }),
   ).toHaveCount(0);
-  await page.getByRole('button', { name: /^Check bill for Table/ }).click();
+  await page.getByRole('button', { name: /^Check bill for / }).click();
 
   const dialog = page.getByRole('dialog', {
     name: 'Table Session Bill',

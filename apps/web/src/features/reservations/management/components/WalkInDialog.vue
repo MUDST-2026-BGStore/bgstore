@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import {
   AppButton,
   AppChoiceGroup,
@@ -11,61 +10,57 @@ import {
   AppNumberStepper,
 } from '../../../../shared/ui';
 import { useManagementWorkspace } from '../context';
+const { walkIn } = useManagementWorkspace();
 const {
-  branchFloorTables,
-  getTableStatus,
-  showWalkInModal,
-  walkInTableId,
-  walkInPartySize,
-  walkInDuration,
-  walkInGuestName,
-  walkInError,
-  staffCreateMutation,
-  handleStaffWalkInSubmit,
-} = useManagementWorkspace();
-const tables = computed(() =>
-  branchFloorTables.map((table) => ({
-    id: table.id,
-    label: `Table ${table.number}`,
-    description: `${table.seats} seats · ฿${table.rate}/hr\n${getTableStatus(table).state === 'OCCUPIED' ? 'In play' : getTableStatus(table).state === 'RESERVED' ? 'Reserved' : 'Free'}`,
-  })),
-);
-function selectTable(id: string) {
-  walkInTableId.value = id;
-  const table = branchFloorTables.find((table) => table.id === id);
-  if (table) walkInPartySize.value = table.seats;
-}
+  open,
+  tableId,
+  partySize,
+  durationHours,
+  guestName,
+  error,
+  submitting,
+  availability,
+  tableOptions,
+  blockedReason,
+  canSubmit,
+  selectTable,
+  submit,
+} = walkIn;
 </script>
 <template>
-  <AppDialog
-    v-if="showWalkInModal"
-    title-id="WalkInDialog-title"
-    @close="showWalkInModal = false"
-  >
+  <AppDialog v-if="open" title-id="WalkInDialog-title" @close="open = false">
     <AppDialogPanel
       title-id="WalkInDialog-title"
       title="Seat walk-in"
       as="form"
-      @submit.prevent="handleStaffWalkInSubmit"
-      @close="showWalkInModal = false"
+      @submit.prevent="submit"
+      @close="open = false"
     >
       <AppFormGrid>
+        <p
+          v-if="availability.isPending.value && !tableOptions.length"
+          class="field-full-width"
+          role="status"
+        >
+          Checking tables…
+        </p>
         <AppChoiceGroup
+          v-else
           class="field-full-width"
           label="Table"
-          :model-value="walkInTableId"
-          :options="tables"
+          :model-value="tableId"
+          :options="tableOptions"
           @update:model-value="selectTable"
         />
         <AppField input-id="walkin-guests" label="Guests"
           ><AppNumberStepper
-            v-model="walkInPartySize"
+            v-model="partySize"
             input-id="walkin-guests"
             label="Guests"
             :min="1"
         /></AppField>
         <AppField input-id="WalkInDialog-field-1" label="Duration"
-          ><select id="WalkInDialog-field-1" v-model.number="walkInDuration">
+          ><select id="WalkInDialog-field-1" v-model.number="durationHours">
             <option :value="1">1 Hour</option>
             <option :value="2">2 Hours</option>
             <option :value="3">3 Hours</option>
@@ -78,27 +73,23 @@ function selectTable(id: string) {
           label="Guest name (optional)"
           ><input
             id="WalkInDialog-field-2"
-            v-model="walkInGuestName"
+            v-model="guestName"
             type="text"
-            placeholder="Walk-in Guests"
+            maxlength="200"
+            placeholder="Walk-in guests"
         /></AppField>
         <AppMessageBar
-          v-if="walkInError"
+          v-if="error || blockedReason"
           tone="error"
           class="field-full-width"
-          >{{ walkInError }}</AppMessageBar
+          >{{ error || blockedReason }}</AppMessageBar
         >
       </AppFormGrid>
       <template #footer
-        ><AppButton @click="showWalkInModal = false">Cancel</AppButton
-        ><AppButton
-          type="submit"
-          appearance="primary"
-          :disabled="staffCreateMutation.isPending.value"
-          >{{
-            staffCreateMutation.isPending.value ? 'Seating…' : 'Seat walk-in'
-          }}</AppButton
-        ></template
+        ><AppButton @click="open = false">Cancel</AppButton
+        ><AppButton type="submit" appearance="primary" :disabled="!canSubmit">{{
+          submitting ? 'Seating…' : 'Seat walk-in'
+        }}</AppButton></template
       >
     </AppDialogPanel>
   </AppDialog>
