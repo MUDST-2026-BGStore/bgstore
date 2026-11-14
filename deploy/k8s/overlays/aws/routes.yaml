@@ -7,7 +7,7 @@ spec:
     - name: public
       namespace: gateway
       sectionName: theparlor
-  hostnames: [theparlor.devopsandbox.chanakanlabs.com]
+  hostnames: [bgstore.devopsandbox.chanakanlabs.com]
   rules:
     - matches: [{ path: { type: PathPrefix, value: /api } }]
       backendRefs: [{ name: api, port: 8080 }]
@@ -37,7 +37,7 @@ spec:
       namespace: gateway
       sectionName: http
   hostnames:
-    - theparlor.devopsandbox.chanakanlabs.com
+    - bgstore.devopsandbox.chanakanlabs.com
     - auth.devopsandbox.chanakanlabs.com
   rules:
     - filters:

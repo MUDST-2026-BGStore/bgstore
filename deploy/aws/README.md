@@ -127,7 +127,7 @@ when they change, the API Deployment restarts to pick them up.
 Register this webhook in the Omise dashboard (test and live are separate), so
 PromptPay payments are recorded as soon as they arrive rather than at the
 15-minute deadline:
-`https://theparlor.devopsandbox.chanakanlabs.com/api/v1/payments/omise/webhook`.
+`https://bgstore.devopsandbox.chanakanlabs.com/api/v1/payments/omise/webhook`.
 
 ## Build, publish and deploy a rehearsal
 

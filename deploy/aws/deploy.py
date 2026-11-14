@@ -33,7 +33,15 @@ def publish_snapshot(tag, branch):
     address = ipaddress.ip_address(host)
     if address.version != 4 or address.is_private:
         raise SystemExit("The rehearsal needs a public IPv4 address.")
-    hosts = {name: f"{name}.{address}.sslip.io" for name in ["theparlor", "auth", "argocd"]}
+    # The sandbox's real DNS records (devopsandbox.chanakanlabs.com) already
+    # point at the Elastic IP; manifests keep these names, so nothing is rewritten.
+    # Set SANDBOX_HOSTNAMES=sslip to rehearse on IP-based names instead.
+    domain = "devopsandbox.chanakanlabs.com"
+    configured = {"theparlor": f"bgstore.{domain}", "auth": f"auth.{domain}", "argocd": f"argocd.{domain}"}
+    if os.environ.get("SANDBOX_HOSTNAMES") == "sslip":
+        hosts = {name: f"{name}.{address}.sslip.io" for name in configured}
+    else:
+        hosts = configured
     source = manage.LOCAL / "deployment-source"
     if source.exists():
         shutil.rmtree(source)
@@ -63,7 +71,7 @@ def publish_snapshot(tag, branch):
         for path in directory.rglob("*.yaml"):
             text = path.read_text()
             for name, hostname in hosts.items():
-                text = text.replace(f"{name}.devopsandbox.chanakanlabs.com", hostname)
+                text = text.replace(configured[name], hostname)
             if path.name == "application.yaml":
                 text = text.replace("targetRevision: main", f"targetRevision: {branch}")
                 text = text.replace("skip-reconcile: 'true'", "skip-reconcile: 'false'")

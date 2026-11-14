@@ -18,8 +18,8 @@ patches:
   - path: config.yaml
 images:
   - name: ghcr.io/theparlor/theparlor-api
-    newName: ghcr.io/mudst-2026-bgstore/theparlor-api
-    newTag: dev
+    newName: 416604074663.dkr.ecr.ap-southeast-7.amazonaws.com/theparlor/api
+    newTag: sandbox-20261114-7239ee9
   - name: ghcr.io/theparlor/theparlor-web
-    newName: ghcr.io/mudst-2026-bgstore/theparlor-web
-    newTag: dev
+    newName: 416604074663.dkr.ecr.ap-southeast-7.amazonaws.com/theparlor/web
+    newTag: sandbox-20261114-7239ee9

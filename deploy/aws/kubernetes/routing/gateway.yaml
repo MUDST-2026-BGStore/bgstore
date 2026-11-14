@@ -26,7 +26,7 @@ spec:
       allowedRoutes:
         namespaces: { from: All }
     - name: theparlor
-      hostname: theparlor.devopsandbox.chanakanlabs.com
+      hostname: bgstore.devopsandbox.chanakanlabs.com
       protocol: HTTPS
       port: 443
       tls:
