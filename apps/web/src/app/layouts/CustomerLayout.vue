@@ -74,7 +74,7 @@ onUnmounted(() => document.removeEventListener('pointerdown', outside));
 
 <template>
   <ParlorShell
-    class="customer-shell"
+    class="customer-shell ui-storefront"
     sticky-header
     brand-href="/"
     :class="{

@@ -26,6 +26,20 @@ test.beforeEach(async ({ page }) => {
       });
     } else if (path === '/api/v1/branches') {
       await route.fulfill({ json: { items: [{ id: 'siam', name: 'Siam' }] } });
+    } else if (path.endsWith('/staff-assignments')) {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              staffSubject: 'staff-1',
+              name: 'Krit Somchai',
+              phone: '+66812345678',
+              grantedBy: 'operator',
+              grantedAt: '2026-01-05T03:00:00Z',
+            },
+          ],
+        },
+      });
     } else {
       await route.fulfill({ json: { items: [] } });
     }
@@ -93,8 +107,11 @@ test('keeps the complete dashboard information visible together on desktop', asy
     name: 'Pantry watch',
     exact: true,
   });
-  await expect(pantry.locator('dt')).toHaveText(['Low stock', 'Out of stock']);
-  await expect(pantry.locator('dd')).toHaveText(['4', '1']);
+  await expect(pantry.locator('dt')).toHaveText([
+    'Available items',
+    'Unavailable items',
+  ]);
+  await expect(pantry.locator('dd')).toHaveText(['0', '0']);
   await expect(pantry).toBeInViewport({ ratio: 1 });
 
   const queue = page.getByRole('region', {
@@ -303,167 +320,6 @@ test('supports visible-row selection and batch game returns without opening insp
   ).toBeVisible();
 });
 
-test('receives selected pantry items with separate quantities and clears selection', async ({
-  page,
-}) => {
-  await page
-    .getByRole('button', { name: 'Inventory & fulfillment', exact: true })
-    .click();
-  await page
-    .getByRole('button', { name: 'Food & drinks', exact: true })
-    .click();
-  const first = 'Coca-Cola Original (Can 325ml)';
-  const second = 'Coca-Cola Zero Sugar (Can 325ml)';
-  await page
-    .getByRole('checkbox', { name: `Select ${first}`, exact: true })
-    .check();
-  await page
-    .getByRole('checkbox', { name: `Select ${second}`, exact: true })
-    .check();
-  const selection = page.getByRole('region', { name: 'Selected row actions' });
-  await expect(selection).toContainText('2 selected');
-  await selection
-    .getByRole('button', { name: 'Receive stock', exact: true })
-    .click();
-  const dialog = page.getByRole('dialog', {
-    name: 'Receive stock',
-    exact: true,
-  });
-  await dialog
-    .getByRole('spinbutton', { name: `Quantity for ${first}`, exact: true })
-    .fill('6');
-  await dialog
-    .getByRole('spinbutton', { name: `Quantity for ${first}`, exact: true })
-    .press('Tab');
-  await dialog
-    .getByRole('spinbutton', { name: `Quantity for ${second}`, exact: true })
-    .fill('3');
-  await dialog
-    .getByRole('spinbutton', { name: `Quantity for ${second}`, exact: true })
-    .press('Tab');
-  await expect(dialog.getByText('54', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('39', { exact: true })).toBeVisible();
-  await dialog
-    .getByRole('button', { name: 'Receive stock', exact: true })
-    .click();
-  await expect(dialog).toHaveCount(0);
-  await expect(selection).toHaveCount(0);
-  const stock = page.getByRole('region', {
-    name: 'Stock for sale table',
-    exact: true,
-  });
-  await expect(
-    stock
-      .getByRole('row')
-      .filter({ hasText: first })
-      .locator('td.numeric')
-      .first(),
-  ).toContainText('54');
-  await expect(
-    stock
-      .getByRole('row')
-      .filter({ hasText: second })
-      .locator('td.numeric')
-      .first(),
-  ).toContainText('39');
-  await expect(stock).toBeFocused();
-  const detailsTrigger = stock.getByRole('button', {
-    name: 'View record BEV-COCA-COLA',
-    exact: true,
-  });
-  await detailsTrigger.click();
-  const details = page.getByRole('complementary', { name: first, exact: true });
-  const quantity = details.getByRole('spinbutton', {
-    name: `Stock for ${first}`,
-    exact: true,
-  });
-  await expect(quantity).toHaveValue('54');
-  await quantity.fill('55');
-  await quantity.press('Tab');
-  await expect(details.locator('dl').first().locator('dd')).toHaveText([
-    'BEV-COCA-COLA',
-    'Beverages',
-    'cans',
-    '55 cans',
-    '0 cans',
-    '55 cans',
-    '12 cans',
-    'In stock',
-  ]);
-  await details.getByRole('button', { name: 'Close details' }).click();
-  await expect(detailsTrigger).toBeFocused();
-  await expect(
-    stock
-      .getByRole('row')
-      .filter({ hasText: first })
-      .locator('td.numeric')
-      .first(),
-  ).toContainText('55');
-});
-
-test('confirms destructive row and batch actions before removing catalog items', async ({
-  page,
-}) => {
-  await page
-    .getByRole('button', { name: 'Inventory & fulfillment', exact: true })
-    .click();
-  await page
-    .getByRole('button', { name: 'Food & drinks', exact: true })
-    .click();
-  const first = 'Coca-Cola Original (Can 325ml)';
-  const second = 'Coca-Cola Zero Sugar (Can 325ml)';
-  const stock = page.getByRole('region', {
-    name: 'Stock for sale table',
-    exact: true,
-  });
-  await expect(stock.locator('tbody tr')).toHaveCount(15);
-  const firstRow = stock.getByRole('row').filter({ hasText: first });
-  await firstRow
-    .getByRole('button', { name: 'View record BEV-COCA-COLA', exact: true })
-    .click();
-  const details = page.getByRole('complementary', { name: first, exact: true });
-  await expect(details.getByText('Cost', { exact: true })).toBeVisible();
-  await expect(details.getByText('฿18', { exact: true })).toBeVisible();
-  await expect(details.getByText('49%', { exact: true })).toBeVisible();
-  const remove = details.getByRole('button', { name: 'Remove', exact: true });
-  await expect(remove).toHaveCSS('color', 'rgb(161, 55, 44)');
-  await remove.scrollIntoViewIfNeeded();
-  await expect(remove).toBeInViewport({ ratio: 1 });
-  await remove.click();
-  const single = page.getByRole('dialog', { name: 'Remove item', exact: true });
-  await expect(single.getByText(first, { exact: true })).toBeVisible();
-  await single.getByRole('button', { name: 'Cancel', exact: true }).click();
-  await expect(stock.locator('tbody tr')).toHaveCount(15);
-  await expect(remove).toBeFocused();
-  await details.getByRole('button', { name: 'Close details' }).click();
-  await page
-    .getByRole('checkbox', { name: `Select ${first}`, exact: true })
-    .check();
-  await page
-    .getByRole('checkbox', { name: `Select ${second}`, exact: true })
-    .check();
-  await page
-    .getByRole('region', { name: 'Selected row actions' })
-    .getByRole('button', { name: 'Remove items', exact: true })
-    .click();
-  const batch = page.getByRole('dialog', { name: 'Remove items', exact: true });
-  await expect(batch.getByRole('listitem')).toHaveCount(2);
-  const confirm = batch.getByRole('button', {
-    name: 'Remove items',
-    exact: true,
-  });
-  await expect(confirm).toHaveCSS('background-color', 'rgb(161, 55, 44)');
-  await confirm.click();
-  await expect(batch).toHaveCount(0);
-  await expect(stock.locator('tbody tr')).toHaveCount(13);
-  await expect(stock.getByText(first, { exact: true })).toHaveCount(0);
-  await expect(stock.getByText(second, { exact: true })).toHaveCount(0);
-  await expect(
-    page.getByRole('region', { name: 'Selected row actions' }),
-  ).toHaveCount(0);
-  await expect(stock).toBeFocused();
-});
-
 test('uses the same tables and visually blank action headers throughout management', async ({
   page,
 }) => {
@@ -473,7 +329,7 @@ test('uses the same tables and visually blank action headers throughout manageme
     'Bookings',
     'Game library',
     'Inventory & fulfillment',
-    'Staff & shifts',
+    'Branch staff',
     'Revenue & analytics',
     'Venue policies',
   ]) {
@@ -578,9 +434,6 @@ test('keeps manager-only cost and removal actions out of the staff inventory', a
   await page
     .getByRole('button', { name: 'Inventory & fulfillment', exact: true })
     .click();
-  await page
-    .getByRole('button', { name: 'Food & drinks', exact: true })
-    .click();
   await expect(
     page.getByRole('checkbox', {
       name: 'Select all receivable items',
@@ -597,10 +450,10 @@ test('keeps manager-only cost and removal actions out of the staff inventory', a
     page.getByRole('button', { name: /^Remove .* from catalog$/ }),
   ).toHaveCount(0);
   await page
-    .getByRole('button', { name: 'View record BEV-COCA-COLA', exact: true })
+    .getByRole('button', { name: 'View record AZUL-EN-B', exact: true })
     .click();
   const details = page.getByRole('complementary', {
-    name: 'Coca-Cola Original (Can 325ml)',
+    name: 'Azul',
     exact: true,
   });
   await expect(details.getByText('Cost', { exact: true })).toHaveCount(0);
@@ -632,7 +485,7 @@ for (const viewport of [
   { width: 390, height: 844 },
   { width: 812, height: 390 },
 ]) {
-  test(`contains all seven dialogs at ${viewport.width}×${viewport.height}`, async ({
+  test(`contains all six dialogs at ${viewport.width}×${viewport.height}`, async ({
     page,
   }) => {
     const errors: string[] = [];
@@ -695,24 +548,10 @@ for (const viewport of [
         width: 740,
         prepare: async () => {
           await page
-            .getByRole('button', { name: 'Food & drinks', exact: true })
-            .click();
-          await page
             .getByRole('button', {
-              name: 'View record BEV-COCA-COLA',
+              name: 'View record AZUL-EN-B',
               exact: true,
             })
-            .click();
-        },
-      },
-      {
-        view: 'Inventory & fulfillment',
-        button: 'Add food or drink',
-        title: 'Add menu item',
-        width: 600,
-        prepare: async () => {
-          await page
-            .getByRole('button', { name: 'Food & drinks', exact: true })
             .click();
         },
       },
@@ -776,7 +615,7 @@ for (const viewport of [
   });
 }
 
-test('uses the same selection, receipt and adjustment actions for games and food', async ({
+test('uses the same selection, receipt and adjustment actions for every sale item', async ({
   page,
 }) => {
   await page
@@ -786,12 +625,12 @@ test('uses the same selection, receipt and adjustment actions for games and food
     name: 'Stock for sale table',
     exact: true,
   });
-  await expect(stock.getByRole('checkbox')).toHaveCount(21);
+  await expect(stock.getByRole('checkbox')).toHaveCount(6);
   await page
     .getByRole('checkbox', { name: 'Select all receivable items', exact: true })
     .check();
   const selection = page.getByRole('region', { name: 'Selected row actions' });
-  await expect(selection).toContainText('20 selected');
+  await expect(selection).toContainText('5 selected');
   await selection
     .getByRole('button', { name: 'Clear selection', exact: true })
     .click();
@@ -799,10 +638,7 @@ test('uses the same selection, receipt and adjustment actions for games and food
     .getByRole('checkbox', { name: 'Select Azul', exact: true })
     .check();
   await stock
-    .getByRole('checkbox', {
-      name: 'Select Coca-Cola Original (Can 325ml)',
-      exact: true,
-    })
+    .getByRole('checkbox', { name: 'Select Pandemic', exact: true })
     .check();
   await expect(selection).toContainText('2 selected');
   await expect(
@@ -822,16 +658,10 @@ test('uses the same selection, receipt and adjustment actions for games and food
     .getByRole('spinbutton', { name: 'Quantity for Azul', exact: true })
     .press('Tab');
   await receipt
-    .getByRole('spinbutton', {
-      name: 'Quantity for Coca-Cola Original (Can 325ml)',
-      exact: true,
-    })
+    .getByRole('spinbutton', { name: 'Quantity for Pandemic', exact: true })
     .fill('6');
   await receipt
-    .getByRole('spinbutton', {
-      name: 'Quantity for Coca-Cola Original (Can 325ml)',
-      exact: true,
-    })
+    .getByRole('spinbutton', { name: 'Quantity for Pandemic', exact: true })
     .press('Tab');
   await receipt
     .getByRole('button', { name: 'Receive stock', exact: true })
@@ -841,9 +671,9 @@ test('uses the same selection, receipt and adjustment actions for games and food
   await expect(
     stock
       .getByRole('row')
-      .filter({ hasText: 'BEV-COCA-COLA' })
+      .filter({ hasText: 'PAND-EN-B' })
       .locator('td.numeric'),
-  ).toHaveText(['54cans', '0', '54']);
+  ).toHaveText(['14copies', '1', '13']);
   await expect(
     page.getByRole('complementary', { name: 'Azul', exact: true }),
   ).toHaveCount(0);
@@ -941,7 +771,7 @@ test('combines Fabric-style checkbox filters and clears them without closing the
     .all()) {
     await expect(row).toHaveCSS('height', '36px');
   }
-  await expect(table.locator('tbody > tr')).toHaveCount(5);
+  await expect(table.locator('tbody > tr')).toHaveCount(1);
   const lowRow = menu.getByText('Low stock', { exact: true }).locator('..');
   const nextRow = menu
     .getByText('Fully reserved', { exact: true })
@@ -968,7 +798,7 @@ test('combines Fabric-style checkbox filters and clears them without closing the
   await menu
     .getByRole('checkbox', { name: 'Out of stock', exact: true })
     .check();
-  await expect(table.locator('tbody > tr')).toHaveCount(7);
+  await expect(table.locator('tbody > tr')).toHaveCount(2);
   await category.click();
   await menu
     .getByRole('checkbox', { name: 'Retail games', exact: true })
@@ -976,7 +806,7 @@ test('combines Fabric-style checkbox filters and clears them without closing the
   await expect(table.locator('tbody > tr')).toHaveCount(2);
   await expect(trigger).toHaveAccessibleName('Filter (3)');
   await menu.getByRole('button', { name: 'Clear all', exact: true }).click();
-  await expect(table.locator('tbody > tr')).toHaveCount(20);
+  await expect(table.locator('tbody > tr')).toHaveCount(5);
   await expect(menu).toBeVisible();
   await expect(trigger).toHaveAccessibleName('Filter');
   await category.click();
@@ -1086,10 +916,11 @@ for (const viewport of [
       page
         .getByRole('region', { name: 'Stock for sale table' })
         .locator('tbody > tr'),
-    ).toHaveCount(20);
+    ).toHaveCount(5);
     const views = [
       {
         name: 'Stock for sale',
+        heading: 'Retail stock',
         type: 'Retail games',
         table: 'Stock for sale table',
         search: 'Search stock',
@@ -1098,17 +929,6 @@ for (const viewport of [
         filtered: 1,
         details: 'View record AZUL-EN-B',
         detailTitle: 'Azul',
-      },
-      {
-        name: 'Stock for sale',
-        type: 'Food & drinks',
-        table: 'Stock for sale table',
-        search: 'Search stock',
-        rows: 15,
-        status: 'NEED_REORDER',
-        filtered: 5,
-        details: 'View record BEV-COCA-COLA',
-        detailTitle: 'Coca-Cola Original (Can 325ml)',
       },
       {
         name: 'Rental assets',
@@ -1142,7 +962,10 @@ for (const viewport of [
           .getByRole('button', { name: view.type, exact: true })
           .click();
       await expect(
-        page.getByRole('heading', { name: view.name, exact: true }),
+        page.getByRole('heading', {
+          name: view.heading ?? view.name,
+          exact: true,
+        }),
       ).toBeVisible();
       await expect(
         page.locator(
@@ -1150,7 +973,7 @@ for (const viewport of [
         ),
       ).toHaveCount(0);
       const summary = page.getByRole('group', {
-        name: `${view.name} summary`,
+        name: `${view.heading ?? view.name} summary`,
         exact: true,
       });
       await expect(summary.locator('strong')).toHaveCount(4);
@@ -1292,7 +1115,7 @@ for (const viewport of [
           ]);
           await expect(
             details.locator('dl').first().locator('dd').nth(5),
-          ).toHaveText(view.type === 'Retail games' ? '7 copies' : '48 cans');
+          ).toHaveText('7 copies');
         }
         await details
           .getByRole('button', { name: 'Close details', exact: true })
@@ -1309,23 +1132,16 @@ for (const viewport of [
       .getByRole('button', { name: 'Stock for sale', exact: true })
       .click();
     await page
-      .getByRole('button', { name: 'Food & drinks', exact: true })
-      .click();
-    await page
-      .getByRole('checkbox', {
-        name: 'Select Coca-Cola Original (Can 325ml)',
-        exact: true,
-      })
+      .getByRole('checkbox', { name: 'Select Azul', exact: true })
       .check();
-    await page.getByRole('searchbox', { name: 'Search stock' }).fill('Zero');
+    await page
+      .getByRole('searchbox', { name: 'Search stock' })
+      .fill('Pandemic');
     await expect(
       page.getByRole('region', { name: 'Selected row actions' }),
     ).toHaveCount(0);
     await expect(
-      page.getByRole('checkbox', {
-        name: 'Select Coca-Cola Zero Sugar (Can 325ml)',
-        exact: true,
-      }),
+      page.getByRole('checkbox', { name: 'Select Pandemic', exact: true }),
     ).not.toBeChecked();
   });
 
@@ -1355,13 +1171,9 @@ for (const viewport of [
       {
         name: 'Inventory & fulfillment',
         column: 'Item / SKU',
-        row: 'Select Coca-Cola Original (Can 325ml)',
+        row: 'Select Azul',
         all: 'Select all receivable items',
-        prepare: async () => {
-          await page
-            .getByRole('button', { name: 'Food & drinks', exact: true })
-            .click();
-        },
+        prepare: () => Promise.resolve(),
       },
     ];
     for (const view of views) {
@@ -1440,3 +1252,540 @@ for (const viewport of [
     }
   });
 }
+
+test('wires branch games, pantry menu, rental copies, stock adjustments and order fulfillment to live API endpoints', async ({
+  page,
+}) => {
+  let azulOnHand = 9;
+  const saleAdjustments: { delta: number; reason: string }[] = [];
+  const menuAdjustments: { delta: number; reason: string }[] = [];
+  const fulfilledOrderIds: string[] = [];
+
+  await page.route('**/api/v1/branches/siam/**', async (route) => {
+    const url = new URL(route.request().url());
+    const { pathname } = url;
+    const method = route.request().method();
+
+    if (method === 'GET' && pathname === '/api/v1/branches/siam/games') {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              branchId: 'siam',
+              game: {
+                id: 'game-azul',
+                name: 'Azul',
+                designer: 'Michael Kiesling',
+                difficulty: 'EASY',
+                categories: ['Strategy', 'Quick & Light'],
+                mechanics: ['Tile placement'],
+                minPlayers: 2,
+                maxPlayers: 4,
+                playMinutesMin: 30,
+                playMinutesMax: 45,
+                teachMinutes: 5,
+                setupMinutes: 5,
+                descriptions: { 'en-US': 'Draft tiles from shared supplies.' },
+                active: true,
+              },
+              saleEnabled: true,
+              rentalEnabled: true,
+              staffCanTeach: true,
+              rentalHourlyRate: { amountMinor: 2000 },
+              editions: [
+                {
+                  editionId: 'ed-azul-en',
+                  editionKind: 'BASE_GAME',
+                  languageCode: 'en',
+                  active: true,
+                  salePrice: { amountMinor: 149000 },
+                  saleOnHand: azulOnHand,
+                  saleHeld: 2,
+                  saleAvailable: 7,
+                },
+              ],
+              rentalTotal: 1,
+              rentalUsable: 1,
+              rentalAvailableNow: 1,
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    if (
+      method === 'POST' &&
+      pathname === '/api/v1/branches/siam/editions/ed-azul-en/stock-adjustments'
+    ) {
+      const body = route.request().postDataJSON() as {
+        delta: number;
+        reason: string;
+      };
+      saleAdjustments.push(body);
+      await route.fulfill({
+        json: {
+          id: 'adj-1',
+          branchId: 'siam',
+          editionId: 'ed-azul-en',
+          delta: body.delta,
+          reason: body.reason,
+          saleOnHand: (azulOnHand += body.delta),
+          saleAvailable: 7 + body.delta,
+          createdAt: '2026-11-13T10:00:00Z',
+          operatorSubject: 'operator',
+        },
+      });
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/v1/branches/siam/menu') {
+      await route.fulfill({
+        json: {
+          branchId: 'siam',
+          items: [
+            {
+              item: {
+                id: 'menu-coke',
+                sku: 'bev-coca-cola',
+                category: 'BEVERAGES',
+                names: {
+                  'en-US': 'Coca-Cola Original (Can 325ml)',
+                  'th-TH': 'โคคา-โคล่า รสชาติต้นตำรับ (กระป๋อง)',
+                },
+                price: { amountMinor: 3500 },
+                popular: true,
+              },
+              available: 40,
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    if (
+      method === 'POST' &&
+      pathname === '/api/v1/branches/siam/menu/menu-coke/stock-adjustments'
+    ) {
+      const body = route.request().postDataJSON() as {
+        delta: number;
+        reason: string;
+      };
+      menuAdjustments.push(body);
+      await route.fulfill({
+        json: {
+          branchId: 'siam',
+          menuItemId: 'menu-coke',
+          onHand: 40 + body.delta,
+          held: 0,
+          available: 40 + body.delta,
+        },
+      });
+      return;
+    }
+
+    if (
+      method === 'GET' &&
+      pathname === '/api/v1/branches/siam/games/game-azul/rental-copies'
+    ) {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              id: 'copy-azul-1',
+              branchId: 'siam',
+              gameId: 'game-azul',
+              assetCode: 'AZ-LIVE-01',
+              operationalStatus: 'USABLE',
+              state: 'AVAILABLE',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    if (method === 'GET' && pathname === '/api/v1/branches/siam/orders') {
+      await route.fulfill({
+        json: {
+          items: [
+            {
+              id: '1042abcd-0000-0000-0000-000000000000',
+              branchId: 'siam',
+              customer: { kind: 'GUEST', displayName: 'Guest' },
+              source: 'CUSTOMER',
+              status: fulfilledOrderIds.includes(
+                '1042abcd-0000-0000-0000-000000000000',
+              )
+                ? 'FULFILLED'
+                : 'PLACED',
+              items: [
+                {
+                  editionId: 'ed-azul-en',
+                  gameName: 'Azul',
+                  editionLanguage: 'en',
+                  quantity: 2,
+                  unitPrice: { amountMinor: 149000 },
+                  lineTotal: { amountMinor: 298000 },
+                },
+              ],
+              total: { amountMinor: 298000 },
+              contact: { name: 'Guest', phone: '0812345678' },
+              fulfillmentMethod: 'PICKUP',
+              payment: {
+                method: 'CARD',
+                status: 'CAPTURED',
+                amount: { amountMinor: 298000 },
+              },
+              createdAt: '2026-11-13T10:00:00Z',
+              createdBySubject: 'guest',
+            },
+          ],
+        },
+      });
+      return;
+    }
+
+    if (
+      method === 'POST' &&
+      pathname ===
+        '/api/v1/branches/siam/orders/1042abcd-0000-0000-0000-000000000000/fulfill'
+    ) {
+      fulfilledOrderIds.push('1042abcd-0000-0000-0000-000000000000');
+      await route.fulfill({
+        json: {
+          id: '1042abcd-0000-0000-0000-000000000000',
+          branchId: 'siam',
+          customer: { kind: 'GUEST', displayName: 'Guest' },
+          source: 'CUSTOMER',
+          status: 'FULFILLED',
+          items: [
+            {
+              editionId: 'ed-azul-en',
+              gameName: 'Azul',
+              editionLanguage: 'en',
+              quantity: 2,
+              unitPrice: { amountMinor: 149000 },
+              lineTotal: { amountMinor: 298000 },
+            },
+          ],
+          total: { amountMinor: 298000 },
+          contact: { name: 'Guest', phone: '0812345678' },
+          fulfillmentMethod: 'PICKUP',
+          payment: {
+            method: 'CARD',
+            status: 'CAPTURED',
+            amount: { amountMinor: 298000 },
+          },
+          createdAt: '2026-11-13T10:00:00Z',
+          createdBySubject: 'guest',
+          fulfilledAt: '2026-11-13T10:05:00Z',
+          fulfilledBySubject: 'operator',
+        },
+      });
+      return;
+    }
+
+    await route.fulfill({ json: { items: [] } });
+  });
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Game library', exact: true }).click();
+  await expect(page.locator('.workspace-records tbody tr')).toHaveCount(1);
+  await expect(
+    page.getByRole('button', { name: 'Azul', exact: true }),
+  ).toBeVisible();
+
+  await page
+    .getByRole('button', { name: 'Inventory & fulfillment', exact: true })
+    .click();
+  const stock = page.getByRole('region', {
+    name: 'Stock for sale table',
+    exact: true,
+  });
+  // Only live editions; food stock lives in its own panel.
+  await expect(stock.locator('tbody tr')).toHaveCount(1);
+  await stock
+    .getByRole('button', {
+      name: 'Receive stock for Azul, ED-AZUL-',
+      exact: true,
+    })
+    .click();
+  const receiveDialog = page.getByRole('dialog', {
+    name: 'Receive stock',
+    exact: true,
+  });
+  await receiveDialog
+    .getByRole('spinbutton', { name: 'Quantity for Azul', exact: true })
+    .fill('4');
+  await receiveDialog
+    .getByRole('button', { name: 'Receive stock', exact: true })
+    .click();
+  await expect
+    .poll(() => saleAdjustments)
+    .toEqual([{ delta: 4, reason: 'Stock receipt' }]);
+  // The row shows the server's balance after the adjustment.
+  await expect(
+    stock
+      .getByRole('row')
+      .filter({ hasText: 'ED-AZUL-' })
+      .locator('td.numeric'),
+  ).toHaveText(['13copies', '2', '11']);
+
+  const pantry = page.getByRole('region', { name: 'Food & drinks' });
+  await pantry.getByRole('button', { name: 'Adjust stock' }).click();
+  const pantryDialog = page.getByRole('dialog', {
+    name: 'Adjust Coca-Cola Original (Can 325ml)',
+  });
+  await pantryDialog.getByLabel('Change in units').fill('5');
+  await pantryDialog.getByLabel('Reason').fill('Delivery');
+  await pantryDialog.getByRole('button', { name: 'Save adjustment' }).click();
+  await expect
+    .poll(() => menuAdjustments)
+    .toEqual([{ delta: 5, reason: 'Delivery' }]);
+
+  await page
+    .getByRole('navigation', { name: 'Inventory views' })
+    .getByRole('button', { name: 'Rental assets', exact: true })
+    .click();
+  const rentalTable = page.getByRole('region', {
+    name: 'Rental assets table',
+    exact: true,
+  });
+  await expect(rentalTable.locator('tbody tr')).toHaveCount(1);
+  await expect(
+    rentalTable.getByText('AZ-LIVE-01', { exact: true }),
+  ).toBeVisible();
+
+  await page
+    .getByRole('navigation', { name: 'Inventory views' })
+    .getByRole('button', { name: 'Fulfillment', exact: true })
+    .click();
+  const fulfillmentTable = page.getByRole('region', {
+    name: 'Fulfillment orders table',
+    exact: true,
+  });
+  await expect(fulfillmentTable.locator('tbody tr')).toHaveCount(1);
+  await fulfillmentTable
+    .getByRole('button', { name: 'View details for 1042ABCD', exact: true })
+    .click();
+  const orderDetails = page.getByRole('complementary', {
+    name: '1042ABCD',
+    exact: true,
+  });
+  await orderDetails
+    .getByRole('button', { name: 'Fulfill order', exact: true })
+    .click();
+  await expect
+    .poll(() => fulfilledOrderIds)
+    .toEqual(['1042abcd-0000-0000-0000-000000000000']);
+  // Fulfilled orders leave the open queue once the server says so.
+  await expect(
+    fulfillmentTable.getByRole('button', { name: 'View details for 1042ABCD' }),
+  ).toHaveCount(0);
+});
+
+test('loads live branch tables, reservations and rentals and checks out the rental on bill settlement', async ({
+  page,
+}) => {
+  const branchId = 'siam';
+  const tableId = '00000000-0000-4000-8000-000000000101';
+  const reservationId = '00000000-0000-4000-8000-000000000201';
+  const rentalId = '00000000-0000-4000-8000-000000000301';
+  const startedAt = new Date(Date.now() - 60 * 60_000).toISOString();
+  const endsAt = new Date(Date.now() + 60 * 60_000).toISOString();
+  const checkedOutRentals: string[] = [];
+
+  await page.route(`**/api/v1/branches/${branchId}/tables*`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: tableId,
+            branchId,
+            label: 'The Emerald Salon (Table 1)',
+            capacity: 4,
+            hourlyRate: { amountMinor: 30000 },
+            operationalStatus: 'IN_SERVICE',
+            state: 'OCCUPIED',
+          },
+        ],
+      }),
+    }),
+  );
+
+  await page.route(`**/api/v1/branches/${branchId}/reservations*`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        items: [
+          {
+            id: reservationId,
+            branchId,
+            tableId,
+            customer: {
+              kind: 'GUEST',
+              displayName: 'Khun Ananda',
+              phone: '0811112222',
+            },
+            source: 'ONLINE',
+            status: 'CHECKED_IN',
+            startsAt: startedAt,
+            endsAt,
+            partySize: 4,
+            games: [],
+            tableHourlyRate: { amountMinor: 30000 },
+            createdAt: startedAt,
+            createdBySubject: 'cust-1',
+            checkedInAt: startedAt,
+            rentalId,
+          },
+        ],
+      }),
+    }),
+  );
+
+  await page.route(
+    `**/api/v1/branches/${branchId}/rentals**`,
+    async (route) => {
+      const url = new URL(route.request().url());
+      if (
+        route.request().method() === 'POST' &&
+        url.pathname.endsWith(`/rentals/${rentalId}/check-out`)
+      ) {
+        checkedOutRentals.push(rentalId);
+        const endedAt = new Date().toISOString();
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            reservation: {
+              id: reservationId,
+              branchId,
+              tableId,
+              customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+              source: 'ONLINE',
+              status: 'COMPLETED',
+              startsAt: startedAt,
+              endsAt,
+              partySize: 4,
+              games: [],
+              tableHourlyRate: { amountMinor: 30000 },
+              createdAt: startedAt,
+              createdBySubject: 'cust-1',
+              checkedInAt: startedAt,
+              completedAt: endedAt,
+              rentalId,
+            },
+            rental: {
+              id: rentalId,
+              branchId,
+              reservationId,
+              tableId,
+              customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+              status: 'COMPLETED',
+              startedAt,
+              plannedEndsAt: endsAt,
+              endedAt,
+              checkedInBySubject: 'staff-1',
+              checkedOutBySubject: 'staff-1',
+              billableHours: 1,
+              charges: [
+                {
+                  kind: 'TABLE',
+                  quantity: 1,
+                  unitHourlyRate: { amountMinor: 30000 },
+                  billableHours: 1,
+                  lineTotal: { amountMinor: 30000 },
+                },
+              ],
+              total: { amountMinor: 30000 },
+            },
+          }),
+        });
+        return;
+      }
+
+      if (url.pathname.endsWith(`/rentals/${rentalId}`)) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            id: rentalId,
+            branchId,
+            reservationId,
+            tableId,
+            customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+            status: 'ACTIVE',
+            startedAt,
+            plannedEndsAt: endsAt,
+            checkedInBySubject: 'staff-1',
+            charges: [
+              {
+                kind: 'TABLE',
+                quantity: 1,
+                unitHourlyRate: { amountMinor: 30000 },
+              },
+            ],
+          }),
+        });
+        return;
+      }
+
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          items: [
+            {
+              id: rentalId,
+              branchId,
+              reservationId,
+              tableId,
+              customer: { kind: 'GUEST', displayName: 'Khun Ananda' },
+              status: 'ACTIVE',
+              startedAt,
+              plannedEndsAt: endsAt,
+              checkedInBySubject: 'staff-1',
+              charges: [
+                {
+                  kind: 'TABLE',
+                  quantity: 1,
+                  unitHourlyRate: { amountMinor: 30000 },
+                },
+              ],
+            },
+          ],
+        }),
+      });
+    },
+  );
+
+  await page.reload();
+  await page
+    .getByRole('button', { name: 'Live sessions', exact: true })
+    .click();
+  await expect(page.getByText('Khun Ananda').first()).toBeVisible();
+  // In-play food ordering has no backend, so live sessions do not offer it.
+  await expect(
+    page.getByRole('button', { name: /^Add refreshments/ }),
+  ).toHaveCount(0);
+  await page.getByRole('button', { name: /^Check bill for Table/ }).click();
+
+  const dialog = page.getByRole('dialog', {
+    name: 'Table Session Bill',
+    exact: true,
+  });
+  await expect(dialog).toBeVisible();
+  // One started hour at the table rate, as the server bills it.
+  await expect(dialog.locator('.section-cost').first()).toHaveText('฿300');
+  await dialog
+    .getByRole('button', { name: 'Settle Bill & Complete Session ✓' })
+    .click();
+
+  await expect.poll(() => checkedOutRentals).toEqual([rentalId]);
+});

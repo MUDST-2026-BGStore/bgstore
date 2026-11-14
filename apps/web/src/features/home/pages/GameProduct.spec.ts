@@ -209,6 +209,8 @@ it('shows the chosen branch’s price and stock and adds the edition to the serv
         items: [],
         issues: [],
         subtotal: 0,
+        shippingFee: { amountMinor: 5000 },
+        total: { amountMinor: 5000 },
         checkoutReady: false,
         createdAt: '2026-11-12T00:00:00Z',
         updatedAt: '2026-11-12T00:00:00Z',
@@ -224,12 +226,12 @@ it('shows the chosen branch’s price and stock and adds the edition to the serv
   await render();
 
   expect(page.get('.product-price').text()).toContain('1,490');
-  expect(page.get('.stock-line').text()).toContain('Only 2 left');
+  expect(page.get('.stock-badge').text()).toContain('Only 2 left');
   expect(page.get('.stock-line').text()).toContain('Pickup at Siam');
   // Library membership only: no live rental copy count on a product page.
   expect(page.get('.library-line').text()).toContain('In the rental library');
   expect(page.text()).not.toContain('rentalAvailableNow');
-  expect(page.get('input[name="quantity"]').attributes('max')).toBe('2');
+  expect(page.get('input[aria-label="Quantity"]').attributes('max')).toBe('2');
 
   await page.get('.purchase-form').trigger('submit');
   await flushPromises();
@@ -243,4 +245,68 @@ it('shows the chosen branch’s price and stock and adds the edition to the serv
   });
   expect(cartCalls[2].data).toEqual({ editionId: EDITION, quantity: 1 });
   expect(page.text()).toContain('Added to your cart.');
+});
+
+it('compares rental library membership and selected edition retail stock across branches from the API', async () => {
+  const ARI = '00000000-0000-4000-8000-0000000000a2';
+  const RIVERSIDE = '00000000-0000-4000-8000-0000000000a3';
+  localStorage.setItem('theparlor.store-context.v1', BRANCH);
+  const respond = request.getMockImplementation();
+  if (!respond) throw new Error('Missing catalog responder');
+  request.mockImplementation((config) => {
+    if (config.url === '/api/v1/branches')
+      return Promise.resolve({
+        items: [
+          ...branches,
+          {
+            id: ARI,
+            name: 'Ari',
+            address: 'B',
+            openingHours: [],
+            active: true,
+            fulfillsDelivery: false,
+          },
+          {
+            id: RIVERSIDE,
+            name: 'Riverside',
+            address: 'C',
+            openingHours: [],
+            active: true,
+            fulfillsDelivery: false,
+          },
+        ],
+      });
+    if (config.url === `/api/v1/branches/${ARI}/games/${apiGames[0].id}`)
+      return Promise.resolve({
+        ...offering,
+        branchId: ARI,
+        rentalEnabled: false,
+        editions: [
+          {
+            ...offering.editions[0],
+            saleOnHand: 0,
+            saleHeld: 0,
+            saleAvailable: 0,
+          },
+        ],
+      });
+    if (config.url === `/api/v1/branches/${RIVERSIDE}/games/${apiGames[0].id}`)
+      return Promise.reject(
+        Object.assign(new Error('missing'), { response: { status: 404 } }),
+      );
+    return respond(config);
+  });
+
+  await render();
+  const rows = page.findAll('.branch-row');
+  expect(rows).toHaveLength(3);
+  expect(rows[0].text()).toContain('Siam');
+  expect(rows[0].text()).toContain('Included');
+  expect(rows[0].text()).toContain('2 in stock');
+  expect(rows[1].text()).toContain('Ari');
+  expect(rows[1].text()).toContain('Not offered');
+  expect(rows[1].text()).toContain('Sold out');
+  expect(rows[2].text()).toContain('Riverside');
+  expect(rows[2].text()).toContain('Not offered');
+  expect(rows[2].text()).toContain('Sold out');
 });

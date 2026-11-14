@@ -3,19 +3,16 @@ import { useWorkspaceNavigation } from './useWorkspaceNavigation';
 import { useWorkspaceReservations } from './useWorkspaceReservations';
 import { useWorkspaceGames } from './useWorkspaceGames';
 import { useWorkspacePantry } from './useWorkspacePantry';
-import { useWorkspaceSettings } from './useWorkspaceSettings';
 import { useWorkspaceSaleStock } from './useWorkspaceSaleStock';
 
 function createWorkspace() {
   const reservations = useWorkspaceReservations();
-  const pantry = useWorkspacePantry();
   return {
     ...useWorkspaceNavigation(),
     ...reservations,
     ...useWorkspaceGames(reservations),
-    ...pantry,
-    saleStock: useWorkspaceSaleStock(pantry.branchStockItems),
-    ...useWorkspaceSettings(),
+    ...useWorkspacePantry(),
+    saleStock: useWorkspaceSaleStock(reservations.selectedBranchId),
   };
 }
 

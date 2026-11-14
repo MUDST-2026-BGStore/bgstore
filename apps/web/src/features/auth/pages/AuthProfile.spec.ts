@@ -1,4 +1,5 @@
 import { mount } from '@vue/test-utils';
+import { createPinia } from 'pinia';
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { configureApiTransport, type Profile } from '@theparlor/api-client';
 import { clearAuth, initAuth } from '@theparlor/auth';
@@ -10,12 +11,19 @@ import { PhoneNumberInput } from '@theparlor/ui';
 import { i18n } from '../../../app/plugins/i18n';
 import { initializeLocaleSync, useLocale } from '../../../shared/lib/locale';
 import { queryClient as appQueryClient } from '../../../shared/lib/api';
+import { useAuthStore } from '../../../shared/stores/auth';
 
 let queryClient: QueryClient;
 let wrapper: ReturnType<typeof mount> | undefined;
 let stopLocaleSync: (() => void) | undefined;
 
 beforeEach(async () => {
+  HTMLDialogElement.prototype.showModal ??= function () {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close ??= function () {
+    this.removeAttribute('open');
+  };
   clearAuth();
   clearAccount();
   configureApiTransport({ baseUrl: 'http://localhost' });
@@ -53,10 +61,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function renderProfile() {
+function renderProfile(pinia = createPinia()) {
   wrapper = mount(AuthProfile, {
     global: {
-      plugins: [[VueQueryPlugin, { queryClient }], i18n],
+      plugins: [pinia, [VueQueryPlugin, { queryClient }], i18n],
       stubs: { RouterLink: true },
     },
   });
@@ -159,7 +167,10 @@ it('changes language immediately and saves it through the account endpoint', asy
     expect(page.find('[data-testid="profile-account-id"]').exists()).toBe(true),
   );
 
-  await page.get('select').setValue('th-TH');
+  const thai = page
+    .findAll('[role="option"]')
+    .find((option) => option.text().includes('ไทย'));
+  await thai!.trigger('click');
   expect(document.documentElement.lang).toBe('th-TH');
   await vi.waitFor(() => expect(useLocale().saveStatus.value).toBe('idle'));
 
@@ -262,4 +273,108 @@ it('keeps an edited phone number after a failed save and allows retrying', async
   await page.get('form').trigger('submit');
   await vi.waitFor(() => expect(page.text()).toContain('Phone number saved.'));
   expect(patches).toBe(2);
+});
+
+it('confirms account deletion by calling deleteMe and then logging out', async () => {
+  const profile: Profile = {
+    id: 'account-1',
+    firstName: 'Test',
+    lastName: 'User',
+    phoneNumber: '+66812345678',
+    preferences: { preferredLocale: 'en-US' },
+  };
+  let deleted = false;
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockImplementation(async (input: Request) => {
+      const path = new URL(input.url).pathname;
+      if (path === '/api/auth/csrf') {
+        return Response.json({
+          token: 'csrf',
+          headerName: 'X-CSRF-TOKEN',
+          parameterName: '_csrf',
+        });
+      }
+      if (input.method === 'DELETE' && path === '/api/v1/me') {
+        deleted = true;
+        return new Response(null, { status: 204 });
+      }
+      return Response.json(profile);
+    }),
+  );
+  const pinia = createPinia();
+  const page = renderProfile(pinia);
+  const authStore = useAuthStore(pinia);
+  const logoutSpy = vi.spyOn(authStore, 'logout').mockResolvedValue();
+
+  await vi.waitFor(() =>
+    expect(page.find('[data-testid="delete-account-button"]').exists()).toBe(
+      true,
+    ),
+  );
+  await page.get('[data-testid="delete-account-button"]').trigger('click');
+  const dialog = page.find('dialog');
+  expect(dialog.exists()).toBe(true);
+  const confirmBtn = dialog
+    .findAll('button')
+    .find((b) => b.text().trim() === 'Delete account');
+  expect(confirmBtn).toBeDefined();
+  await confirmBtn!.trigger('click');
+
+  await vi.waitFor(() => expect(logoutSpy).toHaveBeenCalledOnce());
+  expect(deleted).toBe(true);
+});
+
+it('shows server message on 409 conflict when deleting account and does not log out', async () => {
+  const profile: Profile = {
+    id: 'account-1',
+    firstName: 'Test',
+    lastName: 'User',
+    phoneNumber: '+66812345678',
+    preferences: { preferredLocale: 'en-US' },
+  };
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockImplementation(async (input: Request) => {
+      const path = new URL(input.url).pathname;
+      if (path === '/api/auth/csrf') {
+        return Response.json({
+          token: 'csrf',
+          headerName: 'X-CSRF-TOKEN',
+          parameterName: '_csrf',
+        });
+      }
+      if (input.method === 'DELETE' && path === '/api/v1/me') {
+        return Response.json(
+          { detail: 'Account has an open reservation or order' },
+          { status: 409 },
+        );
+      }
+      return Response.json(profile);
+    }),
+  );
+  const pinia = createPinia();
+  const page = renderProfile(pinia);
+  const authStore = useAuthStore(pinia);
+  const logoutSpy = vi.spyOn(authStore, 'logout').mockResolvedValue();
+
+  await vi.waitFor(() =>
+    expect(page.find('[data-testid="delete-account-button"]').exists()).toBe(
+      true,
+    ),
+  );
+  await page.get('[data-testid="delete-account-button"]').trigger('click');
+  const dialog = page.find('dialog');
+  const confirmBtn = dialog
+    .findAll('button')
+    .find((b) => b.text().trim() === 'Delete account');
+  await confirmBtn!.trigger('click');
+
+  await vi.waitFor(() =>
+    expect(page.get('[data-testid="delete-account-error"]').text()).toContain(
+      'Account has an open reservation or order',
+    ),
+  );
+  expect(page.find('dialog').exists()).toBe(false);
+  expect(logoutSpy).not.toHaveBeenCalled();
 });

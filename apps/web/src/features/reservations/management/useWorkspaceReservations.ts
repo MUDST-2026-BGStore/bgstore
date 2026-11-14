@@ -3,16 +3,46 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query';
 import {
   listBranches,
   listBranchReservations,
+  listBranchRentals,
   listTables,
   checkInReservation,
   cancelReservation,
   markReservationNoShow,
   type Branch,
   type Reservation,
+  type ReservationPreOrder,
   type Table,
 } from '@theparlor/api-client';
-import { useCustomerReservationsStore } from '../data/reservations-store';
+import {
+  useCustomerReservationsStore,
+  type CustomerReservationPreOrder,
+} from '../data/reservations-store';
+import { httpStatus } from '../../../shared/lib/api-errors';
 import { useWalkInSeating } from './useWalkInSeating';
+
+const baht = (amountMinor: number) => Math.round(amountMinor / 100);
+
+/** A server pre-order in the bill's shape; it is paid once its card is captured. */
+function toBillPreOrder(
+  preOrder: ReservationPreOrder | undefined,
+): CustomerReservationPreOrder | undefined {
+  if (!preOrder) return undefined;
+  return {
+    items: preOrder.items.map((line) => ({
+      item: {
+        id: line.menuItemId,
+        name: line.name,
+        price: baht(line.unitPrice.amountMinor),
+      },
+      quantity: line.quantity,
+    })),
+    subtotal: baht(preOrder.subtotal.amountMinor),
+    discountAmount: baht(preOrder.discount.amountMinor),
+    discountedTotal: baht(preOrder.total.amountMinor),
+    paid: preOrder.payment.status === 'CAPTURED',
+    paymentMethod: preOrder.payment.method.toLowerCase(),
+  };
+}
 
 export interface FloorTable {
   /** The table's canonical ID: the API's UUID, or a sample table's ID. */
@@ -20,7 +50,7 @@ export interface FloorTable {
   /** Display name, e.g. "Table 3". Never used to identify a table. */
   label: string;
   /** Short form of the label for compact columns. */
-  number: string;
+  number: number;
   seats: number;
   rate: number;
 }
@@ -28,21 +58,22 @@ export interface FloorTable {
 // TODO(workspace-floor-api): The sample floor stands in only for branches without
 // tables on the server. Its IDs are the ones the local sample sessions reference.
 const SAMPLE_FLOOR: readonly FloorTable[] = [
-  { id: 't-siam-1', label: 'Table 1', number: '1', seats: 2, rate: 150 },
-  { id: 't-siam-2', label: 'Table 2', number: '2', seats: 4, rate: 200 },
-  { id: 't-siam-3', label: 'Table 3', number: '3', seats: 4, rate: 200 },
-  { id: 't-siam-4', label: 'Table 4', number: '4', seats: 4, rate: 200 },
-  { id: 't-siam-5', label: 'Table 5', number: '5', seats: 6, rate: 300 },
-  { id: 't-siam-6', label: 'Table 6', number: '6', seats: 6, rate: 300 },
+  { id: 't-siam-1', label: 'Table 1', number: 1, seats: 2, rate: 150 },
+  { id: 't-siam-2', label: 'Table 2', number: 2, seats: 4, rate: 200 },
+  { id: 't-siam-3', label: 'Table 3', number: 3, seats: 4, rate: 200 },
+  { id: 't-siam-4', label: 'Table 4', number: 4, seats: 4, rate: 200 },
+  { id: 't-siam-5', label: 'Table 5', number: 5, seats: 6, rate: 300 },
+  { id: 't-siam-6', label: 'Table 6', number: 6, seats: 6, rate: 300 },
 ];
 
-export function floorTableOf(table: Table): FloorTable {
+export function floorTableOf(table: Table, index: number): FloorTable {
+  const number = Number(/\d+/.exec(table.label)?.[0] ?? index + 1);
   return {
     id: table.id,
     label: table.label,
-    number: table.label.replace(/^table\s+/i, ''),
+    number: number > 0 ? number : index + 1,
     seats: table.capacity,
-    rate: table.hourlyRate.amountMinor / 100,
+    rate: baht(table.hourlyRate.amountMinor),
   };
 }
 
@@ -84,11 +115,24 @@ export function useWorkspaceReservations() {
   });
 
   const tablesQuery = useQuery({
-    queryKey: ['branchTables', selectedBranchId],
+    queryKey: ['listBranchTables', selectedBranchId],
     queryFn: ({ signal }) =>
       listTables(selectedBranchId.value, { limit: 100 }, undefined, signal),
     enabled: computed(() => !!selectedBranchId.value),
   });
+
+  const rentalsQuery = useQuery({
+    queryKey: ['listBranchRentals', selectedBranchId],
+    queryFn: ({ signal }) =>
+      listBranchRentals(
+        selectedBranchId.value,
+        { limit: 100 },
+        undefined,
+        signal,
+      ),
+    enabled: computed(() => !!selectedBranchId.value),
+  });
+
   // A branch without server tables keeps the sample floor and its sample visits.
   // Sample visits never share a floor with real tables: their IDs would not match,
   // and their made-up occupancy must not shadow real guests.
@@ -115,6 +159,17 @@ export function useWorkspaceReservations() {
     return branchFloorTables.find((t) => t.id === tableId)?.label ?? '—';
   }
 
+  // The server decides who operates a branch. Until it has answered this branch's
+  // reservation list successfully, the workspace shows no records at all, including
+  // the local sample visits merged below.
+  const branchAccessVerified = computed(
+    () => !!selectedBranchId.value && reservationsQuery.isSuccess.value,
+  );
+  const branchAccessDenied = computed(() => {
+    const status = httpStatus(reservationsQuery.error.value);
+    return status === 401 || status === 403;
+  });
+
   const currentTimeStr = computed(() => {
     const updatedAt = reservationsQuery.dataUpdatedAt.value;
     return updatedAt
@@ -125,61 +180,35 @@ export function useWorkspaceReservations() {
       : '';
   });
 
-  // Auto 15-min No-Show Mutation
-  const autoNoShowMutation = useMutation({
-    mutationFn: async ({ resId }: { resId: string }) => {
-      return markReservationNoShow(selectedBranchId.value, resId, {
-        reason:
-          'Automatic No-Show: Customer did not arrive within 15 minutes of reservation start time.',
-      });
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ['listBranchReservations'],
-      });
-    },
-  });
-
   const allReservations = computed<any[]>(() => {
-    const now = Date.now();
-    const apiItems = (reservationsQuery.data.value?.items ?? []).map((r) => {
-      if (r.status === 'CONFIRMED' && !r.checkedInAt) {
-        const startMs = new Date(r.startsAt).getTime();
-        if (now - startMs > 15 * 60 * 1000) {
-          void autoNoShowMutation.mutateAsync({ resId: r.id });
-          return {
-            ...r,
-            status: 'NO_SHOW',
-            notes: r.notes
-              ? `${r.notes}\n[System]: Auto-marked No-Show after 15 min.`
-              : '[System]: Auto-marked No-Show after 15 min.',
-          };
-        }
-      }
-      return r;
-    });
+    if (!branchAccessVerified.value) return [];
+    const rentals = rentalsQuery.data.value?.items ?? [];
+    const apiItems = (reservationsQuery.data.value?.items ?? []).map(
+      (item) => ({
+        ...item,
+        live: true,
+        rentalId:
+          item.rentalId ??
+          rentals.find((rental) => rental.reservationId === item.id)?.id,
+        clientType: item.source === 'WALK_IN' ? 'WALK_IN' : 'RESERVED',
+        hourlyRate: item.tableHourlyRate
+          ? baht(item.tableHourlyRate.amountMinor)
+          : undefined,
+      }),
+    );
 
-    const localItems = usingSampleFloor.value
-      ? reservationsStore.reservations.value.filter(
-          (r) =>
-            !selectedBranchId.value ||
-            r.branchId === selectedBranchId.value ||
-            r.branchName.toLowerCase() ===
-              selectedBranch.value?.name.toLowerCase(),
-        )
-      : [];
+    if (!usingSampleFloor.value) return apiItems;
+
+    const localItems = reservationsStore.reservations.value.filter(
+      (r) =>
+        !selectedBranchId.value ||
+        r.branchId === selectedBranchId.value ||
+        r.branchName.toLowerCase() === selectedBranch.value?.name.toLowerCase(),
+    );
 
     const combined = [...apiItems];
     for (const loc of localItems) {
       if (!combined.some((c) => c.id === loc.id)) {
-        let status = loc.status;
-        if (status === 'CONFIRMED' && !loc.checkedInAt) {
-          const startMs = new Date(loc.startsAt).getTime();
-          if (now - startMs > 15 * 60 * 1000) {
-            status = 'NO_SHOW';
-          }
-        }
-
         combined.push({
           id: loc.id,
           branchId: loc.branchId,
@@ -189,7 +218,7 @@ export function useWorkspaceReservations() {
           checkedInAt: loc.checkedInAt,
           completedAt: loc.completedAt,
           partySize: loc.partySize,
-          status,
+          status: loc.status,
           customer: {
             displayName: loc.customerName,
             phone: loc.customerPhone,
@@ -314,7 +343,7 @@ export function useWorkspaceReservations() {
           type: 'LATE',
           sev: 'high',
           title: `Customer late ${diffMins}m: ${getCustomerName(r.customer)} (${tableLabel(r.tableId)})`,
-          subtitle: `Scheduled ${formatTime(r.startsAt)} · Auto-released if 15m late`,
+          subtitle: `Scheduled ${formatTime(r.startsAt)}`,
           reservation: r,
         });
       }
@@ -340,7 +369,9 @@ export function useWorkspaceReservations() {
 
   function calculateCurrentPlayFee(res: any): number {
     const mins = getElapsedMinutes(res);
-    const rate = res.hourlyRate || 200;
+    const rate = res.hourlyRate ?? 0;
+    // The server bills started hours, minimum one; samples keep a running estimate.
+    if (res.live) return Math.max(1, Math.ceil(mins / 60)) * rate;
     return Math.round((mins / 60) * rate);
   }
 
@@ -365,6 +396,7 @@ export function useWorkspaceReservations() {
       void queryClient.invalidateQueries({
         queryKey: ['listBranchReservations'],
       });
+      void queryClient.invalidateQueries({ queryKey: ['listBranchRentals'] });
     },
     onError: () => {
       actionError.value = 'Check-in failed. Refresh and retry.';
@@ -438,6 +470,48 @@ export function useWorkspaceReservations() {
       .catch(() => undefined);
   }
 
+  // No-show
+  const showNoShowModal = ref(false);
+  const noShowTargetRes = ref<any>(null);
+  const noShowReason = ref('Customer did not arrive');
+
+  function openNoShow(res: any) {
+    noShowTargetRes.value = res;
+    noShowReason.value = 'Customer did not arrive';
+    showNoShowModal.value = true;
+  }
+
+  const noShowMutation = useMutation({
+    mutationFn: async ({
+      resId,
+      reason,
+    }: {
+      resId: string;
+      reason: string;
+    }) => {
+      return markReservationNoShow(selectedBranchId.value, resId, { reason });
+    },
+    onSuccess: () => {
+      showNoShowModal.value = false;
+      noShowTargetRes.value = null;
+      void queryClient.invalidateQueries({
+        queryKey: ['listBranchReservations'],
+      });
+    },
+    onError: () => {
+      actionError.value = 'No-show failed. Refresh and retry.';
+    },
+  });
+
+  async function submitNoShow() {
+    if (!noShowTargetRes.value) return;
+    actionError.value = '';
+    await noShowMutation.mutateAsync({
+      resId: noShowTargetRes.value.id,
+      reason: noShowReason.value,
+    });
+  }
+
   // Walk-ins are seated by the server only; see useWalkInSeating.
   const walkIn = useWalkInSeating(selectedBranchId);
 
@@ -452,7 +526,30 @@ export function useWorkspaceReservations() {
     const found = reservationsStore.reservations.value.find(
       (r) => r.id === res.id,
     );
-    if (found) {
+    if (res.live) {
+      staffBillReservation.value = {
+        id: res.id,
+        branchId: res.branchId,
+        branchName: selectedBranch.value?.name ?? '',
+        tableId: res.tableId,
+        tableLabel:
+          branchFloorTables.find((table) => table.id === res.tableId)?.label ??
+          'Table',
+        startsAt: res.startsAt,
+        endsAt: res.endsAt,
+        checkedInAt: res.checkedInAt,
+        completedAt: res.completedAt,
+        rentalId: res.rentalId,
+        partySize: res.partySize,
+        status: res.status,
+        customerName: getCustomerName(res.customer),
+        customerPhone: getCustomerPhone(res.customer) || undefined,
+        clientType: res.clientType,
+        hourlyRate: res.hourlyRate,
+        preOrder: toBillPreOrder(res.preOrder),
+        inPlayOrders: [],
+      };
+    } else if (found) {
       staffBillReservation.value = found;
     } else {
       staffBillReservation.value = {
@@ -475,10 +572,13 @@ export function useWorkspaceReservations() {
   }
 
   function refreshAll() {
-    void queryClient.invalidateQueries({
-      queryKey: ['listBranchReservations'],
-    });
-    void queryClient.invalidateQueries({ queryKey: ['branchTables'] });
+    for (const key of [
+      'listBranchReservations',
+      'listBranchRentals',
+      'listBranchTables',
+      'workspace',
+    ])
+      void queryClient.invalidateQueries({ queryKey: [key] });
   }
   return {
     queryClient,
@@ -489,14 +589,16 @@ export function useWorkspaceReservations() {
     branches,
     selectedBranch,
     reservationsQuery,
-    autoNoShowMutation,
+    tablesQuery,
+    rentalsQuery,
+    usingSampleFloor,
+    tableLabel,
+    branchAccessVerified,
+    branchAccessDenied,
     allReservations,
     activeFloorReservations,
     upcomingReservations,
     branchFloorTables,
-    tablesQuery,
-    usingSampleFloor,
-    tableLabel,
     getTableStatus,
     occupiedTablesCount,
     freeTablesCount,
@@ -517,6 +619,12 @@ export function useWorkspaceReservations() {
     openCancel,
     cancelMutation,
     submitCancel,
+    showNoShowModal,
+    noShowTargetRes,
+    noShowReason,
+    openNoShow,
+    noShowMutation,
+    submitNoShow,
     walkIn,
     showWalkInModal: walkIn.open,
     openWalkInForTable,

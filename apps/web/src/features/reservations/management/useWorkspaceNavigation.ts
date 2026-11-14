@@ -48,27 +48,29 @@ export function useWorkspaceNavigation() {
 
   const activeTab = ref<NavTab>('dashboard');
 
-  // Role hierarchy
+  // Role hierarchy, from the server-verified session roles only.
   const userRoles = computed(() => auth.roles || []);
-  const isAdmin = computed(
-    () =>
-      userRoles.value.includes('admin') ||
-      userRoles.value.includes('developer'),
-  );
+  const isAdmin = computed(() => userRoles.value.includes('admin'));
   const isManager = computed(
     () => isAdmin.value || userRoles.value.includes('manager'),
+  );
+  const isStaff = computed(
+    () => isManager.value || userRoles.value.includes('staff'),
   );
 
   const roleBadgeLabel = computed(() => {
     if (isAdmin.value) return 'Administration';
-    if (userRoles.value.includes('manager')) return 'Management';
-    return 'Operations';
+    if (isManager.value) return 'Management';
+    if (isStaff.value) return 'Operations';
+    return '';
   });
 
+  // No title is shown for an account without an operator role.
   const userRoleTitle = computed(() => {
     if (isAdmin.value) return 'Administrator';
-    if (userRoles.value.includes('manager')) return 'Branch Manager';
-    return 'Floor Staff';
+    if (isManager.value) return 'Branch Manager';
+    if (isStaff.value) return 'Floor Staff';
+    return '';
   });
 
   // Guard management & admin tabs (inventory/stock is accessible to all staff)
@@ -90,7 +92,7 @@ export function useWorkspaceNavigation() {
       bookings: 'Bookings & Timeline',
       library: 'Game Library',
       inventory: 'Inventory & Fulfillment',
-      'staff-roster': 'Staff & Shifts',
+      'staff-roster': 'Branch staff',
       analytics: 'Revenue & Analytics',
       settings: 'Venue Settings',
       policies: 'Venue Policies',

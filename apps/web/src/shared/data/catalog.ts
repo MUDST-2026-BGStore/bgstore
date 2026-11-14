@@ -25,11 +25,10 @@ export interface CatalogGame {
   retailPrice: number | null;
 }
 
-// TODO(workspace-inventory-api): These fixture games are used only by the staff
-// workspace samples (useWorkspaceGames). The storefront, cart and orders read the
-// catalog, branch prices and stock from the API. Remove this array once the
-// workspace is wired, keeping the formatting helpers below.
-// All prices, availability and teaching estimates in it are sample data.
+// Sample games for the staff workspace library while a branch offers none on the
+// server. The storefront, cart, orders and live workspace read the catalog, branch
+// prices and stock from the API. All prices, availability and teaching estimates
+// here are sample data.
 export const games: CatalogGame[] = [
   {
     id: 'azul',
@@ -229,7 +228,7 @@ export const games: CatalogGame[] = [
     designer: 'Brian Hersch',
     categories: ['Party & Casual'],
     mechanics: ['Word association', 'Team-based'],
-    players: [4, 10],
+    players: [4, 20],
     playMinutes: [20, 30],
     teachMinutes: 3,
     setupMinutes: 2,

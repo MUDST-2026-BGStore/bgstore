@@ -36,7 +36,7 @@ const groups = computed(() => [
           items: [
             {
               id: 'staff-roster',
-              label: 'Staff & shifts',
+              label: 'Branch staff',
               icon: 'fa-user-group',
             },
             {
@@ -153,8 +153,8 @@ function selectView(id: string) {
           (auth.username || 'Staff').slice(0, 2).toUpperCase()
         }}</span>
         <div class="user-copy">
-          <strong>{{ auth.username || 'Staff member' }}</strong
-          ><span>{{ userRoleTitle }}</span>
+          <strong>{{ auth.username }}</strong
+          ><span v-if="userRoleTitle">{{ userRoleTitle }}</span>
         </div>
         <button
           type="button"

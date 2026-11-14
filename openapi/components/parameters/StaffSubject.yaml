@@ -1,0 +1,8 @@
+name: staffSubject
+in: path
+required: true
+description: OIDC subject of the staff member.
+schema:
+  type: string
+  minLength: 1
+  maxLength: 255

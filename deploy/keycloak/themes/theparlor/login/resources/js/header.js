@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ['en', 'EN'],
   ];
   if (!header || !select || select.options.length !== languages.length) return;
+  const store = document.querySelector('.parlor-return a');
 
   const switcher = document.createElement('div');
   switcher.className = 'parlor-header-language';
@@ -25,7 +26,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!option) return;
 
     const link = document.createElement('a');
-    link.href = option.value;
+    const destination = new URL(option.value, window.location.href);
+    const handoff = store && new URL('/api/auth/login-locale', store.href);
+    if (handoff && !option.selected) {
+      handoff.searchParams.set('locale', locale);
+      handoff.searchParams.set('returnTo', destination.href);
+    }
+    link.href = handoff && !option.selected ? handoff.href : option.value;
     link.lang = locale;
     link.hreflang = locale;
     link.textContent = label;

@@ -1,5 +1,54 @@
 import { expect, test } from '@playwright/test';
 
+test('receives sign-in language changes in an already open storefront tab', async ({
+  page,
+  context,
+}) => {
+  await page.goto('/');
+  await page.evaluate(() => localStorage.setItem('theparlor.locale', 'en-US'));
+  await page.reload();
+  const login = await context.newPage();
+  await login.goto('/login');
+  await expect(login.locator('#username')).toBeVisible();
+  await login
+    .locator('.parlor-header-language')
+    .getByRole('link', { name: 'ไทย', exact: true })
+    .click();
+  await expect(
+    login.locator('.parlor-header-language a[aria-current="true"]'),
+  ).toHaveText('ไทย');
+  await page.bringToFront();
+  // Headless Chromium does not consistently emit native window-focus events.
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await expect(page.locator('html')).toHaveAttribute('lang', 'th-TH');
+  await login.close();
+});
+
+test('brings the language selected on sign-in back to the storefront', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.evaluate(() => localStorage.setItem('theparlor.locale', 'en-US'));
+  for (const [label, locale] of [
+    ['ไทย', 'th-TH'],
+    ['EN', 'en-US'],
+  ]) {
+    await page.goto('/login');
+    await expect(page.locator('#username')).toBeVisible();
+    await page
+      .locator('.parlor-header-language')
+      .getByRole('link', { name: label, exact: true })
+      .click();
+    await expect(
+      page.locator('.parlor-header-language a[aria-current="true"]'),
+    ).toHaveText(label);
+    await page.locator('.parlor-return a').click();
+    await expect(page.locator('html')).toHaveAttribute('lang', locale);
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('lang', locale);
+  }
+});
+
 for (const viewport of [
   { width: 1440, height: 960 },
   { width: 375, height: 812 },
@@ -43,7 +92,9 @@ for (const viewport of [
     await expect(english).toHaveAttribute('aria-current', 'true');
     await expect(english).toHaveCSS('background-color', 'rgb(198, 173, 122)');
     const switcher = await language.boundingBox();
-    expect(switcher?.x).toBeLessThan(32);
+    // The storefront header's switcher inset: 32px on wide screens, tighter on phones.
+    if (viewport.width > 600) expect(switcher?.x).toBeCloseTo(32, 0);
+    else expect(switcher?.x).toBeLessThan(32);
     expect((switcher?.x ?? 0) + (switcher?.width ?? 0)).toBeLessThan(
       wordmark?.x ?? 0,
     );

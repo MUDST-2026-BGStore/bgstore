@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { defineComponent, nextTick, ref } from 'vue';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
+import { ACCOUNT_STORAGE_PREFIX } from '../../../shared/lib/protected-state';
 
 const { request } = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock('../../../../../../libs/web/api-client/src/lib/transport.ts', () => ({
@@ -15,7 +16,7 @@ const T2 = '00000000-0000-4000-8000-0000000000b2';
 const T3 = '00000000-0000-4000-8000-0000000000b3';
 const T4 = '00000000-0000-4000-8000-0000000000b4';
 const HOUR = 3_600_000;
-const STORAGE_KEY = 'theparlor_customer_reservations_v3';
+const STORAGE_KEY = `${ACCOUNT_STORAGE_PREFIX}workspace-sample-reservations`;
 
 /** The value, failing the test when it is missing. */
 function must<T>(value: T | null | undefined): T {

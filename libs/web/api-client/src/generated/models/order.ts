@@ -7,6 +7,7 @@
  */
 import type { CustomerReference } from './customerReference';
 import type { Money } from './money';
+import type { OrderCarrier } from './orderCarrier';
 import type { OrderContact } from './orderContact';
 import type { OrderFulfillmentMethod } from './orderFulfillmentMethod';
 import type { OrderItem } from './orderItem';
@@ -16,7 +17,7 @@ import type { OrderStatus } from './orderStatus';
 import type { ShippingAddress } from './shippingAddress';
 
 /**
- * All prices are THB minor units; total is the sum of line totals. An order cannot contain rental copies. FULFILLED requires fulfilledAt and fulfilledBySubject. CANCELLED requires cancelledAt, cancelledBySubject and cancellationReason. Those fields are omitted before the corresponding transition.
+ * All prices are THB minor units; total is subtotal plus shippingFee. An order cannot contain rental copies. FULFILLED requires fulfilledAt and fulfilledBySubject. CANCELLED requires cancelledAt, cancelledBySubject and cancellationReason. Those fields are omitted before the corresponding transition.
  */
 export interface Order {
   id: string;
@@ -26,11 +27,16 @@ export interface Order {
   status: OrderStatus;
   /** @minItems 1 */
   items: OrderItem[];
+  subtotal: Money;
+  shippingFee: Money;
   total: Money;
   contact: OrderContact;
   /** PICKUP orders are handed over at branchId; SHIPPING orders are sent from it, the delivery branch. */
   fulfillmentMethod: OrderFulfillmentMethod;
   shippingAddress?: ShippingAddress;
+  carrier?: OrderCarrier;
+  /** @maxLength 60 */
+  trackingNumber?: string;
   payment: OrderPayment;
   notes?: string;
   createdAt: string;

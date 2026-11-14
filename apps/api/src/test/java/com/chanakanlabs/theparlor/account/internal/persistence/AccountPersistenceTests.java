@@ -3,6 +3,7 @@ package com.chanakanlabs.theparlor.account.internal.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.chanakanlabs.theparlor.account.internal.domain.Account;
+import com.chanakanlabs.theparlor.account.internal.domain.AccountIdentity;
 import jakarta.persistence.EntityManager;
 import java.util.Map;
 import org.junit.jupiter.api.Tag;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.junit.jupiter.Container;
@@ -31,6 +33,7 @@ class AccountPersistenceTests {
   }
 
   @Autowired AccountRepository accounts;
+  @Autowired AccountIdentityRepository identities;
   @Autowired EntityManager entityManager;
 
   @Test
@@ -61,5 +64,25 @@ class AccountPersistenceTests {
         .containsEntry("preferredLocale", "th-TH")
         .containsEntry("theme", "dark")
         .containsEntry("nested", Map.of("enabled", true));
+  }
+
+  @Test
+  void searchMatchesNameOrPhoneCaseInsensitivelyAndOrdersByNameThenSubject() {
+    var alice =
+        accounts.saveAndFlush(
+            Account.create("Alice", "Wong", "+66811112222", Map.of("preferredLocale", "en-US")));
+    var bob =
+        accounts.saveAndFlush(
+            Account.create("Bob", "Smith", "+66899990000", Map.of("preferredLocale", "en-US")));
+    identities.saveAndFlush(new AccountIdentity("issuer", "sub-b", bob));
+    identities.saveAndFlush(new AccountIdentity("issuer", "sub-a2", alice));
+    identities.saveAndFlush(new AccountIdentity("issuer", "sub-a1", alice));
+    entityManager.clear();
+
+    var byName = identities.search("%alice w%", PageRequest.of(0, 20));
+    assertThat(byName).extracting(AccountIdentity::getSubject).containsExactly("sub-a1", "sub-a2");
+
+    var byPhone = identities.search("%99900%", PageRequest.of(0, 20));
+    assertThat(byPhone).extracting(AccountIdentity::getSubject).containsExactly("sub-b");
   }
 }

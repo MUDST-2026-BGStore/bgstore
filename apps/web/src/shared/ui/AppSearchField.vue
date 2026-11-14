@@ -24,7 +24,7 @@ function update(event: Event) {
   width: 240px;
   min-width: 0;
   max-width: 100%;
-  min-height: 34px;
+  min-height: var(--ui-control-height);
   padding-left: 10px;
   border: 1px solid var(--ui-stroke);
   border-radius: var(--ui-radius);
@@ -43,7 +43,7 @@ function update(event: Event) {
   background: transparent;
   color: var(--ui-text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--ui-control-font-size);
   line-height: 20px;
 }
 .app-search-field:focus-within {

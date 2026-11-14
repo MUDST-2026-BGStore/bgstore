@@ -15,7 +15,8 @@ const HOUR_MS = 3_600_000;
 /** Query keys whose data a seating changes. */
 export const WALK_IN_AFFECTED_QUERIES = [
   ['listBranchReservations'],
-  ['branchTables'],
+  ['listBranchRentals'],
+  ['listBranchTables'],
   ['walkInAvailability'],
 ] as const;
 

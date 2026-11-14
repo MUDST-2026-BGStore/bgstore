@@ -18,6 +18,7 @@ import { useStoreContextStore } from '../../../shared/stores/store-context';
 import { useStoreText } from '../../../shared/lib/store-text';
 import { collectPages } from '../../../shared/lib/pagination';
 import { httpStatus } from '../../../shared/lib/api-errors';
+import { AppNumberStepper, AppSelect } from '../../../shared/ui';
 import FoodMenuPicker from '../components/FoodMenuPicker.vue';
 import CardPaymentFields from '../components/CardPaymentFields.vue';
 import type { FoodOrderItem } from '../types';
@@ -55,6 +56,10 @@ const steps = [
 const selectedBranchId = ref<string>('');
 const reservationDate = ref<string>('');
 const reservationStartTime = ref<string>('14:00');
+// Open the native picker from anywhere in the date and time fields.
+function openNativePicker(event: MouseEvent) {
+  (event.currentTarget as HTMLInputElement).showPicker?.();
+}
 const reservationDurationHours = ref<number>(2);
 const partySize = ref<number>(4);
 const specialNotes = ref<string>('');
@@ -75,9 +80,28 @@ const branches = computed(() => directory.branches);
 
 let userSelectedBranch = false;
 
-function onBranchChange(event: Event) {
+const branchOptions = computed(() =>
+  branches.value.map((b) => ({
+    value: b.id,
+    label: `${b.name} — ${b.address}`,
+  })),
+);
+const durationOptions = computed(() => [
+  { value: '1', label: t('1 Hour') },
+  { value: '2', label: t('2 Hours (Recommended)') },
+  { value: '3', label: t('3 Hours') },
+  { value: '4', label: t('4 Hours (Half Day)') },
+  { value: '6', label: t('6 Hours (Full Session)') },
+]);
+const durationValue = computed({
+  get: () => String(reservationDurationHours.value),
+  set: (value: string) => {
+    reservationDurationHours.value = Number(value);
+  },
+});
+
+function onBranchChange(id: string) {
   userSelectedBranch = true;
-  const id = (event.target as HTMLSelectElement).value;
   selectedBranchId.value = id;
   if (branches.value.some((b) => b.id === id)) storeContext.select(id);
 }
@@ -506,7 +530,9 @@ const receiptPaymentNote = computed(() => {
             }"
             :aria-current="currentStep === index + 1 ? 'step' : undefined"
           >
-            <span class="step-num">{{ index + 1 }}</span>
+            <span class="step-num"
+              ><span>{{ index + 1 }}</span></span
+            >
             <span class="step-text">{{ t(label) }}</span>
           </div>
         </template>
@@ -534,7 +560,12 @@ const receiptPaymentNote = computed(() => {
           <!-- Registered Member Verification Callout -->
           <div v-if="auth.authenticated" class="member-status-bar">
             <div class="member-meta">
-              <span class="gold-icon">✦</span>
+              <svg class="gold-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M12 3 15 9 21 12 15 15 12 21 9 15 3 12 9 9Z"
+                />
+              </svg>
               <span class="member-text">{{
                 t('Reserving as Registered Member:')
               }}</span>
@@ -593,16 +624,14 @@ const receiptPaymentNote = computed(() => {
               <label for="branch-select" class="form-label">{{
                 t('Branch Location')
               }}</label>
-              <select
-                id="branch-select"
-                v-model="selectedBranchId"
-                class="form-select"
-                @change="onBranchChange"
-              >
-                <option v-for="b in branches" :key="b.id" :value="b.id">
-                  {{ b.name }} — {{ b.address }}
-                </option>
-              </select>
+              <AppSelect
+                input-id="branch-select"
+                block
+                :model-value="selectedBranchId"
+                :label="t('Branch Location')"
+                :options="branchOptions"
+                @update:model-value="onBranchChange"
+              />
             </div>
 
             <!-- Date Picker -->
@@ -617,6 +646,7 @@ const receiptPaymentNote = computed(() => {
                 type="date"
                 class="form-input"
                 required
+                @click="openNativePicker"
               />
             </div>
 
@@ -631,6 +661,7 @@ const receiptPaymentNote = computed(() => {
                 type="time"
                 class="form-input"
                 required
+                @click="openNativePicker"
               />
             </div>
 
@@ -639,17 +670,13 @@ const receiptPaymentNote = computed(() => {
               <label for="res-duration" class="form-label">{{
                 t('Duration')
               }}</label>
-              <select
-                id="res-duration"
-                v-model.number="reservationDurationHours"
-                class="form-select"
-              >
-                <option :value="1">{{ t('1 Hour') }}</option>
-                <option :value="2">{{ t('2 Hours (Recommended)') }}</option>
-                <option :value="3">{{ t('3 Hours') }}</option>
-                <option :value="4">{{ t('4 Hours (Half Day)') }}</option>
-                <option :value="6">{{ t('6 Hours (Full Session)') }}</option>
-              </select>
+              <AppSelect
+                v-model="durationValue"
+                input-id="res-duration"
+                block
+                :label="t('Duration')"
+                :options="durationOptions"
+              />
             </div>
 
             <!-- Party Size -->
@@ -657,14 +684,12 @@ const receiptPaymentNote = computed(() => {
               <label for="res-party" class="form-label">{{
                 t('Party Size')
               }}</label>
-              <input
-                id="res-party"
-                v-model.number="partySize"
-                type="number"
-                min="1"
-                max="20"
-                class="form-input"
-                required
+              <AppNumberStepper
+                v-model="partySize"
+                input-id="res-party"
+                :label="t('Party Size')"
+                :min="1"
+                :max="20"
               />
             </div>
           </div>
@@ -730,7 +755,7 @@ const receiptPaymentNote = computed(() => {
                     d="M12 2l2.4 6.6L21 11l-6.6 2.4L12 20l-2.4-6.6L3 11l6.6-2.4L12 2z"
                   ></path>
                 </svg>
-                The Parlor · {{ selectedBranch?.name }}
+                <span>The Parlor · {{ selectedBranch?.name }}</span>
                 <svg
                   class="gold-icon mini-crest"
                   viewBox="0 0 24 24"
@@ -754,11 +779,11 @@ const receiptPaymentNote = computed(() => {
                   <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                   <circle cx="9" cy="7" r="4"></circle>
                 </svg>
-                {{
+                <span>{{
                   t(partySize === 1 ? '{count} player' : '{count} players', {
                     count: partySize,
                   })
-                }}
+                }}</span>
               </span>
             </div>
 
@@ -1467,6 +1492,18 @@ const receiptPaymentNote = computed(() => {
 </template>
 
 <style scoped>
+/* Shared selects and steppers match this page's cream-bordered fields. */
+.reservation-page {
+  --ui-brand: #203c30;
+  --ui-focus: #203c30;
+  --ui-stroke: #c9bda7;
+  --ui-stroke-strong: #203c30;
+  --ui-surface-hover: #fffaf1;
+  --ui-selected: #f3ead7;
+  --ui-radius: 6px;
+  --ui-control-height: 42px;
+}
+
 .reservation-page {
   background: #fafbf9;
   min-height: calc(100vh - 120px);
@@ -1515,6 +1552,7 @@ const receiptPaymentNote = computed(() => {
 }
 
 .step-num {
+  flex-shrink: 0;
   width: 26px;
   height: 26px;
   border-radius: 50%;
@@ -1525,6 +1563,17 @@ const receiptPaymentNote = computed(() => {
   justify-content: center;
   font-size: 13px;
   font-weight: 700;
+}
+
+/* Trim font leading on labels, while flex centers their visible text boxes. */
+.step-num > span,
+.step-text,
+.member-text,
+.member-name,
+.member-badge-perk,
+.parlor-crest > span,
+.party-badge > span {
+  text-box: trim-both cap alphabetic;
 }
 
 .step-indicator.active .step-num {
@@ -1602,8 +1651,7 @@ const receiptPaymentNote = computed(() => {
   color: #27382f;
 }
 
-.form-input,
-.form-select {
+.form-input {
   padding: 10px 14px;
   border: 1px solid #c9bda7;
   border-radius: 6px;
@@ -1613,8 +1661,7 @@ const receiptPaymentNote = computed(() => {
   outline: none;
 }
 
-.form-input:focus,
-.form-select:focus {
+.form-input:focus {
   border-color: #203c30;
   box-shadow: 0 0 0 2px rgba(32, 60, 48, 0.15);
 }
@@ -1644,7 +1691,7 @@ const receiptPaymentNote = computed(() => {
   color: #6a6252;
 }
 
-/* Glamorous Brief Reservation Summary with Running Gold Shine Border */
+/* Reservation summary with a static gold border. */
 .glamorous-summary-card {
   position: relative;
   background: #142b20;
@@ -1669,34 +1716,7 @@ const receiptPaymentNote = computed(() => {
   z-index: 0;
 }
 
-/* Continuous running gold shine animation around the perimeter */
-.glamorous-summary-card::before {
-  content: '';
-  position: absolute;
-  top: -100%;
-  left: -100%;
-  width: 300%;
-  height: 300%;
-  background: conic-gradient(
-    from 0deg,
-    transparent 0deg,
-    transparent 65deg,
-    rgba(198, 173, 122, 0.3) 78deg,
-    #c6ad7a 84deg,
-    #fff8e7 89deg,
-    #ffffff 90deg,
-    #fff8e7 91deg,
-    #f3e0aa 96deg,
-    rgba(198, 173, 122, 0.4) 102deg,
-    transparent 115deg,
-    transparent 360deg
-  );
-  animation: goldBorderSpin 4s linear infinite;
-  z-index: -2;
-  pointer-events: none;
-}
-
-/* Inner deep emerald parlor core to reveal only the 2px running gold border */
+/* Keep the emerald background inside the static border. */
 .glamorous-summary-card::after {
   content: '';
   position: absolute;
@@ -1718,18 +1738,11 @@ const receiptPaymentNote = computed(() => {
   z-index: 1;
 }
 
-@keyframes goldBorderSpin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
 .summary-card-header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
   justify-content: space-between;
   border-bottom: 1px solid rgba(198, 173, 122, 0.3);
   padding-bottom: 12px;
@@ -1737,6 +1750,9 @@ const receiptPaymentNote = computed(() => {
 }
 
 .parlor-crest {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
   font-family: 'Plus Jakarta Sans', Arial, sans-serif;
   font-size: 13px;
   font-weight: 700;
@@ -1746,6 +1762,11 @@ const receiptPaymentNote = computed(() => {
 }
 
 .party-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  white-space: nowrap;
   background: rgba(198, 173, 122, 0.2);
   border: 1px solid #c6ad7a;
   color: #fff3dc;
@@ -1765,11 +1786,13 @@ const receiptPaymentNote = computed(() => {
 
 .summary-item {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
 }
 
 .summary-icon {
+  display: flex;
+  flex-shrink: 0;
   font-size: 18px;
   line-height: 1.2;
 }
@@ -2218,6 +2241,8 @@ const receiptPaymentNote = computed(() => {
 /* Actions buttons */
 .wizard-actions {
   display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 12px;
   border-top: 1px solid #eee4d1;
@@ -2229,6 +2254,10 @@ const receiptPaymentNote = computed(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  line-height: 1.5;
+  text-align: center;
   padding: 10px 18px;
   border-radius: 6px;
   font-size: 14px;
@@ -2396,19 +2425,28 @@ const receiptPaymentNote = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #142b20;
+  background: radial-gradient(
+    ellipse at 50% 25%,
+    #1d3e2f 0%,
+    #142b20 70%,
+    #0d1e16 100%
+  );
   border: 1px solid #c6ad7a;
   border-radius: 8px;
   padding: 10px 16px;
   margin-bottom: 20px;
   gap: 12px;
-  box-shadow: 0 4px 14px rgba(20, 43, 32, 0.15);
+  box-shadow:
+    inset 0 0 16px rgba(10, 22, 16, 0.7),
+    0 4px 14px rgba(20, 43, 32, 0.15);
   flex-wrap: wrap;
 }
 
 .member-meta {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
   gap: 8px;
   font-size: 13.5px;
   color: #fffaf0;
@@ -2419,17 +2457,21 @@ const receiptPaymentNote = computed(() => {
 }
 
 .member-name {
+  overflow-wrap: anywhere;
   color: #ffffff;
   font-weight: 800;
 }
 
 .member-badge-perk {
+  display: block;
+  line-height: 1.5;
+  padding-block: 7px;
   font-size: 11px;
   font-weight: 800;
   background: rgba(198, 173, 122, 0.2);
   border: 1px solid #ffd98a;
   color: #ffd98a;
-  padding: 3px 10px;
+  padding-inline: 10px;
   border-radius: 12px;
 }
 

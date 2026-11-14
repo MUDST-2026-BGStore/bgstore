@@ -20,6 +20,10 @@ describe('branch-local booking times', () => {
     );
     expect(branchInstant('2026-11-20', '')).toBe('');
     expect(branchInstant('not-a-date', '10:00')).toBe('');
+    // Found by the property test: impossible dates must not roll over.
+    expect(branchInstant('2000-04-31', '00:00')).toBe('');
+    expect(branchInstant('2026-02-29', '10:00')).toBe('');
+    expect(branchInstant('2028-02-29', '24:00')).toBe('');
   });
 
   it('formats an instant back into branch date and time', () => {

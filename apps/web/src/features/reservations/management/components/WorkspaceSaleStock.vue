@@ -2,19 +2,18 @@
 import { computed, nextTick, ref, watch } from 'vue';
 import {
   AppButton,
-  AppConfirmDialog,
   AppField,
   AppCollectionPanel,
   AppNumberStepper,
   AppDescriptionList,
   AppInspector,
   AppMasterDetail,
+  AppMessageBar,
   AppTableSelect,
   useTableSelection,
   type FilterValues,
 } from '../../../../shared/ui';
 import { useManagementWorkspace } from '../context';
-import type { FoodDrinkStockItem } from '../pantry.samples';
 import type { SaleStockItem } from '../../components/inventory/sale-stock';
 import type { StockReceiptEntry } from '../useWorkspaceSaleStock';
 import InventoryFilterBar from '../../components/inventory/InventoryFilterBar.vue';
@@ -23,20 +22,9 @@ import InventoryRecordRow from '../../components/inventory/InventoryRecordRow.vu
 import StockReceiveDialog from './StockReceiveDialog.vue';
 import StockAdjustmentDialog from './StockAdjustmentDialog.vue';
 
-const {
-  isManager,
-  selectedBranchId,
-  selectedBranch,
-  saleStock,
-  openAddFoodModal,
-  removeStockItem,
-} = useManagementWorkspace();
-const itemTypes = [
-  { id: 'all', label: 'All items' },
-  { id: 'retail', label: 'Retail games' },
-  { id: 'food', label: 'Food & drinks' },
-] as const;
-const itemType = ref<'all' | SaleStockItem['type']>('all');
+const { selectedBranchId, saleStock } = useManagementWorkspace();
+const itemTypes = [{ id: 'retail', label: 'Retail games' }] as const;
+const itemType = ref<'retail'>('retail');
 const search = ref('');
 const filters = ref<FilterValues>({});
 const columns = [
@@ -47,11 +35,9 @@ const columns = [
   { label: 'Status' },
   { label: 'Actions', action: true },
 ];
-const { items, setOnHand, receive } = saleStock;
+const { items, saving, error, setOnHand, receive } = saleStock;
 const scopedItems = computed(() =>
-  items.value.filter(
-    (item) => itemType.value === 'all' || item.type === itemType.value,
-  ),
+  items.value.filter((item) => item.type === 'retail'),
 );
 const categories = computed(() => [
   ...new Set(scopedItems.value.map((item) => item.category)),
@@ -129,11 +115,6 @@ const selection = useTableSelection(
 const selectedRows = computed(() =>
   visibleItems.value.filter((item) => selection.selectedIds.value.has(item.id)),
 );
-const selectedFoods = computed(() =>
-  selectedRows.value.flatMap((item) =>
-    item.type === 'food' ? [item.source] : [],
-  ),
-);
 const pendingReceiveIds = ref<string[]>([]);
 const pendingReceive = computed(() =>
   items.value.filter((item) => pendingReceiveIds.value.includes(item.id)),
@@ -158,24 +139,12 @@ async function restoreCommandFocus() {
   else table.value?.focus();
 }
 async function saveAdjustment(id: string, quantity: number) {
-  if (!setOnHand(id, quantity)) return;
+  if (!(await setOnHand(id, quantity))) return;
   pendingAdjustmentId.value = null;
   await restoreCommandFocus();
 }
-const pendingRemoval = ref<FoodDrinkStockItem[]>([]);
-function requestRemoval(items: FoodDrinkStockItem[]) {
-  if (isManager.value) pendingRemoval.value = [...items];
-}
-async function confirmRemoval() {
-  if (!isManager.value) return;
-  for (const item of pendingRemoval.value) removeStockItem(item.id);
-  pendingRemoval.value = [];
-  selection.clear();
-  await nextTick();
-  table.value?.focus();
-}
 async function receiveStock(entries: StockReceiptEntry[]) {
-  if (!receive(entries)) return;
+  if (!(await receive(entries))) return;
   pendingReceiveIds.value = [];
   selection.clear();
   await restoreCommandFocus();
@@ -189,13 +158,12 @@ watch(selectedBranchId, () => {
   selection.clear();
   pendingReceiveIds.value = [];
   pendingAdjustmentId.value = null;
-  pendingRemoval.value = [];
 });
 </script>
 
 <template>
   <AppCollectionPanel
-    title="Stock for sale"
+    title="Retail stock"
     title-id="sale-stock-title"
     :metrics="metrics"
     :result-label="`${visibleItems.length} of ${scopedItems.length} items`"
@@ -243,23 +211,12 @@ watch(selectedBranchId, () => {
         ]"
       />
     </template>
-    <template #actions>
-      <AppButton v-if="isManager" appearance="primary" @click="openAddFoodModal"
-        ><i class="fa-solid fa-plus" aria-hidden="true"></i>Add food or
-        drink</AppButton
-      >
-    </template>
     <template #selection>
       <AppButton appearance="primary" @click="openReceive(selectedRows)"
         >Receive stock</AppButton
       >
-      <AppButton
-        v-if="isManager && selectedFoods.length === selectedRows.length"
-        intent="danger"
-        @click="requestRemoval(selectedFoods)"
-        >Remove items</AppButton
-      >
     </template>
+    <AppMessageBar v-if="error" tone="error">{{ error }}</AppMessageBar>
     <AppMasterDetail :inspecting="!!selectedItem">
       <InventoryStockTable
         ref="table"
@@ -345,42 +302,24 @@ watch(selectedBranchId, () => {
               label: 'Available',
               value: `${selectedItem.available} ${selectedItem.unit}`,
             },
-            {
-              label: 'Reorder point',
-              value: `${selectedItem.reorderPoint} ${selectedItem.unit}`,
-            },
+            ...(selectedItem.reorderPoint === null
+              ? []
+              : [
+                  {
+                    label: 'Reorder point',
+                    value: `${selectedItem.reorderPoint} ${selectedItem.unit}`,
+                  },
+                ]),
             { label: 'Status', value: selectedItem.status },
           ]"
         />
-        <template v-if="selectedItem.type === 'retail'">
+        <!-- Live editions report one held count, already shown as Reserved. -->
+        <template v-if="!selectedItem.source.editionId">
           <h3 class="stock-section-title">Reservations</h3>
           <AppDescriptionList
             :items="[
               { label: 'Delivery', value: selectedItem.source.shippingHeld },
               { label: 'Store pickup', value: selectedItem.source.pickupHeld },
-            ]"
-          />
-        </template>
-        <template v-if="selectedItem.type === 'food'">
-          <h3 class="stock-section-title">Pricing</h3>
-          <AppDescriptionList
-            :items="[
-              { label: 'Price', value: `฿${selectedItem.source.price}` },
-              ...(isManager
-                ? [
-                    {
-                      label: 'Cost',
-                      value: `฿${selectedItem.source.costPrice}`,
-                    },
-                    {
-                      label: 'Margin',
-                      value:
-                        selectedItem.source.price > 0
-                          ? `${Math.round(((selectedItem.source.price - selectedItem.source.costPrice) / selectedItem.source.price) * 100)}%`
-                          : '—',
-                    },
-                  ]
-                : []),
             ]"
           />
         </template>
@@ -393,6 +332,7 @@ watch(selectedBranchId, () => {
             input-id="sale-stock-adjust"
             :model-value="selectedItem.onHand"
             :min="selectedItem.reserved"
+            :disabled="saving"
             :label="`Stock for ${selectedItem.name}`"
             @update:model-value="setOnHand(selectedItem.id, $event)"
           />
@@ -402,12 +342,6 @@ watch(selectedBranchId, () => {
             appearance="primary"
             @click="openReceive([selectedItem], $event)"
             >Receive stock</AppButton
-          >
-          <AppButton
-            v-if="isManager && selectedItem.type === 'food'"
-            intent="danger"
-            @click="requestRemoval([selectedItem.source])"
-            >Remove</AppButton
           >
         </div>
       </AppInspector>
@@ -425,23 +359,6 @@ watch(selectedBranchId, () => {
     @close="pendingAdjustmentId = null"
     @adjust="saveAdjustment"
   />
-  <AppConfirmDialog
-    v-if="pendingRemoval.length"
-    title-id="remove-stock-title"
-    :title="pendingRemoval.length === 1 ? 'Remove item' : 'Remove items'"
-    :description="selectedBranch?.name"
-    :confirm-label="
-      pendingRemoval.length === 1 ? 'Remove item' : 'Remove items'
-    "
-    intent="danger"
-    @close="pendingRemoval = []"
-    @confirm="confirmRemoval"
-  >
-    <p>Remove from branch catalog?</p>
-    <ul class="removal-list">
-      <li v-for="item in pendingRemoval" :key="item.id">{{ item.name }}</li>
-    </ul>
-  </AppConfirmDialog>
 </template>
 
 <style scoped>

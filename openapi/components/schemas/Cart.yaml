@@ -12,6 +12,8 @@ required:
   - items
   - issues
   - subtotal
+  - shippingFee
+  - total
   - checkoutReady
   - createdAt
   - updatedAt
@@ -49,6 +51,10 @@ properties:
     format: int64
     minimum: 0
     description: Sum of line totals in THB minor units; a display value recomputed on every read, never a quote of shipping or tax.
+  shippingFee:
+    $ref: ./Money.yaml
+  total:
+    $ref: ./Money.yaml
   checkoutReady:
     type: boolean
     description: True when there is at least one line, no issues, and, for PICKUP, a resolved branch. Checkout still revalidates atomically.

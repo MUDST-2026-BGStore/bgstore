@@ -40,8 +40,13 @@ export function useAuth() {
   return readonly(state);
 }
 
-export async function login(): Promise<void> {
-  window.location.assign('/api/auth/login/keycloak');
+export async function login(locale?: string): Promise<void> {
+  const query = new URLSearchParams();
+  if (locale === 'en-US' || locale === 'th-TH') {
+    query.set('ui_locales', locale);
+  }
+  const suffix = query.size ? `?${query.toString()}` : '';
+  window.location.assign(`/api/auth/login/keycloak${suffix}`);
 }
 
 /** A native POST navigation lets Spring clear the session and redirect through Keycloak logout. */

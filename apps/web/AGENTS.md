@@ -27,12 +27,15 @@ Keep development/preview notices out of customer-facing copy. Avoid redundant ed
 cards and use compact cart spacing with a single subtotal divider. Storefront retail is live: branches, branch prices
 and stock, the server cart, card checkout and My Orders use the API, and the server is authoritative
 for prices, stock and totals. Card details go only to payment tokenization and are never stored or
-logged. PromptPay, bank transfer, cash on delivery, carriers and shipping fees have no backend; do
-not reintroduce them as working options. Customer reservations are live: the booking wizard reads branch
+logged. Shipping fees are server-calculated, and staff record a fixed carrier and tracking number at
+dispatch. PromptPay and cash on delivery have no backend; bank transfer is not supported. Customer reservations are live: the booking wizard reads branch
 availability, rental games and the branch menu, books through the API and pays food pre-orders by card
 (authorized at booking, captured at check-in, only for visits within six days); My Reservations cancels,
 reschedules and shows rental charges from the API. In-play ordering and the table-bill QR have no backend
-and stay off customer pages. Staff workspace screens still use sample data.
+and stay off customer pages. Staff workspace reads tables, reservations, rentals, the game
+library, retail and pantry stock, rental copies and orders from the API; every write waits for the server and
+shows its errors. Sample records appear only for a branch with no server data of that kind, and the in-play
+food tab and table-bill QR remain sample-only and hidden for live sessions.
 
 Prefer short CSS transitions for state changes and interactions. Respect reduced
 motion and keep content usable immediately. Use GSAP only when a specific complex
@@ -47,8 +50,15 @@ price without redundant New copy captions or empty split-column price layouts.
 
 Product details live at `/games/:gameId`, with Savantia-inspired media/purchase
 columns and expandable details. Keep catalog filters on return. Branch selection
-uses a native dropdown (search for longer lists), not one repeated panel per
+uses the shared select (search for longer lists), not one repeated panel per
 branch; keep the selected branch while filtering and apply only on explicit save.
+
+Customer pages use the shared controls in `src/shared/ui` (AppSelect, AppNumberStepper, AppCheckbox,
+AppSearchField) instead of native or hand-built selects, steppers and checkboxes. The customer layout's
+`.ui-storefront` tokens theme them; a page with its own palette overrides the `--ui-*` tokens on its root.
+Designed choice cards (store mode, fulfillment, payment) stay as they are. Visiting must be reachable from
+shopping: product pages link to booking with `?game=` (and `?branch=` when that library has the game), the
+store bar links to booking at the chosen branch, and each branch location links to booking there.
 
 Cart edits must never change the catalog/product page behind the drawer. Product
 stock uses `stores/store-context.ts`, with no dependency on cart fulfillment,
@@ -68,4 +78,4 @@ Catalog scrolling uses sticky green
 navigation and compact search, normal document scrolling for location/results/cards,
 viewport-constrained desktop filters, and a native modal filter drawer at 700px or
 below. Do not create a separate scrolling game grid. Keep sidebar highlight/focus
-padding inside its scrollport and preserve native select semantics.
+padding inside its scrollport.

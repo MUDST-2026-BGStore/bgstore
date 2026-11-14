@@ -3,11 +3,20 @@ import { ref, useId } from 'vue';
 defineProps<{ title: string }>();
 const expanded = ref(false);
 const id = useId();
+const trigger = ref<HTMLButtonElement>();
+/** Opens the section and brings its heading into view. */
+function open() {
+  expanded.value = true;
+  trigger.value?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  trigger.value?.focus({ preventScroll: true });
+}
+defineExpose({ open });
 </script>
 <template>
   <section class="store-accordion">
     <button
       :id="`accordion-trigger-${id}`"
+      ref="trigger"
       type="button"
       class="accordion-trigger"
       :aria-expanded="expanded"

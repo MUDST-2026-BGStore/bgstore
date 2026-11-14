@@ -57,7 +57,9 @@ const thai: Record<string, string> = {
 
   'Rental library': 'คลังเกมเช่าเล่น',
   'In the rental library': 'อยู่ในคลังเกมเช่าเล่น',
+  'In this library': 'มีในคลังเกมสาขานี้',
   'Not in this library': 'ไม่มีในคลังเกมสาขานี้',
+  'Sold here': 'มีจำหน่ายที่สาขานี้',
   Availability: 'สถานะ',
   Included: 'มีในคลังเกม',
   'Not offered': 'ไม่มีในคลังเกม',
@@ -67,7 +69,7 @@ const thai: Record<string, string> = {
     'ดูคลังเกมแต่ละสาขาสำหรับเช่าเล่นภายในร้าน ไม่สามารถนำเกมออกนอกร้านได้',
 
   'Online stock': 'สินค้าออนไลน์',
-  'Store availability': 'เกมและสินค้าที่สาขา',
+  'At this store': 'ที่สาขานี้',
   'Stock at {branch}': 'สินค้าที่สาขา{branch}',
   'Unable to add more of this edition. Check the quantity already in your cart.':
     'ไม่สามารถเพิ่มสินค้ารุ่นนี้ได้อีก กรุณาตรวจสอบจำนวนในตะกร้า',
@@ -396,6 +398,20 @@ const thai: Record<string, string> = {
     'ตะกร้ามีการเปลี่ยนแปลง กรุณาตรวจสอบสินค้าอีกครั้ง',
   // Reservations & Navigation
   'Reserve Table': 'จองโต๊ะ',
+  items: 'รายการ',
+  'Reserve a table': 'จองโต๊ะ',
+  'This edition is sold out online.': 'รุ่นนี้สินค้าหมดสำหรับการสั่งออนไลน์',
+  'This edition is sold out at {branch}.': 'รุ่นนี้สินค้าหมดที่สาขา{branch}',
+  'Play it at {branch}': 'เล่นที่สาขา{branch}',
+  'Play it in store': 'เล่นที่ร้าน',
+  'Book a table and choose this game for your visit.':
+    'จองโต๊ะแล้วเลือกเกมนี้สำหรับการมาเล่น',
+  'Book a table at a branch whose library has it.':
+    'จองโต๊ะที่สาขาที่มีเกมนี้ในคลังเกม',
+  'Reserve a table at {branch}': 'จองโต๊ะที่สาขา{branch}',
+  'Reserve a table here': 'จองโต๊ะที่สาขานี้',
+  'Reserve a table to play': 'จองโต๊ะเพื่อเล่นเกมนี้',
+  'Quantity for {game}': 'จำนวน {game}',
   'Reserve a Table': 'จองโต๊ะ',
   'Reserve a Table to Play': 'จองโต๊ะเพื่อเล่นเกมนี้',
   'My Reservations': 'การจองของฉัน',
@@ -644,6 +660,8 @@ const thai: Record<string, string> = {
   'Play Duration:': 'ระยะเวลาการเล่น:',
   hr: 'ชม.',
   'Pre-paid via PromptPay QR': 'ชำระล่วงหน้าแล้วผ่าน PromptPay QR',
+  'Pre-paid by card': 'ชำระล่วงหน้าแล้วด้วยบัตร',
+  'Pre-paid by card:': 'ชำระล่วงหน้าด้วยบัตร:',
   'In-Play Table Orders': 'รายการสั่งอาหารระหว่างเล่น',
   'No in-play food or drinks ordered yet. You can order snacks anytime while playing!':
     'ยังไม่มีการสั่งอาหารระหว่างเล่น สามารถสั่งของว่างหรือเครื่องดื่มได้ตลอดเวลา!',

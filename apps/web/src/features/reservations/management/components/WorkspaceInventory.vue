@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import ManagementInventory from '../../components/ManagementInventory.vue';
 import WorkspaceSaleStock from './WorkspaceSaleStock.vue';
+import WorkspacePantryStock from './WorkspacePantryStock.vue';
 import { useManagementWorkspace } from '../context';
 const { selectedBranchId, selectedBranch } = useManagementWorkspace();
 </script>
@@ -10,6 +11,6 @@ const { selectedBranchId, selectedBranch } = useManagementWorkspace();
     :key="selectedBranchId"
     :branch-name="selectedBranch?.name || 'Select a branch'"
   >
-    <template #stock><WorkspaceSaleStock /></template>
+    <template #stock><WorkspaceSaleStock /><WorkspacePantryStock /></template>
   </ManagementInventory>
 </template>

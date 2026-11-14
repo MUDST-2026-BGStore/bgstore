@@ -1,0 +1,13 @@
+type: object
+description: One identity of an onboarded account that matched a search.
+required:
+  - subject
+  - name
+  - phone
+properties:
+  subject:
+    type: string
+  name:
+    type: string
+  phone:
+    type: string

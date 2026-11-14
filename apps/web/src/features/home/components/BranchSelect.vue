@@ -1,59 +1,59 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
+import { AppSearchField, AppSelect } from '../../../shared/ui';
 import { useStoreText } from '../data/store-text';
 const props = defineProps<{
   modelValue: string;
-  options: { id: string; name: string }[];
+  options: { id: string; name: string; address?: string }[];
   name: string;
   label: string;
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const { t } = useStoreText();
 const query = ref('');
-const matches = computed(() =>
-  props.options.filter((option) =>
-    t(option.name)
-      .toLocaleLowerCase()
-      .includes(query.value.trim().toLocaleLowerCase()),
-  ),
-);
-// Keep the current option in the select while searching. Typing must never clear
-// a saved branch or apply a different branch. TODO(branch-api): server-side branch
-// search/pagination for large directories; include address/city in real results.
+const matches = computed(() => {
+  const needle = query.value.trim().toLocaleLowerCase();
+  return props.options.filter(
+    (option) =>
+      t(option.name).toLocaleLowerCase().includes(needle) ||
+      (option.address?.toLocaleLowerCase().includes(needle) ?? false),
+  );
+});
+// Keep the current option in the list while searching. Typing must never clear
+// a saved branch or apply a different branch.
+// Search is client-side over the cached directory.
 const visible = computed(() =>
   props.options.filter(
     (option) =>
       option.id === props.modelValue || matches.value.includes(option),
   ),
 );
+const selectOptions = computed(() =>
+  visible.value.map((option) => ({ value: option.id, label: t(option.name) })),
+);
 </script>
 <template>
   <div class="branch-select">
-    <label v-if="options.length > 8" class="branch-search">
-      <span>{{ t('Find a branch') }}</span>
-      <input
+    <div v-if="options.length > 8" class="field">
+      <span aria-hidden="true">{{ t('Find a branch') }}</span>
+      <AppSearchField
         v-model="query"
-        type="search"
-        :name="`${name}-search`"
+        :label="t('Find a branch')"
         :placeholder="t('Search branches…')"
-        autocomplete="off"
       />
-    </label>
-    <label>
-      <span>{{ t(label) }}</span>
-      <select
+    </div>
+    <div class="field">
+      <span aria-hidden="true">{{ t(label) }}</span>
+      <AppSelect
+        block
+        :model-value="modelValue"
         :name="name"
-        :value="modelValue"
-        @change="
-          emit('update:modelValue', ($event.target as HTMLSelectElement).value)
-        "
-      >
-        <option value="">{{ t('Choose a branch') }}</option>
-        <option v-for="option in visible" :key="option.id" :value="option.id">
-          {{ t(option.name) }}
-        </option>
-      </select>
-    </label>
+        :label="t(label)"
+        :placeholder="t('Choose a branch')"
+        :options="selectOptions"
+        @update:model-value="emit('update:modelValue', $event)"
+      />
+    </div>
     <p v-if="query.trim() && !matches.length" role="status">
       {{ t('No matching branches. Try another name.') }}
     </p>
@@ -65,31 +65,15 @@ const visible = computed(() =>
   display: grid;
   gap: 10px;
 }
-label {
+.field {
   display: grid;
   gap: 6px;
   min-width: 0;
   font-size: 13px;
   color: #202e27;
 }
-input,
-select {
+.field .app-search-field {
   width: 100%;
-  min-width: 0;
-  border: 1px solid #829087;
-  border-radius: 3px;
-  padding: 10px;
-  background: white;
-  color: #202e27;
-  font-size: 14px;
-}
-select {
-  cursor: pointer;
-}
-input:focus-visible,
-select:focus-visible {
-  outline: 2px solid #244c38;
-  outline-offset: 3px;
 }
 p {
   font-size: 12px;

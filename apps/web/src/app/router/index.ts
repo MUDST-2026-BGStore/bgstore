@@ -15,7 +15,7 @@ import CustomerLayout from '../layouts/CustomerLayout.vue';
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean;
-    roles?: string[];
+    roles?: readonly string[];
     layout?: 'customer' | 'raw';
   }
 }

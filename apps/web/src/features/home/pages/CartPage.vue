@@ -7,6 +7,8 @@ import { formatMinor } from '../data/catalog';
 import { useGameCovers } from '../api/catalog';
 import { useAuthStore } from '../../../shared/stores/auth';
 import { useStoreText } from '../data/store-text';
+import { AppCheckbox, AppNumberStepper } from '../../../shared/ui';
+import { FREE_SHIPPING_FROM_MINOR } from '../stores/cart';
 
 const router = useRouter();
 const cart = useCartStore();
@@ -84,9 +86,8 @@ const isPartiallySelected = computed(
   () => selectedVariantIds.value.length > 0 && !isAllSelected.value,
 );
 
-function toggleSelectAll(event: Event) {
-  const target = event.target as HTMLInputElement;
-  if (target.checked) {
+function toggleSelectAll(checked: boolean) {
+  if (checked) {
     selectedVariantIds.value = cart.lines.map((l) => l.variantId);
   } else {
     selectedVariantIds.value = [];
@@ -117,6 +118,14 @@ const selectedCount = computed(() =>
 
 const selectedSubtotal = computed(() =>
   selectedLines.value.reduce((sum, l) => sum + l.total, 0),
+);
+
+// Shipping and the grand total come from the server for the whole cart. Checkout
+// drops unticked lines first, so those figures only apply while everything is ticked.
+const showCartTotals = computed(() => isAllSelected.value);
+
+const freeShippingRemaining = computed(() =>
+  Math.max(0, FREE_SHIPPING_FROM_MINOR - cart.subtotal),
 );
 
 async function updateQty(id: string, qty: number) {
@@ -159,7 +168,7 @@ async function proceedToCheckout() {
 </script>
 
 <template>
-  <main class="shopee-cart-page">
+  <div class="shopee-cart-page">
     <div class="cart-container">
       <!-- Breadcrumb Navigation -->
       <div class="cart-top-bar">
@@ -297,26 +306,12 @@ async function proceedToCheckout() {
         <div class="shopee-table-header">
           <div class="col-chk">
             <label class="custom-chk-label">
-              <input
-                type="checkbox"
-                class="chk-input"
-                :checked="isAllSelected"
-                @change="toggleSelectAll"
+              <AppCheckbox
+                :model-value="isAllSelected"
+                :indeterminate="isPartiallySelected"
+                :label="locale === 'th-TH' ? 'เลือกทั้งหมด' : 'Select all'"
+                @update:model-value="toggleSelectAll"
               />
-              <span class="chk-box">
-                <svg
-                  v-if="isAllSelected"
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="3"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                <span v-else-if="isPartiallySelected" class="indet-bar">−</span>
-              </span>
             </label>
           </div>
           <div class="col-product">
@@ -355,25 +350,11 @@ async function proceedToCheckout() {
               <!-- Row Checkbox -->
               <div class="col-chk">
                 <label class="custom-chk-label">
-                  <input
-                    type="checkbox"
-                    class="chk-input"
-                    :checked="selectedVariantIds.includes(line.variantId)"
-                    @change="toggleSelectItem(line.variantId)"
+                  <AppCheckbox
+                    :model-value="selectedVariantIds.includes(line.variantId)"
+                    :label="line.game.name"
+                    @update:model-value="toggleSelectItem(line.variantId)"
                   />
-                  <span class="chk-box">
-                    <svg
-                      v-if="selectedVariantIds.includes(line.variantId)"
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="3"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </span>
                 </label>
               </div>
 
@@ -415,27 +396,14 @@ async function proceedToCheckout() {
 
               <!-- Quantity Stepper -->
               <div class="col-qty item-qty-cell">
-                <div class="shopee-stepper">
-                  <button
-                    type="button"
-                    class="step-btn"
-                    :disabled="line.quantity <= 1"
-                    :aria-label="t('Decrease quantity')"
-                    @click="updateQty(line.variantId, line.quantity - 1)"
-                  >
-                    −
-                  </button>
-                  <span class="step-val">{{ line.quantity }}</span>
-                  <button
-                    type="button"
-                    class="step-btn"
-                    :disabled="line.quantity >= line.available"
-                    :aria-label="t('Increase quantity')"
-                    @click="updateQty(line.variantId, line.quantity + 1)"
-                  >
-                    +
-                  </button>
-                </div>
+                <AppNumberStepper
+                  :model-value="line.quantity"
+                  :label="t('Quantity for {game}', { game: line.game.name })"
+                  :min="1"
+                  :max="Math.max(1, line.available)"
+                  :disabled="cart.busy"
+                  @update:model-value="updateQty(line.variantId, $event)"
+                />
                 <div class="stock-info-wrap">
                   <span v-if="line.available" class="stock-hint">
                     {{
@@ -479,26 +447,12 @@ async function proceedToCheckout() {
         <div class="shopee-sticky-bar">
           <div class="sticky-left">
             <label class="custom-chk-label">
-              <input
-                type="checkbox"
-                class="chk-input"
-                :checked="isAllSelected"
-                @change="toggleSelectAll"
+              <AppCheckbox
+                :model-value="isAllSelected"
+                :indeterminate="isPartiallySelected"
+                :label="locale === 'th-TH' ? 'เลือกทั้งหมด' : 'Select all'"
+                @update:model-value="toggleSelectAll"
               />
-              <span class="chk-box">
-                <svg
-                  v-if="isAllSelected"
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="3"
-                >
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                <span v-else-if="isPartiallySelected" class="indet-bar">−</span>
-              </span>
               <span class="chk-text">
                 {{
                   locale === 'th-TH'
@@ -536,6 +490,34 @@ async function proceedToCheckout() {
                   formatMinor(selectedSubtotal)
                 }}</strong>
               </div>
+              <div
+                v-if="showCartTotals && cart.method === 'shipping'"
+                class="breakdown-line"
+              >
+                <span class="lbl-total">
+                  {{ locale === 'th-TH' ? 'ค่าจัดส่ง:' : 'Shipping:' }}
+                  <small v-if="cart.shippingFee > 0">
+                    {{
+                      locale === 'th-TH'
+                        ? `เพิ่มอีก ${formatMinor(freeShippingRemaining)} เพื่อรับสิทธิ์จัดส่งฟรี`
+                        : `Add ${formatMinor(freeShippingRemaining)} more for free shipping`
+                    }}
+                  </small>
+                </span>
+                <strong class="total-amt">{{
+                  cart.shippingFee === 0
+                    ? locale === 'th-TH'
+                      ? 'ฟรี'
+                      : 'Free'
+                    : formatMinor(cart.shippingFee)
+                }}</strong>
+              </div>
+              <div v-if="showCartTotals" class="breakdown-line">
+                <span class="lbl-total">{{
+                  locale === 'th-TH' ? 'ยอดรวม:' : 'Total:'
+                }}</span>
+                <strong class="total-amt">{{ formatMinor(cart.total) }}</strong>
+              </div>
             </div>
 
             <button
@@ -550,7 +532,7 @@ async function proceedToCheckout() {
         </div>
       </div>
     </div>
-  </main>
+  </div>
 </template>
 
 <style scoped>
@@ -694,7 +676,7 @@ async function proceedToCheckout() {
 }
 .empty-sub {
   font-size: 14px;
-  color: #777777;
+  color: #4e5b53;
   max-width: 400px;
   margin: 0;
 }
@@ -749,36 +731,6 @@ async function proceedToCheckout() {
   cursor: pointer;
   user-select: none;
 }
-.chk-input {
-  position: absolute;
-  opacity: 0;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-}
-.chk-box {
-  width: 18px;
-  height: 18px;
-  border: 1px solid #b5c4bd;
-  border-radius: 3px;
-  background: #ffffff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: #ffffff;
-  transition: all 120ms ease;
-}
-.chk-input:checked + .chk-box {
-  background: #142a1f;
-  border-color: #142a1f;
-}
-.indet-bar {
-  color: #142a1f;
-  font-size: 16px;
-  line-height: 1;
-  font-weight: 900;
-}
-
 /* Shopee Table Header */
 .shopee-table-header {
   background: #ffffff;
@@ -919,45 +871,6 @@ async function proceedToCheckout() {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-}
-.shopee-stepper {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid #d3ded7;
-  border-radius: 3px;
-  overflow: hidden;
-  background: #ffffff;
-}
-.step-btn {
-  width: 30px;
-  height: 30px;
-  background: #f7faf8;
-  border: none;
-  font-size: 16px;
-  color: #142a1f;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background-color 100ms ease;
-}
-.step-btn:hover:not(:disabled) {
-  background: #e5eee8;
-}
-.step-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-.step-val {
-  min-width: 40px;
-  text-align: center;
-  font-size: 13px;
-  font-weight: 700;
-  color: #142a1f;
-  border-left: 1px solid #d3ded7;
-  border-right: 1px solid #d3ded7;
-  padding: 0 4px;
-  line-height: 30px;
 }
 .stock-info-wrap {
   display: flex;

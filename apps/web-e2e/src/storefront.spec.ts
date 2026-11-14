@@ -1,4 +1,14 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
+
+/** Opens a shared listbox select by its label and picks the option a user sees. */
+async function choose(scope: Locator, label: string, option: string) {
+  await scope.getByRole('button', { name: new RegExp(`^${label}:`) }).click();
+  await scope
+    .page()
+    .getByRole('listbox', { name: label, exact: true })
+    .getByRole('option', { name: option, exact: true })
+    .click();
+}
 
 // Run against the seeded API through the web proxy, not a catalog fixture.
 test.beforeEach(async ({ page }) => {
@@ -99,15 +109,59 @@ test('remembers a chosen branch without putting prices on catalog cards', async 
   const dialog = page.getByRole('dialog', { name: 'Choose your store' });
   await dialog.locator('input[value=branch]').check();
   // Branches come from the seeded API, so they are chosen by name, not by a fixed ID.
-  await dialog
-    .locator('select[name=store-branch]')
-    .selectOption({ label: 'Ari' });
+  await choose(dialog, 'Branch', 'Ari');
   await dialog.getByRole('button', { name: 'Save & continue' }).click();
   await expect(page.locator('.context-trigger')).toContainText('Ari');
   await expect(page.locator('.source-label')).toHaveText('Prices and stock');
   await page.reload();
   await expect(page.locator('.context-trigger')).toContainText('Ari');
   await expect(page.locator('.game-availability, .game-price')).toHaveCount(0);
+
+  const soldFilter = page
+    .locator('.filters')
+    .getByRole('checkbox', { name: 'Sold here', exact: true });
+  const libraryFilter = page
+    .locator('.filters')
+    .getByRole('checkbox', { name: 'In this library', exact: true });
+  await expect(soldFilter).toBeVisible();
+  await expect(libraryFilter).toBeVisible();
+  await libraryFilter.check();
+  await expect(page.locator('.game-card').first()).toBeVisible();
+  await libraryFilter.uncheck();
+
+  await page.getByRole('link', { name: 'View Azul', exact: true }).click();
+  await expect(
+    page.getByRole('heading', { name: 'Azul', exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole('button', { name: 'Check other branches', exact: true })
+    .click();
+  const branchTable = page.locator('.branch-table');
+  await expect(branchTable).toContainText('Siam');
+  await expect(branchTable).toContainText('Ari');
+  await expect(branchTable).toContainText('Riverside');
+
+  // Ari's library has Azul, so the product page books a table there to play it.
+  const play = page.getByRole('link', {
+    name: 'Reserve a table to play',
+    exact: true,
+  });
+  const playUrl = new URL(
+    (await play.getAttribute('href')) ?? '',
+    'http://localhost',
+  );
+  expect(playUrl.pathname).toBe('/reservations/new');
+  const branches = (await (await page.request.get('/api/v1/branches')).json())
+    .items as { id: string; name: string }[];
+  expect(playUrl.searchParams.get('game')).toBe(
+    new URL(page.url()).pathname.split('/').at(-1),
+  );
+  expect(playUrl.searchParams.get('branch')).toBe(
+    branches.find((branch) => branch.name === 'Ari')?.id,
+  );
+  await expect(
+    page.getByRole('link', { name: 'Reserve a table at Ari', exact: true }),
+  ).toBeVisible();
 });
 
 test('keeps Thai and English catalog and product layouts usable from mobile to desktop', async ({
@@ -174,9 +228,8 @@ test('desktop keeps navigation, search and short-viewport filters reachable whil
   await expect(page.locator('.game-card')).toHaveCount(16);
   await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   const sidebar = page.locator('.filters');
-  const lastFilter = sidebar.getByRole('combobox', {
-    name: 'Experience level',
-    exact: true,
+  const lastFilter = sidebar.getByRole('button', {
+    name: /^Experience level:/,
   });
   await sidebar.hover();
   await page.mouse.wheel(0, 1200);
@@ -206,10 +259,10 @@ test('desktop keeps navigation, search and short-viewport filters reachable whil
     (await page.locator('.results-toolbar').boundingBox())?.y,
   ).toBeLessThan(0);
   await sidebar
-    .getByRole('combobox', { name: 'Experience level', exact: true })
+    .getByRole('button', { name: /^Experience level:/ })
     .scrollIntoViewIfNeeded();
   await expect(
-    sidebar.getByRole('combobox', { name: 'Experience level', exact: true }),
+    sidebar.getByRole('button', { name: /^Experience level:/ }),
   ).toBeInViewport();
   await page.getByRole('button', { name: 'Account', exact: true }).click();
   await expect(
@@ -230,9 +283,7 @@ test('mobile filter drawer shares state, traps focus, restores focus and closes 
     exact: true,
   });
   await expect(drawer).toBeVisible();
-  await drawer
-    .getByRole('combobox', { name: 'Players', exact: true })
-    .selectOption('8');
+  await choose(drawer, 'Players', '8 players');
   await expect(
     drawer.getByRole('button', { name: /Show [0-9]+ games/ }),
   ).toBeVisible();
@@ -262,12 +313,16 @@ test('mobile filter drawer shares state, traps focus, restores focus and closes 
   ).toBeFocused();
   await page.getByRole('button', { name: 'Filters (1)', exact: true }).click();
   await expect(
-    drawer.getByRole('combobox', { name: 'Players', exact: true }),
-  ).toHaveValue('8');
+    drawer.getByRole('button', { name: 'Players: 8 players' }),
+  ).toBeVisible();
   await page.setViewportSize({ width: 701, height: 900 });
   await expect(drawer).toBeHidden();
-  await expect(page.locator('.filters select[name=players]')).toBeVisible();
-  await expect(page.locator('.filters select[name=players]')).toHaveValue('8');
+  await expect(
+    page
+      .locator('.filters')
+      .getByRole('button', { name: 'Players: 8 players' }),
+  ).toBeVisible();
+  await expect(page.locator('.filters input[name=players]')).toHaveValue('8');
   await page.setViewportSize({ width: 390, height: 700 });
   await page.evaluate(() => window.scrollTo({ top: 400, behavior: 'instant' }));
   await expect
@@ -295,17 +350,16 @@ test('seeded experience and total-time filters cover the complete catalog and lo
   await expect(page.locator('.game-grid')).not.toContainText(
     'Experience not specified',
   );
-  const experience = page.locator('.filters select[name=difficulty]');
-  const duration = page.locator('.filters select[name=time]');
-  await experience.selectOption('Advanced');
+  const filters = page.locator('.filters');
+  await choose(filters, 'Experience level', 'Ready for a challenge');
   await expect(page.locator('.game-card')).toHaveCount(2);
   await expect(page.locator('.game-grid')).toContainText('Cosmic Encounter');
   await expect(page.locator('.game-grid')).toContainText(
     'Blood on the Clocktower',
   );
-  await duration.selectOption('120');
+  await choose(filters, 'Time at the table', 'Up to 2 hours');
   await expect(page.locator('.game-card')).toHaveCount(0);
-  await duration.selectOption('180');
+  await choose(filters, 'Time at the table', 'Up to 3 hours');
   await expect(page.locator('.game-card')).toHaveCount(2);
   await page.getByRole('button', { name: 'Reset all', exact: true }).click();
   await page

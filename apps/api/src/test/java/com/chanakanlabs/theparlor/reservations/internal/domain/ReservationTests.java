@@ -23,6 +23,21 @@ class ReservationTests {
   }
 
   @Test
+  void keepsOnlyTheMicrosecondsTheDatabaseStores() {
+    // Linux clocks give nanoseconds; PostgreSQL keeps microseconds. A booking response
+    // must show the same time a later read returns (CI found the mismatch).
+    var plan =
+        new Plan(
+            UUID.randomUUID(),
+            Instant.parse("2026-11-14T10:00:00.123456789Z"),
+            Instant.parse("2026-11-14T12:00:00.000000999Z"),
+            4,
+            5000);
+    assertThat(plan.startsAt()).isEqualTo(Instant.parse("2026-11-14T10:00:00.123456Z"));
+    assertThat(plan.endsAt()).isEqualTo(Instant.parse("2026-11-14T12:00:00Z"));
+  }
+
+  @Test
   void aBookingIsForARegisteredCustomerOrAGuestAndHasAValidPlan() {
     assertThat(booked().getGuestName()).isEqualTo("Guest");
     assertThatThrownBy(() -> new Party(UUID.randomUUID(), "sub", "Guest", null))
