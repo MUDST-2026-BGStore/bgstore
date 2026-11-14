@@ -23,6 +23,7 @@ import com.chanakanlabs.theparlor.idempotency.Idempotency;
 import com.chanakanlabs.theparlor.idempotency.Idempotency.Scope;
 import com.chanakanlabs.theparlor.identity.CurrentUser;
 import com.chanakanlabs.theparlor.inventory.RentalLibrary;
+import com.chanakanlabs.theparlor.payments.Payments;
 import com.chanakanlabs.theparlor.reservations.internal.application.BookingPlanner.Booking;
 import com.chanakanlabs.theparlor.reservations.internal.application.BookingPlanner.Selection;
 import com.chanakanlabs.theparlor.reservations.internal.domain.Reservation.Party;
@@ -67,6 +68,7 @@ public class ReservationsService {
   private final BookingPlanner planner;
   private final ReservationViews views;
   private final PreOrderDesk preOrders;
+  private final Payments payments;
   private final RentalDesk rentalDesk;
   private final BranchAccess branches;
   private final BranchFloor floor;
@@ -85,6 +87,7 @@ public class ReservationsService {
       BookingPlanner planner,
       ReservationViews views,
       PreOrderDesk preOrders,
+      Payments payments,
       @Lazy RentalDesk rentalDesk,
       BranchAccess branches,
       BranchFloor floor,
@@ -101,6 +104,7 @@ public class ReservationsService {
     this.planner = planner;
     this.views = views;
     this.preOrders = preOrders;
+    this.payments = payments;
     this.rentalDesk = rentalDesk;
     this.branches = branches;
     this.floor = floor;
@@ -144,11 +148,23 @@ public class ReservationsService {
                           false),
                       request.getNotes(),
                       user.subject());
+              var reservation =
+                  reservations.findById(booked).orElseThrow(ReservationsService::missing);
+              boolean promptPay =
+                  request.getPaymentMethod()
+                      == CreateReservationRequest.PaymentMethodEnum.PROMPTPAY;
               if (request.getPreOrder() != null)
-                preOrders.place(
-                    reservations.findById(booked).orElseThrow(ReservationsService::missing),
-                    request.getPreOrder(),
-                    clock.instant());
+                preOrders.place(reservation, request.getPreOrder(), clock.instant(), !promptPay);
+              if (promptPay) {
+                long hourlyMinor = reservation.getTableHourlyRateMinor();
+                for (var game : games.findByIdReservationIdIn(List.of(booked)))
+                  hourlyMinor =
+                      Math.addExact(
+                          hourlyMinor,
+                          Math.multiplyExact(game.getUnitHourlyRateMinor(), game.getQuantity()));
+                preOrders.startPromptPay(
+                    reservation, Math.multiplyExact(hourlyMinor, reservation.bookedHours()));
+              }
               return booked;
             });
     return views.of(reservations.findById(id).orElseThrow(ReservationsService::missing));
@@ -285,7 +301,7 @@ public class ReservationsService {
     }
     if (released) holds.deleteOf(reservationId);
     reservations.flush();
-    if (released) preOrders.release(reservation);
+    if (released) preOrders.releaseForNoShow(reservation);
     return views.of(reservation);
   }
 
@@ -311,6 +327,7 @@ public class ReservationsService {
     if (existing.isPresent()) return new CheckInResult(views.of(reservation), existing.get());
 
     Instant now = clock.instant();
+    preOrders.requirePaid(reservation);
     var table =
         floor
             .lockTable(branchId, reservation.getTableId())
@@ -352,13 +369,43 @@ public class ReservationsService {
     return new CheckInResult(views.of(reservation), rental);
   }
 
+  @Transactional
   public Reservation get(UUID branchId, UUID reservationId) {
     var reservation =
         reservations
             .findByIdAndBranchId(reservationId, branchId)
             .orElseThrow(ReservationsService::missing);
     requireOwnerOrOperator(reservation);
+    var payment = payments.of(Payments.Kind.RESERVATION, List.of(reservationId)).get(reservationId);
+    if (payment != null
+        && payment.method() == Payments.Method.PROMPTPAY
+        && payment.status() == Payments.Status.PENDING)
+      payments.refreshPromptPay(Payments.Payable.reservation(reservationId));
     return views.of(reservation);
+  }
+
+  public List<UUID> unpaidPastDeadline() {
+    return payments.expiredUnpaid(Payments.Kind.RESERVATION, clock.instant());
+  }
+
+  @Transactional
+  public boolean expireUnpaidReservation(UUID reservationId) {
+    var found = reservations.lockById(reservationId);
+    if (found.isEmpty() || !found.get().isConfirmed()) return false;
+    var reservation = found.get();
+    var payment = payments.of(Payments.Kind.RESERVATION, List.of(reservationId)).get(reservationId);
+    if (payment == null
+        || payment.method() != Payments.Method.PROMPTPAY
+        || payment.status() != Payments.Status.PENDING
+        || payment.expiresAt() == null
+        || payment.expiresAt().isAfter(clock.instant())) return false;
+    if (payments.refreshPromptPay(Payments.Payable.reservation(reservationId))) return false;
+    reservation.cancel(
+        "system:payment-expiry", "PromptPay payment window expired", clock.instant());
+    holds.deleteOf(reservationId);
+    reservations.flush();
+    preOrders.release(reservation);
+    return true;
   }
 
   public ReservationPage listBranch(

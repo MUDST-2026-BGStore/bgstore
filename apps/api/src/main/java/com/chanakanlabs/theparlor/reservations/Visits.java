@@ -21,14 +21,19 @@ public interface Visits {
 
   Reservation get(UUID reservationId);
 
-  /** customerSubject is null for a guest. */
+  /**
+   * customerSubject is null for a guest. Captured PromptPay play credits set the booked-hour
+   * minimum; legacy and staff bookings have a one-hour minimum and no prepaid credit.
+   */
   record Booked(
       UUID reservationId,
       UUID tableId,
       CustomerReference customer,
       String customerSubject,
       long tableHourlyRateMinor,
-      List<GameLine> games) {}
+      List<GameLine> games,
+      int minimumBillableHours,
+      long prepaidPlayMinor) {}
 
   record GameLine(UUID gameId, int quantity, long unitHourlyRateMinor) {}
 }

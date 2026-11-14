@@ -35,5 +35,15 @@ properties:
   notes:
     type: string
     maxLength: 1000
+  paymentMethod:
+    type: string
+    enum: [CARD, PROMPTPAY]
+    default: CARD
+    description: >-
+      PROMPTPAY pays the booked table and game hours plus discounted food upfront.
+      The QR expires after 15 minutes; unpaid bookings are cancelled and their holds
+      released. CARD preserves pay-at-counter play charges and authorizes only food.
+      Received PromptPay payments cannot be cancelled or rescheduled; refunds are
+      not supported.
   preOrder:
     $ref: ./PreOrderRequest.yaml

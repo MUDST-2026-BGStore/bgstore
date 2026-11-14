@@ -91,6 +91,15 @@ class TheparlorApiApplicationTests {
   @Autowired TestClock testClock;
   @Autowired com.chanakanlabs.theparlor.orders.internal.application.UnpaidOrderExpiry unpaidOrders;
 
+  @Autowired
+  com.chanakanlabs.theparlor.reservations.internal.application.UnpaidReservationExpiry
+      unpaidReservations;
+
+  @AfterEach
+  void resetBusinessClock() {
+    testClock.reset();
+  }
+
   // Exercise the real admin security rule without requiring a production admin controller.
   @RestController
   static class AdminAccessProbe {
@@ -2220,6 +2229,216 @@ class TheparlorApiApplicationTests {
       testClock.reset();
     }
 
+    @Test
+    void paidPromptPayNoShowReleasesUnservedFoodAndKeepsThePayment() throws Exception {
+      assertPaidPromptPayNoShow(true, false);
+    }
+
+    @Test
+    void paidPromptPayNoShowWithoutFoodKeepsAnAlreadyRecordedPayment() throws Exception {
+      assertPaidPromptPayNoShow(false, true);
+    }
+
+    private void assertPaidPromptPayNoShow(boolean withFood, boolean recordPaidFirst)
+        throws Exception {
+      var cola = UUID.randomUUID();
+      if (withFood) {
+        jdbc.update(
+            "INSERT INTO menu_items(id,sku,category,names,price_minor) VALUES (?,?,'BEVERAGES','{\"en-US\":\"Cola\"}'::jsonb,3500)",
+            cola,
+            "no-show-cola-" + cola);
+        assertThat(
+                send(
+                        manager,
+                        "POST",
+                        base + "/menu/" + cola + "/stock-adjustments",
+                        "{\"delta\":3,\"reason\":\"Delivery\"}")
+                    .statusCode())
+            .isEqualTo(201);
+      }
+      var customer = login("customer");
+      send(
+          customer,
+          "POST",
+          "/api/v1/me",
+          "{\"firstName\":\"QR\",\"lastName\":\"Customer\",\"phoneNumber\":\"+66811113333\",\"preferences\":{\"preferredLocale\":\"en-US\"}}");
+      String body =
+          "{\"tableId\":\""
+              + table
+              + "\",\"partySize\":2,\"games\":[{\"gameId\":\""
+              + game
+              + "\",\"quantity\":1}],\"startsAt\":\""
+              + start
+              + "\",\"endsAt\":\""
+              + end
+              + "\",\"paymentMethod\":\"PROMPTPAY\""
+              + (withFood
+                  ? ",\"preOrder\":{\"items\":[{\"menuItemId\":\"" + cola + "\",\"quantity\":2}]}"
+                  : "")
+              + "}";
+      var response =
+          send(
+              customer,
+              "POST",
+              base + "/reservations",
+              body,
+              "Idempotency-Key",
+              UUID.randomUUID().toString());
+      assertThat(response.statusCode()).as(response.body()).isEqualTo(201);
+      String id = JSON.readTree(response.body()).get("id").asString();
+      String path = base + "/reservations/" + id;
+      jdbc.update(
+          "UPDATE bogus_promptpay_charges SET paid_at=? WHERE reference=(SELECT gateway_reference FROM payments WHERE reservation_id=?::uuid)",
+          java.sql.Timestamp.from(testClock.instant()),
+          id);
+      if (recordPaidFirst)
+        assertThat(
+                JSON.readTree(get(customer, path).body()).get("payment").get("status").asString())
+            .isEqualTo("CAPTURED");
+      assertThat(
+              send(manager, "POST", path + "/no-show", "{\"reason\":\"Too early\"}").statusCode())
+          .isEqualTo(409);
+      if (withFood) assertThat(available(get(customer, base + "/menu").body(), cola)).isEqualTo(1);
+      testClock.at(start);
+      assertThat(send(customer, "POST", path + "/no-show", "{\"reason\":\"Absent\"}").statusCode())
+          .isEqualTo(403);
+      for (int attempt = 0; attempt < 2; attempt++) {
+        var missed =
+            send(manager, "POST", path + "/no-show", "{\"reason\":\"Party did not arrive\"}");
+        assertThat(missed.statusCode()).as(missed.body()).isEqualTo(200);
+        var record = JSON.readTree(missed.body());
+        assertThat(record.get("status").asString()).isEqualTo("NO_SHOW");
+        assertThat(record.get("payment").get("status").asString()).isEqualTo("CAPTURED");
+        assertThat(record.get("payment").get("amount").get("amountMinor").asLong())
+            .isEqualTo(withFood ? 24300 : 18000);
+        if (withFood)
+          assertThat(available(get(customer, base + "/menu").body(), cola)).isEqualTo(3);
+      }
+      assertThat(read("/tables/" + table).get("state").asString()).isEqualTo("AVAILABLE");
+      assertThat(read("/games/" + game).get("rentalAvailableNow").asInt()).isEqualTo(1);
+      assertThat(read("/rentals").get("items")).isEmpty();
+      assertThat(send(manager, "POST", path + "/check-in", null).statusCode()).isEqualTo(409);
+      var replacement = bookResponse(table, start.plusSeconds(60), end, true);
+      assertThat(replacement.statusCode()).as(replacement.body()).isEqualTo(201);
+    }
+
+    @Test
+    void unpaidPromptPayExpiryReturnsPreOrderedFoodToTheBranch() throws Exception {
+      var cola = UUID.randomUUID();
+      jdbc.update(
+          "INSERT INTO menu_items(id,sku,category,names,price_minor) VALUES (?,?,'BEVERAGES','{\"en-US\":\"Cola\"}'::jsonb,3500)",
+          cola,
+          "expiry-cola-" + cola);
+      assertThat(
+              send(
+                      manager,
+                      "POST",
+                      base + "/menu/" + cola + "/stock-adjustments",
+                      "{\"delta\":3,\"reason\":\"Delivery\"}")
+                  .statusCode())
+          .isEqualTo(201);
+      var customer = login("customer");
+      send(
+          customer,
+          "POST",
+          "/api/v1/me",
+          "{\"firstName\":\"QR\",\"lastName\":\"Customer\",\"phoneNumber\":\"+66811113333\",\"preferences\":{\"preferredLocale\":\"en-US\"}}");
+      String body =
+          "{\"tableId\":\""
+              + table
+              + "\",\"partySize\":2,\"games\":[],\"startsAt\":\""
+              + start
+              + "\",\"endsAt\":\""
+              + end
+              + "\",\"paymentMethod\":\"PROMPTPAY\",\"preOrder\":{\"items\":[{\"menuItemId\":\""
+              + cola
+              + "\",\"quantity\":2}]}}";
+      var response =
+          send(
+              customer,
+              "POST",
+              base + "/reservations",
+              body,
+              "Idempotency-Key",
+              UUID.randomUUID().toString());
+      assertThat(response.statusCode()).as(response.body()).isEqualTo(201);
+      String id = JSON.readTree(response.body()).get("id").asString();
+      assertThat(available(get(customer, base + "/menu").body(), cola)).isEqualTo(1);
+      testClock.at(start.minusSeconds(3600).plusSeconds(901));
+      assertThat(unpaidReservations.expireUnpaidReservations()).isEqualTo(1);
+      assertThat(unpaidReservations.expireUnpaidReservations()).isZero();
+      assertThat(available(get(customer, base + "/menu").body(), cola)).isEqualTo(3);
+      var cancelled = JSON.readTree(get(customer, base + "/reservations/" + id).body());
+      assertThat(cancelled.get("status").asString()).isEqualTo("CANCELLED");
+      assertThat(cancelled.get("preOrder").get("payment").get("status").asString())
+          .isEqualTo("VOIDED");
+    }
+
+    @Test
+    void promptPayWithoutFoodExpiresAndReleasesGamesThenCreditsOvertime() throws Exception {
+      var customer = login("customer");
+      send(
+          customer,
+          "POST",
+          "/api/v1/me",
+          "{\"firstName\":\"QR\",\"lastName\":\"Customer\",\"phoneNumber\":\"+66811113333\",\"preferences\":{\"preferredLocale\":\"en-US\"}}");
+      String body =
+          "{\"tableId\":\""
+              + table
+              + "\",\"partySize\":2,\"games\":[{\"gameId\":\""
+              + game
+              + "\",\"quantity\":1}],\"startsAt\":\""
+              + start
+              + "\",\"endsAt\":\""
+              + end
+              + "\",\"paymentMethod\":\"PROMPTPAY\"}";
+      var response =
+          send(
+              customer,
+              "POST",
+              base + "/reservations",
+              body,
+              "Idempotency-Key",
+              UUID.randomUUID().toString());
+      assertThat(response.statusCode()).as(response.body()).isEqualTo(201);
+      var pending = JSON.readTree(response.body());
+      String id = pending.get("id").asString();
+      assertThat(pending.get("payment").get("amount").get("amountMinor").asLong()).isEqualTo(18000);
+      assertThat(read("/games/" + game).get("rentalAvailableNow").asInt()).isEqualTo(1);
+      testClock.at(start.minusSeconds(3600).plusSeconds(901));
+      assertThat(unpaidReservations.expireUnpaidReservations()).isEqualTo(1);
+      var cancelled = JSON.readTree(get(customer, base + "/reservations/" + id).body());
+      assertThat(cancelled.get("status").asString()).isEqualTo("CANCELLED");
+      assertThat(cancelled.get("payment").get("status").asString()).isEqualTo("VOIDED");
+      // The exact same table and copy can be reserved again after expiry.
+      response =
+          send(
+              customer,
+              "POST",
+              base + "/reservations",
+              body,
+              "Idempotency-Key",
+              UUID.randomUUID().toString());
+      assertThat(response.statusCode()).as(response.body()).isEqualTo(201);
+      id = JSON.readTree(response.body()).get("id").asString();
+      jdbc.update(
+          "UPDATE bogus_promptpay_charges SET paid_at=? WHERE reference=(SELECT gateway_reference FROM payments WHERE reservation_id=?::uuid)",
+          java.sql.Timestamp.from(testClock.instant()),
+          id);
+      testClock.at(start);
+      // A paid charge discovered by expiry must retain its booking and holds.
+      assertThat(unpaidReservations.expireUnpaidReservations()).isZero();
+      String rental = checkIn(id).get("rental").get("id").asString();
+      testClock.at(start.plusSeconds(7201));
+      var bill = checkOut(rental).get("rental");
+      assertThat(bill.get("billableHours").asInt()).isEqualTo(3);
+      assertThat(bill.get("total").get("amountMinor").asLong()).isEqualTo(27000);
+      assertThat(bill.get("prepaid").get("amountMinor").asLong()).isEqualTo(18000);
+      assertThat(bill.get("balanceDue").get("amountMinor").asLong()).isEqualTo(9000);
+      assertThat(checkOut(rental).get("rental").get("balanceDue").get("amountMinor").asLong())
+          .isEqualTo(9000);
+    }
+
     String booking(UUID atTable, Instant from, Instant until, boolean withGame) {
       return "{\"source\":\"STAFF_BOOKING\",\"customer\":{\"kind\":\"GUEST\",\"displayName\":\"Handover party\"},"
           + "\"tableId\":\""
@@ -2771,6 +2990,98 @@ class TheparlorApiApplicationTests {
                 branch,
                 cola))
         .isEqualTo(10);
+  }
+
+  @Test
+  void reservationPromptPayCoversTheBookedVisitAndCreditsCheckout() throws Exception {
+    var branch = UUID.randomUUID();
+    var table = UUID.randomUUID();
+    var cola = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'QR booking', 'Address')", branch);
+    for (int day = 1; day <= 7; day++)
+      jdbc.update(
+          "INSERT INTO branch_opening_hours(branch_id,day_of_week,opens_at,closes_at) VALUES (?,?,'00:00','24:00')",
+          branch,
+          day);
+    jdbc.update(
+        "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor) VALUES (?,?,'QR1',4,5000)",
+        table,
+        branch);
+    jdbc.update(
+        "INSERT INTO menu_items(id,sku,category,names,price_minor) VALUES (?,?,'BEVERAGES','{\"en-US\":\"Cola\"}'::jsonb,3500)",
+        cola,
+        "qr-cola-" + cola);
+    var customer = login("customer");
+    var manager = login("manager");
+    send(
+        customer,
+        "POST",
+        "/api/v1/me",
+        "{\"firstName\":\"QR\",\"lastName\":\"Customer\",\"phoneNumber\":\"+66811113333\",\"preferences\":{\"preferredLocale\":\"en-US\"}}");
+    String base = "/api/v1/branches/" + branch;
+    assertThat(
+            send(
+                    manager,
+                    "POST",
+                    base + "/menu/" + cola + "/stock-adjustments",
+                    "{\"delta\":3,\"reason\":\"Delivery\"}")
+                .statusCode())
+        .isEqualTo(201);
+    var now = Instant.now();
+    testClock.at(now);
+    var start = now.plusSeconds(3600);
+    String body =
+        "{\"tableId\":\""
+            + table
+            + "\",\"partySize\":2,\"games\":[],\"startsAt\":\""
+            + start
+            + "\",\"endsAt\":\""
+            + start.plusSeconds(7200)
+            + "\",\"paymentMethod\":\"PROMPTPAY\",\"preOrder\":{\"items\":[{\"menuItemId\":\""
+            + cola
+            + "\",\"quantity\":2}]}}";
+    String key = UUID.randomUUID().toString();
+    var response = send(customer, "POST", base + "/reservations", body, "Idempotency-Key", key);
+    assertThat(response.statusCode()).as(response.body()).isEqualTo(201);
+    var booked = JSON.readTree(response.body());
+    String id = booked.get("id").asString();
+    String path = base + "/reservations/" + id;
+    assertThat(booked.get("payment").get("amount").get("amountMinor").asLong()).isEqualTo(16300);
+    assertThat(booked.get("payment").get("status").asString()).isEqualTo("PENDING");
+    assertThat(booked.get("payment").get("promptPayQr").asString()).isNotBlank();
+    assertThat(available(get(customer, base + "/menu").body(), cola)).isEqualTo(1);
+    assertThat(
+            JSON.readTree(
+                    send(customer, "POST", base + "/reservations", body, "Idempotency-Key", key)
+                        .body())
+                .get("id")
+                .asString())
+        .isEqualTo(id);
+    testClock.at(start);
+    assertThat(send(manager, "POST", path + "/check-in", null).statusCode()).isEqualTo(409);
+    // Simulate the external development payment provider receiving the transfer.
+    jdbc.update(
+        "UPDATE bogus_promptpay_charges SET paid_at=? WHERE reference=(SELECT gateway_reference FROM payments WHERE reservation_id=?::uuid)",
+        java.sql.Timestamp.from(now.plusSeconds(60)),
+        id);
+    var paid = JSON.readTree(get(customer, path).body());
+    assertThat(paid.get("payment").get("status").asString()).isEqualTo("CAPTURED");
+    assertThat(
+            send(customer, "POST", path + "/cancel", "{\"reason\":\"Changed plans\"}").statusCode())
+        .isEqualTo(409);
+    assertThat(JSON.readTree(get(customer, path).body()).get("status").asString())
+        .isEqualTo("CONFIRMED");
+    var arrival = send(manager, "POST", path + "/check-in", null);
+    assertThat(arrival.statusCode()).as(arrival.body()).isEqualTo(200);
+    String rental = JSON.readTree(arrival.body()).get("rental").get("id").asString();
+    testClock.at(start.plusSeconds(3600));
+    var checkout = send(manager, "POST", base + "/rentals/" + rental + "/check-out", null);
+    assertThat(checkout.statusCode()).as(checkout.body()).isEqualTo(200);
+    var bill = JSON.readTree(checkout.body()).get("rental");
+    assertThat(bill.get("total").get("amountMinor").asLong()).isEqualTo(10000);
+    assertThat(bill.get("prepaid").get("amountMinor").asLong()).isEqualTo(10000);
+    assertThat(bill.get("balanceDue").get("amountMinor").asLong()).isZero();
   }
 
   static int available(String menuBody, UUID menuItemId) throws Exception {

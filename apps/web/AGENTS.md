@@ -32,9 +32,15 @@ logged; with Omise as the provider they go from the browser to Omise through Omi
 tracking number at dispatch. Signed-in customers can also pay by PromptPay QR (the checkout polls the order
 until it is paid or the server cancels it after 15 minutes) or, for delivery, cash on delivery, which staff
 confirm in the fulfillment queue. Bank transfer has no backend and is not supported. Customer reservations are live: the booking wizard reads branch
-availability, rental games and the branch menu, books through the API and pays food pre-orders by card
-(authorized at booking, captured at check-in, only for visits within six days); My Reservations cancels,
-reschedules and shows rental charges from the API. Customer self-ordering during play and the table-bill QR remain unsupported
+availability, rental games and the branch menu, and books through the API. PromptPay prepays the booked
+table/game hours and discounted food through one QR, with a 15-minute unpaid expiry; booking and My
+Reservations poll payment status and show the pending QR. The card path authorizes food at booking and
+captures at check-in (food pre-orders are limited to visits within six days). Paid PromptPay bookings
+cannot be cancelled or rescheduled while refunds remain unsupported. Staff can mark paid bookings
+as no-show after their start: release resource/unserved food holds, retain the received payment and
+issue no automatic refund or forfeiture classification. Rental checkout credits prepaid
+play, retains the booked-hour minimum and bills overtime and later refreshments as the remaining balance.
+My Reservations cancels/reschedules eligible bookings and shows rental charges from the API. Customer self-ordering during play and the table-bill QR remain unsupported
 and stay off customer pages. Staff workspace reads tables, reservations, rentals, the game
 library, retail and pantry stock, rental copies and orders from the API; every write waits for the server and
 shows its errors. Sample records appear only for a branch with no server data of that kind. Staff add served

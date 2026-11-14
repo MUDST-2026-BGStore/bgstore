@@ -145,12 +145,23 @@ const effectiveHourlyRate = computed(() => {
 });
 
 // Server rule: started hours, minimum one; the completed rental states its own.
-const billableHours = computed(
-  () =>
-    activeRental.value?.billableHours ??
+const billableHours = computed(() => {
+  const rental = activeRental.value;
+  if (rental?.billableHours) return rental.billableHours;
+  const hourlyMinor = (rental?.charges ?? []).reduce(
+    (sum, charge) => sum + charge.unitHourlyRate.amountMinor * charge.quantity,
+    0,
+  );
+  const bookedMinimum =
+    hourlyMinor > 0
+      ? Math.ceil((rental?.prepaid?.amountMinor ?? 0) / hourlyMinor)
+      : 1;
+  return Math.max(
+    bookedMinimum,
     timing.value?.billableHours ??
-    Math.max(1, Math.ceil(playDurationMinutes.value / 60)),
-);
+      Math.max(1, Math.ceil(playDurationMinutes.value / 60)),
+  );
+});
 
 const gameRentalCost = computed(() =>
   (activeRental.value?.charges ?? [])
@@ -180,8 +191,9 @@ const tablePlayCost = computed(() => {
       100
     );
   if (isLive.value)
-    return (
-      effectiveHourlyRate.value * billableHours.value + gameRentalCost.value
+    return Math.max(
+      (activeRental.value?.prepaid?.amountMinor ?? 0) / 100,
+      effectiveHourlyRate.value * billableHours.value + gameRentalCost.value,
     );
   return Math.round(
     (playDurationMinutes.value / 60) * effectiveHourlyRate.value,
@@ -258,8 +270,18 @@ const totalGrossBillMinor = computed(
     Math.round((props.reservation.preOrder?.discountedTotal ?? 0) * 100) +
     inPlayOrdersTotalMinor.value,
 );
-const outstandingBalanceDueMinor = computed(() =>
-  Math.max(0, totalGrossBillMinor.value - Math.round(preOrderPaid.value * 100)),
+const prepaidPlayMinor = computed(
+  () => activeRental.value?.prepaid?.amountMinor ?? 0,
+);
+const outstandingBalanceDueMinor = computed(
+  () =>
+    activeRental.value?.balanceDue?.amountMinor ??
+    Math.max(
+      0,
+      totalGrossBillMinor.value -
+        Math.round(preOrderPaid.value * 100) -
+        prepaidPlayMinor.value,
+    ),
 );
 const outstandingBalanceDue = computed(
   () => outstandingBalanceDueMinor.value / 100,
@@ -693,10 +715,14 @@ function confirmCustomerQrPayment() {
             }}</span>
             <strong class="val">{{ formatBaht(totalGrossBillMinor) }}</strong>
           </div>
+          <div v-if="prepaidPlayMinor > 0" class="summary-line text-muted">
+            <span>{{ t('Prepaid table and games') }}</span>
+            <span class="val text-green">- ฿{{ prepaidPlayMinor / 100 }}</span>
+          </div>
           <div v-if="preOrderPaid > 0" class="summary-line text-muted">
             <span>{{
               isLive
-                ? t('Pre-paid by card:')
+                ? t('Pre-paid food:')
                 : t('Pre-paid Online (PromptPay QR):')
             }}</span>
             <span class="val text-green">- ฿{{ preOrderPaid }}</span>

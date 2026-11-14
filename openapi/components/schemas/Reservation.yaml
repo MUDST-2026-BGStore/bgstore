@@ -49,6 +49,13 @@ properties:
       $ref: ./ReservationGame.yaml
   tableHourlyRate:
     $ref: ./Money.yaml
+  payment:
+    description: >-
+      Reservation payment. For PROMPTPAY this includes booked table/game hours and
+      discounted food. A CONFIRMED reservation with a PENDING payment holds resources
+      while awaiting payment and cannot check in. CARD pays only the food pre-order.
+    allOf:
+      - $ref: ./OrderPayment.yaml
   preOrder:
     $ref: ./ReservationPreOrder.yaml
   notes:

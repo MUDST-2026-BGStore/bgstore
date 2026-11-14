@@ -8,7 +8,7 @@
 import type { PreOrderItemRequest } from './preOrderItemRequest';
 
 /**
- * Food and drink ordered ahead with a reservation, one line per menu item. The server prices the lines, applies the pre-order discount, holds the stock at the branch and authorizes the payment token for the total.
+ * Food and drink ordered ahead with a reservation, one line per menu item. The server prices the lines, applies the pre-order discount, holds the stock at the branch. CARD requires paymentToken and authorizes the food total; PROMPTPAY requires no token and includes food in the reservation's upfront QR charge.
  */
 export interface PreOrderRequest {
   /**
@@ -21,5 +21,5 @@ export interface PreOrderRequest {
      * @minLength 16
      * @maxLength 128
      */
-  paymentToken: string;
+  paymentToken?: string;
 }

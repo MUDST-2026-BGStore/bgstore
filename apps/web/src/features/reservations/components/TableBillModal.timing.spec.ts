@@ -175,6 +175,32 @@ describe('table bill timing for an active session', () => {
     w.unmount();
   });
 
+  it('credits prepaid play and keeps booked hours as the minimum for an early departure', async () => {
+    vi.setSystemTime(bkk('13:40'));
+    rentalOverrides = () => ({ prepaid: { amountMinor: 60000 } });
+    const w = await open();
+    expect(text(w, 'rate')).toContain('2 billable hr');
+    expect(w.get('.section-cost').text()).toBe('฿600');
+    expect(w.text()).toContain('Prepaid table and games');
+    expect(w.get('.total-due-line .due-amount').text()).toBe('฿0');
+    w.unmount();
+  });
+
+  it('uses the completed server balance after applying upfront credit', async () => {
+    vi.setSystemTime(bkk('16:20'));
+    rentalOverrides = () => ({
+      status: 'COMPLETED',
+      endedAt: serverNow(),
+      billableHours: 4,
+      total: { amountMinor: 120000 },
+      prepaid: { amountMinor: 60000 },
+      balanceDue: { amountMinor: 60000 },
+    });
+    const w = await open();
+    expect(w.get('.total-due-line .due-amount').text()).toBe('฿600');
+    w.unmount();
+  });
+
   it('shows check-in, scheduled end, elapsed, remaining, rate and estimate labels', async () => {
     vi.setSystemTime(bkk('14:10'));
     const w = await open();

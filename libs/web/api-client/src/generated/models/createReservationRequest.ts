@@ -5,6 +5,7 @@
  * Board game catalog, branch inventory, table reservations, hourly rentals and sales. Store operations are planned; identity and connectivity endpoints are retained.
  * OpenAPI spec version: 0.5.0
  */
+import type { CreateReservationRequestPaymentMethod } from './createReservationRequestPaymentMethod';
 import type { GameSelection } from './gameSelection';
 import type { PreOrderRequest } from './preOrderRequest';
 
@@ -24,5 +25,7 @@ export interface CreateReservationRequest {
   games: GameSelection[];
   /** @maxLength 1000 */
   notes?: string;
+  /** PROMPTPAY pays the booked table and game hours plus discounted food upfront. The QR expires after 15 minutes; unpaid bookings are cancelled and their holds released. CARD preserves pay-at-counter play charges and authorizes only food. Received PromptPay payments cannot be cancelled or rescheduled; refunds are not supported. */
+  paymentMethod?: CreateReservationRequestPaymentMethod;
   preOrder?: PreOrderRequest;
 }

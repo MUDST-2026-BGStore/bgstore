@@ -26,9 +26,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * A reservation's food pre-order: held at the branch and authorized on the card at booking, served
- * and captured at check-in, released and voided when the visit is cancelled or missed. Every method
- * runs inside the reservation's transaction, after the reservation row is locked.
+ * A reservation's food stock and payment lifecycle. Cards authorize food at booking and capture at
+ * check-in; PromptPay collects booked play and food upfront. Unpaid cancellations return stock and
+ * void payment. Received QR payments require refund handling before cancellation. Methods run in
+ * the reservation's transaction, after the reservation row is locked.
  */
 @Component
 class PreOrderDesk {
@@ -52,7 +53,11 @@ class PreOrderDesk {
    * Holds the stock, records the priced lines and authorizes the total. The card is charged last,
    * so a refused stock hold never touches it and a decline rolls back the whole booking.
    */
-  void place(Reservation reservation, PreOrderRequest request, Instant now) {
+  void place(Reservation reservation, PreOrderRequest request, Instant now, boolean payByCard) {
+    if (payByCard && (request.getPaymentToken() == null || request.getPaymentToken().isBlank()))
+      throw new IllegalArgumentException("A card pre-order requires a payment token");
+    if (!payByCard && request.getPaymentToken() != null)
+      throw new IllegalArgumentException("PromptPay does not accept a card token");
     if (request.getItems() == null || request.getItems().stream().anyMatch(Objects::isNull))
       throw new IllegalArgumentException("Pre-order items are required");
     requireWindow(reservation.getStartsAt(), now);
@@ -79,14 +84,21 @@ class PreOrderDesk {
             reservation.getId(), lines, now);
     preOrders.saveAndFlush(preOrder);
     items.saveAllAndFlush(lines);
-    payments.authorizeCard(
-        Payable.reservation(reservation.getId()),
-        preOrder.getTotalMinor(),
-        request.getPaymentToken());
+    if (payByCard)
+      payments.authorizeCard(
+          Payable.reservation(reservation.getId()),
+          preOrder.getTotalMinor(),
+          request.getPaymentToken());
   }
 
   /** Rejects moving a pre-ordered visit beyond what the card authorization can cover. */
   void requireReschedulable(Reservation reservation, Instant newStartsAt) {
+    var payment =
+        payments.of(Kind.RESERVATION, List.of(reservation.getId())).get(reservation.getId());
+    if (payment != null && payment.method() == Payments.Method.PROMPTPAY)
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "A PromptPay reservation cannot be rescheduled; unpaid bookings can be cancelled and rebooked");
     preOrders
         .findById(reservation.getId())
         .ifPresent(preOrder -> requireWindow(newStartsAt, preOrder.getCreatedAt()));
@@ -97,10 +109,31 @@ class PreOrderDesk {
    * be rolled back, so call this after the reservation change has been flushed.
    */
   void release(Reservation reservation) {
+    releaseStock(reservation);
+    if (payments
+        .of(Kind.RESERVATION, List.of(reservation.getId()))
+        .containsKey(reservation.getId()))
+      payments.cancel(Payable.reservation(reservation.getId()));
+  }
+
+  /**
+   * Records an absent party without reversing money already received. Unserved food returns to
+   * stock. Card holds and unpaid QRs are voided; a paid QR remains CAPTURED, independently of any
+   * future refund or forfeiture decision. Refresh pending QRs to account for delayed webhooks.
+   */
+  void releaseForNoShow(Reservation reservation) {
+    releaseStock(reservation);
+    var payment =
+        payments.of(Kind.RESERVATION, List.of(reservation.getId())).get(reservation.getId());
+    if (payment == null) return;
+    var payable = Payable.reservation(reservation.getId());
+    if (payment.method() == Payments.Method.PROMPTPAY && payments.refreshPromptPay(payable)) return;
+    payments.cancel(payable);
+  }
+
+  private void releaseStock(Reservation reservation) {
     var selections = selections(reservation.getId());
-    if (selections.isEmpty()) return;
-    pantry.release(reservation.getBranchId(), selections);
-    payments.cancel(Payable.reservation(reservation.getId()));
+    if (!selections.isEmpty()) pantry.release(reservation.getBranchId(), selections);
   }
 
   /** The party arrived: the food is served from held stock. Capture the money with capture(). */
@@ -117,6 +150,30 @@ class PreOrderDesk {
   void capture(Reservation reservation) {
     if (preOrders.existsById(reservation.getId()))
       payments.capture(Payable.reservation(reservation.getId()));
+  }
+
+  /** The QR includes all booked play and any discounted food, using server prices only. */
+  void startPromptPay(Reservation reservation, long playMinor) {
+    long foodMinor =
+        preOrders
+            .findById(reservation.getId())
+            .map(preOrder -> preOrder.getTotalMinor())
+            .orElse(0L);
+    long totalMinor = Math.addExact(playMinor, foodMinor);
+    if (totalMinor <= 0)
+      throw new IllegalArgumentException("PromptPay requires a positive booking total");
+    payments.startPromptPay(Payable.reservation(reservation.getId()), totalMinor);
+  }
+
+  /** Reject unpaid arrivals before stock is served or a rental starts. */
+  void requirePaid(Reservation reservation) {
+    var payment =
+        payments.of(Kind.RESERVATION, List.of(reservation.getId())).get(reservation.getId());
+    if (payment != null
+        && payment.method() == Payments.Method.PROMPTPAY
+        && !payments.refreshPromptPay(Payable.reservation(reservation.getId())))
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT, "PromptPay payment has not been received");
   }
 
   /** Pre-order views by reservation ID, with three reads for the whole page. */
@@ -170,6 +227,9 @@ class PreOrderDesk {
             new Money(payment.amountMinor()));
     if (payment.cardBrand() != null) summary.setCardBrand(CardBrand.valueOf(payment.cardBrand()));
     summary.setCardLast4(payment.cardLast4());
+    summary.setPromptPayQr(payment.promptPayQr());
+    if (payment.expiresAt() != null)
+      summary.setExpiresAt(payment.expiresAt().atOffset(java.time.ZoneOffset.UTC));
     return new ReservationPreOrder(
         lines.stream()
             .sorted(Comparator.comparing(line -> line.getId().menuItemId()))

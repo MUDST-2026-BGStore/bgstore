@@ -1,12 +1,15 @@
 package com.chanakanlabs.theparlor.reservations.internal.application;
 
+import com.chanakanlabs.theparlor.contracts.model.CardBrand;
 import com.chanakanlabs.theparlor.contracts.model.CustomerReference;
 import com.chanakanlabs.theparlor.contracts.model.GuestCustomer;
 import com.chanakanlabs.theparlor.contracts.model.Money;
+import com.chanakanlabs.theparlor.contracts.model.OrderPayment;
 import com.chanakanlabs.theparlor.contracts.model.RegisteredCustomer;
 import com.chanakanlabs.theparlor.contracts.model.Reservation;
 import com.chanakanlabs.theparlor.contracts.model.ReservationPreOrder;
 import com.chanakanlabs.theparlor.contracts.model.ReservationStatus;
+import com.chanakanlabs.theparlor.payments.Payments;
 import com.chanakanlabs.theparlor.reservations.internal.domain.ReservationGame;
 import com.chanakanlabs.theparlor.reservations.internal.persistence.ReservationGameRepository;
 import com.chanakanlabs.theparlor.reservations.spi.RentalDesk;
@@ -24,14 +27,19 @@ import org.springframework.stereotype.Component;
 class ReservationViews {
   private final ReservationGameRepository games;
   private final PreOrderDesk preOrders;
+  private final Payments payments;
   private final RentalDesk rentalDesk;
 
   // Lazy: the rental desk needs reservations to describe a rental, and reservations need the
   // desk for a rental's ID. Neither is used while the other is being constructed.
   ReservationViews(
-      ReservationGameRepository games, PreOrderDesk preOrders, @Lazy RentalDesk rentalDesk) {
+      ReservationGameRepository games,
+      PreOrderDesk preOrders,
+      Payments payments,
+      @Lazy RentalDesk rentalDesk) {
     this.games = games;
     this.preOrders = preOrders;
+    this.payments = payments;
     this.rentalDesk = rentalDesk;
   }
 
@@ -46,6 +54,7 @@ class ReservationViews {
     Map<UUID, List<ReservationGame>> selected = gamesOf(ids);
     Map<UUID, UUID> rentals = rentalDesk.rentalIds(ids);
     Map<UUID, ReservationPreOrder> food = preOrders.views(ids);
+    var paid = payments.of(Payments.Kind.RESERVATION, ids);
     return page.stream()
         .map(
             reservation -> {
@@ -55,6 +64,21 @@ class ReservationViews {
                       selected.getOrDefault(reservation.getId(), List.of()),
                       rentals.get(reservation.getId()));
               result.setPreOrder(food.get(reservation.getId()));
+              var summary = paid.get(reservation.getId());
+              if (summary != null) {
+                var payment =
+                    new OrderPayment(
+                        OrderPayment.MethodEnum.valueOf(summary.method().name()),
+                        OrderPayment.StatusEnum.valueOf(summary.status().name()),
+                        new Money(summary.amountMinor()));
+                if (summary.cardBrand() != null)
+                  payment.setCardBrand(CardBrand.valueOf(summary.cardBrand()));
+                payment.setCardLast4(summary.cardLast4());
+                payment.setPromptPayQr(summary.promptPayQr());
+                if (summary.expiresAt() != null)
+                  payment.setExpiresAt(summary.expiresAt().atOffset(ZoneOffset.UTC));
+                result.setPayment(payment);
+              }
               return result;
             })
         .toList();

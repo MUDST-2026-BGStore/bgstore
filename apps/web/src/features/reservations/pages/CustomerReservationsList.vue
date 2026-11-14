@@ -28,6 +28,7 @@ import {
   plusHours,
 } from '../data/booking';
 import { AppNumberStepper, AppSelect } from '../../../shared/ui';
+import ReservationPromptPay from '../components/ReservationPromptPay.vue';
 
 const auth = useAuthStore();
 const directory = useBranchDirectoryStore();
@@ -153,7 +154,7 @@ function formatTimeOnly(iso: string): string {
 }
 
 function paymentLabel(r: Reservation): string {
-  const payment = r.preOrder?.payment;
+  const payment = r.payment ?? r.preOrder?.payment;
   if (!payment) return '';
   const card = payment.cardLast4
     ? ` (${payment.cardBrand ?? ''} •••• ${payment.cardLast4})`
@@ -172,6 +173,12 @@ const isUpcoming = (r: Reservation) =>
 
 async function refresh() {
   await queryClient.invalidateQueries({ queryKey: ['reservations'] });
+}
+
+function updatePayment(reservation: Reservation) {
+  queryClient.setQueryData<Reservation[]>(['reservations', 'mine'], (rows) =>
+    rows?.map((row) => (row.id === reservation.id ? reservation : row)),
+  );
 }
 
 function actionError(error: unknown, fallback: string): string {
@@ -489,7 +496,13 @@ function rentalOf(r: Reservation): Rental | undefined {
                 class="status-badge"
                 :class="`badge-${res.status.toLowerCase()}`"
               >
-                {{ formatStatus(res.status) }}
+                {{
+                  res.payment?.status === 'PENDING' &&
+                  res.payment.method === 'PROMPTPAY' &&
+                  res.status === 'CONFIRMED'
+                    ? t('Awaiting PromptPay payment')
+                    : formatStatus(res.status)
+                }}
               </span>
             </div>
 
@@ -535,6 +548,11 @@ function rentalOf(r: Reservation): Rental | undefined {
                   }}</span>
                 </div>
               </div>
+
+              <ReservationPromptPay
+                :reservation="res"
+                @updated="updatePayment"
+              />
 
               <div v-if="res.preOrder" class="preorder-section">
                 <div class="preorder-header">
@@ -631,6 +649,26 @@ function rentalOf(r: Reservation): Rental | undefined {
                       </tr>
                     </tbody>
                     <tfoot v-if="rentalOf(res)?.total">
+                      <tr v-if="rentalOf(res)?.prepaid?.amountMinor">
+                        <th scope="row" colspan="2">
+                          {{ t('Prepaid table and games') }}
+                        </th>
+                        <td>
+                          −{{
+                            formatBaht(rentalOf(res)?.prepaid?.amountMinor ?? 0)
+                          }}
+                        </td>
+                      </tr>
+                      <tr v-if="rentalOf(res)?.balanceDue">
+                        <th scope="row" colspan="2">{{ t('Balance due') }}</th>
+                        <td>
+                          {{
+                            formatBaht(
+                              rentalOf(res)?.balanceDue?.amountMinor ?? 0,
+                            )
+                          }}
+                        </td>
+                      </tr>
                       <tr>
                         <th scope="row" colspan="2">
                           {{
@@ -666,8 +704,17 @@ function rentalOf(r: Reservation): Rental | undefined {
                       : t('View charges')
                   }}
                 </button>
-                <template v-if="isUpcoming(res)">
+                <template
+                  v-if="
+                    isUpcoming(res) &&
+                    !(
+                      res.payment?.method === 'PROMPTPAY' &&
+                      res.payment.status === 'CAPTURED'
+                    )
+                  "
+                >
                   <button
+                    v-if="res.payment?.method !== 'PROMPTPAY'"
                     type="button"
                     class="btn btn-secondary btn-small"
                     @click="openReschedule(res)"
@@ -706,7 +753,12 @@ function rentalOf(r: Reservation): Rental | undefined {
             <p class="modal-desc">
               <strong>{{ branchName(cancellingReservation.branchId) }}</strong>
               — {{ formatFriendlyDateTime(cancellingReservation.startsAt) }}
-              <template v-if="cancellingReservation.preOrder">
+              <template
+                v-if="
+                  cancellingReservation.preOrder &&
+                  cancellingReservation.preOrder.payment.method === 'CARD'
+                "
+              >
                 <br />
                 {{
                   t(

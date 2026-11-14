@@ -7,6 +7,7 @@
  */
 import type { CustomerReference } from './customerReference';
 import type { Money } from './money';
+import type { OrderPayment } from './orderPayment';
 import type { ReservationGame } from './reservationGame';
 import type { ReservationPreOrder } from './reservationPreOrder';
 import type { ReservationSource } from './reservationSource';
@@ -28,6 +29,8 @@ export interface Reservation {
   partySize: number;
   games: ReservationGame[];
   tableHourlyRate: Money;
+  /** Reservation payment. For PROMPTPAY this includes booked table/game hours and discounted food. A CONFIRMED reservation with a PENDING payment holds resources while awaiting payment and cannot check in. CARD pays only the food pre-order. */
+  payment?: OrderPayment;
   preOrder?: ReservationPreOrder;
   notes?: string;
   createdAt: string;

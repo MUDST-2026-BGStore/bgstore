@@ -54,6 +54,7 @@ export * from './createOrderRequest';
 export * from './createPaymentTokenRequest';
 export * from './createRentalCopyRequest';
 export * from './createReservationRequest';
+export * from './createReservationRequestPaymentMethod';
 export * from './createStaffOrderRequest';
 export * from './createStaffReservationRequest';
 export * from './createTableRequest';

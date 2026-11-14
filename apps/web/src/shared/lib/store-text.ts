@@ -1,5 +1,24 @@
 import { useLocale } from './locale';
 const thai: Record<string, string> = {
+  'Payment method': 'วิธีชำระเงิน',
+  'Pay now': 'ชำระตอนนี้',
+  'Card for food; play paid at counter':
+    'บัตรสำหรับอาหาร ค่าโต๊ะและเกมชำระที่เคาน์เตอร์',
+  'Booked hours and food paid upfront; extras at the counter':
+    'ชำระเวลาเล่นและอาหารล่วงหน้า ส่วนเพิ่มชำระที่เคาน์เตอร์',
+  'Table and games are paid at the counter': 'ค่าโต๊ะและเกมชำระที่เคาน์เตอร์',
+  'Pay the QR within 15 minutes. Paid bookings cannot be cancelled or rescheduled; refunds are unavailable.':
+    'ชำระผ่านคิวอาร์ภายใน 15 นาที หลังชำระแล้วไม่สามารถยกเลิกหรือเปลี่ยนเวลา และไม่รองรับการคืนเงิน',
+  'Pay {total} with PromptPay QR': 'ชำระ {total} ด้วยคิวอาร์พร้อมเพย์',
+  'Awaiting PromptPay payment': 'รอชำระเงินผ่านพร้อมเพย์',
+  'Reservation cancelled': 'ยกเลิกการจองแล้ว',
+  'Payment window closed': 'หมดเวลาชำระเงิน',
+  'Scan to complete your reservation': 'สแกนเพื่อชำระเงินการจอง',
+  'Prepaid table and games': 'ค่าโต๊ะและเกมที่ชำระล่วงหน้า',
+  'Balance due': 'ยอดคงเหลือที่ต้องชำระ',
+  'Pre-paid food:': 'อาหารที่ชำระล่วงหน้า:',
+  'Payment is unavailable right now. Please try again shortly.':
+    'ขณะนี้ไม่สามารถชำระเงินได้ กรุณาลองใหม่อีกครั้ง',
   'For delivery': 'สำหรับจัดส่ง',
   'Prices and stock': 'ราคาและจำนวนสินค้า',
   'Prices and stock are shown for the store you choose.':

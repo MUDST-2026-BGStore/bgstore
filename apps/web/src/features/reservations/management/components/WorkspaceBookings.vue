@@ -134,8 +134,12 @@ const visibleBookings = computed(() =>
                     : 'neutral'
               "
               >{{
-                statuses.find((item) => item.id === res.status)?.label ||
-                res.status
+                res.status === 'CONFIRMED' &&
+                res.payment?.method === 'PROMPTPAY' &&
+                res.payment.status === 'PENDING'
+                  ? 'Awaiting payment'
+                  : statuses.find((item) => item.id === res.status)?.label ||
+                    res.status
               }}</AppBadge
             >
           </td>
@@ -144,7 +148,11 @@ const visibleBookings = computed(() =>
             <AppButton
               v-if="res.status === 'CONFIRMED'"
               appearance="primary"
-              :disabled="actionInProgress === res.id"
+              :disabled="
+                actionInProgress === res.id ||
+                (res.payment?.method === 'PROMPTPAY' &&
+                  res.payment.status !== 'CAPTURED')
+              "
               @click="handleCheckIn(res)"
               ><i class="fa-solid fa-check" aria-hidden="true"></i>Check in &
               seat</AppButton
@@ -168,6 +176,16 @@ const visibleBookings = computed(() =>
             <AppButton
               v-if="res.status === 'CONFIRMED'"
               intent="danger"
+              :disabled="
+                res.payment?.method === 'PROMPTPAY' &&
+                res.payment.status === 'CAPTURED'
+              "
+              :title="
+                res.payment?.method === 'PROMPTPAY' &&
+                res.payment.status === 'CAPTURED'
+                  ? 'Paid PromptPay bookings cannot be cancelled while refunds are unsupported.'
+                  : undefined
+              "
               @click="openCancel(res)"
               >Cancel booking</AppButton
             >

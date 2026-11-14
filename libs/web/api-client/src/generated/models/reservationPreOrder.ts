@@ -10,7 +10,7 @@ import type { OrderPayment } from './orderPayment';
 import type { ReservationPreOrderItem } from './reservationPreOrderItem';
 
 /**
- * Food and drink paid for with the reservation. total is subtotal minus the pre-order discount. The card is authorized at booking, captured when staff check the party in, and voided if the reservation is cancelled or missed.
+ * Food and drink paid for with the reservation. total is subtotal minus the pre-order discount. The card is authorized at booking, captured when staff check the party in, and voided if the reservation is cancelled or missed. For PROMPTPAY, payment is the reservation's combined upfront payment for play and food; its amount includes table/game hours while this object's total remains food-only. Received PromptPay payments cannot be voided.
  */
 export interface ReservationPreOrder {
   /** @minItems 1 */

@@ -235,7 +235,10 @@ public class RentalsService implements RentalDesk {
 
     var now = clock.instant();
     var booked = visits.booked(List.of(rental.getReservationId())).get(rental.getReservationId());
-    int hours = RentalPricingPolicy.billableHours(rental.getStartedAt(), now);
+    int hours =
+        Math.max(
+            booked.minimumBillableHours(),
+            RentalPricingPolicy.billableHours(rental.getStartedAt(), now));
     var lines = new ArrayList<RentalCharge>();
     lines.add(RentalCharge.bill(rentalId, null, 1, booked.tableHourlyRateMinor(), hours));
     for (var game : booked.games())
@@ -333,7 +336,10 @@ public class RentalsService implements RentalDesk {
                           new Money(line.getLineTotalMinor()),
                           line.getServedAt().atOffset(ZoneOffset.UTC)))
               .toList());
+      view.setPrepaid(new Money(visit.prepaidPlayMinor()));
       if (!rental.isActive()) {
+        view.setBalanceDue(
+            new Money(Math.max(0, rental.getTotalMinor() - visit.prepaidPlayMinor())));
         view.setEndedAt(rental.getActualEndsAt().atOffset(ZoneOffset.UTC));
         view.setCheckedOutBySubject(rental.getCheckedOutBy());
         view.setBillableHours(hours);

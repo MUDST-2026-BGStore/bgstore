@@ -5163,7 +5163,7 @@ export const useCheckInReservation = <TError = ErrorType<BadRequestResponse | Un
     }
 
 /**
- * Only CONFIRMED -> NO_SHOW is allowed, and only at or after startsAt. Never automatic just because a customer has not self-reported arrival. Release allocations and pre-order stock, void any pre-order payment and record the staff actor and server timestamp. Repeating NO_SHOW returns the same reservation; other states return 409.
+ * Only CONFIRMED -> NO_SHOW is allowed, and only at or after startsAt. Never automatic just because a customer has not self-reported arrival. Release allocations and unserved pre-order stock, void card authorizations and unpaid PromptPay payments, and record the staff actor and server timestamp. Received PromptPay payments remain CAPTURED; marking a no-show does not issue a refund or classify the payment as forfeited. Pending PromptPay charges are refreshed to account for delayed payment notifications. Repeating NO_SHOW returns the same reservation without releasing stock again; other states return 409.
  * @summary Staff-only release of a missed reservation
  */
 export const markReservationNoShow = (
@@ -5222,7 +5222,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type MarkReservationNoShowMutationVariables = {branchId: string;reservationId: string;data: ReasonRequest}
 
     /**
- * Only CONFIRMED -> NO_SHOW is allowed, and only at or after startsAt. Never automatic just because a customer has not self-reported arrival. Release allocations and pre-order stock, void any pre-order payment and record the staff actor and server timestamp. Repeating NO_SHOW returns the same reservation; other states return 409.
+ * Only CONFIRMED -> NO_SHOW is allowed, and only at or after startsAt. Never automatic just because a customer has not self-reported arrival. Release allocations and unserved pre-order stock, void card authorizations and unpaid PromptPay payments, and record the staff actor and server timestamp. Received PromptPay payments remain CAPTURED; marking a no-show does not issue a refund or classify the payment as forfeited. Pending PromptPay charges are refreshed to account for delayed payment notifications. Repeating NO_SHOW returns the same reservation without releasing stock again; other states return 409.
  * @summary Staff-only release of a missed reservation
  */
 export const useMarkReservationNoShow = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | PaymentDeclinedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse | PaymentGatewayErrorResponse>,

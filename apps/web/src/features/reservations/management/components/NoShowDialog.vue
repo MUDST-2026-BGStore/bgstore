@@ -31,6 +31,10 @@ const {
       @submit.prevent="submitNoShow"
       @close="showNoShowModal = false"
     >
+      <p v-if="noShowTargetRes?.payment?.method === 'PROMPTPAY'">
+        Releases the table, games and unserved food holds. Any payment already
+        received stays recorded; this action does not issue a refund.
+      </p>
       <AppField input-id="NoShowDialog-field-1" label="Reason">
         <input
           id="NoShowDialog-field-1"

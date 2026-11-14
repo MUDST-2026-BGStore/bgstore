@@ -2,11 +2,11 @@ type: object
 description: >-
   Food and drink ordered ahead with a reservation, one line per menu item. The
   server prices the lines, applies the pre-order discount, holds the stock at
-  the branch and authorizes the payment token for the total.
+  the branch. CARD requires paymentToken and authorizes the food total; PROMPTPAY
+  requires no token and includes food in the reservation's upfront QR charge.
 additionalProperties: false
 required:
   - items
-  - paymentToken
 properties:
   items:
     type: array

@@ -125,6 +125,15 @@ export function useWorkspaceReservations() {
     queryFn: ({ signal }) =>
       listBranchReservations(selectedBranchId.value, {}, undefined, signal),
     enabled: computed(() => !!selectedBranchId.value),
+    refetchInterval: (query) =>
+      query.state.data?.items.some(
+        (reservation) =>
+          reservation.status === 'CONFIRMED' &&
+          reservation.payment?.method === 'PROMPTPAY' &&
+          reservation.payment.status === 'PENDING',
+      )
+        ? 3000
+        : false,
   });
 
   const tablesQuery = useQuery({

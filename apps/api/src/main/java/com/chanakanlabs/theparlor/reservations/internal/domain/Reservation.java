@@ -209,6 +209,14 @@ public class Reservation {
     completedAt = java.util.Objects.requireNonNull(now);
   }
 
+  /** Booked play is sold in started hours; prepaid visits retain this minimum at checkout. */
+  public int bookedHours() {
+    return Math.toIntExact(
+        Math.ceilDiv(
+            java.time.Duration.between(startsAt, endsAt).toNanos(),
+            java.time.Duration.ofHours(1).toNanos()));
+  }
+
   public boolean isConfirmed() {
     return status == ReservationStatus.CONFIRMED;
   }

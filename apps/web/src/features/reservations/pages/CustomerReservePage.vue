@@ -21,6 +21,7 @@ import { tokenizeCard } from '../../../shared/lib/card-tokens';
 import { AppNumberStepper, AppSelect } from '../../../shared/ui';
 import FoodMenuPicker from '../components/FoodMenuPicker.vue';
 import CardPaymentFields from '../components/CardPaymentFields.vue';
+import ReservationPromptPay from '../components/ReservationPromptPay.vue';
 import type { FoodOrderItem } from '../types';
 import { toFoodMenuItem } from '../data/menu';
 import {
@@ -328,7 +329,7 @@ const chosenGames = computed(() =>
     .map((game) => ({ ...game, quantity: gameQuantity(game.gameId) })),
 );
 
-// Step 4: food and drinks, paid by card now and served at check-in.
+// Step 4: food and drinks, held now and served at check-in.
 const preOrderAllowed = computed(() => canPreOrder(startTimestamp.value));
 
 const menuQuery = useQuery({
@@ -384,7 +385,7 @@ const foodPreview = computed(() =>
   ),
 );
 
-// The visit itself is billed by the hour at the counter after check-out.
+// PromptPay prepays the selected duration; the card path keeps counter billing.
 const tableHourlyMinor = computed(
   () => selectedTable.value?.hourlyRate.amountMinor ?? 0,
 );
@@ -399,7 +400,11 @@ const visitEstimateMinor = computed(
     reservationDurationHours.value,
 );
 
-// Step 5: book, authorizing the pre-order card first when there is food.
+// Step 5: create a full-visit QR, or authorize the food card on the legacy path.
+const paymentMethod = ref<'PROMPTPAY' | 'CARD'>('PROMPTPAY');
+const upfrontMinor = computed(
+  () => visitEstimateMinor.value + foodPreview.value.totalMinor,
+);
 const cardFields = ref<InstanceType<typeof CardPaymentFields> | null>(null);
 const isSubmitting = ref(false);
 const submissionError = ref('');
@@ -411,6 +416,10 @@ const createdReservation = ref<Reservation | null>(null);
  * answer from the server, or changing the booking, starts a fresh attempt.
  */
 let attempt: { key: string; paymentToken?: string } | undefined;
+watch(paymentMethod, () => {
+  attempt = undefined;
+  submissionError.value = '';
+});
 
 watch(currentStep, (step) => {
   if (step < 5) attempt = undefined;
@@ -428,9 +437,7 @@ function failureMessage(error: unknown): string {
       'The table, a game or some food was just taken, or the visit is too far ahead for a pre-order. Review your choices and try again.',
     );
   if (status === 502)
-    return t(
-      'Card payment is unavailable right now. Please try again shortly.',
-    );
+    return t('Payment is unavailable right now. Please try again shortly.');
   if (status === 400)
     return t('Some booking details are not valid. Please check them.');
   return t('The reservation could not be made. Please try again.');
@@ -439,16 +446,16 @@ function failureMessage(error: unknown): string {
 async function confirmReservation() {
   if (isSubmitting.value || !selectedTable.value) return;
   submissionError.value = '';
-  const card = hasFood.value ? cardFields.value?.read() : undefined;
-  if (hasFood.value && !card) return;
+  const needsCard = paymentMethod.value === 'CARD' && hasFood.value;
+  const card =
+    needsCard && !attempt?.paymentToken ? cardFields.value?.read() : undefined;
+  if (needsCard && !attempt?.paymentToken && !card) return;
   isSubmitting.value = true;
   try {
-    if (!attempt) {
-      attempt = { key: crypto.randomUUID() };
-      if (card) {
-        attempt.paymentToken = await tokenizeCard(card);
-        cardFields.value?.clear();
-      }
+    if (!attempt) attempt = { key: crypto.randomUUID() };
+    if (card && !attempt.paymentToken) {
+      attempt.paymentToken = await tokenizeCard(card);
+      cardFields.value?.clear();
     }
     const request: CreateReservationRequest = {
       tableId: selectedTable.value.tableId,
@@ -460,7 +467,8 @@ async function confirmReservation() {
         quantity,
       })),
       notes: specialNotes.value.trim() || undefined,
-      preOrder: attempt.paymentToken
+      paymentMethod: paymentMethod.value,
+      preOrder: hasFood.value
         ? {
             items: preOrderedFood.value.map((line) => ({
               menuItemId: line.item.id,
@@ -1297,14 +1305,34 @@ const receiptPaymentNote = computed(() => {
 
             <div class="pricing-card">
               <h3 class="card-heading">{{ t('Payment Summary') }}</h3>
+              <fieldset
+                class="reservation-payment-methods"
+                :disabled="isSubmitting"
+              >
+                <legend>{{ t('Payment method') }}</legend>
+                <label
+                  ><input
+                    v-model="paymentMethod"
+                    type="radio"
+                    value="PROMPTPAY"
+                  />
+                  {{ t('PromptPay QR') }}</label
+                >
+                <label
+                  ><input v-model="paymentMethod" type="radio" value="CARD" />
+                  {{ t('Card for food; play paid at counter') }}</label
+                >
+              </fieldset>
               <div class="cost-row">
                 <div>
                   <span>{{
                     t('Table and games for {hours}', { hours: durationLabel })
                   }}</span>
-                  <span class="pay-counter-pill">{{
-                    t('Pay at counter after session')
-                  }}</span>
+                  <span
+                    v-if="paymentMethod === 'CARD'"
+                    class="pay-counter-pill"
+                    >{{ t('Pay at counter after session') }}</span
+                  >
                 </div>
                 <span class="muted-val">{{
                   formatBaht(visitEstimateMinor)
@@ -1324,19 +1352,43 @@ const receiptPaymentNote = computed(() => {
               </template>
               <div class="grand-total-row">
                 <div>
-                  <span>{{ t('On your card now') }}</span>
+                  <span>{{
+                    paymentMethod === 'PROMPTPAY'
+                      ? t('Pay now')
+                      : t('On your card now')
+                  }}</span>
                   <small class="due-sub-text">{{
-                    hasFood
-                      ? t('Authorized now, charged at check-in')
-                      : t('Nothing is charged to book a table')
+                    paymentMethod === 'PROMPTPAY'
+                      ? t(
+                          'Booked hours and food paid upfront; extras at the counter',
+                        )
+                      : hasFood
+                        ? t('Authorized now, charged at check-in')
+                        : t('Table and games are paid at the counter')
                   }}</small>
                 </div>
                 <span class="total-amount">{{
-                  formatBaht(hasFood ? foodPreview.totalMinor : 0)
+                  formatBaht(
+                    paymentMethod === 'PROMPTPAY'
+                      ? upfrontMinor
+                      : hasFood
+                        ? foodPreview.totalMinor
+                        : 0,
+                  )
                 }}</span>
               </div>
 
-              <CardPaymentFields v-if="hasFood" ref="cardFields" />
+              <CardPaymentFields
+                v-if="hasFood && paymentMethod === 'CARD'"
+                ref="cardFields"
+              />
+              <p v-if="paymentMethod === 'PROMPTPAY'" class="pay-note">
+                {{
+                  t(
+                    'Pay the QR within 15 minutes. Paid bookings cannot be cancelled or rescheduled; refunds are unavailable.',
+                  )
+                }}
+              </p>
 
               <div v-if="submissionError" class="error-banner" role="alert">
                 {{ submissionError }}
@@ -1351,11 +1403,15 @@ const receiptPaymentNote = computed(() => {
                 {{
                   isSubmitting
                     ? t('Booking…')
-                    : hasFood
-                      ? t('Authorize {total} and Book', {
-                          total: formatBaht(foodPreview.totalMinor),
+                    : paymentMethod === 'PROMPTPAY'
+                      ? t('Pay {total} with PromptPay QR', {
+                          total: formatBaht(upfrontMinor),
                         })
-                      : t('Confirm Reservation')
+                      : hasFood
+                        ? t('Authorize {total} and Book', {
+                            total: formatBaht(foodPreview.totalMinor),
+                          })
+                        : t('Confirm Reservation')
                 }}
               </button>
               <p class="pay-note">
@@ -1389,12 +1445,29 @@ const receiptPaymentNote = computed(() => {
         >
           <div v-if="createdReservation" class="receipt-card">
             <div class="receipt-badge" role="status">
-              <span>{{ t('Reservation Confirmed!') }}</span>
+              <span>{{
+                createdReservation.status === 'CANCELLED'
+                  ? t('Reservation cancelled')
+                  : createdReservation.payment?.status === 'PENDING'
+                    ? t('Awaiting PromptPay payment')
+                    : t('Reservation Confirmed!')
+              }}</span>
             </div>
 
             <h2 id="receipt-heading" class="receipt-title">
-              {{ t('See You at The Parlor!') }}
+              {{
+                createdReservation.status === 'CANCELLED'
+                  ? t('Payment window closed')
+                  : createdReservation.payment?.status === 'PENDING'
+                    ? t('Scan to complete your reservation')
+                    : t('See You at The Parlor!')
+              }}
             </h2>
+
+            <ReservationPromptPay
+              :reservation="createdReservation"
+              @updated="createdReservation = $event"
+            />
 
             <div class="receipt-meta-box">
               <div class="meta-line">
@@ -1492,6 +1565,19 @@ const receiptPaymentNote = computed(() => {
 </template>
 
 <style scoped>
+.reservation-payment-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0 0 20px;
+  padding: 12px;
+  border: 1px solid #c9bda7;
+}
+.reservation-payment-methods label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
 /* Shared selects and steppers match this page's cream-bordered fields. */
 .reservation-page {
   --ui-brand: #203c30;

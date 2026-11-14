@@ -37,9 +37,13 @@ export interface Rental {
   /** Present when COMPLETED. */
   checkedOutBySubject?: string;
   /**
-     * Present when COMPLETED; ceil actual elapsed hours, minimum one.
+     * Present when COMPLETED; ceil actual elapsed hours, minimum one. An upfront paid reservation has a minimum of its booked hours, including early departures.
      * @minimum 1
      */
   billableHours?: number;
+  /** Captured upfront table/game credit. Food pre-orders are paid separately and excluded from rental total and this credit. */
+  prepaid?: Money;
+  /** Present when COMPLETED; rental total less prepaid table/game credit. Later refreshments and play beyond the booked hours remain payable at the counter. */
+  balanceDue?: Money;
   total?: Money;
 }
