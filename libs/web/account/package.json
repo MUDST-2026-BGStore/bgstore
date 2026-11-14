@@ -20,7 +20,7 @@
   "private": true,
   "dependencies": {
     "@theparlor/api-client": "workspace:*",
-    "axios": "^1.20.0",
+    "axios": "^1.21.1",
     "vue": "catalog:"
   }
 }

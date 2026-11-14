@@ -427,9 +427,7 @@ function getStatusLabel(order: Order): { text: string; colorClass: string } {
                   <h4 class="order-item-title">{{ item.gameName }}</h4>
                   <div class="order-item-options">
                     <span
-                      >{{
-                        locale === 'th-TH' ? 'ตัวเลือกสินค้า:' : 'Edition:'
-                      }}
+                      >{{ locale === 'th-TH' ? 'ตัวเลือกสินค้า:' : 'Edition:' }}
                       {{ editionLabel(item.editionLanguage) }}</span
                     >
                   </div>

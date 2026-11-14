@@ -461,8 +461,8 @@ function confirmCustomerQrPayment() {
               <div>
                 <dt>{{ t('Rate') }}</dt>
                 <dd data-testid="rate">
-                  ฿{{ effectiveHourlyRate }}/{{ t('hr') }} ×
-                  {{ billableHours }} {{ t('billable hr') }}
+                  ฿{{ effectiveHourlyRate }}/{{ t('hr') }} × {{ billableHours }}
+                  {{ t('billable hr') }}
                 </dd>
               </div>
               <div>

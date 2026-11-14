@@ -273,9 +273,8 @@ async function walkInDialog() {
 }
 
 async function workspace() {
-  const { useWorkspaceReservations } = await import(
-    './useWorkspaceReservations'
-  );
+  const { useWorkspaceReservations } =
+    await import('./useWorkspaceReservations');
   const ws = await mountWith(() => useWorkspaceReservations());
   await flushPromises();
   return ws;
@@ -554,9 +553,8 @@ it('drops walk-ins the server never accepted from stored state, keeping real ses
     ]),
   );
   vi.resetModules();
-  const { useCustomerReservationsStore } = await import(
-    '../data/reservations-store'
-  );
+  const { useCustomerReservationsStore } =
+    await import('../data/reservations-store');
   const reloaded = useCustomerReservationsStore().reservations.value;
 
   expect(reloaded.map((r) => r.id)).not.toContain('walkin-mf1abc2');
