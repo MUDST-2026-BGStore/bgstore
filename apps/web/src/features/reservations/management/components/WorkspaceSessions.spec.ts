@@ -26,7 +26,7 @@ function stub(hourlyRate: number | undefined) {
   return {
     activeFloorReservations: ref([res]),
     branchFloorTables: [],
-    getTableStatus: () => ({ state: 'FREE', reservation: null }),
+    tableLabel: () => 'Table 1',
     formatTime: formatStoreTime,
     getElapsedMinutes: () => 30,
     getSessionTiming: () => ({
