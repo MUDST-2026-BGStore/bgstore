@@ -273,4 +273,3 @@ it('books all selected hours through PromptPay without requesting card details',
   ).toBe(false);
   page.unmount();
 });
-

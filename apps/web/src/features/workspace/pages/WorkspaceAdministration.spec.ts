@@ -115,10 +115,9 @@ it('lists branch assignments, searches onboarded accounts, grants and revokes', 
   );
 
   // Onboarded accounts are listed without typing, so administrators can browse everyone.
-  await vi.waitFor(
-    () => expect(page.text()).toContain('Natt Worapat'),
-    { timeout: 2000 },
-  );
+  await vi.waitFor(() => expect(page.text()).toContain('Natt Worapat'), {
+    timeout: 2000,
+  });
   expect(page.text()).toContain(
     'Showing up to 20 accounts; filter by name or phone to narrow the list.',
   );

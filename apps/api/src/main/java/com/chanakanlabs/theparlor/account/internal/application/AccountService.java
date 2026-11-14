@@ -102,8 +102,7 @@ public class AccountService implements CurrentAccount, AccountProvisioning, Acco
     String escaped =
         text.isEmpty()
             ? ""
-            : text
-                .toLowerCase(Locale.ROOT)
+            : text.toLowerCase(Locale.ROOT)
                 .replace("\\", "\\\\")
                 .replace("%", "\\%")
                 .replace("_", "\\_");

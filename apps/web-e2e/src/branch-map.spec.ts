@@ -109,7 +109,9 @@ async function expectFocused(page: Page, name: string) {
 }
 
 for (const width of [390, 1440]) {
-  test(`opens booking for the chosen branch at ${width}px`, async ({ page }) => {
+  test(`opens booking for the chosen branch at ${width}px`, async ({
+    page,
+  }) => {
     await page.route('**/api/auth/session', (route) =>
       route.fulfill({
         json: {
@@ -119,7 +121,9 @@ for (const width of [390, 1440]) {
       }),
     );
     await page.route('**/api/v1/me', (route) =>
-      route.fulfill({ json: { id: 'customer', preferences: { preferredLocale: 'en-US' } } }),
+      route.fulfill({
+        json: { id: 'customer', preferences: { preferredLocale: 'en-US' } },
+      }),
     );
     await page.route('**/api/v1/me/cart', (route) =>
       route.fulfill({ json: { items: [] } }),
@@ -134,26 +138,45 @@ for (const width of [390, 1440]) {
       ['Riverside', '00000000-0000-4000-8000-0000000000a3'],
     ]) {
       await page.goto('/branches');
-      await page.getByRole('button', { name: `${name} details`, exact: true }).click();
-      await page.getByRole('link', { name: 'Reserve a table here', exact: true }).click();
+      await page
+        .getByRole('button', { name: `${name} details`, exact: true })
+        .click();
+      await page
+        .getByRole('link', { name: 'Reserve a table here', exact: true })
+        .click();
       await expect(page).toHaveURL(`/reservations/new?branch=${id}`);
-      await expect(page.getByRole('heading', { name: 'Choose Your Branch & Time' })).toBeVisible();
-      await expect(page.getByRole('button', { name: `Branch Location: ${name} — ${name} address`, exact: true })).toBeVisible();
+      await expect(
+        page.getByRole('heading', { name: 'Choose Your Branch & Time' }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('button', {
+          name: `Branch Location: ${name} — ${name} address`,
+          exact: true,
+        }),
+      ).toBeVisible();
     }
   });
 
-  test(`sends a guest reservation click to sign in at ${width}px`, async ({ page }) => {
+  test(`sends a guest reservation click to sign in at ${width}px`, async ({
+    page,
+  }) => {
     await page.route('**/api/auth/login/keycloak?*', (route) =>
       route.fulfill({ body: 'Sign in', contentType: 'text/plain' }),
     );
     await page.setViewportSize({ width, height: 960 });
     await page.goto('/branches');
-    await page.getByRole('button', { name: 'Ari details', exact: true }).click();
-    await page.getByRole('link', { name: 'Reserve a table here', exact: true }).click();
-    await expect(page).toHaveURL(/\/api\/auth\/login\/keycloak\?ui_locales=en-US$/);
-    expect(await page.evaluate(() => sessionStorage.getItem('theparlor.returnTo'))).toBe(
-      '/reservations/new?branch=00000000-0000-4000-8000-0000000000a2',
+    await page
+      .getByRole('button', { name: 'Ari details', exact: true })
+      .click();
+    await page
+      .getByRole('link', { name: 'Reserve a table here', exact: true })
+      .click();
+    await expect(page).toHaveURL(
+      /\/api\/auth\/login\/keycloak\?ui_locales=en-US$/,
     );
+    expect(
+      await page.evaluate(() => sessionStorage.getItem('theparlor.returnTo')),
+    ).toBe('/reservations/new?branch=00000000-0000-4000-8000-0000000000a2');
   });
 
   test(`shows every branch pin and label on arrival at ${width}px`, async ({

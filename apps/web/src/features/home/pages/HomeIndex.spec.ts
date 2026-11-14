@@ -184,7 +184,9 @@ it('navigates to the profile page when clicking Your profile in the account drop
   await page.get('#account-panel a[href="/profile"]').trigger('click');
   await flushPromises();
   expect(router.currentRoute.value.name).toBe('AuthProfile');
-  expect(page.get('.account-trigger').attributes('aria-expanded')).toBe('false');
+  expect(page.get('.account-trigger').attributes('aria-expanded')).toBe(
+    'false',
+  );
 });
 
 it('preserves sign-in error feedback with a route back to the account action', async () => {
