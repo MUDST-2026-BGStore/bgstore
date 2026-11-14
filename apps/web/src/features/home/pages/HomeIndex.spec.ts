@@ -178,6 +178,15 @@ it('shows profile, workspace and the existing logout action only for authenticat
   );
 });
 
+it('navigates to the profile page when clicking Your profile in the account dropdown', async () => {
+  const { router } = await render(true);
+  await page.get('.account-trigger').trigger('click');
+  await page.get('#account-panel a[href="/profile"]').trigger('click');
+  await flushPromises();
+  expect(router.currentRoute.value.name).toBe('AuthProfile');
+  expect(page.get('.account-trigger').attributes('aria-expanded')).toBe('false');
+});
+
 it('preserves sign-in error feedback with a route back to the account action', async () => {
   window.history.replaceState({}, '', '/?login_error');
   await render();
