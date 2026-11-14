@@ -61,6 +61,12 @@ class OrderTests {
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> placed(null).ship(OrderCarrier.JT, "JT-123"))
         .isInstanceOf(IllegalStateException.class);
+
+    var cancelled = placed(Map.of("line1", "1 Road"));
+    cancelled.cancel("staff-1", "Changed mind", NOW);
+    assertThatThrownBy(() -> cancelled.ship(OrderCarrier.JT, "JT-123"))
+        .isInstanceOf(IllegalStateException.class);
+    assertThat(cancelled.getCarrier()).isNull();
   }
 
   @Test

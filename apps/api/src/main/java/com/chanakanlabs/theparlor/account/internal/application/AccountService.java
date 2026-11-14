@@ -22,6 +22,7 @@ import com.chanakanlabs.theparlor.identity.UserProfile;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.util.*;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.ConnectionCallback;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -101,9 +102,7 @@ public class AccountService implements CurrentAccount, AccountProvisioning, Acco
     String escaped =
         text.toLowerCase(Locale.ROOT).replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     return identities
-        .search(
-            "%" + escaped + "%",
-            org.springframework.data.domain.PageRequest.of(0, Math.min(limit, MAX_SEARCH_RESULTS)))
+        .search("%" + escaped + "%", PageRequest.of(0, Math.min(limit, MAX_SEARCH_RESULTS)))
         .stream()
         .map(
             identity -> {

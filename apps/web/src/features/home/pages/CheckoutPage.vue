@@ -7,6 +7,7 @@ import { useOrdersStore } from '../stores/orders';
 import { formatMinor } from '../data/catalog';
 import { useGameCovers } from '../api/catalog';
 import { httpStatus, problemCode } from '../../../shared/lib/api-errors';
+import { CARRIER_NAMES, copyText } from '../../../shared/lib/carriers';
 import { useStoreText } from '../data/store-text';
 import { useAuthStore } from '../../../shared/stores/auth';
 import CartFulfillment from '../components/CartFulfillment.vue';
@@ -72,17 +73,6 @@ const totalPayable = computed(() => cart.total);
 const freeShippingRemaining = computed(() =>
   Math.max(0, FREE_SHIPPING_FROM_MINOR - cart.subtotal),
 );
-
-const carrierNames: Record<string, string> = {
-  THAILAND_POST: 'Thailand Post',
-  KERRY: 'Kerry Express (KEX)',
-  FLASH: 'Flash Express',
-  JT: 'J&T Express',
-};
-
-async function copyTracking(trackingNumber: string) {
-  await navigator.clipboard.writeText(trackingNumber);
-}
 
 function editionLabel(language: string) {
   try {
@@ -1096,14 +1086,14 @@ function viewOrdersAndExit() {
                 v-if="placedOrder.carrier && placedOrder.trackingNumber"
                 class="line tracking-row"
               >
-                <span>{{ carrierNames[placedOrder.carrier] }}</span>
+                <span>{{ CARRIER_NAMES[placedOrder.carrier] }}</span>
                 <strong class="tracking-code">{{
                   placedOrder.trackingNumber
                 }}</strong>
                 <button
                   type="button"
                   class="btn-copy-tracking"
-                  @click="copyTracking(placedOrder.trackingNumber)"
+                  @click="copyText(placedOrder.trackingNumber)"
                 >
                   {{ locale === 'th-TH' ? 'คัดลอก' : 'Copy' }}
                 </button>

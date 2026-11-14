@@ -8,6 +8,7 @@ import {
 } from '@theparlor/api-client';
 import { collectPages } from '../../../../shared/lib/pagination';
 import { problemMessage } from '../../../../shared/lib/api-errors';
+import { carrierOptions } from '../../../../shared/lib/carriers';
 import {
   AppBadge,
   AppButton,
@@ -113,12 +114,6 @@ const dispatchCarrier = ref<NonNullable<FulfillOrderRequest['carrier']> | ''>(
 );
 const dispatchTracking = ref('');
 const dispatchError = ref('');
-const carrierOptions = [
-  { value: 'THAILAND_POST', label: 'Thailand Post' },
-  { value: 'KERRY', label: 'Kerry Express (KEX)' },
-  { value: 'FLASH', label: 'Flash Express' },
-  { value: 'JT', label: 'J&T Express' },
-];
 
 function closeDispatch() {
   if (fulfillMutation.isPending.value) return;

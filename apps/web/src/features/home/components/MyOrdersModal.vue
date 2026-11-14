@@ -6,6 +6,7 @@ import { cancelOrder, type Order } from '@theparlor/api-client';
 import { useOrdersStore } from '../stores/orders';
 import { useCartStore } from '../stores/cart';
 import { useAuthStore } from '../../../shared/stores/auth';
+import { CARRIER_NAMES, copyText } from '../../../shared/lib/carriers';
 import { formatMinor } from '../data/catalog';
 import { useGameCovers } from '../api/catalog';
 import { MY_ORDERS_QUERY_KEY, useMyOrders } from '../api/orders';
@@ -18,13 +19,6 @@ const auth = useAuthStore();
 const queryClient = useQueryClient();
 const coverOf = useGameCovers();
 const { locale } = useStoreText();
-
-const carrierNames: Record<string, string> = {
-  THAILAND_POST: 'Thailand Post',
-  KERRY: 'Kerry Express (KEX)',
-  FLASH: 'Flash Express',
-  JT: 'J&T Express',
-};
 
 const dialog = ref<HTMLDialogElement | null>(null);
 
@@ -180,10 +174,6 @@ function paymentLabel(order: Order): string {
         ? `กันวงเงินไว้ที่ ${card} จะเรียกเก็บเมื่อส่งมอบสินค้า`
         : `Reserved on ${card}; charged at handover`;
   }
-}
-
-async function copyTracking(trackingNumber: string) {
-  await navigator.clipboard.writeText(trackingNumber);
 }
 
 function getStatusLabel(order: Order): { text: string; colorClass: string } {
@@ -486,12 +476,12 @@ function getStatusLabel(order: Order): { text: string; colorClass: string } {
                   v-if="order.carrier && order.trackingNumber"
                   class="tracking-snippet-bar"
                 >
-                  {{ carrierNames[order.carrier] }} ·
+                  {{ CARRIER_NAMES[order.carrier] }} ·
                   <strong>{{ order.trackingNumber }}</strong>
                   <button
                     type="button"
                     class="btn-copy-code"
-                    @click="copyTracking(order.trackingNumber)"
+                    @click="copyText(order.trackingNumber)"
                   >
                     {{ locale === 'th-TH' ? 'คัดลอก' : 'Copy' }}
                   </button>

@@ -1,5 +1,6 @@
 package com.chanakanlabs.theparlor.orders.internal.domain;
 
+import com.chanakanlabs.theparlor.orders.ShippingPolicy;
 import com.chanakanlabs.theparlor.shared.ContactStorageLimits;
 import com.chanakanlabs.theparlor.shared.EnumStorageLengths;
 import com.chanakanlabs.theparlor.shared.WorkflowTextLimits;
@@ -149,9 +150,7 @@ public class Order {
         shippingAddress == null ? OrderFulfillmentMethod.PICKUP : OrderFulfillmentMethod.SHIPPING;
     order.shippingAddress = shippingAddress == null ? null : copyJsonObject(shippingAddress);
     order.notes = text(notes, WorkflowTextLimits.MAX_NOTES_LENGTH, "Notes");
-    order.shippingFeeMinor =
-        com.chanakanlabs.theparlor.orders.ShippingPolicy.feeMinor(
-            shippingAddress != null, itemsTotalMinor);
+    order.shippingFeeMinor = ShippingPolicy.feeMinor(shippingAddress != null, itemsTotalMinor);
     order.totalMinor = Math.addExact(itemsTotalMinor, order.shippingFeeMinor);
     order.createdBySubject = createdBySubject;
     return order;
@@ -162,6 +161,8 @@ public class Order {
     if (fulfillmentMethod != OrderFulfillmentMethod.SHIPPING)
       throw new IllegalStateException("A pickup order cannot be shipped");
     if (status == OrderStatus.FULFILLED) return;
+    if (status == OrderStatus.CANCELLED)
+      throw new IllegalStateException("A cancelled order cannot be shipped");
     String stripped = text(trackingNumber, 60, "Tracking number");
     if (stripped == null) throw new IllegalArgumentException("Tracking number is required");
     this.carrier = java.util.Objects.requireNonNull(carrier, "Carrier is required");

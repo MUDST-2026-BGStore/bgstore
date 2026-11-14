@@ -23,6 +23,7 @@ import com.chanakanlabs.theparlor.orders.OrderPlacement.Line;
 import com.chanakanlabs.theparlor.orders.OrderPlacement.Placement;
 import com.chanakanlabs.theparlor.orders.internal.domain.Order.Buyer;
 import com.chanakanlabs.theparlor.orders.internal.domain.OrderCarrier;
+import com.chanakanlabs.theparlor.orders.internal.domain.OrderFulfillmentMethod;
 import com.chanakanlabs.theparlor.orders.internal.persistence.OrderItemRepository;
 import com.chanakanlabs.theparlor.orders.internal.persistence.OrderRepository;
 import com.chanakanlabs.theparlor.payments.Payments;
@@ -180,16 +181,17 @@ public class OrdersService {
   public Order fulfillOrder(UUID branchId, UUID orderId, @Nullable FulfillOrderRequest request) {
     String staff = branches.requireOperator(branchId);
     var order = orders.lockByIdAndBranchId(orderId, branchId).orElseThrow(OrdersService::missing);
-    if (order.getFulfillmentMethod()
-        == com.chanakanlabs.theparlor.orders.internal.domain.OrderFulfillmentMethod.SHIPPING) {
-      if (request == null || request.getCarrier() == null || request.getTrackingNumber() == null)
-        throw new IllegalArgumentException("Shipping fulfillment needs carrier and trackingNumber");
-      order.ship(OrderCarrier.valueOf(request.getCarrier().name()), request.getTrackingNumber());
-    } else if (request != null
-        && (request.getCarrier() != null || request.getTrackingNumber() != null)) {
+    boolean shipping = order.getFulfillmentMethod() == OrderFulfillmentMethod.SHIPPING;
+    boolean hasShipment =
+        request != null && (request.getCarrier() != null || request.getTrackingNumber() != null);
+    if (shipping
+        && (request == null || request.getCarrier() == null || request.getTrackingNumber() == null))
+      throw new IllegalArgumentException("Shipping fulfillment needs carrier and trackingNumber");
+    if (!shipping && hasShipment)
       throw new IllegalArgumentException("A pickup order cannot have carrier or trackingNumber");
-    }
     try {
+      if (shipping)
+        order.ship(OrderCarrier.valueOf(request.getCarrier().name()), request.getTrackingNumber());
       if (order.fulfill(staff, clock.instant())) {
         inventory.fulfill(branchId, selections(orderId));
         payments.capture(Payable.order(orderId));

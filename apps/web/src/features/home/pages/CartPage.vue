@@ -116,6 +116,14 @@ const selectedCount = computed(() =>
   selectedLines.value.reduce((sum, l) => sum + l.quantity, 0),
 );
 
+const selectedSubtotal = computed(() =>
+  selectedLines.value.reduce((sum, l) => sum + l.total, 0),
+);
+
+// Shipping and the grand total come from the server for the whole cart. Checkout
+// drops unticked lines first, so those figures only apply while everything is ticked.
+const showCartTotals = computed(() => isAllSelected.value);
+
 const freeShippingRemaining = computed(() =>
   Math.max(0, FREE_SHIPPING_FROM_MINOR - cart.subtotal),
 );
@@ -479,10 +487,13 @@ async function proceedToCheckout() {
                   }}
                 </span>
                 <strong class="total-amt">{{
-                  formatMinor(cart.subtotal)
+                  formatMinor(selectedSubtotal)
                 }}</strong>
               </div>
-              <div v-if="cart.method === 'shipping'" class="breakdown-line">
+              <div
+                v-if="showCartTotals && cart.method === 'shipping'"
+                class="breakdown-line"
+              >
                 <span class="lbl-total">
                   {{ locale === 'th-TH' ? 'ค่าจัดส่ง:' : 'Shipping:' }}
                   <small v-if="cart.shippingFee > 0">
@@ -501,7 +512,7 @@ async function proceedToCheckout() {
                     : formatMinor(cart.shippingFee)
                 }}</strong>
               </div>
-              <div class="breakdown-line">
+              <div v-if="showCartTotals" class="breakdown-line">
                 <span class="lbl-total">{{
                   locale === 'th-TH' ? 'ยอดรวม:' : 'Total:'
                 }}</span>
