@@ -1,5 +1,6 @@
 // Local reseed: sync the dev user/Keycloak client first, then reset and reseed
-// the API's reference data (branches, catalog, editions, stock, tables, copies).
+// the API's reference data (branches, catalog, editions, stock, tables, copies),
+// then the role users, whose staff assignments the reset deletes with the branches.
 // No business-specific demo data beyond what the storefront needs.
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -15,4 +16,9 @@ const child = spawn('./gradlew', ['--console=plain', 'seedReferenceData'], {
 });
 for (const signal of ['SIGINT', 'SIGTERM'])
   process.on(signal, () => child.kill(signal));
-child.on('exit', (code) => process.exit(code ?? 1));
+const code = await new Promise((resolve) =>
+  child.on('exit', (status) => resolve(status ?? 1)),
+);
+if (code !== 0) process.exit(code);
+console.log('\nSeeding customer, staff, manager and admin sign-ins…');
+await import('./seed-dev-users.mjs');

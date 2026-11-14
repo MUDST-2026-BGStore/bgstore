@@ -6,7 +6,7 @@ IMAGE_TAG ?= dev
 SERVICE ?=
 COMPOSE := docker compose --env-file .env -f deploy/docker/compose/compose.yaml
 
-.PHONY: help configure bootstrap install playwright-install infra-up infra-down dev dev-api dev-web up down reset-data reset-api-data nuke logs ps restart build build-images clean check-contract bundle-contract generate-api modulith-check seed-dev delete-user wipe-users test-user-maintenance test test-web test-api typecheck lint format e2e k8s-dry-run
+.PHONY: help configure bootstrap install playwright-install infra-up infra-down dev dev-api dev-web up down reset-data reset-api-data nuke logs ps restart build build-images clean check-contract bundle-contract generate-api modulith-check seed-dev seed-users delete-user wipe-users test-user-maintenance test test-web test-api typecheck lint format e2e k8s-dry-run
 help: ## Show commands
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z0-9_-]+:.*##/ {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 .PHONY: todos
@@ -72,8 +72,10 @@ generate-api: ## Lint/validate the OpenAPI contract and regenerate Java/TypeScri
 	pnpm generate:api
 modulith-check: ## Verify module dependencies and generate module documentation (no Docker needed)
 	pnpm nx run api:test --args="test --tests '*ModularityTests' generateModuleDocumentation"
-seed-dev: ## Sync local BFF client/roles and staff user from .env, then reset and reseed branches, catalog, editions, stock and tables
+seed-dev: ## Sync local BFF client/roles and staff user from .env, then reset and reseed branches, catalog, editions, stock and tables, then the role users
 	node tools/seed-dev.mjs
+seed-users: ## Create or reset the customer, staff, unassigned staff, manager and admin sign-ins (password: E2E_PASSWORD); keeps business data
+	node tools/seed-dev-users.mjs
 delete-user wipe-users: export THEPARLOR_DELETE_USERNAME = $(USERNAME)
 delete-user wipe-users: export THEPARLOR_DELETE_USER_ID = $(USER_ID)
 delete-user wipe-users: export THEPARLOR_DELETE_CONFIRM = $(CONFIRM)
