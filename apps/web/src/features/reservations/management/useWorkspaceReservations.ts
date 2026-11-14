@@ -33,7 +33,6 @@ import {
 } from '../data/session-timing';
 import { httpStatus } from '../../../shared/lib/api-errors';
 
-const SESSION_POLL_MS = 15_000;
 const baht = (amountMinor: number) => Math.round(amountMinor / 100);
 
 /** A server pre-order in the bill's shape; it is paid once its card is captured. */
@@ -122,8 +121,6 @@ export function useWorkspaceReservations() {
     queryFn: ({ signal }) =>
       listBranchReservations(selectedBranchId.value, {}, undefined, signal),
     enabled: computed(() => !!selectedBranchId.value),
-    // The server closes sessions at their booked end; poll so the floor follows it.
-    refetchInterval: SESSION_POLL_MS,
   });
 
   const tablesQuery = useQuery({
@@ -143,8 +140,6 @@ export function useWorkspaceReservations() {
         signal,
       ),
     enabled: computed(() => !!selectedBranchId.value),
-    // The server closes sessions at their booked end; poll so the floor follows it.
-    refetchInterval: SESSION_POLL_MS,
   });
 
   // Tables Floor Plan Roster. A branch with server tables runs entirely on server

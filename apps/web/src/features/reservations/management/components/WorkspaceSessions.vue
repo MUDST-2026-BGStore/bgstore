@@ -193,7 +193,11 @@ watch([search, selectedBranchId], selection.clear);
                 }}
                 min · ending soon</span
               >
-              <span v-else-if="getSessionTiming(res)?.ended">Ended</span>
+              <span v-else-if="getSessionTiming(res)?.ended"
+                >Over by
+                {{ Math.ceil(getSessionTiming(res)!.overtimeSeconds / 60) }}
+                min</span
+              >
               <span v-else
                 >{{
                   Math.ceil(getSessionTiming(res)!.remainingSeconds / 60)

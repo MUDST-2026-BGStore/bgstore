@@ -1,7 +1,8 @@
 // Pure timing for an in-store play session. Every input is an absolute instant
 // (ISO-8601 with an offset or Z), never a wall-clock string, so the result does
 // not depend on the device time zone. The scheduled end is fixed by the booking:
-// a late arrival does not move it and nothing is accrued after it.
+// a late arrival does not move it. Play past it keeps counting and is billed in
+// started hours until staff close the session, as checkout does.
 
 /** The store's time zone; staff see times here whatever the device uses. */
 export const STORE_TIME_ZONE = 'Asia/Bangkok';
@@ -24,6 +25,8 @@ export interface SessionTimingInput {
 export interface SessionTiming {
   elapsedSeconds: number;
   remainingSeconds: number;
+  /** Time played beyond the scheduled end while the session is still open. */
+  overtimeSeconds: number;
   /** Table time the server bills if the displayed play time is final: started hours, minimum one. */
   billableHours: number;
   /** True once the scheduled end has passed or the session completed. */
@@ -48,17 +51,16 @@ export function computeSessionTiming(
   const checkout = input.completedAt
     ? Date.parse(input.completedAt)
     : input.serverNowMs;
-  const effectiveEnd = Math.min(checkout, scheduledEnd);
-  const elapsedSeconds = Math.max(
-    0,
-    Math.floor((effectiveEnd - checkedIn) / 1000),
-  );
+  const elapsedSeconds = Math.max(0, Math.floor((checkout - checkedIn) / 1000));
   const remainingSeconds = completed
     ? 0
     : Math.max(0, Math.ceil((scheduledEnd - input.serverNowMs) / 1000));
   return {
     elapsedSeconds,
     remainingSeconds,
+    overtimeSeconds: completed
+      ? 0
+      : Math.max(0, Math.floor((input.serverNowMs - scheduledEnd) / 1000)),
     billableHours: billableHoursFor(elapsedSeconds),
     ended: completed || input.serverNowMs >= scheduledEnd,
     completed,

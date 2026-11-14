@@ -141,7 +141,7 @@ describe('table bill timing for an active session', () => {
     w.unmount();
   });
 
-  it('keeps the 15:00 end for a 13:10 check-in: 110 minutes played, no overtime', async () => {
+  it('keeps the 15:00 end for a 13:10 check-in and bills time past it until closed', async () => {
     vi.setSystemTime(bkk('14:59:00'));
     const w = await open();
     await advance(60_000);
@@ -149,15 +149,16 @@ describe('table bill timing for an active session', () => {
     expect(text(w, 'elapsed')).toBe('1:50:00');
     expect(text(w, 'remaining')).toBe('0:00');
     expect(text(w, 'rate')).toContain('2 billable hr');
-    const fee = w.get('.section-cost').text();
-    expect(fee).toBe('฿600');
+    expect(w.get('.section-cost').text()).toBe('฿600');
 
-    // An hour past the end: the timer and estimate stay put; the session is not
-    // marked completed or finalized by the browser.
+    // An hour past the end the session is still open: play time and the estimate
+    // keep growing, and the browser never marks it completed.
     await advance(60 * 60_000);
-    expect(text(w, 'elapsed')).toBe('1:50:00');
+    expect(text(w, 'scheduled-end')).toBe('15:00');
+    expect(text(w, 'elapsed')).toBe('2:50:00');
     expect(text(w, 'remaining')).toBe('0:00');
-    expect(w.get('.section-cost').text()).toBe(fee);
+    expect(text(w, 'rate')).toContain('3 billable hr');
+    expect(w.get('.section-cost').text()).toBe('฿900');
     expect(text(w, 'play-fee-label')).toBe('Estimated play fee');
     expect(w.find('[data-testid="ended-notice"]').exists()).toBe(true);
     expect(w.text()).not.toContain('Final play fee');

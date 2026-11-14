@@ -6,22 +6,13 @@ import java.util.List;
 
 /**
  * Pure hourly charge calculations in integer THB satang. Inputs are the actual server check-in and
- * checkout instants, capped at the booked end (see {@link #billingEnd}), and the rates locked on
- * the reservation, never the branch's current prices. No discount, deposit or tax rule exists.
+ * checkout instants and the rates locked on the reservation, never the planned end or the branch's
+ * current prices. No discount, deposit or tax rule exists.
  */
 public final class RentalPricingPolicy {
   private RentalPricingPolicy() {}
 
   private static final long NANOS_PER_HOUR = Duration.ofHours(1).toNanos();
-
-  /**
-   * The instant play stops counting: checkout time, but never past the booked end and never before
-   * check-in. A late checkout or automatic closure adds no overtime.
-   */
-  public static Instant billingEnd(Instant startedAt, Instant plannedEndsAt, Instant checkoutAt) {
-    Instant end = checkoutAt.isAfter(plannedEndsAt) ? plannedEndsAt : checkoutAt;
-    return end.isBefore(startedAt) ? startedAt : end;
-  }
 
   /** Every started hour is billed, with a one-hour minimum: max(1, ceil(elapsed / 1h)). */
   public static int billableHours(Instant startedAt, Instant endedAt) {

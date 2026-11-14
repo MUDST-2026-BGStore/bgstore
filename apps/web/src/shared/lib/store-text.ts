@@ -699,10 +699,9 @@ const thai: Record<string, string> = {
   'Estimated play fee': 'ค่าเล่นโดยประมาณ',
   'Final play fee': 'ค่าเล่นสุดท้าย',
   'Estimated total (Play + Food):': 'ยอดรวมโดยประมาณ (ค่าเล่น + อาหาร):',
-  'Scheduled end is near. No time is added after it.':
-    'ใกล้ถึงเวลาสิ้นสุดตามกำหนด จะไม่มีการคิดเวลาเพิ่มหลังจากนั้น',
-  'Scheduled end reached. The final amount is set when the session is closed.':
-    'ถึงเวลาสิ้นสุดตามกำหนดแล้ว ยอดสุดท้ายจะกำหนดเมื่อปิดเซสชัน',
+  'Scheduled end is near.': 'ใกล้ถึงเวลาสิ้นสุดตามกำหนด',
+  'Scheduled end reached. Time past it is billed until the session is closed.':
+    'ถึงเวลาสิ้นสุดตามกำหนดแล้ว เวลาที่เกินจะถูกคิดเงินจนกว่าจะปิดเซสชัน',
   mins: 'นาที',
   'Walk-in Session': 'ลูกค้า Walk-in',
   'Reserved Client': 'ลูกค้าจองออนไลน์',

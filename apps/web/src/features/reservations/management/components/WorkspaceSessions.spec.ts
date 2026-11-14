@@ -32,6 +32,7 @@ function stub(hourlyRate: number | undefined) {
     getSessionTiming: () => ({
       elapsedSeconds: 1800,
       remainingSeconds: 6000,
+      overtimeSeconds: 0,
       billableHours: 1,
       ended: false,
       completed: false,

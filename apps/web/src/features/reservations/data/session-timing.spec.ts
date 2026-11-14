@@ -45,15 +45,18 @@ describe('computeSessionTiming', () => {
     expect(billableHoursFor(3601)).toBe(2);
   });
 
-  it('never accrues overtime after the scheduled end', () => {
+  it('keeps counting and billing past the scheduled end until the session closes', () => {
     const t = computeSessionTiming({
       checkedInAt: CHECKED_IN,
       scheduledEnd: END,
       serverNowMs: at('2026-05-01T17:30:00+07:00'),
     });
-    expect(t.elapsedSeconds / 60).toBe(110);
+    expect(t.elapsedSeconds / 60).toBe(260);
     expect(t.remainingSeconds).toBe(0);
-    expect(t.billableHours).toBe(2);
+    expect(t.overtimeSeconds / 60).toBe(150);
+    expect(t.billableHours).toBe(5);
+    expect(t.ended).toBe(true);
+    expect(t.completed).toBe(false);
   });
 
   it('never goes negative before check-in time is reached', () => {

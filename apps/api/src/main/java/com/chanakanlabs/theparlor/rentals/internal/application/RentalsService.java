@@ -45,9 +45,6 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 @Transactional(readOnly = true)
 public class RentalsService implements RentalDesk {
-  /** Recorded as the checkout operator when the server closes a rental at its booked end. */
-  static final String AUTO_CLOSE_SUBJECT = "system:auto-close";
-
   private static final List<String> STAFF_ROLES = List.of("staff", "manager", "admin");
 
   private final RentalRepository rentals;
@@ -161,44 +158,20 @@ public class RentalsService implements RentalDesk {
   }
 
   /**
-   * Staff confirm every game is back, which ends the rental at server time (capped at the booked
-   * end), bills each started hour at the locked rates and completes the reservation. Repeating a
-   * checkout returns the stored result without billing again.
+   * Staff confirm every game is back, which ends the rental at server time, bills each started hour
+   * at the locked rates and completes the reservation. Repeating a checkout returns the stored
+   * result without billing again.
    */
   @Transactional
   public CheckOutResult checkOut(UUID branchId, UUID rentalId) {
     String staff = branches.requireOperator(branchId);
     var rental =
         rentals.lockByIdAndBranchId(rentalId, branchId).orElseThrow(RentalsService::missing);
-    return close(rental, staff);
-  }
-
-  /**
-   * Completes one rental whose booked end has passed, as the system, billing exactly to the booked
-   * end. A no-op when it was already closed or is not yet due, so replicas and staff cannot race.
-   */
-  @Transactional
-  public void autoClose(UUID rentalId) {
-    var rental = rentals.lockById(rentalId).orElse(null);
-    if (rental == null || !rental.isActive() || rental.getPlannedEndsAt().isAfter(clock.instant()))
-      return;
-    close(rental, AUTO_CLOSE_SUBJECT);
-  }
-
-  List<UUID> expiredActiveIds() {
-    return rentals.findExpiredActiveIds(clock.instant());
-  }
-
-  private CheckOutResult close(
-      com.chanakanlabs.theparlor.rentals.internal.domain.Rental rental, String staff) {
-    var rentalId = rental.getId();
     if (!rental.isActive())
       return new CheckOutResult(
           visits.get(rental.getReservationId()), view(List.of(rental)).getFirst());
 
-    var now =
-        RentalPricingPolicy.billingEnd(
-            rental.getStartedAt(), rental.getPlannedEndsAt(), clock.instant());
+    var now = clock.instant();
     var booked = visits.booked(List.of(rental.getReservationId())).get(rental.getReservationId());
     int hours = RentalPricingPolicy.billableHours(rental.getStartedAt(), now);
     var lines = new ArrayList<RentalCharge>();

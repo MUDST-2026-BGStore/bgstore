@@ -480,7 +480,7 @@ function confirmCustomerQrPayment() {
               role="alert"
               data-testid="expiry-warning"
             >
-              {{ t('Scheduled end is near. No time is added after it.') }}
+              {{ t('Scheduled end is near.') }}
             </p>
             <p
               v-else-if="timing?.ended && !timing.completed"
@@ -490,7 +490,7 @@ function confirmCustomerQrPayment() {
             >
               {{
                 t(
-                  'Scheduled end reached. The final amount is set when the session is closed.',
+                  'Scheduled end reached. Time past it is billed until the session is closed.',
                 )
               }}
             </p>
