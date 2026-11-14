@@ -2,13 +2,20 @@
 import { RouterLink } from 'vue-router';
 import { computed, ref, watch } from 'vue';
 import { useQueryClient } from '@tanstack/vue-query';
-import { getMeQueryKey, updateMe, useMe } from '@theparlor/api-client';
+import {
+  deleteMe,
+  getMeQueryKey,
+  updateMe,
+  useMe,
+} from '@theparlor/api-client';
 import { useAuth } from '@theparlor/auth';
 import { updateAccountProfile } from '@theparlor/account';
 import { PhoneNumberInput } from '@theparlor/ui';
 import { useI18n } from 'vue-i18n';
 import { useLocale, type Locale } from '../../../shared/lib/locale';
-import { AppSelect } from '../../../shared/ui';
+import { httpStatus, problemMessage } from '../../../shared/lib/api-errors';
+import { useAuthStore } from '../../../shared/stores/auth';
+import { AppConfirmDialog, AppSelect } from '../../../shared/ui';
 
 const localeOptions = [
   { value: 'en-US', label: 'English' },
@@ -17,6 +24,7 @@ const localeOptions = [
 
 const { data: profile, error } = useMe();
 const identity = useAuth();
+const authStore = useAuthStore();
 const { locale, setLocale, saveStatus, retrySave } = useLocale();
 const { t } = useI18n({ useScope: 'global' });
 const client = useQueryClient();
@@ -24,6 +32,28 @@ const phoneNumber = ref('');
 const phoneValid = ref(false);
 const phoneSaving = ref(false);
 const phoneResult = ref<'idle' | 'saved' | 'error'>('idle');
+const showDeleteConfirm = ref(false);
+const deleting = ref(false);
+const deleteError = ref<string | null>(null);
+
+async function confirmDelete() {
+  if (deleting.value) return;
+  showDeleteConfirm.value = false;
+  deleting.value = true;
+  deleteError.value = null;
+  try {
+    await deleteMe();
+    await authStore.logout();
+  } catch (err) {
+    if (httpStatus(err) === 409) {
+      deleteError.value = problemMessage(err) ?? copy.value.deleteConflict;
+    } else {
+      deleteError.value = copy.value.deleteGenericError;
+    }
+  } finally {
+    deleting.value = false;
+  }
+}
 watch(
   () => profile.value?.id,
   () => {
@@ -109,6 +139,16 @@ const copy = computed(() =>
         subject: 'รหัสผู้ใช้ในระบบ',
         roles: 'บทบาท',
         notProvided: 'ไม่ได้ระบุ',
+        deleteTitle: 'ลบบัญชี',
+        deleteHint:
+          'บัญชี ตะกร้าสินค้าที่บันทึกไว้ และการตั้งค่าของคุณจะถูกลบ ประวัติคำสั่งซื้อและการเข้าใช้บริการจะยังคงถูกเก็บไว้โดยทางร้าน และข้อมูลการเข้าสู่ระบบของคุณยังคงอยู่',
+        deleteAction: 'ลบบัญชี',
+        deleteSaving: 'กำลังลบบัญชี…',
+        deleteDialogTitle: 'ยืนยันการลบบัญชี?',
+        deleteCancel: 'ยกเลิก',
+        deleteConfirm: 'ลบบัญชี',
+        deleteConflict: 'บัญชีมีการจองหรือคำสั่งซื้อที่ยังไม่เสร็จสิ้น',
+        deleteGenericError: 'ไม่สามารถลบบัญชีได้ กรุณาลองใหม่อีกครั้ง',
       }
     : {
         back: 'Back to workspace',
@@ -135,6 +175,16 @@ const copy = computed(() =>
         subject: 'Identity subject',
         roles: 'Business roles',
         notProvided: 'Not provided',
+        deleteTitle: 'Delete account',
+        deleteHint:
+          'Your account, saved cart, and preferences are removed. Order and visit history is kept by the store, and your sign-in itself remains.',
+        deleteAction: 'Delete account',
+        deleteSaving: 'Deleting account…',
+        deleteDialogTitle: 'Delete your account?',
+        deleteCancel: 'Cancel',
+        deleteConfirm: 'Delete account',
+        deleteConflict: 'Account has an open reservation or order',
+        deleteGenericError: 'Could not delete your account. Please try again.',
       },
 );
 </script>
@@ -363,7 +413,54 @@ const copy = computed(() =>
             </div>
           </dl>
         </section>
+
+        <section
+          class="profile-card profile-card--full"
+          aria-labelledby="delete-account-title"
+        >
+          <div class="card-heading">
+            <span class="section-number" aria-hidden="true">05</span>
+            <div>
+              <h2 id="delete-account-title">{{ copy.deleteTitle }}</h2>
+              <p>{{ copy.deleteHint }}</p>
+            </div>
+          </div>
+          <div class="form-footer">
+            <button
+              type="button"
+              class="danger-button"
+              data-testid="delete-account-button"
+              :disabled="deleting || phoneSaving || saveStatus === 'saving'"
+              @click="
+                deleteError = null;
+                showDeleteConfirm = true;
+              "
+            >
+              {{ deleting ? copy.deleteSaving : copy.deleteAction }}
+            </button>
+            <p
+              v-if="deleteError"
+              class="feedback feedback--error"
+              role="alert"
+              data-testid="delete-account-error"
+            >
+              {{ deleteError }}
+            </p>
+          </div>
+        </section>
       </div>
+
+      <AppConfirmDialog
+        v-if="showDeleteConfirm"
+        title-id="confirm-delete-account-title"
+        :title="copy.deleteDialogTitle"
+        :description="copy.deleteHint"
+        :confirm-label="copy.deleteConfirm"
+        :cancel-label="copy.deleteCancel"
+        intent="danger"
+        @close="showDeleteConfirm = false"
+        @confirm="confirmDelete"
+      />
     </div>
   </div>
 </template>
@@ -637,6 +734,24 @@ dd {
 }
 .primary-button:hover:not(:disabled) {
   background: #ddc18c;
+}
+.profile-card--full {
+  grid-column: 1 / -1;
+}
+.danger-button {
+  min-height: 44px;
+  padding: 11px 20px;
+  border: 1px solid #f0aaa480;
+  border-radius: 9px;
+  background: #3b2020;
+  color: #f0aaa4;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.danger-button:hover:not(:disabled) {
+  background: #4d2828;
 }
 button:disabled {
   cursor: not-allowed;

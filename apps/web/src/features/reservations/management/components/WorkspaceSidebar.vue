@@ -36,7 +36,7 @@ const groups = computed(() => [
           items: [
             {
               id: 'staff-roster',
-              label: 'Staff & shifts',
+              label: 'Branch staff',
               icon: 'fa-user-group',
             },
             {

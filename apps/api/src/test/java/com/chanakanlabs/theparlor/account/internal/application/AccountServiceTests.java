@@ -14,6 +14,7 @@ import com.chanakanlabs.theparlor.account.internal.domain.AccountIdentity;
 import com.chanakanlabs.theparlor.account.internal.domain.AccountIdentityId;
 import com.chanakanlabs.theparlor.account.internal.persistence.AccountIdentityRepository;
 import com.chanakanlabs.theparlor.account.internal.persistence.AccountRepository;
+import com.chanakanlabs.theparlor.account.spi.AccountCommitments;
 import com.chanakanlabs.theparlor.identity.CurrentUser;
 import com.chanakanlabs.theparlor.identity.UserProfile;
 import jakarta.persistence.EntityManager;
@@ -23,8 +24,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 class AccountServiceTests {
   @ParameterizedTest
@@ -34,7 +37,11 @@ class AccountServiceTests {
     var identities = mock(AccountIdentityRepository.class);
     var service =
         new AccountService(
-            currentUser, mock(AccountRepository.class), identities, mock(JdbcTemplate.class));
+            currentUser,
+            mock(AccountRepository.class),
+            identities,
+            mock(JdbcTemplate.class),
+            List.of());
     var account =
         Account.create(
             "Test", "User", "+66812345678", java.util.Map.of("preferredLocale", "th-TH"));
@@ -57,7 +64,8 @@ class AccountServiceTests {
     var currentUser = mock(CurrentUser.class);
     var accounts = mock(AccountRepository.class);
     var identities = mock(AccountIdentityRepository.class);
-    var service = new AccountService(currentUser, accounts, identities, mock(JdbcTemplate.class));
+    var service =
+        new AccountService(currentUser, accounts, identities, mock(JdbcTemplate.class), List.of());
     var account =
         Account.create(
             "Test",
@@ -88,7 +96,8 @@ class AccountServiceTests {
     var accounts = mock(AccountRepository.class);
     var identities = mock(AccountIdentityRepository.class);
     var entityManager = mock(EntityManager.class);
-    var service = new AccountService(currentUser, accounts, identities, mock(JdbcTemplate.class));
+    var service =
+        new AccountService(currentUser, accounts, identities, mock(JdbcTemplate.class), List.of());
     ReflectionTestUtils.setField(service, "entityManager", entityManager);
     when(currentUser.require())
         .thenReturn(
@@ -117,7 +126,11 @@ class AccountServiceTests {
     var identities = mock(AccountIdentityRepository.class);
     var service =
         new AccountService(
-            currentUser, mock(AccountRepository.class), identities, mock(JdbcTemplate.class));
+            currentUser,
+            mock(AccountRepository.class),
+            identities,
+            mock(JdbcTemplate.class),
+            List.of());
     var account =
         Account.create(
             "Test", "User", "+66812345678", java.util.Map.of("preferredLocale", "th-TH"));
@@ -149,7 +162,11 @@ class AccountServiceTests {
     var identities = mock(AccountIdentityRepository.class);
     var service =
         new AccountService(
-            currentUser, mock(AccountRepository.class), identities, mock(JdbcTemplate.class));
+            currentUser,
+            mock(AccountRepository.class),
+            identities,
+            mock(JdbcTemplate.class),
+            List.of());
     when(currentUser.require())
         .thenReturn(new UserProfile("issuer", "subject", "test", null, null, true, List.of()));
     when(identities.findById(any(AccountIdentityId.class))).thenReturn(Optional.empty());
@@ -161,5 +178,87 @@ class AccountServiceTests {
     assertThatThrownBy(
             () -> service.updateCurrentSettings(java.util.Map.of("preferredLocale", "en-US")))
         .isInstanceOf(AccountNotProvisionedException.class);
+    assertThatThrownBy(service::deleteCurrent).isInstanceOf(AccountNotProvisionedException.class);
+  }
+
+  @Test
+  void deletesAccountWhenNoOpenCommitmentsExist() {
+    var currentUser = mock(CurrentUser.class);
+    var accounts = mock(AccountRepository.class);
+    var identities = mock(AccountIdentityRepository.class);
+    var commitment = mock(AccountCommitments.class);
+    var service =
+        new AccountService(
+            currentUser, accounts, identities, mock(JdbcTemplate.class), List.of(commitment));
+    var account =
+        Account.create(
+            "Test", "User", "+66812345678", java.util.Map.of("preferredLocale", "en-US"));
+    when(currentUser.require())
+        .thenReturn(new UserProfile("issuer", "subject", "test", null, null, true, List.of()));
+    when(identities.findById(new AccountIdentityId("issuer", "subject")))
+        .thenReturn(Optional.of(new AccountIdentity("issuer", "subject", account)));
+    when(commitment.hasOpenCommitments("subject")).thenReturn(false);
+
+    service.deleteCurrent();
+
+    verify(accounts).delete(account);
+    verify(accounts).flush();
+  }
+
+  @Test
+  void refusesDeletionWithConflictWhenAccountHasOpenCommitments() {
+    var currentUser = mock(CurrentUser.class);
+    var accounts = mock(AccountRepository.class);
+    var identities = mock(AccountIdentityRepository.class);
+    var commitment = mock(AccountCommitments.class);
+    var service =
+        new AccountService(
+            currentUser, accounts, identities, mock(JdbcTemplate.class), List.of(commitment));
+    var account =
+        Account.create(
+            "Test", "User", "+66812345678", java.util.Map.of("preferredLocale", "en-US"));
+    when(currentUser.require())
+        .thenReturn(new UserProfile("issuer", "subject", "test", null, null, true, List.of()));
+    when(identities.findById(new AccountIdentityId("issuer", "subject")))
+        .thenReturn(Optional.of(new AccountIdentity("issuer", "subject", account)));
+    when(commitment.hasOpenCommitments("subject")).thenReturn(true);
+
+    assertThatThrownBy(service::deleteCurrent)
+        .isInstanceOfSatisfying(
+            ResponseStatusException.class,
+            ex -> {
+              assertThat(ex.getStatusCode().value()).isEqualTo(409);
+              assertThat(ex.getReason()).isEqualTo("Account has an open reservation or order");
+            });
+    org.mockito.Mockito.verifyNoInteractions(accounts);
+  }
+
+  @Test
+  void searchRequiresTwoCharactersEscapesWildcardsAndCapsLimitAtTwenty() {
+    var identities = mock(AccountIdentityRepository.class);
+    var service =
+        new AccountService(
+            mock(CurrentUser.class),
+            mock(AccountRepository.class),
+            identities,
+            mock(JdbcTemplate.class),
+            List.of());
+
+    assertThat(service.search(" ", 10)).isEmpty();
+    assertThat(service.search("a", 10)).isEmpty();
+    assertThat(service.search("ab", 0)).isEmpty();
+    org.mockito.Mockito.verifyNoInteractions(identities);
+
+    var account =
+        Account.create(
+            "Ada", "Lovelace", "+66812345678", java.util.Map.of("preferredLocale", "en-US"));
+    when(identities.search("%100\\%\\_a\\\\b%", PageRequest.of(0, 20)))
+        .thenReturn(List.of(new AccountIdentity("issuer", "sub-1", account)));
+
+    var matches = service.search("  100%_A\\b  ", 99);
+    assertThat(matches)
+        .containsExactly(
+            new com.chanakanlabs.theparlor.account.AccountDirectory.AccountMatch(
+                "sub-1", "Ada Lovelace", "+66812345678"));
   }
 }

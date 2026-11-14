@@ -1,0 +1,23 @@
+type: object
+description: A staff member's assignment to one branch. Only takes effect for accounts with the staff role.
+required:
+  - staffSubject
+  - grantedBy
+  - grantedAt
+properties:
+  staffSubject:
+    type: string
+    maxLength: 255
+    description: OIDC subject of the staff member.
+  name:
+    type: string
+    description: Account name, when the person completed onboarding.
+  phone:
+    type: string
+    description: Account phone number, when the person completed onboarding.
+  grantedBy:
+    type: string
+    description: OIDC subject of the administrator who granted access.
+  grantedAt:
+    type: string
+    format: date-time

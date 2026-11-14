@@ -12,6 +12,7 @@ import com.chanakanlabs.theparlor.catalog.internal.persistence.GameCategoryRepos
 import com.chanakanlabs.theparlor.catalog.internal.persistence.GameMechanicRepository;
 import com.chanakanlabs.theparlor.catalog.internal.persistence.GameRepository;
 import com.chanakanlabs.theparlor.catalog.internal.persistence.GameSpecifications;
+import com.chanakanlabs.theparlor.catalog.spi.GameCommitments;
 import com.chanakanlabs.theparlor.contracts.model.CreateGameRequest;
 import com.chanakanlabs.theparlor.contracts.model.Difficulty;
 import com.chanakanlabs.theparlor.contracts.model.Game;
@@ -34,16 +35,19 @@ public class GamesService {
 
   private final GameCategoryRepository categories;
   private final GameMechanicRepository mechanics;
+  private final List<GameCommitments> commitments;
 
   public GamesService(
       GameRepository games,
       GameMapper gameMapper,
       GameCategoryRepository categories,
-      GameMechanicRepository mechanics) {
+      GameMechanicRepository mechanics,
+      List<GameCommitments> commitments) {
     this.games = games;
     this.gameMapper = gameMapper;
     this.categories = categories;
     this.mechanics = mechanics;
+    this.commitments = commitments;
   }
 
   @Transactional(readOnly = true)
@@ -157,9 +161,12 @@ public class GamesService {
     if (request.getActive() != null) {
       if (request.getActive()) entity.activate();
       else {
-        // TODO(catalog-offline): Define how staff resolve affected reservations, active play
-        // sessions and placed orders (notification, substitution, rescheduling or refund).
-        // For now, taking a game offline leaves those commitments unchanged.
+        // Refuse taking a game offline while it has an open reservation, active visit or placed
+        // order.
+        if (entity.isActive() && commitments.stream().anyMatch(c -> c.hasOpenCommitments(id)))
+          throw new ResponseStatusException(
+              HttpStatus.CONFLICT,
+              "Game has a confirmed reservation, active visit or placed order");
         entity.deactivate();
       }
     }

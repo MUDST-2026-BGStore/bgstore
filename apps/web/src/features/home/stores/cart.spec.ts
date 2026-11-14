@@ -52,6 +52,11 @@ function fakeServer() {
         code: 'INSUFFICIENT_STOCK',
         available: item.available,
       }));
+    const subtotal = items.reduce(
+      (sum, item) => sum + item.lineTotal.amountMinor,
+      0,
+    );
+    const shippingFee = cart.branchId || subtotal >= 150000 ? 0 : 5000;
     return {
       id,
       fulfillment: cart.branchId
@@ -59,10 +64,9 @@ function fakeServer() {
         : { method: 'SHIPPING' },
       items,
       issues,
-      subtotal: items.reduce(
-        (sum, item) => sum + item.lineTotal.amountMinor,
-        0,
-      ),
+      subtotal,
+      shippingFee: { amountMinor: shippingFee },
+      total: { amountMinor: subtotal + shippingFee },
       checkoutReady: items.length > 0 && issues.length === 0,
       createdAt: '2026-11-12T00:00:00Z',
       updatedAt: '2026-11-12T00:00:00Z',
@@ -236,6 +240,23 @@ it('adopts where the shopper was browsing for the first line only', async () => 
   );
   expect(cart.method).toBe('pickup');
   expect(server.sent('PATCH', /\/carts\/[^/]+$/)).toHaveLength(1);
+});
+
+it('uses the server shipping fee and total without recalculating them', async () => {
+  const cart = useCartStore();
+  await cart.add(AZUL);
+  expect(cart.subtotal).toBe(149000);
+  expect(cart.shippingFee).toBe(5000);
+  expect(cart.total).toBe(154000);
+
+  await cart.add(AZUL);
+  expect(cart.subtotal).toBe(298000);
+  expect(cart.shippingFee).toBe(0);
+  expect(cart.total).toBe(298000);
+
+  await cart.setFulfillment('pickup', ARI);
+  expect(cart.shippingFee).toBe(0);
+  expect(cart.total).toBe(298000);
 });
 
 it('reports a stock conflict from the server and never guesses stock itself', async () => {

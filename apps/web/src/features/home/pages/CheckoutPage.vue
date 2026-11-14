@@ -2,11 +2,12 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import type { Order } from '@theparlor/api-client';
-import { useCartStore } from '../stores/cart';
+import { FREE_SHIPPING_FROM_MINOR, useCartStore } from '../stores/cart';
 import { useOrdersStore } from '../stores/orders';
 import { formatMinor } from '../data/catalog';
 import { useGameCovers } from '../api/catalog';
 import { httpStatus, problemCode } from '../../../shared/lib/api-errors';
+import { CARRIER_NAMES, copyText } from '../../../shared/lib/carriers';
 import { useStoreText } from '../data/store-text';
 import { useAuthStore } from '../../../shared/stores/auth';
 import CartFulfillment from '../components/CartFulfillment.vue';
@@ -14,9 +15,7 @@ import CartFulfillment from '../components/CartFulfillment.vue';
 // Checkout places one order from the whole server cart and pays by card. The card
 // is exchanged for a single-use token and never stored; the server authorizes the
 // total it calculated, so nothing on this page decides what is charged.
-// TODO(checkout-payments): PromptPay QR, bank transfer and cash on delivery have no
-// backend. TODO(checkout-shipping): carriers, shipping fees and tracking numbers
-// have no backend; delivery orders ship from the delivery branch at no extra fee.
+// TODO(checkout-payments): PromptPay QR and cash on delivery have no backend.
 
 const router = useRouter();
 const cart = useCartStore();
@@ -70,7 +69,10 @@ const cardForm = reactive({
 });
 
 const subtotal = computed(() => cart.subtotal);
-const totalPayable = computed(() => cart.subtotal);
+const totalPayable = computed(() => cart.total);
+const freeShippingRemaining = computed(() =>
+  Math.max(0, FREE_SHIPPING_FROM_MINOR - cart.subtotal),
+);
 
 function editionLabel(language: string) {
   try {
@@ -935,6 +937,25 @@ function viewOrdersAndExit() {
             }}</span>
             <span class="val">{{ formatMinor(subtotal) }}</span>
           </div>
+          <div v-if="cart.method === 'shipping'" class="summary-line">
+            <span class="lbl">
+              {{ locale === 'th-TH' ? 'ค่าจัดส่ง' : 'Shipping' }}
+              <small v-if="cart.shippingFee > 0" class="shipping-threshold">
+                {{
+                  locale === 'th-TH'
+                    ? `เพิ่มอีก ${formatMinor(freeShippingRemaining)} เพื่อรับสิทธิ์จัดส่งฟรี`
+                    : `Add ${formatMinor(freeShippingRemaining)} more for free shipping`
+                }}
+              </small>
+            </span>
+            <span class="val">{{
+              cart.shippingFee === 0
+                ? locale === 'th-TH'
+                  ? 'ฟรี'
+                  : 'Free'
+                : formatMinor(cart.shippingFee)
+            }}</span>
+          </div>
           <div class="summary-line line-grand-total">
             <span class="lbl">{{
               locale === 'th-TH' ? 'ยอดชำระทั้งสิ้น' : 'Total Payment'
@@ -1032,11 +1053,50 @@ function viewOrdersAndExit() {
               </div>
               <div class="line">
                 <span>{{
+                  locale === 'th-TH' ? 'ยอดรวมสินค้า:' : 'Subtotal:'
+                }}</span>
+                <strong>{{
+                  formatMinor(placedOrder.subtotal.amountMinor)
+                }}</strong>
+              </div>
+              <div
+                v-if="placedOrder.fulfillmentMethod === 'SHIPPING'"
+                class="line"
+              >
+                <span>{{
+                  locale === 'th-TH' ? 'ค่าจัดส่ง:' : 'Shipping:'
+                }}</span>
+                <strong>{{
+                  placedOrder.shippingFee.amountMinor === 0
+                    ? locale === 'th-TH'
+                      ? 'ฟรี'
+                      : 'Free'
+                    : formatMinor(placedOrder.shippingFee.amountMinor)
+                }}</strong>
+              </div>
+              <div class="line">
+                <span>{{
                   locale === 'th-TH' ? 'ยอดรวมคำสั่งซื้อ:' : 'Order Total:'
                 }}</span>
                 <strong class="total-green">{{
                   formatMinor(placedOrder.total.amountMinor)
                 }}</strong>
+              </div>
+              <div
+                v-if="placedOrder.carrier && placedOrder.trackingNumber"
+                class="line tracking-row"
+              >
+                <span>{{ CARRIER_NAMES[placedOrder.carrier] }}</span>
+                <strong class="tracking-code">{{
+                  placedOrder.trackingNumber
+                }}</strong>
+                <button
+                  type="button"
+                  class="btn-copy-tracking"
+                  @click="copyText(placedOrder.trackingNumber)"
+                >
+                  {{ locale === 'th-TH' ? 'คัดลอก' : 'Copy' }}
+                </button>
               </div>
               <div class="line">
                 <span>{{
