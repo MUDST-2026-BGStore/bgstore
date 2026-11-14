@@ -21,8 +21,8 @@
     ]
   },
   "dependencies": {
-    "@tanstack/vue-query": "^5.104.4",
-    "axios": "^1.20.0",
+    "@tanstack/vue-query": "^5.107.1",
+    "axios": "^1.21.1",
     "vue": "catalog:"
   }
 }

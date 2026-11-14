@@ -13,10 +13,7 @@ export interface FoodMenuItem {
 }
 
 export type FoodCategory =
-  | 'beverages'
-  | 'snacks'
-  | 'tea_coffee'
-  | 'bakery_desserts';
+  'beverages' | 'snacks' | 'tea_coffee' | 'bakery_desserts';
 
 export interface FoodOrderItem {
   item: FoodMenuItem;
