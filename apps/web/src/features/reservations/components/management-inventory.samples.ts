@@ -123,6 +123,12 @@ export interface FulfillmentSample {
   itemName?: string;
   quantity: number;
   state: string;
+  /** How the order is paid and where that stands, for server orders. */
+  payment?: string;
+  /** A PromptPay QR not yet paid: the order cannot be handed over. */
+  awaitingPromptPay?: boolean;
+  /** Delivered cash on delivery whose cash staff have not confirmed yet. */
+  awaitingCash?: boolean;
 }
 export const fulfillmentSamples: readonly FulfillmentSample[] = [
   {
@@ -236,5 +242,31 @@ export function toFulfillmentRow(order: Order): FulfillmentSample {
       : undefined,
     quantity: order.items.reduce((sum, item) => sum + item.quantity, 0),
     state,
+    payment: paymentState(order.payment),
+    awaitingPromptPay:
+      order.status === 'PLACED' &&
+      order.payment.method === 'PROMPTPAY' &&
+      order.payment.status === 'PENDING',
+    awaitingCash:
+      order.status === 'FULFILLED' &&
+      order.payment.method === 'COD' &&
+      order.payment.status === 'PENDING',
   };
+}
+
+const paymentMethodLabels: Record<Order['payment']['method'], string> = {
+  CARD: 'Card',
+  COUNTER: 'Counter',
+  PROMPTPAY: 'PromptPay',
+  COD: 'Cash on delivery',
+};
+
+function paymentState(payment: Order['payment']): string {
+  const method = paymentMethodLabels[payment.method];
+  if (payment.status === 'CAPTURED') return `${method} · Paid`;
+  if (payment.status === 'VOIDED') return `${method} · Not charged`;
+  if (payment.status === 'AUTHORIZED') return `${method} · Authorized`;
+  if (payment.method === 'PROMPTPAY') return `${method} · Awaiting payment`;
+  if (payment.method === 'COD') return `${method} · Awaiting cash`;
+  return `${method} · Due at handover`;
 }

@@ -240,6 +240,11 @@ describe('live record mapping', () => {
           { editionId: EDITION_ID, gameName: 'Azul', quantity: 2 },
           { editionId: EDITION_ID, gameName: 'Catan', quantity: 1 },
         ],
+        payment: {
+          method: 'PROMPTPAY',
+          status: 'PENDING',
+          amount: { amountMinor: 1000 },
+        },
       } as unknown as Order),
     ).toMatchObject({
       reference: 'ABCDEF12',
@@ -247,6 +252,28 @@ describe('live record mapping', () => {
       itemName: 'Azul and 1 more',
       quantity: 3,
       state: 'Awaiting dispatch',
+      payment: 'PromptPay · Awaiting payment',
+      awaitingPromptPay: true,
+      awaitingCash: false,
+    });
+    expect(
+      toFulfillmentRow({
+        id: 'abcdef12-0000-4000-8000-000000000032',
+        branchId: BRANCH_ID,
+        source: 'CUSTOMER',
+        status: 'FULFILLED',
+        fulfillmentMethod: 'SHIPPING',
+        items: [{ editionId: EDITION_ID, gameName: 'Azul', quantity: 1 }],
+        payment: {
+          method: 'COD',
+          status: 'PENDING',
+          amount: { amountMinor: 1000 },
+        },
+      } as unknown as Order),
+    ).toMatchObject({
+      payment: 'Cash on delivery · Awaiting cash',
+      awaitingPromptPay: false,
+      awaitingCash: true,
     });
     expect(toCatalogGame(offering(1))).toMatchObject({
       id: GAME_ID,

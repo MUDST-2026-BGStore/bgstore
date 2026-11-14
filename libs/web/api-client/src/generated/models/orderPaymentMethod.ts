@@ -12,4 +12,6 @@ export type OrderPaymentMethod = typeof OrderPaymentMethod[keyof typeof OrderPay
 export const OrderPaymentMethod = {
   CARD: 'CARD',
   COUNTER: 'COUNTER',
+  PROMPTPAY: 'PROMPTPAY',
+  COD: 'COD',
 } as const;

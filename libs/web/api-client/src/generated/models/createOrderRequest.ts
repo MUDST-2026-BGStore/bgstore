@@ -6,9 +6,10 @@
  * OpenAPI spec version: 0.5.0
  */
 import type { OrderItemRequest } from './orderItemRequest';
+import type { PaymentMethodChoice } from './paymentMethodChoice';
 
 /**
- * One line per edition ID; prices and lifecycle fields are server-controlled.
+ * One line per edition ID; prices and lifecycle fields are server-controlled. The order is picked up, so paymentMethod may be CARD or PROMPTPAY; paymentToken is required for CARD and rejected otherwise.
  */
 export interface CreateOrderRequest {
   /**
@@ -18,10 +19,11 @@ export interface CreateOrderRequest {
   items: OrderItemRequest[];
   /** @maxLength 1000 */
   notes?: string;
+  paymentMethod?: PaymentMethodChoice;
   /**
-     * Single-use token from the payment token operation; authorized for the server-calculated total.
+     * Single-use card token, from the payment token operation or from the provider's browser library when the payment configuration says so; authorized for the server-calculated total. Required for CARD.
      * @minLength 16
      * @maxLength 128
      */
-  paymentToken: string;
+  paymentToken?: string;
 }

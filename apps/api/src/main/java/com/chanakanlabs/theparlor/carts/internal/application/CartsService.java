@@ -232,8 +232,8 @@ public class CartsService {
   }
 
   /**
-   * Turns the cart into one placed, paid order. Stock is held, the card is authorized and the cart
-   * is converted in this transaction; any failure leaves the cart open and nothing held.
+   * Turns the cart into one placed order. Stock is held, the payment is started and the cart is
+   * converted in this transaction; any failure leaves the cart open and nothing held.
    */
   @Transactional
   public Order checkout(
@@ -298,6 +298,10 @@ public class CartsService {
                               .toList(),
                           request.getShippingAddress(),
                           request.getNotes(),
+                          request.getPaymentMethod() == null
+                              ? null
+                              : OrderPlacement.PaymentMethod.valueOf(
+                                  request.getPaymentMethod().name()),
                           request.getPaymentToken()));
               cart.convert();
               return order.getId();

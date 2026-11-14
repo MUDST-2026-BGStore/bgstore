@@ -4,7 +4,6 @@ import { useRoute, RouterLink } from 'vue-router';
 import { useQuery, useQueryClient } from '@tanstack/vue-query';
 import {
   createMyReservation,
-  createPaymentToken,
   getBranchAvailability,
   getBranchMenu,
   listBranchGames,
@@ -18,6 +17,7 @@ import { useStoreContextStore } from '../../../shared/stores/store-context';
 import { useStoreText } from '../../../shared/lib/store-text';
 import { collectPages } from '../../../shared/lib/pagination';
 import { httpStatus } from '../../../shared/lib/api-errors';
+import { tokenizeCard } from '../../../shared/lib/card-tokens';
 import { AppNumberStepper, AppSelect } from '../../../shared/ui';
 import FoodMenuPicker from '../components/FoodMenuPicker.vue';
 import CardPaymentFields from '../components/CardPaymentFields.vue';
@@ -446,7 +446,7 @@ async function confirmReservation() {
     if (!attempt) {
       attempt = { key: crypto.randomUUID() };
       if (card) {
-        attempt.paymentToken = (await createPaymentToken(card)).token;
+        attempt.paymentToken = await tokenizeCard(card);
         cardFields.value?.clear();
       }
     }

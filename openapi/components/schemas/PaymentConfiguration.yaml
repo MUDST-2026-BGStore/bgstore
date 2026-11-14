@@ -1,0 +1,17 @@
+type: object
+description: >-
+  How the browser turns a card into a payment token. SERVER posts the card to
+  the payment token operation. OMISE tokenizes it in the browser with Omise.js
+  and omisePublicKey, so card details never reach this server.
+required:
+  - cardTokenization
+properties:
+  cardTokenization:
+    type: string
+    enum:
+      - SERVER
+      - OMISE
+  omisePublicKey:
+    type: string
+    description: Omise public key, safe to expose; present only when cardTokenization is OMISE.
+    maxLength: 200

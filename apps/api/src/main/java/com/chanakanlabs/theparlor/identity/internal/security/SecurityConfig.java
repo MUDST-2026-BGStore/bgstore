@@ -42,6 +42,8 @@ import org.springframework.security.web.savedrequest.NullRequestCache;
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
+  private static final String OMISE_WEBHOOK = "/api/v1/payments/omise/webhook";
+
   @Bean
   ClientRegistrationRepository clientRegistrations(
       @Value("${theparlor.auth.issuer}") String issuer,
@@ -93,7 +95,9 @@ public class SecurityConfig {
 
     http
         // HttpSession CSRF repository + masked tokens from /api/auth/csrf; no readable auth cookie.
-        .csrf(csrf -> {})
+        // The payment provider's server posts notices without a browser session or CSRF token;
+        // the handler trusts nothing in them and re-reads the charge from the provider.
+        .csrf(csrf -> csrf.ignoringRequestMatchers(OMISE_WEBHOOK))
         .requestCache(cache -> cache.requestCache(new NullRequestCache()))
         .authorizeHttpRequests(
             auth ->
@@ -143,7 +147,9 @@ public class SecurityConfig {
                     // checked by the services, and writes still need a CSRF token.
                     .requestMatchers("/api/v1/carts", "/api/v1/carts/**")
                     .permitAll()
-                    .requestMatchers(HttpMethod.POST, "/api/v1/payments/tokens")
+                    .requestMatchers(HttpMethod.POST, "/api/v1/payments/tokens", OMISE_WEBHOOK)
+                    .permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/payments/configuration")
                     .permitAll()
                     .requestMatchers("/api/v1/admin/**")
                     .hasRole("ADMIN")

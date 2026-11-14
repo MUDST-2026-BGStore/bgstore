@@ -1,9 +1,11 @@
 type: object
-description: One line per edition ID; prices and lifecycle fields are server-controlled.
+description: >-
+  One line per edition ID; prices and lifecycle fields are server-controlled.
+  The order is picked up, so paymentMethod may be CARD or PROMPTPAY;
+  paymentToken is required for CARD and rejected otherwise.
 additionalProperties: false
 required:
   - items
-  - paymentToken
 properties:
   items:
     type: array
@@ -14,8 +16,13 @@ properties:
   notes:
     type: string
     maxLength: 1000
+  paymentMethod:
+    $ref: ./PaymentMethodChoice.yaml
   paymentToken:
     type: string
-    description: Single-use token from the payment token operation; authorized for the server-calculated total.
+    description: >-
+      Single-use card token, from the payment token operation or from the
+      provider's browser library when the payment configuration says so;
+      authorized for the server-calculated total. Required for CARD.
     minLength: 16
     maxLength: 128

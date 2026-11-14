@@ -51,9 +51,14 @@ theparlor:
     backchannel-issuer: ${KEYCLOAK_BACKCHANNEL_ISSUER_URI:${theparlor.auth.issuer}}
     client-secret: ${THEPARLOR_OIDC_CLIENT_SECRET}
   payments:
-    # Card payment provider: "none" refuses card payments, "bogus" is the development stand-in
-    # that approves test cards and moves no money. Never use bogus where real orders are taken.
+    # Payment provider for cards and PromptPay: "none" refuses them, "bogus" is the development
+    # stand-in that moves no money, "omise" is Omise (Opn Payments). Never use bogus where real
+    # orders are taken.
     gateway: ${THEPARLOR_PAYMENT_GATEWAY:none}
+    omise:
+      # Test keys (pkey_test_..., skey_test_...) from the Omise dashboard. Never commit them.
+      public-key: ${THEPARLOR_OMISE_PUBLIC_KEY:}
+      secret-key: ${THEPARLOR_OMISE_SECRET_KEY:}
 
 # ── Actuator / Observability ──────────────────────────────────
 management:

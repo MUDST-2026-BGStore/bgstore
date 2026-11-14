@@ -3,10 +3,10 @@ description: >-
   Checkout details. Guests must supply contact with name, email and phone;
   signed-in callers may omit it to use their account profile and sign-in email.
   shippingAddress is required when the cart ships and rejected when it is
-  picked up. The payment token is authorized for the server-calculated total.
+  picked up. paymentMethod defaults to CARD; paymentToken is required for
+  CARD, where it is authorized for the server-calculated total, and rejected
+  otherwise. Guests may only pay by CARD.
 additionalProperties: false
-required:
-  - paymentToken
 properties:
   contact:
     $ref: ./OrderContact.yaml
@@ -15,6 +15,8 @@ properties:
   notes:
     type: string
     maxLength: 1000
+  paymentMethod:
+    $ref: ./PaymentMethodChoice.yaml
   paymentToken:
     type: string
     minLength: 16

@@ -113,8 +113,8 @@ async function buyAgain(order: Order) {
 async function cancel(order: Order) {
   const confirmed = window.confirm(
     locale.value === 'th-TH'
-      ? 'ยกเลิกคำสั่งซื้อนี้ใช่หรือไม่ ระบบจะไม่เรียกเก็บเงินจากบัตรของคุณ'
-      : 'Cancel this order? Your card will not be charged.',
+      ? 'ยกเลิกคำสั่งซื้อนี้ใช่หรือไม่ จะไม่มีการเรียกเก็บเงินสำหรับคำสั่งซื้อนี้'
+      : 'Cancel this order? You will not be charged for it.',
   );
   if (!confirmed) return;
   actionError.value = '';
@@ -162,6 +162,33 @@ function paymentLabel(order: Order): string {
   const payment = order.payment;
   if (payment.method === 'COUNTER')
     return isTh ? 'ชำระที่เคาน์เตอร์' : 'Paid at the counter';
+  if (payment.method === 'PROMPTPAY' || payment.method === 'COD') {
+    const method =
+      payment.method === 'PROMPTPAY'
+        ? isTh
+          ? 'พร้อมเพย์'
+          : 'PromptPay'
+        : isTh
+          ? 'เก็บเงินปลายทาง'
+          : 'Cash on delivery';
+    const state =
+      payment.status === 'CAPTURED'
+        ? isTh
+          ? 'ชำระแล้ว'
+          : 'Paid'
+        : payment.status === 'VOIDED'
+          ? isTh
+            ? 'ไม่มีการเรียกเก็บเงิน'
+            : 'Not charged'
+          : payment.method === 'PROMPTPAY'
+            ? isTh
+              ? 'รอชำระเงิน'
+              : 'Awaiting payment'
+            : isTh
+              ? 'ชำระเมื่อได้รับสินค้า'
+              : 'Pay on delivery';
+    return `${method} · ${state}`;
+  }
   const card =
     `${payment.cardBrand ?? ''} •••• ${payment.cardLast4 ?? ''}`.trim();
   switch (payment.status) {
@@ -174,6 +201,25 @@ function paymentLabel(order: Order): string {
         ? `กันวงเงินไว้ที่ ${card} จะเรียกเก็บเมื่อส่งมอบสินค้า`
         : `Reserved on ${card}; charged at handover`;
   }
+}
+
+/** A PromptPay order the customer can still pay: its QR is shown again. */
+function payableQr(order: Order): string | undefined {
+  const payment = order.payment;
+  return order.status === 'PLACED' &&
+    payment.method === 'PROMPTPAY' &&
+    payment.status === 'PENDING'
+    ? payment.promptPayQr
+    : undefined;
+}
+
+function payBy(order: Order): string {
+  const expiresAt = order.payment.expiresAt;
+  if (!expiresAt) return '';
+  return new Intl.DateTimeFormat(locale.value, {
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(expiresAt));
 }
 
 function getStatusLabel(order: Order): { text: string; colorClass: string } {
@@ -427,7 +473,9 @@ function getStatusLabel(order: Order): { text: string; colorClass: string } {
                   <h4 class="order-item-title">{{ item.gameName }}</h4>
                   <div class="order-item-options">
                     <span
-                      >{{ locale === 'th-TH' ? 'ตัวเลือกสินค้า:' : 'Edition:' }}
+                      >{{
+                        locale === 'th-TH' ? 'ตัวเลือกสินค้า:' : 'Edition:'
+                      }}
                       {{ editionLabel(item.editionLanguage) }}</span
                     >
                   </div>
@@ -470,6 +518,22 @@ function getStatusLabel(order: Order): { text: string; colorClass: string } {
                 <span class="order-payment-line">{{
                   paymentLabel(order)
                 }}</span>
+                <span v-if="payableQr(order)" class="order-promptpay">
+                  <img
+                    class="order-promptpay-qr"
+                    :src="payableQr(order)"
+                    :alt="
+                      locale === 'th-TH'
+                        ? 'QR พร้อมเพย์สำหรับคำสั่งซื้อนี้'
+                        : 'PromptPay QR code for this order'
+                    "
+                  />
+                  <span>{{
+                    locale === 'th-TH'
+                      ? `สแกนเพื่อชำระภายใน ${payBy(order)} น. หากไม่ชำระ คำสั่งซื้อจะถูกยกเลิก`
+                      : `Scan to pay by ${payBy(order)}, or the order is cancelled.`
+                  }}</span>
+                </span>
                 <span
                   v-if="order.carrier && order.trackingNumber"
                   class="tracking-snippet-bar"
@@ -496,7 +560,10 @@ function getStatusLabel(order: Order): { text: string; colorClass: string } {
                   {{ locale === 'th-TH' ? 'ซื้ออีกครั้ง' : 'Buy Again' }}
                 </button>
                 <button
-                  v-if="order.status === 'PLACED'"
+                  v-if="
+                    order.status === 'PLACED' &&
+                    order.payment.status !== 'CAPTURED'
+                  "
                   type="button"
                   class="btn-shopee-secondary"
                   :disabled="cancelling === order.id"
@@ -529,6 +596,23 @@ function getStatusLabel(order: Order): { text: string; colorClass: string } {
   background: #fdf1ef;
   color: #a12a1c;
   font-size: 13px;
+}
+.order-promptpay {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #555555;
+  text-align: left;
+}
+.order-promptpay-qr {
+  width: 132px;
+  height: 132px;
+  padding: 6px;
+  background: #ffffff;
+  border: 1px solid #c9d6ce;
+  border-radius: 6px;
+  flex: none;
 }
 .order-payment-line {
   display: block;

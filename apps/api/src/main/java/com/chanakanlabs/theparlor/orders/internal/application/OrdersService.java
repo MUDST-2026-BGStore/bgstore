@@ -20,6 +20,7 @@ import com.chanakanlabs.theparlor.identity.CurrentUser;
 import com.chanakanlabs.theparlor.identity.UserProfile;
 import com.chanakanlabs.theparlor.inventory.SaleInventory;
 import com.chanakanlabs.theparlor.orders.OrderPlacement.Line;
+import com.chanakanlabs.theparlor.orders.OrderPlacement.PaymentMethod;
 import com.chanakanlabs.theparlor.orders.OrderPlacement.Placement;
 import com.chanakanlabs.theparlor.orders.internal.domain.Order.Buyer;
 import com.chanakanlabs.theparlor.orders.internal.domain.OrderCarrier;
@@ -45,6 +46,11 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 @Transactional(readOnly = true)
 public class OrdersService {
+  /** Recorded as who cancelled an order the server cancelled on its own. */
+  static final String SYSTEM_ACTOR = "system";
+
+  static final String PAYMENT_TIMEOUT_REASON = "Payment not received in time";
+
   private final OrderPlacementService placement;
   private final OrderViews views;
   private final OrderRepository orders;
@@ -88,7 +94,7 @@ public class OrdersService {
     this.clock = clock;
   }
 
-  /** A signed-in customer buys for pickup at this branch, paying by card. */
+  /** A signed-in customer buys for pickup at this branch, paying by card or PromptPay. */
   @Transactional
   public Order createMyOrder(UUID branchId, UUID idempotencyKey, CreateOrderRequest request) {
     var user = currentUser.require();
@@ -113,6 +119,9 @@ public class OrdersService {
                             lines(request.getItems()),
                             null,
                             request.getNotes(),
+                            request.getPaymentMethod() == null
+                                ? null
+                                : PaymentMethod.valueOf(request.getPaymentMethod().name()),
                             request.getPaymentToken()))
                     .getId());
     return placement.get(orderId);
@@ -204,6 +213,52 @@ public class OrdersService {
   }
 
   /**
+   * Staff confirm the cash for a delivered cash-on-delivery order: its payment goes from PENDING to
+   * CAPTURED. Repeating it returns the order unchanged.
+   */
+  @Transactional
+  public Order confirmOrderPayment(UUID branchId, UUID orderId) {
+    branches.requireOperator(branchId);
+    var order = orders.lockByIdAndBranchId(orderId, branchId).orElseThrow(OrdersService::missing);
+    var payment = payments.of(Payments.Kind.ORDER, List.of(orderId)).get(orderId);
+    if (payment == null || payment.method() != Payments.Method.COD)
+      throw conflict("Only a cash on delivery order can have its cash confirmed");
+    if (payment.status() == Payments.Status.CAPTURED) return views.of(order);
+    if (order.getStatus() != com.chanakanlabs.theparlor.orders.internal.domain.OrderStatus.FULFILLED
+        || payment.status() != Payments.Status.PENDING)
+      throw conflict("Cash can only be confirmed once the order has been delivered");
+    payments.confirmReceived(Payable.order(orderId));
+    return views.of(order);
+  }
+
+  /** Orders whose PromptPay QR is still unpaid after its deadline, oldest deadline first. */
+  public List<UUID> unpaidPastDeadline() {
+    return payments.expiredUnpaid(Payments.Kind.ORDER, clock.instant());
+  }
+
+  /**
+   * Cancels one order whose PromptPay QR went unpaid past its deadline, unless the payment arrived
+   * late, in which case it is recorded instead. Returns whether the order was cancelled.
+   */
+  @Transactional
+  public boolean expireUnpaidOrder(UUID orderId) {
+    var found = orders.findById(orderId);
+    if (found.isEmpty()) return false;
+    UUID branchId = found.get().getBranchId();
+    // The row lock serializes this with fulfillment, cancellation and provider notices.
+    var order = orders.lockByIdAndBranchId(orderId, branchId).orElseThrow(OrdersService::missing);
+    if (order.getStatus() != com.chanakanlabs.theparlor.orders.internal.domain.OrderStatus.PLACED)
+      return false;
+    var payable = Payable.order(orderId);
+    if (payments.refreshPromptPay(payable)) return false;
+    if (!order.cancel(SYSTEM_ACTOR, PAYMENT_TIMEOUT_REASON, clock.instant())) return false;
+    inventory.release(branchId, selections(orderId));
+    payments.cancel(payable);
+    orders.flush();
+    return true;
+  }
+
+  /**
    * Returns the caller's subject. The customer an order belongs to may always see and cancel it;
    * anyone else must operate the branch. Callers who are neither learn nothing: staff get the usual
    * 403, customers get the same 404 as for an order that does not exist.
@@ -279,6 +334,10 @@ public class OrdersService {
     return requested.stream()
         .map(line -> new Line(line.getEditionId(), line.getQuantity()))
         .toList();
+  }
+
+  private static ResponseStatusException conflict(String message) {
+    return new ResponseStatusException(HttpStatus.CONFLICT, message);
   }
 
   private static ResponseStatusException missing() {

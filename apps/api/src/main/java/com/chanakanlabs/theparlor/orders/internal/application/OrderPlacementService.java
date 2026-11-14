@@ -5,6 +5,7 @@ import com.chanakanlabs.theparlor.contracts.model.ShippingAddress;
 import com.chanakanlabs.theparlor.customers.Customers;
 import com.chanakanlabs.theparlor.inventory.SaleInventory;
 import com.chanakanlabs.theparlor.orders.OrderPlacement;
+import com.chanakanlabs.theparlor.orders.OrderPlacement.PaymentMethod;
 import com.chanakanlabs.theparlor.orders.internal.domain.Order.Buyer;
 import com.chanakanlabs.theparlor.orders.internal.domain.OrderItem;
 import com.chanakanlabs.theparlor.orders.internal.domain.OrderSource;
@@ -63,6 +64,7 @@ class OrderPlacementService implements OrderPlacement {
             placement.contactPhone());
     if (buyer.email() == null || buyer.phone() == null)
       throw new IllegalArgumentException("Online orders need a contact email and phone");
+    requireUsable(placement);
     var order =
         write(
             placement.branchId(),
@@ -72,9 +74,31 @@ class OrderPlacementService implements OrderPlacement {
             placement.shippingAddress(),
             placement.notes(),
             placement.subject() == null ? GUEST_SUBJECT : placement.subject());
-    payments.authorizeCard(
-        Payable.order(order.getId()), order.getTotalMinor(), placement.paymentToken());
+    var payable = Payable.order(order.getId());
+    switch (placement.paymentMethod()) {
+      case CARD -> payments.authorizeCard(payable, order.getTotalMinor(), placement.paymentToken());
+      case PROMPTPAY -> payments.startPromptPay(payable, order.getTotalMinor());
+      case COD -> payments.payOnDelivery(payable, order.getTotalMinor());
+    }
     return views.of(order);
+  }
+
+  /** Refuses a payment method this buyer and order may not use, before anything is held. */
+  private static void requireUsable(Placement placement) {
+    var method = placement.paymentMethod();
+    boolean hasToken = placement.paymentToken() != null && !placement.paymentToken().isBlank();
+    if (method == PaymentMethod.CARD && !hasToken)
+      throw new IllegalArgumentException("Card payment needs paymentToken");
+    if (method != PaymentMethod.CARD && hasToken)
+      throw new IllegalArgumentException("paymentToken is only used for card payment");
+    if (method != PaymentMethod.CARD && placement.accountId() == null)
+      throw new IllegalArgumentException("Only signed-in customers can pay by " + label(method));
+    if (method == PaymentMethod.COD && placement.shippingAddress() == null)
+      throw new IllegalArgumentException("Cash on delivery is only for delivery orders");
+  }
+
+  private static String label(PaymentMethod method) {
+    return method == PaymentMethod.COD ? "cash on delivery" : "PromptPay";
   }
 
   /** A counter sale: staff take payment themselves, so no gateway is involved. */

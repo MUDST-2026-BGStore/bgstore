@@ -122,6 +122,8 @@ function fakeServer() {
           },
         ],
       });
+    if (url === '/api/v1/payments/configuration')
+      return Promise.resolve({ cardTokenization: 'SERVER' });
     if (url === '/api/v1/payments/tokens')
       return Promise.resolve({ token: 'pay-token' });
     if (url === '/api/v1/me/cart') {
@@ -378,6 +380,23 @@ it('pays with a card token and clears the spent cart after the order is placed',
   expect(JSON.stringify(checkout.data)).not.toContain('4242');
   expect(cart.lines).toEqual([]);
   expect(localStorage.getItem(CART_SESSION_KEY)).toBeNull();
+});
+
+it('sends no card for PromptPay or cash on delivery', async () => {
+  const cart = useCartStore();
+  await cart.add(AZUL);
+  await cart.checkout(null, { ...details, paymentMethod: 'PROMPTPAY' });
+  const checkout = server.sent('POST', /\/checkout$/)[0];
+  expect(checkout.data.paymentMethod).toBe('PROMPTPAY');
+  expect(checkout.data.paymentToken).toBeUndefined();
+  expect(server.sent('POST', /\/payments\/tokens$/)).toHaveLength(0);
+});
+
+it('refuses a card checkout without a card', async () => {
+  const cart = useCartStore();
+  await cart.add(AZUL);
+  await expect(cart.checkout(null, details)).rejects.toThrow();
+  expect(server.sent('POST', /\/checkout$/)).toHaveLength(0);
 });
 
 it('reuses the idempotency key after a lost response but not after a definite answer', async () => {

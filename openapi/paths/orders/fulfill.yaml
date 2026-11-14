@@ -9,6 +9,7 @@ post:
   description:
     Only PLACED -> FULFILLED is allowed. Atomically decrement saleOnHand and saleHeld by
     the ordered quantities, capture the payment, then record server time and staff subject. Customers always receive 403.
+    An unpaid PromptPay order returns 409; a cash-on-delivery payment stays PENDING until confirmed.
     Repeating fulfillment returns the same order without decrementing stock twice. Cancelled orders
     return 409.
   security:

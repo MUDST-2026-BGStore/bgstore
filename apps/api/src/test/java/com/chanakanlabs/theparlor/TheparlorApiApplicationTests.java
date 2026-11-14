@@ -74,6 +74,7 @@ class TheparlorApiApplicationTests {
   @LocalServerPort int port;
   @Autowired JdbcTemplate jdbc;
   @Autowired StringRedisTemplate redis;
+  @Autowired com.chanakanlabs.theparlor.orders.internal.application.UnpaidOrderExpiry unpaidOrders;
 
   // Exercise the real admin security rule without requiring a production admin controller.
   @RestController
@@ -130,7 +131,8 @@ class TheparlorApiApplicationTests {
     client.getAttributes().put("post.logout.redirect.uris", "http://localhost:" + TEST_PORT + "/");
     realm.clients().get(client.getId()).update(client);
     // The customers have no realm role: ordinary signed-in shoppers.
-    for (String role : List.of("staff", "manager", "admin", "customer", "other-customer")) {
+    for (String role :
+        List.of("staff", "manager", "admin", "customer", "other-customer", "shopper-customer")) {
       var credential = new CredentialRepresentation();
       credential.setType("password");
       credential.setValue(PASSWORD);
@@ -1052,6 +1054,275 @@ class TheparlorApiApplicationTests {
         .isEqualTo("PLACED");
     assertThat(stock("stock_on_hand", branch, edition)).isEqualTo(3);
     assertThat(stock("stock_held", branch, edition)).isEqualTo(2);
+    jdbc.update("UPDATE branches SET fulfills_delivery=false WHERE id=?", branch);
+  }
+
+  /** A provider notice, posted the way Omise does: no session and no CSRF token. */
+  HttpResponse<String> omiseNotice(String chargeId) throws Exception {
+    return browser()
+        .send(
+            HttpRequest.newBuilder(
+                    URI.create("http://localhost:" + port + "/api/v1/payments/omise/webhook"))
+                .header("Content-Type", "application/json")
+                .POST(
+                    HttpRequest.BodyPublishers.ofString(
+                        "{\"object\":\"event\",\"key\":\"charge.complete\",\"data\":{\"object\":\"charge\",\"id\":\""
+                            + chargeId
+                            + "\",\"status\":\"successful\"}}"))
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+  }
+
+  String chargeOf(String orderId) {
+    return jdbc.queryForObject(
+        "SELECT gateway_reference FROM payments WHERE order_id=?::uuid", String.class, orderId);
+  }
+
+  void customerPays(String orderId) {
+    jdbc.update(
+        "UPDATE bogus_promptpay_charges SET paid_at=now() WHERE reference=?", chargeOf(orderId));
+  }
+
+  void qrDeadlinePasses(String orderId) {
+    jdbc.update(
+        "UPDATE payments SET expires_at=now() - interval '1 minute' WHERE order_id=?::uuid",
+        orderId);
+  }
+
+  @Test
+  void signedInCustomersPayByPromptPayOrCashOnDeliveryAndUnpaidQrsExpire() throws Exception {
+    var branch = UUID.randomUUID();
+    var game = UUID.randomUUID();
+    var edition = UUID.randomUUID();
+    jdbc.update("UPDATE branches SET fulfills_delivery=false");
+    jdbc.update(
+        "INSERT INTO branches(id,name,address,fulfills_delivery) VALUES (?, 'Payments test', 'Address', true)",
+        branch);
+    jdbc.update(
+        "INSERT INTO games(id,name,min_players,max_players,play_minutes_min,play_minutes_max) VALUES (?, 'Payment game',1,4,10,20)",
+        game);
+    jdbc.update(
+        "INSERT INTO game_descriptions(game_id,locale,description) VALUES (?, 'en-US', 'Game')",
+        game);
+    jdbc.update(
+        "INSERT INTO game_editions(id,game_id,kind,language_code) VALUES (?,?,'BASE_GAME','th')",
+        edition,
+        game);
+    jdbc.update(
+        "INSERT INTO branch_games(branch_id,game_id,sale_enabled) VALUES (?,?,true)", branch, game);
+    jdbc.update(
+        "INSERT INTO branch_editions(branch_id,edition_id,sale_price_minor,stock_on_hand) VALUES (?,?,74000,10)",
+        branch,
+        edition);
+    String orders = "/api/v1/branches/" + branch + "/orders";
+    String line = "{\"editionId\":\"" + edition + "\",\"quantity\":1}";
+    String address =
+        "\"shippingAddress\":{\"recipientName\":\"Shopper\",\"line1\":\"1 Test Road\","
+            + "\"district\":\"Pathum Wan\",\"province\":\"Bangkok\",\"postalCode\":\"10330\"}";
+
+    // The development gateway tokenizes cards on the server.
+    var configuration = JSON.readTree(get(browser(), "/api/v1/payments/configuration").body());
+    assertThat(configuration.get("cardTokenization").asString()).isEqualTo("SERVER");
+    assertThat(configuration.has("omisePublicKey")).isFalse();
+
+    // Guests keep card only.
+    var guest = browser();
+    var guestCart =
+        JSON.readTree(
+            send(
+                    guest,
+                    "POST",
+                    "/api/v1/carts",
+                    null,
+                    "Idempotency-Key",
+                    UUID.randomUUID().toString())
+                .body());
+    String guestPath = "/api/v1/carts/" + guestCart.get("id").asString();
+    String guestToken = guestCart.get("token").asString();
+    assertThat(
+            send(guest, "POST", guestPath + "/items", line, "X-Cart-Token", guestToken)
+                .statusCode())
+        .isEqualTo(200);
+    for (String method : List.of("PROMPTPAY", "COD")) {
+      var refused =
+          send(
+              guest,
+              "POST",
+              guestPath + "/checkout",
+              "{\"contact\":{\"name\":\"Guest\",\"email\":\"guest@example.invalid\",\"phone\":\"+66812345678\"},"
+                  + address
+                  + ",\"paymentMethod\":\""
+                  + method
+                  + "\"}",
+              "X-Cart-Token",
+              guestToken,
+              "Idempotency-Key",
+              UUID.randomUUID().toString());
+      assertThat(refused.statusCode()).as(refused.body()).isEqualTo(400);
+    }
+    assertThat(stock("stock_held", branch, edition)).isZero();
+
+    var shopper = login("shopper-customer");
+    var account =
+        send(
+            shopper,
+            "POST",
+            "/api/v1/me",
+            "{\"firstName\":\"Payment\",\"lastName\":\"Shopper\",\"phoneNumber\":\"+66891112222\","
+                + "\"preferences\":{\"preferredLocale\":\"th-TH\"}}");
+    assertThat(account.statusCode()).as(account.body()).isIn(200, 201);
+    String items = "\"items\":[" + line + "]";
+    // A card needs a token, other methods take none, and cash on delivery needs delivery.
+    for (String body :
+        List.of(
+            "{" + items + ",\"paymentMethod\":\"CARD\"}",
+            "{"
+                + items
+                + ",\"paymentMethod\":\"PROMPTPAY\",\"paymentToken\":\"bogus_tok_0123456789abcdef\"}",
+            "{" + items + ",\"paymentMethod\":\"COD\"}")) {
+      var refused =
+          send(shopper, "POST", orders, body, "Idempotency-Key", UUID.randomUUID().toString());
+      assertThat(refused.statusCode()).as(refused.body()).isEqualTo(400);
+    }
+    assertThat(stock("stock_held", branch, edition)).isZero();
+
+    // PromptPay: the order holds stock and shows a QR payable for 15 minutes.
+    String promptPay = "{" + items + ",\"paymentMethod\":\"PROMPTPAY\"}";
+    var placed =
+        send(shopper, "POST", orders, promptPay, "Idempotency-Key", UUID.randomUUID().toString());
+    assertThat(placed.statusCode()).as(placed.body()).isEqualTo(201);
+    var order = JSON.readTree(placed.body());
+    String paidId = order.get("id").asString();
+    var payment = order.get("payment");
+    assertThat(payment.get("method").asString()).isEqualTo("PROMPTPAY");
+    assertThat(payment.get("status").asString()).isEqualTo("PENDING");
+    assertThat(payment.get("amount").get("amountMinor").asLong()).isEqualTo(74000);
+    assertThat(payment.get("promptPayQr").asString()).startsWith("data:image/svg+xml;base64,");
+    var deadline = java.time.OffsetDateTime.parse(payment.get("expiresAt").asString()).toInstant();
+    assertThat(deadline)
+        .isBetween(
+            java.time.Instant.now().plus(java.time.Duration.ofMinutes(14)),
+            java.time.Instant.now().plus(java.time.Duration.ofMinutes(16)));
+    assertThat(stock("stock_held", branch, edition)).isEqualTo(1);
+
+    // Unpaid, it cannot be handed over.
+    var manager = login("manager");
+    String paidPath = orders + "/" + paidId;
+    var early = send(manager, "POST", paidPath + "/fulfill", null);
+    assertThat(early.statusCode()).as(early.body()).isEqualTo(409);
+    assertThat(JSON.readTree(early.body()).get("code").asString())
+        .isEqualTo("PAYMENT_NOT_RECEIVED");
+    assertThat(JSON.readTree(get(shopper, paidPath).body()).get("status").asString())
+        .isEqualTo("PLACED");
+
+    // Provider notices are only hints: unknown charges and unpaid ones change nothing.
+    var unknown = omiseNotice("chrg_test_unknown");
+    assertThat(unknown.statusCode()).as(unknown.body()).isEqualTo(200);
+    assertThat(omiseNotice(chargeOf(paidId)).statusCode()).isEqualTo(200);
+    assertThat(JSON.readTree(get(shopper, paidPath).body()).get("payment").get("status").asString())
+        .isEqualTo("PENDING");
+    customerPays(paidId);
+    assertThat(omiseNotice(chargeOf(paidId)).statusCode()).isEqualTo(200);
+    var paid = JSON.readTree(get(shopper, paidPath).body()).get("payment");
+    assertThat(paid.get("status").asString()).isEqualTo("CAPTURED");
+    assertThat(paid.has("promptPayQr")).isFalse();
+    assertThat(paid.has("expiresAt")).isFalse();
+    var handedOver = send(manager, "POST", paidPath + "/fulfill", null);
+    assertThat(handedOver.statusCode()).as(handedOver.body()).isEqualTo(200);
+    assertThat(JSON.readTree(handedOver.body()).get("payment").get("status").asString())
+        .isEqualTo("CAPTURED");
+    assertThat(stock("stock_on_hand", branch, edition)).isEqualTo(9);
+    // Only cash on delivery is confirmed by staff.
+    assertThat(send(manager, "POST", paidPath + "/payment/confirm", null).statusCode())
+        .isEqualTo(409);
+
+    // Unpaid past the deadline: the server cancels the order and releases the stock.
+    var unpaid =
+        JSON.readTree(
+            send(
+                    shopper,
+                    "POST",
+                    orders,
+                    promptPay,
+                    "Idempotency-Key",
+                    UUID.randomUUID().toString())
+                .body());
+    String unpaidId = unpaid.get("id").asString();
+    assertThat(stock("stock_held", branch, edition)).isEqualTo(1);
+    unpaidOrders.expireUnpaidOrders();
+    assertThat(JSON.readTree(get(shopper, orders + "/" + unpaidId).body()).get("status").asString())
+        .as("not yet past its deadline")
+        .isEqualTo("PLACED");
+    qrDeadlinePasses(unpaidId);
+    assertThat(unpaidOrders.expireUnpaidOrders()).isGreaterThanOrEqualTo(1);
+    var expired = JSON.readTree(get(shopper, orders + "/" + unpaidId).body());
+    assertThat(expired.get("status").asString()).isEqualTo("CANCELLED");
+    assertThat(expired.get("cancellationReason").asString())
+        .isEqualTo("Payment not received in time");
+    assertThat(expired.get("cancelledBySubject").asString()).isEqualTo("system");
+    assertThat(expired.get("payment").get("status").asString()).isEqualTo("VOIDED");
+    assertThat(stock("stock_held", branch, edition)).isZero();
+    assertThat(stock("stock_on_hand", branch, edition)).isEqualTo(9);
+    // A payment that arrived just before the deadline is kept, not cancelled.
+    var late =
+        JSON.readTree(
+            send(
+                    shopper,
+                    "POST",
+                    orders,
+                    promptPay,
+                    "Idempotency-Key",
+                    UUID.randomUUID().toString())
+                .body());
+    String lateId = late.get("id").asString();
+    customerPays(lateId);
+    qrDeadlinePasses(lateId);
+    unpaidOrders.expireUnpaidOrders();
+    var kept = JSON.readTree(get(shopper, orders + "/" + lateId).body());
+    assertThat(kept.get("status").asString()).isEqualTo("PLACED");
+    assertThat(kept.get("payment").get("status").asString()).isEqualTo("CAPTURED");
+    assertThat(send(manager, "POST", orders + "/" + lateId + "/fulfill", null).statusCode())
+        .isEqualTo(200);
+
+    // Cash on delivery: dispatching does not take the money; staff confirm it afterwards.
+    String cartId = JSON.readTree(get(shopper, "/api/v1/me/cart").body()).get("id").asString();
+    String cartPath = "/api/v1/carts/" + cartId;
+    var added = send(shopper, "POST", cartPath + "/items", line);
+    assertThat(added.statusCode()).as(added.body()).isEqualTo(200);
+    var cod =
+        send(
+            shopper,
+            "POST",
+            cartPath + "/checkout",
+            "{" + address + ",\"paymentMethod\":\"COD\"}",
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(cod.statusCode()).as(cod.body()).isEqualTo(201);
+    var codOrder = JSON.readTree(cod.body());
+    assertThat(codOrder.get("fulfillmentMethod").asString()).isEqualTo("SHIPPING");
+    assertThat(codOrder.get("payment").get("method").asString()).isEqualTo("COD");
+    assertThat(codOrder.get("payment").get("status").asString()).isEqualTo("PENDING");
+    assertThat(codOrder.get("payment").get("amount").get("amountMinor").asLong()).isEqualTo(79000);
+    String codPath = orders + "/" + codOrder.get("id").asString();
+    assertThat(send(manager, "POST", codPath + "/payment/confirm", null).statusCode())
+        .isEqualTo(409);
+    assertThat(send(shopper, "POST", codPath + "/payment/confirm", null).statusCode())
+        .isEqualTo(403);
+    var dispatched =
+        send(
+            manager,
+            "POST",
+            codPath + "/fulfill",
+            "{\"carrier\":\"FLASH\",\"trackingNumber\":\"TH0123456789\"}");
+    assertThat(dispatched.statusCode()).as(dispatched.body()).isEqualTo(200);
+    assertThat(JSON.readTree(dispatched.body()).get("payment").get("status").asString())
+        .isEqualTo("PENDING");
+    for (int attempt = 0; attempt < 2; attempt++) {
+      var confirmed = send(manager, "POST", codPath + "/payment/confirm", null);
+      assertThat(confirmed.statusCode()).as(confirmed.body()).isEqualTo(200);
+      assertThat(JSON.readTree(confirmed.body()).get("payment").get("status").asString())
+          .isEqualTo("CAPTURED");
+    }
     jdbc.update("UPDATE branches SET fulfills_delivery=false WHERE id=?", branch);
   }
 

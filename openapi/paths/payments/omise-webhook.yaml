@@ -1,0 +1,23 @@
+post:
+  tags:
+    - Payments
+  operationId: receiveOmiseWebhook
+  summary: Omise event notices for charges
+  description: >-
+    Called by Omise, not by browsers, so it takes no CSRF token. The body is
+    not trusted: its charge ID is only used to ask Omise for the charge's
+    current state, and a paid PromptPay charge is then recorded as captured.
+    Unknown charges and other events are acknowledged and ignored.
+  security: []
+  x-access-policy: public
+  requestBody:
+    required: true
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/OmiseWebhookEvent.yaml
+  responses:
+    '200':
+      description: Notice received
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml

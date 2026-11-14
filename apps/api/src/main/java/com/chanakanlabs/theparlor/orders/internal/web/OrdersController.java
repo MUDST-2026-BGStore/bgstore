@@ -21,6 +21,11 @@ public class OrdersController implements OrdersApi {
   }
 
   @Override
+  public Order confirmOrderPayment(UUID branchId, UUID orderId) {
+    return orders.confirmOrderPayment(branchId, orderId);
+  }
+
+  @Override
   public Order createMyOrder(
       UUID branchId, UUID idempotencyKey, CreateOrderRequest createOrderRequest) {
     return orders.createMyOrder(branchId, idempotencyKey, createOrderRequest);
