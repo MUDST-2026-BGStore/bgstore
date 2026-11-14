@@ -3,7 +3,6 @@ package com.chanakanlabs.theparlor.account.internal.web;
 import static com.chanakanlabs.theparlor.account.internal.domain.AccountPreferencePolicy.*;
 
 import com.chanakanlabs.theparlor.account.AccountNotProvisionedException;
-import com.chanakanlabs.theparlor.account.AccountProvisioning;
 import com.chanakanlabs.theparlor.account.AccountRegistration;
 import com.chanakanlabs.theparlor.account.internal.application.AccountService;
 import com.chanakanlabs.theparlor.contracts.api.AccountApi;
@@ -21,13 +20,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 public class MeController implements AccountApi {
-  // TODO: make this consistent, either use interface or direct class
   private final AccountService accountService;
-  private final AccountProvisioning accountProvisioning;
 
-  MeController(AccountService accountService, AccountProvisioning accountProvisioning) {
+  MeController(AccountService accountService) {
     this.accountService = accountService;
-    this.accountProvisioning = accountProvisioning;
   }
 
   @Override
@@ -39,14 +35,13 @@ public class MeController implements AccountApi {
             createAccountRequest.getPhoneNumber(),
             preferenceValues(createAccountRequest.getPreferences()));
 
-    accountProvisioning.provisionForCurrentIdentity(registration);
+    accountService.provisionForCurrentIdentity(registration);
     return accountService.findCurrentProfile().orElseThrow();
   }
 
   @Override
   public void deleteMe() {
-    // TODO: implement delete, different path for keycloak (internal auth) vs external
-    throw new UnsupportedOperationException();
+    accountService.deleteCurrent();
   }
 
   @Override

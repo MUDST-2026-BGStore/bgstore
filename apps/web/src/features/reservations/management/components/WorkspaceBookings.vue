@@ -28,6 +28,7 @@ const {
   getCustomerPhone,
   handleCheckIn,
   openCancel,
+  openNoShow,
   openCheckBill,
   actionInProgress,
 } = useManagementWorkspace();
@@ -153,6 +154,15 @@ const visibleBookings = computed(() =>
               @click="openCheckBill(res)"
               ><i class="fa-solid fa-receipt" aria-hidden="true"></i>Check
               bill</AppButton
+            >
+            <AppButton
+              v-if="
+                res.status === 'CONFIRMED' &&
+                Date.parse(res.startsAt) <= Date.now()
+              "
+              intent="danger"
+              @click="openNoShow(res)"
+              >No-show</AppButton
             >
             <AppButton
               v-if="res.status === 'CONFIRMED'"

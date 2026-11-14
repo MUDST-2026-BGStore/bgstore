@@ -53,11 +53,18 @@ public interface ReservationRepository
       @Param("after") Instant after);
 
   @Query(
-      "select (count(r) > 0) from Reservation r, ReservationGame g where g.id.reservationId = r.id and g.id.gameId = :gameId and r.status = com.chanakanlabs.theparlor.reservations.internal.domain.ReservationStatus.CONFIRMED")
-  boolean hasConfirmedGame(@Param("gameId") UUID gameId);
+      "select (count(r) > 0) from Reservation r, ReservationGame g"
+          + " where g.id.reservationId = r.id and g.id.gameId = :gameId"
+          + " and r.status in (com.chanakanlabs.theparlor.reservations.internal.domain.ReservationStatus.CONFIRMED,"
+          + " com.chanakanlabs.theparlor.reservations.internal.domain.ReservationStatus.CHECKED_IN)")
+  boolean hasOpenGame(@Param("gameId") UUID gameId);
 
-  @Query("select g.id.reservationId from ReservationGame g where g.id.gameId = :gameId")
-  Set<UUID> reservationsUsingGame(@Param("gameId") UUID gameId);
+  @Query(
+      "select (count(r) > 0) from Reservation r"
+          + " where r.customerSubject = :subject"
+          + " and r.status in (com.chanakanlabs.theparlor.reservations.internal.domain.ReservationStatus.CONFIRMED,"
+          + " com.chanakanlabs.theparlor.reservations.internal.domain.ReservationStatus.CHECKED_IN)")
+  boolean hasOpenForCustomer(@Param("subject") String subject);
 
   @Query(
       "select distinct r.tableId from Reservation r"

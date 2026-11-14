@@ -8,6 +8,7 @@
 import type { CartFulfillment } from './cartFulfillment';
 import type { CartIssue } from './cartIssue';
 import type { CartItem } from './cartItem';
+import type { Money } from './money';
 
 /**
  * Persistent cart for one visitor. Guests authenticate with the one-time X-Cart-Token header; the token is returned only in the creation response and cannot be recovered. Signed-in owners need no token. The cart reserves no stock, so every read revalidates quantities, prices and availability and reports problems in issues without deleting lines. Malformed or stale browser state is rejected; the response is always authoritative.
@@ -23,6 +24,8 @@ export interface Cart {
      * @minimum 0
      */
   subtotal: number;
+  shippingFee: Money;
+  total: Money;
   /** True when there is at least one line, no issues, and, for PICKUP, a resolved branch. Checkout still revalidates atomically. */
   checkoutReady: boolean;
   createdAt: string;

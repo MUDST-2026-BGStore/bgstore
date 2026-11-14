@@ -14,6 +14,7 @@ import com.chanakanlabs.theparlor.identity.CurrentUser;
 import com.chanakanlabs.theparlor.inventory.SaleInventory;
 import com.chanakanlabs.theparlor.inventory.SaleInventory.Quote;
 import com.chanakanlabs.theparlor.orders.OrderPlacement;
+import com.chanakanlabs.theparlor.orders.ShippingPolicy;
 import com.chanakanlabs.theparlor.shared.Sha256;
 import java.security.SecureRandom;
 import java.time.ZoneOffset;
@@ -104,6 +105,8 @@ public class CartsService {
         view.getItems(),
         view.getIssues(),
         view.getSubtotal(),
+        view.getShippingFee(),
+        view.getTotal(),
         view.getCheckoutReady(),
         view.getCreatedAt(),
         view.getUpdatedAt(),
@@ -372,12 +375,15 @@ public class CartsService {
     var fulfillment =
         new CartFulfillment(CartFulfillment.MethodEnum.valueOf(cart.getFulfillmentMethod().name()));
     fulfillment.setBranchId(cart.getPickupBranchId());
+    long shippingFee = ShippingPolicy.feeMinor(cart.isShipping(), subtotal);
     return new Cart(
         cart.getId(),
         fulfillment,
         viewItems,
         issues,
         subtotal,
+        new Money(shippingFee),
+        new Money(Math.addExact(subtotal, shippingFee)),
         !viewItems.isEmpty() && issues.isEmpty(),
         cart.getCreatedAt().atOffset(ZoneOffset.UTC),
         cart.getUpdatedAt().atOffset(ZoneOffset.UTC));

@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
-import { fulfillOrder, listBranchOrders } from '@theparlor/api-client';
+import {
+  fulfillOrder,
+  listBranchOrders,
+  type FulfillOrderRequest,
+} from '@theparlor/api-client';
 import { collectPages } from '../../../../shared/lib/pagination';
+import { problemMessage } from '../../../../shared/lib/api-errors';
+import { carrierOptions } from '../../../../shared/lib/carriers';
 import {
   AppBadge,
   AppButton,
   AppCollectionPanel,
   AppDescriptionList,
+  AppDialog,
+  AppDialogPanel,
   AppField,
   AppSelect,
   type FilterValues,
@@ -61,8 +69,15 @@ watch(selectedBranchId, () => {
 
 const fulfillError = ref('');
 const fulfillMutation = useMutation({
-  mutationFn: ({ branchId, orderId }: { branchId: string; orderId: string }) =>
-    fulfillOrder(branchId, orderId),
+  mutationFn: ({
+    branchId,
+    orderId,
+    request,
+  }: {
+    branchId: string;
+    orderId: string;
+    request?: FulfillOrderRequest;
+  }) => fulfillOrder(branchId, orderId, request),
   onSuccess: (_order, { branchId }) =>
     Promise.all([
       queryClient.invalidateQueries({
@@ -74,14 +89,60 @@ const fulfillMutation = useMutation({
 
 async function handleFulfillOrder(order: FulfillmentSample) {
   if (!order.orderId || !isOpenOrder(order)) return;
+  if (order.channel === 'shipping') {
+    dispatchOrder.value = order;
+    dispatchCarrier.value = '';
+    dispatchTracking.value = '';
+    return;
+  }
   fulfillError.value = '';
   try {
     await fulfillMutation.mutateAsync({
       branchId: selectedBranchId.value,
       orderId: order.orderId,
     });
-  } catch {
+  } catch (error) {
     fulfillError.value =
+      problemMessage(error) ??
+      'The order could not be fulfilled. Refresh and try again.';
+  }
+}
+
+const dispatchOrder = ref<FulfillmentSample | null>(null);
+const dispatchCarrier = ref<NonNullable<FulfillOrderRequest['carrier']> | ''>(
+  '',
+);
+const dispatchTracking = ref('');
+const dispatchError = ref('');
+
+function closeDispatch() {
+  if (fulfillMutation.isPending.value) return;
+  dispatchOrder.value = null;
+  dispatchError.value = '';
+}
+
+async function submitDispatch() {
+  const order = dispatchOrder.value;
+  if (
+    !order?.orderId ||
+    !dispatchCarrier.value ||
+    !dispatchTracking.value.trim()
+  )
+    return;
+  dispatchError.value = '';
+  try {
+    await fulfillMutation.mutateAsync({
+      branchId: selectedBranchId.value,
+      orderId: order.orderId,
+      request: {
+        carrier: dispatchCarrier.value,
+        trackingNumber: dispatchTracking.value.trim(),
+      },
+    });
+    dispatchOrder.value = null;
+  } catch (error) {
+    dispatchError.value =
+      problemMessage(error) ??
       'The order could not be fulfilled. Refresh and try again.';
   }
 }
@@ -312,6 +373,61 @@ const productName = (sku: string, itemName?: string) =>
       </AppInspector>
     </AppMasterDetail>
   </AppCollectionPanel>
+  <AppDialog
+    v-if="dispatchOrder"
+    title-id="dispatch-order-title"
+    size="compact"
+    @close="closeDispatch"
+  >
+    <AppDialogPanel
+      title-id="dispatch-order-title"
+      :title="`Dispatch ${dispatchOrder.reference}`"
+      description="Record the parcel carrier and tracking number."
+      as="form"
+      @submit.prevent="submitDispatch"
+      @close="closeDispatch"
+    >
+      <AppField label="Carrier" input-id="dispatch-carrier">
+        <AppSelect
+          input-id="dispatch-carrier"
+          v-model="dispatchCarrier"
+          label="Carrier"
+          :options="carrierOptions"
+        />
+      </AppField>
+      <AppField label="Tracking number" input-id="dispatch-tracking">
+        <input
+          id="dispatch-tracking"
+          v-model="dispatchTracking"
+          maxlength="60"
+          required
+        />
+      </AppField>
+      <AppMessageBar v-if="dispatchError" tone="error">{{
+        dispatchError
+      }}</AppMessageBar>
+      <template #footer>
+        <AppButton
+          :disabled="fulfillMutation.isPending.value"
+          @click="closeDispatch"
+          >Cancel</AppButton
+        >
+        <AppButton
+          type="submit"
+          appearance="primary"
+          :disabled="
+            fulfillMutation.isPending.value ||
+            !dispatchCarrier ||
+            !dispatchTracking.trim()
+          "
+        >
+          {{
+            fulfillMutation.isPending.value ? 'Fulfilling…' : 'Fulfill order'
+          }}
+        </AppButton>
+      </template>
+    </AppDialogPanel>
+  </AppDialog>
 </template>
 
 <style scoped>

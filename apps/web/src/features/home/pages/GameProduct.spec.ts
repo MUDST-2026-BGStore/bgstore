@@ -209,6 +209,8 @@ it('shows the chosen branch’s price and stock and adds the edition to the serv
         items: [],
         issues: [],
         subtotal: 0,
+        shippingFee: { amountMinor: 5000 },
+        total: { amountMinor: 5000 },
         checkoutReady: false,
         createdAt: '2026-11-12T00:00:00Z',
         updatedAt: '2026-11-12T00:00:00Z',

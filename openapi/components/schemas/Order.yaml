@@ -1,6 +1,6 @@
 type: object
 description: >-
-  All prices are THB minor units; total is the sum of line totals. An
+  All prices are THB minor units; total is subtotal plus shippingFee. An
   order cannot contain rental copies. FULFILLED requires fulfilledAt and
   fulfilledBySubject. CANCELLED requires cancelledAt, cancelledBySubject and
   cancellationReason. Those fields are omitted before the corresponding
@@ -12,6 +12,8 @@ required:
   - source
   - status
   - items
+  - subtotal
+  - shippingFee
   - total
   - contact
   - fulfillmentMethod
@@ -39,6 +41,10 @@ properties:
     items:
       $ref: ./OrderItem.yaml
     minItems: 1
+  subtotal:
+    $ref: ./Money.yaml
+  shippingFee:
+    $ref: ./Money.yaml
   total:
     $ref: ./Money.yaml
   contact:
@@ -51,6 +57,16 @@ properties:
       - SHIPPING
   shippingAddress:
     $ref: ./ShippingAddress.yaml
+  carrier:
+    type: string
+    enum:
+      - THAILAND_POST
+      - KERRY
+      - FLASH
+      - JT
+  trackingNumber:
+    type: string
+    maxLength: 60
   payment:
     $ref: ./OrderPayment.yaml
   notes:

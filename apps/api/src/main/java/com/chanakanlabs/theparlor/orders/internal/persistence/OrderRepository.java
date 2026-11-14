@@ -3,7 +3,6 @@ package com.chanakanlabs.theparlor.orders.internal.persistence;
 import com.chanakanlabs.theparlor.orders.internal.domain.Order;
 import jakarta.persistence.LockModeType;
 import java.util.Optional;
-import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
@@ -21,6 +20,14 @@ public interface OrderRepository
   Optional<Order> lockByIdAndBranchId(UUID id, UUID branchId);
 
   @Query(
-      "select (count(o) > 0) from Order o, OrderItem i where i.id.orderId = o.id and i.id.editionId in :ids and o.status = com.chanakanlabs.theparlor.orders.internal.domain.OrderStatus.PLACED")
-  boolean hasPlacedEdition(@Param("ids") Set<UUID> ids);
+      "select (count(o) > 0) from Order o, OrderItem i"
+          + " where i.id.orderId = o.id and i.gameId = :gameId"
+          + " and o.status = com.chanakanlabs.theparlor.orders.internal.domain.OrderStatus.PLACED")
+  boolean hasPlacedGame(@Param("gameId") UUID gameId);
+
+  @Query(
+      "select (count(o) > 0) from Order o"
+          + " where o.customerSubject = :subject"
+          + " and o.status = com.chanakanlabs.theparlor.orders.internal.domain.OrderStatus.PLACED")
+  boolean hasPlacedForCustomer(@Param("subject") String subject);
 }

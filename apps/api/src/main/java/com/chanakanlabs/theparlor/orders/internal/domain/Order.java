@@ -1,5 +1,6 @@
 package com.chanakanlabs.theparlor.orders.internal.domain;
 
+import com.chanakanlabs.theparlor.orders.ShippingPolicy;
 import com.chanakanlabs.theparlor.shared.ContactStorageLimits;
 import com.chanakanlabs.theparlor.shared.EnumStorageLengths;
 import com.chanakanlabs.theparlor.shared.WorkflowTextLimits;
@@ -77,6 +78,16 @@ public class Order {
   @Column(name = "total_minor", nullable = false)
   private Long totalMinor;
 
+  @Column(name = "shipping_fee_minor", nullable = false)
+  private Long shippingFeeMinor;
+
+  @Enumerated(EnumType.STRING)
+  @Column(length = EnumStorageLengths.STATUS)
+  private OrderCarrier carrier;
+
+  @Column(name = "tracking_number", length = 60)
+  private String trackingNumber;
+
   @Column(name = "created_by_subject", nullable = false)
   private String createdBySubject;
 
@@ -121,9 +132,9 @@ public class Order {
       OrderSource source,
       Map<String, Object> shippingAddress,
       String notes,
-      long totalMinor,
+      long itemsTotalMinor,
       String createdBySubject) {
-    if (totalMinor < 0) throw new IllegalArgumentException("Order total must be nonnegative");
+    if (itemsTotalMinor < 0) throw new IllegalArgumentException("Order total must be nonnegative");
     if (createdBySubject == null || createdBySubject.isBlank())
       throw new IllegalArgumentException("Orders need a creator");
     var order = new Order();
@@ -139,9 +150,23 @@ public class Order {
         shippingAddress == null ? OrderFulfillmentMethod.PICKUP : OrderFulfillmentMethod.SHIPPING;
     order.shippingAddress = shippingAddress == null ? null : copyJsonObject(shippingAddress);
     order.notes = text(notes, WorkflowTextLimits.MAX_NOTES_LENGTH, "Notes");
-    order.totalMinor = totalMinor;
+    order.shippingFeeMinor = ShippingPolicy.feeMinor(shippingAddress != null, itemsTotalMinor);
+    order.totalMinor = Math.addExact(itemsTotalMinor, order.shippingFeeMinor);
     order.createdBySubject = createdBySubject;
     return order;
+  }
+
+  /** Records the carrier and tracking number before a shipping order is fulfilled. */
+  public void ship(OrderCarrier carrier, String trackingNumber) {
+    if (fulfillmentMethod != OrderFulfillmentMethod.SHIPPING)
+      throw new IllegalStateException("A pickup order cannot be shipped");
+    if (status == OrderStatus.FULFILLED) return;
+    if (status == OrderStatus.CANCELLED)
+      throw new IllegalStateException("A cancelled order cannot be shipped");
+    String stripped = text(trackingNumber, 60, "Tracking number");
+    if (stripped == null) throw new IllegalArgumentException("Tracking number is required");
+    this.carrier = java.util.Objects.requireNonNull(carrier, "Carrier is required");
+    this.trackingNumber = stripped;
   }
 
   /** Returns false when the order was already cancelled; a fulfilled order cannot be. */

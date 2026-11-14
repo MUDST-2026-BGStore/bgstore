@@ -25,6 +25,9 @@ import { useBranchDirectoryStore } from './branch-directory';
 /** The guest cart's ID and bearer token: the only cart data kept in the browser. */
 export const CART_SESSION_KEY = 'theparlor.cart.session.v1';
 
+/** Must stay aligned with the backend ShippingPolicy free-shipping threshold. */
+export const FREE_SHIPPING_FROM_MINOR = 150_000;
+
 export type CartFailure =
   | 'stock' // not enough units, or not sold at the cart's location
   | 'invalid' // rejected input
@@ -255,6 +258,10 @@ export const useCartStore = defineStore('shopping-cart', () => {
     lines.value.reduce((sum, line) => sum + line.quantity, 0),
   );
   const subtotal = computed(() => server.value?.subtotal ?? 0);
+  const shippingFee = computed(
+    () => server.value?.shippingFee.amountMinor ?? 0,
+  );
+  const total = computed(() => server.value?.total.amountMinor ?? 0);
   const issues = computed(() => lines.value.filter((line) => line.problem));
   const canCheckout = computed(
     () => Boolean(server.value?.checkoutReady) && !choosingPickupBranch.value,
@@ -404,6 +411,8 @@ export const useCartStore = defineStore('shopping-cart', () => {
     lines,
     count,
     subtotal,
+    shippingFee,
+    total,
     method,
     pickupBranchId,
     fulfillmentBranch,

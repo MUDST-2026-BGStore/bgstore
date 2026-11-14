@@ -3,7 +3,6 @@ import { useWorkspaceNavigation } from './useWorkspaceNavigation';
 import { useWorkspaceReservations } from './useWorkspaceReservations';
 import { useWorkspaceGames } from './useWorkspaceGames';
 import { useWorkspacePantry } from './useWorkspacePantry';
-import { useWorkspaceSettings } from './useWorkspaceSettings';
 import { useWorkspaceSaleStock } from './useWorkspaceSaleStock';
 
 function createWorkspace() {
@@ -14,7 +13,6 @@ function createWorkspace() {
     ...useWorkspaceGames(reservations),
     ...useWorkspacePantry(),
     saleStock: useWorkspaceSaleStock(reservations.selectedBranchId),
-    ...useWorkspaceSettings(),
   };
 }
 

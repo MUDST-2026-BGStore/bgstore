@@ -6,6 +6,7 @@ import { cancelOrder, type Order } from '@theparlor/api-client';
 import { useOrdersStore } from '../stores/orders';
 import { useCartStore } from '../stores/cart';
 import { useAuthStore } from '../../../shared/stores/auth';
+import { CARRIER_NAMES, copyText } from '../../../shared/lib/carriers';
 import { formatMinor } from '../data/catalog';
 import { useGameCovers } from '../api/catalog';
 import { MY_ORDERS_QUERY_KEY, useMyOrders } from '../api/orders';
@@ -445,6 +446,23 @@ function getStatusLabel(order: Order): { text: string; colorClass: string } {
             <!-- Card Bottom: Total Price + Action Buttons -->
             <div class="card-footer-action-row">
               <div class="footer-total-line">
+                <span class="order-payment-line">
+                  {{ locale === 'th-TH' ? 'ยอดรวมสินค้า' : 'Subtotal' }}:
+                  {{ formatMinor(order.subtotal.amountMinor) }}
+                </span>
+                <span
+                  v-if="order.fulfillmentMethod === 'SHIPPING'"
+                  class="order-payment-line"
+                >
+                  {{ locale === 'th-TH' ? 'ค่าจัดส่ง' : 'Shipping' }}:
+                  {{
+                    order.shippingFee.amountMinor === 0
+                      ? locale === 'th-TH'
+                        ? 'ฟรี'
+                        : 'Free'
+                      : formatMinor(order.shippingFee.amountMinor)
+                  }}
+                </span>
                 <span class="lbl-total-purchase">{{
                   locale === 'th-TH' ? 'รวมการสั่งซื้อ:' : 'Order Total:'
                 }}</span>
@@ -454,6 +472,20 @@ function getStatusLabel(order: Order): { text: string; colorClass: string } {
                 <span class="order-payment-line">{{
                   paymentLabel(order)
                 }}</span>
+                <span
+                  v-if="order.carrier && order.trackingNumber"
+                  class="tracking-snippet-bar"
+                >
+                  {{ CARRIER_NAMES[order.carrier] }} ·
+                  <strong>{{ order.trackingNumber }}</strong>
+                  <button
+                    type="button"
+                    class="btn-copy-code"
+                    @click="copyText(order.trackingNumber)"
+                  >
+                    {{ locale === 'th-TH' ? 'คัดลอก' : 'Copy' }}
+                  </button>
+                </span>
               </div>
 
               <div class="footer-buttons-group">

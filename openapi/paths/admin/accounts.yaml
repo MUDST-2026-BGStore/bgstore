@@ -1,0 +1,31 @@
+get:
+  tags:
+    - Staff Assignments
+  operationId: searchAccounts
+  summary: Search onboarded accounts by name or phone
+  description:
+    One result per identity. Queries shorter than 2 characters return no results; at most 20
+    results.
+  security:
+    - sessionCookie: []
+  x-access-policy: administrator
+  parameters:
+    - name: q
+      in: query
+      required: true
+      schema:
+        type: string
+        maxLength: 100
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/AccountMatchList.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml

@@ -169,27 +169,11 @@ export function useWorkspaceReservations() {
       : '';
   });
 
-  // Auto 15-min No-Show Mutation
-  const autoNoShowMutation = useMutation({
-    mutationFn: async ({ resId }: { resId: string }) => {
-      return markReservationNoShow(selectedBranchId.value, resId, {
-        reason:
-          'Automatic No-Show: Customer did not arrive within 15 minutes of reservation start time.',
-      });
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ['listBranchReservations'],
-      });
-    },
-  });
-
   const allReservations = computed<any[]>(() => {
     if (!branchAccessVerified.value) return [];
-    const now = Date.now();
     const rentals = rentalsQuery.data.value?.items ?? [];
-    const apiItems = (reservationsQuery.data.value?.items ?? []).map((item) => {
-      const r = {
+    const apiItems = (reservationsQuery.data.value?.items ?? []).map(
+      (item) => ({
         ...item,
         live: true,
         rentalId:
@@ -199,22 +183,8 @@ export function useWorkspaceReservations() {
         hourlyRate: item.tableHourlyRate
           ? baht(item.tableHourlyRate.amountMinor)
           : undefined,
-      };
-      if (r.status === 'CONFIRMED' && !r.checkedInAt) {
-        const startMs = new Date(r.startsAt).getTime();
-        if (now - startMs > 15 * 60 * 1000) {
-          void autoNoShowMutation.mutateAsync({ resId: r.id });
-          return {
-            ...r,
-            status: 'NO_SHOW',
-            notes: r.notes
-              ? `${r.notes}\n[System]: Auto-marked No-Show after 15 min.`
-              : '[System]: Auto-marked No-Show after 15 min.',
-          };
-        }
-      }
-      return r;
-    });
+      }),
+    );
 
     if (isLiveFloor.value) return apiItems;
 
@@ -228,14 +198,6 @@ export function useWorkspaceReservations() {
     const combined = [...apiItems];
     for (const loc of localItems) {
       if (!combined.some((c) => c.id === loc.id)) {
-        let status = loc.status;
-        if (status === 'CONFIRMED' && !loc.checkedInAt) {
-          const startMs = new Date(loc.startsAt).getTime();
-          if (now - startMs > 15 * 60 * 1000) {
-            status = 'NO_SHOW';
-          }
-        }
-
         combined.push({
           id: loc.id,
           branchId: loc.branchId,
@@ -245,7 +207,7 @@ export function useWorkspaceReservations() {
           checkedInAt: loc.checkedInAt,
           completedAt: loc.completedAt,
           partySize: loc.partySize,
-          status,
+          status: loc.status,
           customer: {
             displayName: loc.customerName,
             phone: loc.customerPhone,
@@ -378,7 +340,7 @@ export function useWorkspaceReservations() {
           type: 'LATE',
           sev: 'high',
           title: `Customer late ${diffMins}m: ${getCustomerName(r.customer)} (Table ${r.tableId})`,
-          subtitle: `Scheduled ${formatTime(r.startsAt)} · Auto-released if 15m late`,
+          subtitle: `Scheduled ${formatTime(r.startsAt)}`,
           reservation: r,
         });
       }
@@ -494,6 +456,48 @@ export function useWorkspaceReservations() {
     await cancelMutation.mutateAsync({
       resId: cancelTargetRes.value.id,
       reason: cancelReason.value,
+    });
+  }
+
+  // No-show
+  const showNoShowModal = ref(false);
+  const noShowTargetRes = ref<any>(null);
+  const noShowReason = ref('Customer did not arrive');
+
+  function openNoShow(res: any) {
+    noShowTargetRes.value = res;
+    noShowReason.value = 'Customer did not arrive';
+    showNoShowModal.value = true;
+  }
+
+  const noShowMutation = useMutation({
+    mutationFn: async ({
+      resId,
+      reason,
+    }: {
+      resId: string;
+      reason: string;
+    }) => {
+      return markReservationNoShow(selectedBranchId.value, resId, { reason });
+    },
+    onSuccess: () => {
+      showNoShowModal.value = false;
+      noShowTargetRes.value = null;
+      void queryClient.invalidateQueries({
+        queryKey: ['listBranchReservations'],
+      });
+    },
+    onError: () => {
+      actionError.value = 'No-show failed. Refresh and retry.';
+    },
+  });
+
+  async function submitNoShow() {
+    if (!noShowTargetRes.value) return;
+    actionError.value = '';
+    await noShowMutation.mutateAsync({
+      resId: noShowTargetRes.value.id,
+      reason: noShowReason.value,
     });
   }
 
@@ -682,7 +686,6 @@ export function useWorkspaceReservations() {
     isLiveFloor,
     branchAccessVerified,
     branchAccessDenied,
-    autoNoShowMutation,
     allReservations,
     activeFloorReservations,
     upcomingReservations,
@@ -707,6 +710,12 @@ export function useWorkspaceReservations() {
     openCancel,
     cancelMutation,
     submitCancel,
+    showNoShowModal,
+    noShowTargetRes,
+    noShowReason,
+    openNoShow,
+    noShowMutation,
+    submitNoShow,
     showWalkInModal,
     walkInTableId,
     walkInPartySize,
