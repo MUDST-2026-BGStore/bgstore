@@ -1,13 +1,12 @@
-# Publish this checkout and ARM64 images, provision theparlor-runtime, set DNS,
-# then run make aws-gitops-enable. Sync both applications explicitly in Argo CD.
-# No automatic pruning is enabled during the initial rollout.
+# Published ARM64 images and the existing runtime Secret back this AWS release.
+# Sync both applications explicitly in Argo CD; automatic sync/pruning stay off.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: theparlor-dev
   namespace: argocd
   annotations:
-    argocd.argoproj.io/skip-reconcile: 'true'
+    argocd.argoproj.io/skip-reconcile: 'false'
     argocd.argoproj.io/compare-options: ServerSideDiff=true
 spec:
   project: theparlor
@@ -27,7 +26,7 @@ metadata:
   name: theparlor-routing
   namespace: argocd
   annotations:
-    argocd.argoproj.io/skip-reconcile: 'true'
+    argocd.argoproj.io/skip-reconcile: 'false'
     argocd.argoproj.io/compare-options: ServerSideDiff=true
 spec:
   project: theparlor

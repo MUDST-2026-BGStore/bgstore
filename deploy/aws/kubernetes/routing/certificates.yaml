@@ -23,7 +23,7 @@ metadata:
   namespace: gateway
 spec:
   secretName: theparlor-tls
-  dnsNames: [theparlor.devopsandbox.chanakanlabs.com]
+  dnsNames: [bgstore.devopsandbox.chanakanlabs.com]
   issuerRef: { name: letsencrypt-production, kind: ClusterIssuer }
 ---
 apiVersion: cert-manager.io/v1
