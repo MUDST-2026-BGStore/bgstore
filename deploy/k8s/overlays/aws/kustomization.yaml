@@ -18,7 +18,7 @@ patches:
 images:
   - name: ghcr.io/theparlor/theparlor-api
     newName: 416604074663.dkr.ecr.ap-southeast-7.amazonaws.com/theparlor/api
-    newTag: release-20261114-8050430-r1
+    newTag: release-20261114-f037406-r1
   - name: ghcr.io/theparlor/theparlor-web
     newName: 416604074663.dkr.ecr.ap-southeast-7.amazonaws.com/theparlor/web
-    newTag: release-20261114-8050430-r1
+    newTag: release-20261114-f037406-r1
