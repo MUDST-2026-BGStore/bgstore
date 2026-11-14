@@ -19,12 +19,12 @@ const {
   selectedBranch,
   allReservations,
   branchFloorTables,
+  tableLabel,
   occupiedTablesCount,
   freeTablesCount,
   upcomingReservations,
   activeFloorReservations,
   needsYouItems,
-  getTableStatus,
   getElapsedMinutes,
   calculateCurrentPlayFee,
   formatTime,
@@ -33,6 +33,7 @@ const {
   handleCheckIn,
   actionInProgress,
   openCancel,
+  openNoShow,
   openCheckBill,
   openAddSnacks,
 } = useManagementWorkspace();
@@ -50,12 +51,6 @@ const queueColumns = [
   { label: 'Est. table fee', numeric: true },
   { label: 'Actions', action: true },
 ];
-function tableNumber(reservation: { id: string }): string {
-  const table = branchFloorTables.find(
-    (table) => getTableStatus(table).reservation?.id === reservation.id,
-  );
-  return table ? String(table.number) : '—';
-}
 </script>
 
 <template>
@@ -145,7 +140,7 @@ function tableNumber(reservation: { id: string }): string {
               }}</time>
               <strong>{{ getCustomerName(reservation.customer) }}</strong>
               <p>
-                Table {{ tableNumber(reservation) }}
+                {{ tableLabel(reservation.tableId) }}
                 <span aria-hidden="true">·</span>
                 {{ reservation.partySize }} guests
               </p>
@@ -155,6 +150,12 @@ function tableNumber(reservation: { id: string }): string {
                   :disabled="actionInProgress === reservation.id"
                   @click="handleCheckIn(reservation)"
                   >Check in</AppButton
+                >
+                <AppButton
+                  v-if="Date.parse(reservation.startsAt) <= Date.now()"
+                  intent="danger"
+                  @click="openNoShow(reservation)"
+                  >No-show</AppButton
                 >
                 <AppButton intent="danger" @click="openCancel(reservation)"
                   >Cancel booking</AppButton
@@ -225,8 +226,9 @@ function tableNumber(reservation: { id: string }): string {
         >
           <tr v-for="item in needsYouItems" :key="item.id">
             <th scope="row">
-              <strong class="queue-table-label"
-                >Table {{ tableNumber(item.reservation) }}</strong
+              <strong class="queue-table-label">{{
+                tableLabel(item.reservation.tableId)
+              }}</strong
               ><AppBadge :tone="item.type === 'LATE' ? 'danger' : 'success'">{{
                 item.type === 'LATE' ? 'Late arrival' : 'In play'
               }}</AppBadge>
@@ -262,13 +264,20 @@ function tableNumber(reservation: { id: string }): string {
                   bill</AppButton
                 ></template
               >
-              <AppButton
-                v-else
-                appearance="primary"
-                :disabled="actionInProgress === item.reservation.id"
-                @click="handleCheckIn(item.reservation)"
-                >Check in</AppButton
-              >
+              <template v-else>
+                <AppButton
+                  appearance="primary"
+                  :disabled="actionInProgress === item.reservation.id"
+                  @click="handleCheckIn(item.reservation)"
+                  >Check in</AppButton
+                >
+                <AppButton intent="danger" @click="openNoShow(item.reservation)"
+                  >No-show</AppButton
+                >
+                <AppButton intent="danger" @click="openCancel(item.reservation)"
+                  >Cancel booking</AppButton
+                >
+              </template>
             </AppTableActions>
           </tr>
         </AppDataTable>

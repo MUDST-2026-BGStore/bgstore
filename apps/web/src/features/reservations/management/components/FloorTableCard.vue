@@ -29,9 +29,9 @@ const assignedGames = computed(() => getTableAssignedGames(props.table.id));
 </script>
 
 <template>
-  <article class="floor-service-table" :aria-label="`Table ${table.number}`">
+  <article class="floor-service-table" :aria-label="table.label">
     <header class="floor-service-header">
-      <h2>Table {{ table.number }}</h2>
+      <h2>{{ table.label }}</h2>
       <AppBadge
         :tone="
           status.state === 'OCCUPIED'
@@ -78,7 +78,7 @@ const assignedGames = computed(() => getTableAssignedGames(props.table.id));
               <strong>{{ game }}</strong
               ><AppButton
                 appearance="subtle"
-                :aria-label="`Return ${game} from Table ${table.number}`"
+                :aria-label="`Return ${game} from ${table.label}`"
                 @click="unassignGameFromTable(table.id, game)"
                 >Return to shelf</AppButton
               >
@@ -87,7 +87,7 @@ const assignedGames = computed(() => getTableAssignedGames(props.table.id));
           <div v-else class="floor-game-line">
             <span class="floor-service-context">No game assigned</span
             ><AppButton
-              :aria-label="`Assign game to Table ${table.number}`"
+              :aria-label="`Assign game to ${table.label}`"
               @click="openAssignGameForTable(table.id)"
               >Assign game</AppButton
             >
@@ -113,12 +113,12 @@ const assignedGames = computed(() => getTableAssignedGames(props.table.id));
     <footer class="floor-service-actions">
       <template v-if="status.state === 'OCCUPIED'"
         ><AppButton
-          :aria-label="`Add refreshments to Table ${table.number}`"
+          :aria-label="`Add refreshments to ${table.label}`"
           @click="openAddSnacks(status.reservation)"
           >Refreshments</AppButton
         ><AppButton
           appearance="primary"
-          :aria-label="`Check bill for Table ${table.number}`"
+          :aria-label="`Check bill for ${table.label}`"
           @click="openCheckBill(status.reservation)"
           ><i class="fa-solid fa-receipt" aria-hidden="true"></i>Check
           bill</AppButton
@@ -128,14 +128,14 @@ const assignedGames = computed(() => getTableAssignedGames(props.table.id));
         v-else-if="status.state === 'RESERVED'"
         appearance="primary"
         :disabled="actionInProgress === status.reservation?.id"
-        :aria-label="`Check in and seat at Table ${table.number}`"
+        :aria-label="`Check in and seat at ${table.label}`"
         @click="handleCheckIn(status.reservation)"
         >Check in & seat</AppButton
       >
       <AppButton
         v-else
         appearance="primary"
-        :aria-label="`Seat walk-in at Table ${table.number}`"
+        :aria-label="`Seat walk-in at ${table.label}`"
         @click="openWalkInForTable(table)"
         ><i class="fa-solid fa-plus" aria-hidden="true"></i>Seat
         walk-in</AppButton

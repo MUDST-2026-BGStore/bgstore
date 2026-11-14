@@ -15,7 +15,6 @@ import {
   checkInReservation,
   cancelReservation,
   markReservationNoShow,
-  createStaffReservation,
   type Branch,
   type Reservation,
   type ReservationPreOrder,
@@ -32,6 +31,7 @@ import {
   serverClockOffsetMs,
 } from '../data/session-timing';
 import { httpStatus } from '../../../shared/lib/api-errors';
+import { useWalkInSeating } from './useWalkInSeating';
 
 const baht = (amountMinor: number) => Math.round(amountMinor / 100);
 
@@ -57,32 +57,36 @@ function toBillPreOrder(
   };
 }
 
-interface FloorTable {
+export interface FloorTable {
+  /** The table's canonical ID: the API's UUID, or a sample table's ID. */
   id: string;
+  /** Display name, e.g. "Table 3". Never used to identify a table. */
+  label: string;
+  /** Short form of the label for compact columns. */
   number: number;
   seats: number;
   rate: number;
-  label?: string;
 }
 
-// Sample floor for branches whose tables are not set up on the server yet.
-const sampleFloorTables = (): FloorTable[] => [
-  { id: '1', number: 1, seats: 2, rate: 150 },
-  { id: '2', number: 2, seats: 4, rate: 200 },
-  { id: '3', number: 3, seats: 4, rate: 200 },
-  { id: '4', number: 4, seats: 4, rate: 200 },
-  { id: '5', number: 5, seats: 6, rate: 300 },
-  { id: '6', number: 6, seats: 6, rate: 300 },
+// TODO(workspace-floor-api): The sample floor stands in only for branches without
+// tables on the server. Its IDs are the ones the local sample sessions reference.
+const SAMPLE_FLOOR: readonly FloorTable[] = [
+  { id: 't-siam-1', label: 'Table 1', number: 1, seats: 2, rate: 150 },
+  { id: 't-siam-2', label: 'Table 2', number: 2, seats: 4, rate: 200 },
+  { id: 't-siam-3', label: 'Table 3', number: 3, seats: 4, rate: 200 },
+  { id: 't-siam-4', label: 'Table 4', number: 4, seats: 4, rate: 200 },
+  { id: 't-siam-5', label: 'Table 5', number: 5, seats: 6, rate: 300 },
+  { id: 't-siam-6', label: 'Table 6', number: 6, seats: 6, rate: 300 },
 ];
 
-function toFloorTable(table: Table, index: number): FloorTable {
+export function floorTableOf(table: Table, index: number): FloorTable {
   const number = Number(/\d+/.exec(table.label)?.[0] ?? index + 1);
   return {
     id: table.id,
+    label: table.label,
     number: number > 0 ? number : index + 1,
     seats: table.capacity,
     rate: baht(table.hourlyRate.amountMinor),
-    label: table.label,
   };
 }
 
@@ -142,24 +146,31 @@ export function useWorkspaceReservations() {
     enabled: computed(() => !!selectedBranchId.value),
   });
 
-  // Tables Floor Plan Roster. A branch with server tables runs entirely on server
-  // records; otherwise the sample floor and local sample visits stand in.
-  const branchFloorTables = reactive<FloorTable[]>(sampleFloorTables());
-  const isLiveFloor = computed(
-    () => (tablesQuery.data.value?.items.length ?? 0) > 0,
+  // A branch without server tables keeps the sample floor and its sample visits.
+  // Sample visits never share a floor with real tables: their IDs would not match,
+  // and their made-up occupancy must not shadow real guests.
+  const usingSampleFloor = computed(
+    () =>
+      tablesQuery.isSuccess.value &&
+      (tablesQuery.data.value?.items ?? []).length === 0,
   );
+  // One array instance, so consumers keep plain array access as the source changes.
+  const branchFloorTables = reactive<FloorTable[]>([]);
   watch(
-    () => tablesQuery.data.value,
-    (page) => {
-      const live = page?.items ?? [];
-      branchFloorTables.splice(
-        0,
-        branchFloorTables.length,
-        ...(live.length ? live.map(toFloorTable) : sampleFloorTables()),
-      );
+    [() => tablesQuery.data.value, usingSampleFloor],
+    ([page, sample]) => {
+      const next = sample
+        ? SAMPLE_FLOOR.map((table) => ({ ...table }))
+        : (page?.items ?? []).map(floorTableOf);
+      branchFloorTables.splice(0, branchFloorTables.length, ...next);
     },
     { immediate: true },
   );
+
+  /** The display label of a table by canonical ID, or a dash when it is not on this floor. */
+  function tableLabel(tableId: string | null | undefined): string {
+    return branchFloorTables.find((t) => t.id === tableId)?.label ?? '—';
+  }
 
   // The server decides who operates a branch. Until it has answered this branch's
   // reservation list successfully, the workspace shows no records at all, including
@@ -182,27 +193,11 @@ export function useWorkspaceReservations() {
       : '';
   });
 
-  // Auto 15-min No-Show Mutation
-  const autoNoShowMutation = useMutation({
-    mutationFn: async ({ resId }: { resId: string }) => {
-      return markReservationNoShow(selectedBranchId.value, resId, {
-        reason:
-          'Automatic No-Show: Customer did not arrive within 15 minutes of reservation start time.',
-      });
-    },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: ['listBranchReservations'],
-      });
-    },
-  });
-
   const allReservations = computed<any[]>(() => {
     if (!branchAccessVerified.value) return [];
-    const now = Date.now();
     const rentals = rentalsQuery.data.value?.items ?? [];
-    const apiItems = (reservationsQuery.data.value?.items ?? []).map((item) => {
-      const r = {
+    const apiItems = (reservationsQuery.data.value?.items ?? []).map(
+      (item) => ({
         ...item,
         live: true,
         rentalId:
@@ -212,24 +207,10 @@ export function useWorkspaceReservations() {
         hourlyRate: item.tableHourlyRate
           ? baht(item.tableHourlyRate.amountMinor)
           : undefined,
-      };
-      if (r.status === 'CONFIRMED' && !r.checkedInAt) {
-        const startMs = new Date(r.startsAt).getTime();
-        if (now - startMs > 15 * 60 * 1000) {
-          void autoNoShowMutation.mutateAsync({ resId: r.id });
-          return {
-            ...r,
-            status: 'NO_SHOW',
-            notes: r.notes
-              ? `${r.notes}\n[System]: Auto-marked No-Show after 15 min.`
-              : '[System]: Auto-marked No-Show after 15 min.',
-          };
-        }
-      }
-      return r;
-    });
+      }),
+    );
 
-    if (isLiveFloor.value) return apiItems;
+    if (!usingSampleFloor.value) return apiItems;
 
     const localItems = reservationsStore.reservations.value.filter(
       (r) =>
@@ -241,14 +222,6 @@ export function useWorkspaceReservations() {
     const combined = [...apiItems];
     for (const loc of localItems) {
       if (!combined.some((c) => c.id === loc.id)) {
-        let status = loc.status;
-        if (status === 'CONFIRMED' && !loc.checkedInAt) {
-          const startMs = new Date(loc.startsAt).getTime();
-          if (now - startMs > 15 * 60 * 1000) {
-            status = 'NO_SHOW';
-          }
-        }
-
         combined.push({
           id: loc.id,
           branchId: loc.branchId,
@@ -258,7 +231,7 @@ export function useWorkspaceReservations() {
           checkedInAt: loc.checkedInAt,
           completedAt: loc.completedAt,
           partySize: loc.partySize,
-          status,
+          status: loc.status,
           customer: {
             displayName: loc.customerName,
             phone: loc.customerPhone,
@@ -288,15 +261,12 @@ export function useWorkspaceReservations() {
       );
   });
 
+  // Visits are matched to tables by canonical ID only. Labels and ID fragments
+  // are not identities: "t-siam-1" is not table "1", and a label is display text.
   function getTableStatus(table: FloorTable) {
-    const occupied = activeFloorReservations.value.find((r) => {
-      const tId = String(r.tableId || '');
-      return (
-        tId === table.id ||
-        tId.endsWith(`-${table.id}`) ||
-        tId.includes(`Table ${table.number}`)
-      );
-    });
+    const occupied = activeFloorReservations.value.find(
+      (r) => r.tableId === table.id,
+    );
     if (occupied) {
       return {
         state: 'OCCUPIED' as const,
@@ -304,14 +274,9 @@ export function useWorkspaceReservations() {
       };
     }
 
-    const reserved = upcomingReservations.value.find((r) => {
-      const tId = String(r.tableId || '');
-      return (
-        tId === table.id ||
-        tId.endsWith(`-${table.id}`) ||
-        tId.includes(`Table ${table.number}`)
-      );
-    });
+    const reserved = upcomingReservations.value.find(
+      (r) => r.tableId === table.id,
+    );
     if (reserved) {
       return {
         state: 'RESERVED' as const,
@@ -376,7 +341,7 @@ export function useWorkspaceReservations() {
         id: r.id,
         type: 'IN_PLAY',
         sev: 'med',
-        title: `Table ${r.tableId} in play for ${elapsed} min`,
+        title: `${tableLabel(r.tableId)} in play for ${elapsed} min`,
         subtitle: `${r.partySize} guests · ${getCustomerName(r.customer)} · Table charge: ฿${calculateCurrentPlayFee(r)}`,
         reservation: r,
       });
@@ -390,8 +355,8 @@ export function useWorkspaceReservations() {
           id: r.id,
           type: 'LATE',
           sev: 'high',
-          title: `Customer late ${diffMins}m: ${getCustomerName(r.customer)} (Table ${r.tableId})`,
-          subtitle: `Scheduled ${formatTime(r.startsAt)} · Auto-released if 15m late`,
+          title: `Customer late ${diffMins}m: ${getCustomerName(r.customer)} (${tableLabel(r.tableId)})`,
+          subtitle: `Scheduled ${formatTime(r.startsAt)}`,
           reservation: r,
         });
       }
@@ -479,14 +444,20 @@ export function useWorkspaceReservations() {
     },
   });
 
+  // A visit lives either on the server or in the local sample store, never both.
+  // Server visits change only through the API; sample visits only locally.
+  function isServerVisit(id: string): boolean {
+    return (reservationsQuery.data.value?.items ?? []).some((r) => r.id === id);
+  }
+
   async function handleCheckIn(res: Reservation) {
     actionError.value = '';
     actionInProgress.value = res.id;
     try {
-      await checkInMutation.mutateAsync(res.id);
-      reservationsStore.checkInReservation(res.id);
+      if (isServerVisit(res.id)) await checkInMutation.mutateAsync(res.id);
+      else reservationsStore.checkInReservation(res.id);
     } catch {
-      // The API rejected the check-in; keep the saved reservation unchanged.
+      // onError reports it; the floor keeps the server's state.
     } finally {
       actionInProgress.value = null;
     }
@@ -528,124 +499,65 @@ export function useWorkspaceReservations() {
   async function submitCancel() {
     if (!cancelTargetRes.value) return;
     actionError.value = '';
-    reservationsStore.cancelReservation(
-      cancelTargetRes.value.id,
-      cancelReason.value,
-    );
-    await cancelMutation.mutateAsync({
-      resId: cancelTargetRes.value.id,
-      reason: cancelReason.value,
-    });
-  }
-
-  // Walk-in Modal (Instant seating - NO pre-order snacks!)
-  const showWalkInModal = ref(false);
-  const walkInTableId = ref('1');
-  const walkInPartySize = ref(2);
-  const walkInDuration = ref(2);
-  const walkInGuestName = ref('');
-  const walkInPhone = ref('');
-  const walkInError = ref('');
-
-  function openWalkInForTable(table?: FloorTable) {
-    if (table) {
-      walkInTableId.value = table.id;
-      walkInPartySize.value = table.seats;
+    const target = cancelTargetRes.value.id;
+    if (!isServerVisit(target)) {
+      reservationsStore.cancelReservation(target, cancelReason.value);
+      showCancelModal.value = false;
+      cancelTargetRes.value = null;
+      return;
     }
-    walkInGuestName.value = '';
-    walkInPhone.value = '';
-    walkInError.value = '';
-    showWalkInModal.value = true;
+    await cancelMutation
+      .mutateAsync({ resId: target, reason: cancelReason.value })
+      .catch(() => undefined);
   }
 
-  const staffCreateMutation = useMutation({
-    mutationFn: ({
-      branchId,
-      key,
-      payload,
+  // No-show
+  const showNoShowModal = ref(false);
+  const noShowTargetRes = ref<any>(null);
+  const noShowReason = ref('Customer did not arrive');
+
+  function openNoShow(res: any) {
+    noShowTargetRes.value = res;
+    noShowReason.value = 'Customer did not arrive';
+    showNoShowModal.value = true;
+  }
+
+  const noShowMutation = useMutation({
+    mutationFn: async ({
+      resId,
+      reason,
     }: {
-      branchId: string;
-      key: string;
-      payload: Parameters<typeof createStaffReservation>[1];
-    }) =>
-      createStaffReservation(branchId, payload, {
-        headers: { 'Idempotency-Key': key },
-      }),
+      resId: string;
+      reason: string;
+    }) => {
+      return markReservationNoShow(selectedBranchId.value, resId, { reason });
+    },
+    onSuccess: () => {
+      showNoShowModal.value = false;
+      noShowTargetRes.value = null;
+      void queryClient.invalidateQueries({
+        queryKey: ['listBranchReservations'],
+      });
+    },
+    onError: () => {
+      actionError.value = 'No-show failed. Refresh and retry.';
+    },
   });
 
-  // One key per walk-in attempt, reused when a lost response is retried.
-  let walkInAttempt: { key: string; body: string } | null = null;
-
-  async function handleStaffWalkInSubmit() {
-    walkInError.value = '';
-    const matchedTable =
-      branchFloorTables.find((t) => t.id === walkInTableId.value) ||
-      branchFloorTables[0];
-    if (!matchedTable) return;
-    const customerName = walkInGuestName.value.trim() || 'Walk-in Guests';
-
-    if (!isLiveFloor.value) {
-      reservationsStore.startWalkInSession({
-        branchId: selectedBranchId.value,
-        branchName: selectedBranch.value?.name ?? '',
-        tableId: matchedTable.id,
-        tableLabel: `Table ${matchedTable.number}`,
-        partySize: walkInPartySize.value,
-        customerName,
-        customerPhone: walkInPhone.value || undefined,
-        hourlyRate: matchedTable.rate,
-        durationHours: walkInDuration.value,
-      });
-      showWalkInModal.value = false;
-      return;
-    }
-
-    const branchId = selectedBranchId.value;
-    const payload = {
-      source: 'WALK_IN' as const,
-      tableId: matchedTable.id,
-      endsAt: new Date(
-        Date.now() + walkInDuration.value * 3_600_000,
-      ).toISOString(),
-      partySize: walkInPartySize.value,
-      customer: {
-        kind: 'GUEST' as const,
-        displayName: customerName,
-        ...(walkInPhone.value.trim()
-          ? { phone: walkInPhone.value.trim() }
-          : {}),
-      },
-      games: [],
-    };
-    // endsAt moves with the clock, so the retry key follows table, party and guest.
-    const body = JSON.stringify({ ...payload, endsAt: undefined, branchId });
-    if (walkInAttempt?.body !== body)
-      walkInAttempt = { key: crypto.randomUUID(), body };
-    let created: Reservation;
-    try {
-      created = await staffCreateMutation.mutateAsync({
-        branchId,
-        key: walkInAttempt.key,
-        payload,
-      });
-    } catch (error) {
-      // A definite rejection ends this attempt; a lost response keeps its key.
-      if (httpStatus(error) !== undefined) walkInAttempt = null;
-      walkInError.value = 'Seating failed. Refresh and retry.';
-      return;
-    }
-    walkInAttempt = null;
-    void queryClient.invalidateQueries({
-      queryKey: ['listBranchReservations'],
+  async function submitNoShow() {
+    if (!noShowTargetRes.value) return;
+    actionError.value = '';
+    await noShowMutation.mutateAsync({
+      resId: noShowTargetRes.value.id,
+      reason: noShowReason.value,
     });
-    try {
-      await checkInMutation.mutateAsync(created.id);
-    } catch {
-      walkInError.value =
-        'The walk-in is booked but not checked in. Check it in from Bookings.';
-      return;
-    }
-    showWalkInModal.value = false;
+  }
+
+  // Walk-ins are seated by the server only; see useWalkInSeating.
+  const walkIn = useWalkInSeating(selectedBranchId);
+
+  function openWalkInForTable(table?: FloorTable) {
+    walkIn.openFor(table ? { id: table.id, seats: table.seats } : undefined);
   }
 
   // Staff Table Bill Modal
@@ -686,7 +598,7 @@ export function useWorkspaceReservations() {
         branchId: selectedBranchId.value,
         branchName: selectedBranch.value?.name ?? 'Siam',
         tableId: res.tableId,
-        tableLabel: `Table ${res.tableId}`,
+        tableLabel: tableLabel(res.tableId),
         startsAt: res.startsAt,
         endsAt: res.endsAt,
         checkedInAt: res.checkedInAt || res.startsAt,
@@ -720,10 +632,10 @@ export function useWorkspaceReservations() {
     reservationsQuery,
     tablesQuery,
     rentalsQuery,
-    isLiveFloor,
+    usingSampleFloor,
+    tableLabel,
     branchAccessVerified,
     branchAccessDenied,
-    autoNoShowMutation,
     allReservations,
     activeFloorReservations,
     upcomingReservations,
@@ -749,16 +661,15 @@ export function useWorkspaceReservations() {
     openCancel,
     cancelMutation,
     submitCancel,
-    showWalkInModal,
-    walkInTableId,
-    walkInPartySize,
-    walkInDuration,
-    walkInGuestName,
-    walkInPhone,
-    walkInError,
+    showNoShowModal,
+    noShowTargetRes,
+    noShowReason,
+    openNoShow,
+    noShowMutation,
+    submitNoShow,
+    walkIn,
+    showWalkInModal: walkIn.open,
     openWalkInForTable,
-    staffCreateMutation,
-    handleStaffWalkInSubmit,
     staffBillReservation,
     openCheckBill,
     refreshAll,

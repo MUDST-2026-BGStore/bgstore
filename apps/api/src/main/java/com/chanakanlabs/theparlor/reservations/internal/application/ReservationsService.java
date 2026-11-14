@@ -182,22 +182,28 @@ public class ReservationsService {
                         false),
                     booking.getNotes(),
                     staff);
-              if (request instanceof WalkInReservationRequest walkIn)
-                return book(
-                    branchId,
-                    party(walkIn.getCustomer()),
-                    ReservationSource.WALK_IN,
-                    planner.secure(
+              if (request instanceof WalkInReservationRequest walkIn) {
+                UUID seated =
+                    book(
                         branchId,
-                        walkIn.getTableId(),
-                        clock.instant(),
-                        instant(walkIn.getEndsAt()),
-                        walkIn.getPartySize(),
-                        selections(walkIn.getGames()),
-                        null,
-                        true),
-                    walkIn.getNotes(),
-                    staff);
+                        party(walkIn.getCustomer()),
+                        ReservationSource.WALK_IN,
+                        planner.secure(
+                            branchId,
+                            walkIn.getTableId(),
+                            clock.instant(),
+                            instant(walkIn.getEndsAt()),
+                            walkIn.getPartySize(),
+                            selections(walkIn.getGames()),
+                            null,
+                            true),
+                        walkIn.getNotes(),
+                        staff);
+                // Seating now shares this transaction and idempotency key: if the check-in
+                // fails, the walk-in is rolled back too and the table stays as it was.
+                if (Boolean.TRUE.equals(walkIn.getCheckIn())) arrive(branchId, seated, staff);
+                return seated;
+              }
               throw new IllegalArgumentException("Unknown reservation source");
             });
     return views.of(reservations.findById(id).orElseThrow(ReservationsService::missing));
@@ -290,7 +296,13 @@ public class ReservationsService {
    */
   @Transactional
   public CheckInResult checkIn(UUID branchId, UUID reservationId) {
-    String staff = branches.requireOperator(branchId);
+    return arrive(branchId, reservationId, branches.requireOperator(branchId));
+  }
+
+  /**
+   * Check-in for a caller already verified as the branch's operator, in the caller's transaction.
+   */
+  private CheckInResult arrive(UUID branchId, UUID reservationId, String staff) {
     var reservation =
         reservations
             .lockByIdAndBranchId(reservationId, branchId)

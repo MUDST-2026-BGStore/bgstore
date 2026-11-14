@@ -97,7 +97,7 @@ const rows = computed(() =>
         <AppButton
           v-if="row.state === 'OCCUPIED'"
           appearance="primary"
-          :aria-label="`Check bill for Table ${row.table.number}`"
+          :aria-label="`Check bill for ${row.table.label}`"
           @click="openCheckBill(row.reservation)"
           ><i class="fa-solid fa-receipt" aria-hidden="true"></i>Check
           bill</AppButton
@@ -106,14 +106,14 @@ const rows = computed(() =>
           v-else-if="row.state === 'RESERVED'"
           appearance="primary"
           :disabled="actionInProgress === row.reservation?.id"
-          :aria-label="`Check in at Table ${row.table.number}`"
+          :aria-label="`Check in at ${row.table.label}`"
           @click="handleCheckIn(row.reservation)"
           ><i class="fa-solid fa-check" aria-hidden="true"></i>Check
           in</AppButton
         >
         <AppButton
           v-else
-          :aria-label="`Seat walk-in at Table ${row.table.number}`"
+          :aria-label="`Seat walk-in at ${row.table.label}`"
           @click="openWalkInForTable(row.table)"
           ><i class="fa-solid fa-plus" aria-hidden="true"></i>Seat
           walk-in</AppButton

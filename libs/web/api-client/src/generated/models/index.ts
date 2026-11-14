@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.5.0
  */
 
+export * from './accountMatch';
+export * from './accountMatchList';
 export * from './accountPreferences';
 export * from './accountSettings';
 export * from './addCartItemRequest';
@@ -62,6 +64,8 @@ export * from './customerReference';
 export * from './difficulty';
 export * from './endsAtParameter';
 export * from './forbiddenResponse';
+export * from './fulfillOrderRequest';
+export * from './fulfillOrderRequestCarrier';
 export * from './game';
 export * from './gameAvailability';
 export * from './gameDescriptions';
@@ -106,6 +110,7 @@ export * from './notFoundResponse';
 export * from './openingPeriod';
 export * from './openingPeriodDayOfWeek';
 export * from './order';
+export * from './orderCarrier';
 export * from './orderContact';
 export * from './orderFulfillmentMethod';
 export * from './orderItem';
@@ -145,8 +150,11 @@ export * from './reservationPreOrder';
 export * from './reservationPreOrderItem';
 export * from './reservationSource';
 export * from './reservationStatus';
+export * from './searchAccountsParams';
 export * from './sessionResponse';
 export * from './shippingAddress';
+export * from './staffAssignment';
+export * from './staffAssignmentList';
 export * from './staffBookingRequest';
 export * from './staffBookingRequestSource';
 export * from './startsAtParameter';

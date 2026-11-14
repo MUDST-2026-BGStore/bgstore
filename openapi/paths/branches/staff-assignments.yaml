@@ -1,0 +1,26 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+get:
+  tags:
+    - Staff Assignments
+  operationId: listStaffAssignments
+  summary: List the staff assigned to a branch
+  description:
+    Managers and administrators only. Inactive branches are included. Name and phone appear when
+    the staff member completed onboarding.
+  security:
+    - sessionCookie: []
+  x-access-policy: manager
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/StaffAssignmentList.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml

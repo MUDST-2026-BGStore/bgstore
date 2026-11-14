@@ -19,6 +19,7 @@ const {
   getElapsedMinutes,
   getCustomerName,
   activeTab,
+  tableLabel,
 } = useManagementWorkspace();
 const columns = [
   { label: 'Table' },
@@ -69,7 +70,7 @@ const todayTotalGross = computed(
         <AppMetricCard
           appearance="plain"
           label="Current utilization"
-          :value="`${Math.round((occupiedTablesCount / branchFloorTables.length) * 100)}%`"
+          :value="`${Math.round((occupiedTablesCount / (branchFloorTables.length || 1)) * 100)}%`"
           :caption="`${occupiedTablesCount} of ${branchFloorTables.length} tables in play`"
         /></div
     ></AppPanel>
@@ -88,7 +89,7 @@ const todayTotalGross = computed(
           v-for="reservation in activeFloorReservations"
           :key="reservation.id"
         >
-          <td>{{ reservation.tableId }}</td>
+          <td>{{ tableLabel(reservation.tableId) }}</td>
           <td>{{ getCustomerName(reservation.customer) }}</td>
           <td>{{ getElapsedMinutes(reservation) }} min</td>
           <td class="numeric">฿{{ reservation.hourlyRate ?? 200 }}</td>

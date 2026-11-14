@@ -729,7 +729,7 @@ class TheparlorApiApplicationTests {
     jdbc.update(
         "INSERT INTO branch_games(branch_id,game_id,sale_enabled) VALUES (?,?,true)", branch, game);
     jdbc.update(
-        "INSERT INTO branch_editions(branch_id,edition_id,sale_price_minor,stock_on_hand) VALUES (?,?,89000,5)",
+        "INSERT INTO branch_editions(branch_id,edition_id,sale_price_minor,stock_on_hand) VALUES (?,?,74000,5)",
         branch,
         edition);
 
@@ -755,7 +755,9 @@ class TheparlorApiApplicationTests {
     var added = send(guest, "POST", cart + "/items", line, "X-Cart-Token", token);
     assertThat(added.statusCode()).as(added.body()).isEqualTo(200);
     var cartView = JSON.readTree(added.body());
-    assertThat(cartView.get("subtotal").asLong()).isEqualTo(178000);
+    assertThat(cartView.get("subtotal").asLong()).isEqualTo(148000);
+    assertThat(cartView.get("shippingFee").get("amountMinor").asLong()).isEqualTo(5000);
+    assertThat(cartView.get("total").get("amountMinor").asLong()).isEqualTo(153000);
     assertThat(cartView.get("items").get(0).get("gameName").asString()).isEqualTo("Retail game");
     assertThat(cartView.get("items").get(0).get("gameId").asString()).isEqualTo(game.toString());
     assertThat(cartView.get("items").get(0).get("available").asInt()).isEqualTo(5);
@@ -861,12 +863,15 @@ class TheparlorApiApplicationTests {
     assertThat(order.get("status").asString()).isEqualTo("PLACED");
     assertThat(order.get("fulfillmentMethod").asString()).isEqualTo("SHIPPING");
     assertThat(order.get("branchId").asString()).isEqualTo(branch.toString());
-    assertThat(order.get("total").get("amountMinor").asLong()).isEqualTo(178000);
+    assertThat(order.get("subtotal").get("amountMinor").asLong()).isEqualTo(148000);
+    assertThat(order.get("shippingFee").get("amountMinor").asLong()).isEqualTo(5000);
+    assertThat(order.get("total").get("amountMinor").asLong()).isEqualTo(153000);
     assertThat(order.get("customer").get("kind").asString()).isEqualTo("GUEST");
     assertThat(order.get("items").get(0).get("editionLanguage").asString()).isEqualTo("th");
     assertThat(order.get("items").get(0).get("gameId").asString()).isEqualTo(game.toString());
     assertThat(order.get("shippingAddress").get("postalCode").asString()).isEqualTo("10330");
     assertThat(order.get("payment").get("status").asString()).isEqualTo("AUTHORIZED");
+    assertThat(order.get("payment").get("amount").get("amountMinor").asLong()).isEqualTo(153000);
     assertThat(order.get("payment").get("cardBrand").asString()).isEqualTo("VISA");
     assertThat(order.get("payment").get("cardLast4").asString()).isEqualTo("4242");
     assertThat(stock("stock_held", branch, edition)).isEqualTo(2);
@@ -910,10 +915,16 @@ class TheparlorApiApplicationTests {
     var manager = login("manager");
     var listed = JSON.readTree(get(manager, orders + "?status=PLACED").body()).get("items");
     assertThat(listed).hasSize(1);
+    assertThat(send(manager, "POST", orders + "/" + orderId + "/fulfill", null).statusCode())
+        .isEqualTo(400);
+    String dispatch = "{\"carrier\":\"KERRY\",\"trackingNumber\":\"KEX-123\"}";
     for (int attempt = 0; attempt < 2; attempt++) {
-      var fulfilled = send(manager, "POST", orders + "/" + orderId + "/fulfill", null);
+      var fulfilled = send(manager, "POST", orders + "/" + orderId + "/fulfill", dispatch);
       assertThat(fulfilled.statusCode()).as(fulfilled.body()).isEqualTo(200);
       assertThat(JSON.readTree(fulfilled.body()).get("status").asString()).isEqualTo("FULFILLED");
+      assertThat(JSON.readTree(fulfilled.body()).get("carrier").asString()).isEqualTo("KERRY");
+      assertThat(JSON.readTree(fulfilled.body()).get("trackingNumber").asString())
+          .isEqualTo("KEX-123");
       assertThat(JSON.readTree(fulfilled.body()).get("payment").get("status").asString())
           .isEqualTo("CAPTURED");
     }
@@ -1035,6 +1046,7 @@ class TheparlorApiApplicationTests {
             UUID.randomUUID().toString());
     assertThat(risky.statusCode()).as(risky.body()).isEqualTo(201);
     String riskyPath = orders + "/" + JSON.readTree(risky.body()).get("id").asString();
+    assertThat(send(manager, "POST", riskyPath + "/fulfill", dispatch).statusCode()).isEqualTo(400);
     assertThat(send(manager, "POST", riskyPath + "/fulfill", null).statusCode()).isEqualTo(402);
     assertThat(JSON.readTree(get(manager, riskyPath).body()).get("status").asString())
         .isEqualTo("PLACED");
@@ -1366,6 +1378,241 @@ class TheparlorApiApplicationTests {
                 .get("items"))
         .hasSize(1);
     assertThat(get(customer, rentalPath).statusCode()).isEqualTo(404);
+  }
+
+  static String walkIn(UUID table, int partySize, java.time.Duration length) {
+    return "{\"source\":\"WALK_IN\",\"checkIn\":true,"
+        + "\"customer\":{\"kind\":\"GUEST\",\"displayName\":\"QA Capacity Test\"},"
+        + "\"tableId\":\""
+        + table
+        + "\",\"partySize\":"
+        + partySize
+        + ",\"games\":[],\"endsAt\":\""
+        + java.time.Instant.now().plus(length)
+        + "\"}";
+  }
+
+  int count(String sql, Object... args) {
+    return jdbc.queryForObject(sql, Integer.class, args);
+  }
+
+  @Test
+  void seatingAWalkInChecksInAtomicallyAndNeverDisturbsAnotherVisit() throws Exception {
+    var branch = UUID.randomUUID();
+    var closedBranch = UUID.randomUUID();
+    var large = UUID.randomUUID();
+    var small = UUID.randomUUID();
+    var broken = UUID.randomUUID();
+    var contested = UUID.randomUUID();
+    var doubled = UUID.randomUUID();
+    var closedTable = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Walk-in test', 'Address')", branch);
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Closed walk-in test', 'Address')",
+        closedBranch);
+    for (int day = 1; day <= 7; day++)
+      jdbc.update(
+          "INSERT INTO branch_opening_hours(branch_id,day_of_week,opens_at,closes_at) VALUES (?,?,'00:00','24:00')",
+          branch,
+          day);
+    String insertTable =
+        "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor,operational_status)"
+            + " VALUES (?,?,?,?,5000,?)";
+    jdbc.update(insertTable, large, branch, "T1", 4, "IN_SERVICE");
+    jdbc.update(insertTable, small, branch, "T2", 2, "IN_SERVICE");
+    jdbc.update(insertTable, broken, branch, "T3", 4, "OUT_OF_SERVICE");
+    jdbc.update(insertTable, contested, branch, "T4", 4, "IN_SERVICE");
+    jdbc.update(insertTable, doubled, branch, "T5", 4, "IN_SERVICE");
+    jdbc.update(insertTable, closedTable, closedBranch, "T1", 4, "IN_SERVICE");
+
+    String base = "/api/v1/branches/" + branch;
+    String seat = base + "/staff/reservations";
+    var manager = login("manager");
+    var anonymous = browser();
+    var twoHours = java.time.Duration.ofHours(2);
+    String visitsOfBranch = "SELECT count(*) FROM reservations WHERE branch_id=?";
+    String rentalsOfBranch = "SELECT count(*) FROM rentals WHERE branch_id=?";
+
+    // A later booking on T1 limits how long a walk-in may stay there.
+    var laterStart = java.time.Instant.now().plus(java.time.Duration.ofHours(1));
+    var later =
+        send(
+            manager,
+            "POST",
+            seat,
+            "{\"source\":\"STAFF_BOOKING\",\"customer\":{\"kind\":\"GUEST\",\"displayName\":\"Later party\"},"
+                + "\"tableId\":\""
+                + large
+                + "\",\"partySize\":2,\"games\":[],\"startsAt\":\""
+                + laterStart
+                + "\",\"endsAt\":\""
+                + laterStart.plus(twoHours)
+                + "\"}",
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(later.statusCode()).as(later.body()).isEqualTo(201);
+
+    // Every rejected seating leaves the branch exactly as it was.
+    for (var rejected :
+        List.of(
+            java.util.Map.entry(walkIn(large, 2, twoHours), 409), // overlaps the later booking
+            java.util.Map.entry(walkIn(small, 3, twoHours), 409), // party exceeds capacity
+            java.util.Map.entry(walkIn(broken, 2, twoHours), 409), // out of service
+            java.util.Map.entry(walkIn(UUID.randomUUID(), 2, twoHours), 404))) {
+      var response =
+          send(
+              manager,
+              "POST",
+              seat,
+              rejected.getKey(),
+              "Idempotency-Key",
+              UUID.randomUUID().toString());
+      assertThat(response.statusCode()).as(response.body()).isEqualTo(rejected.getValue());
+    }
+    var outsideHours =
+        send(
+            manager,
+            "POST",
+            "/api/v1/branches/" + closedBranch + "/staff/reservations",
+            walkIn(closedTable, 2, twoHours),
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(outsideHours.statusCode()).as(outsideHours.body()).isEqualTo(409);
+    assertThat(count(visitsOfBranch, branch)).isEqualTo(1);
+    assertThat(count(visitsOfBranch, closedBranch)).isZero();
+    assertThat(count(rentalsOfBranch, branch)).isZero();
+
+    // A failure while seating rolls back the walk-in too, and frees the key for a retry.
+    String seatSmall = walkIn(small, 2, twoHours);
+    String key = UUID.randomUUID().toString();
+    jdbc.execute(
+        "CREATE FUNCTION fail_walk_in_rental() RETURNS trigger AS $$"
+            + " BEGIN RAISE EXCEPTION 'rental store unavailable'; END $$ LANGUAGE plpgsql");
+    jdbc.execute(
+        "CREATE TRIGGER fail_walk_in_rental BEFORE INSERT ON rentals FOR EACH ROW"
+            + " WHEN (NEW.branch_id = '"
+            + branch
+            + "'::uuid) EXECUTE FUNCTION fail_walk_in_rental()");
+    try {
+      var failed = send(manager, "POST", seat, seatSmall, "Idempotency-Key", key);
+      assertThat(failed.statusCode()).as(failed.body()).isEqualTo(500);
+    } finally {
+      jdbc.execute("DROP TRIGGER fail_walk_in_rental ON rentals");
+      jdbc.execute("DROP FUNCTION fail_walk_in_rental()");
+    }
+    assertThat(count(visitsOfBranch, branch)).isEqualTo(1);
+    assertThat(count(rentalsOfBranch, branch)).isZero();
+    assertThat(
+            JSON.readTree(get(anonymous, base + "/tables/" + small).body()).get("state").asString())
+        .isEqualTo("AVAILABLE");
+
+    // A walk-in that fits seats the party at once; retries and double submits replay it.
+    String visitId = null;
+    for (int attempt = 0; attempt < 3; attempt++) {
+      var seated = send(manager, "POST", seat, seatSmall, "Idempotency-Key", key);
+      assertThat(seated.statusCode()).as(seated.body()).isEqualTo(201);
+      var visit = JSON.readTree(seated.body());
+      assertThat(visit.get("status").asString()).isEqualTo("CHECKED_IN");
+      assertThat(visit.get("source").asString()).isEqualTo("WALK_IN");
+      assertThat(visit.get("tableId").asString()).isEqualTo(small.toString());
+      assertThat(visit.get("rentalId").isNull()).isFalse();
+      if (visitId != null) assertThat(visit.get("id").asString()).isEqualTo(visitId);
+      visitId = visit.get("id").asString();
+    }
+    assertThat(count(rentalsOfBranch, branch)).isEqualTo(1);
+    assertThat(
+            send(manager, "POST", seat, walkIn(small, 1, twoHours), "Idempotency-Key", key)
+                .statusCode())
+        .isEqualTo(409);
+    var fitsBeforeLater =
+        send(
+            manager,
+            "POST",
+            seat,
+            walkIn(large, 2, java.time.Duration.ofMinutes(30)),
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(fitsBeforeLater.statusCode()).as(fitsBeforeLater.body()).isEqualTo(201);
+
+    // An occupied table refuses another walk-in and keeps its guest.
+    var occupied =
+        send(
+            manager,
+            "POST",
+            seat,
+            walkIn(small, 2, twoHours),
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(occupied.statusCode()).as(occupied.body()).isEqualTo(409);
+    var kept = JSON.readTree(get(manager, base + "/reservations/" + visitId).body());
+    assertThat(kept.get("status").asString()).isEqualTo("CHECKED_IN");
+    assertThat(kept.get("tableId").asString()).isEqualTo(small.toString());
+    assertThat(kept.get("customer").get("displayName").asString()).isEqualTo("QA Capacity Test");
+    assertThat(
+            JSON.readTree(get(anonymous, base + "/tables/" + small).body()).get("state").asString())
+        .isEqualTo("OCCUPIED");
+    assertThat(
+            count(
+                "SELECT count(*) FROM reservations WHERE table_id=? AND status='CHECKED_IN'",
+                small))
+        .isEqualTo(1);
+
+    // Simultaneous seatings wait for the table; one wins, and a shared key is one seating.
+    try (var executor = java.util.concurrent.Executors.newFixedThreadPool(4)) {
+      try (var connection = jdbc.getDataSource().getConnection()) {
+        connection.setAutoCommit(false);
+        try (var lock =
+            connection.prepareStatement(
+                "SELECT id FROM branch_tables WHERE id IN (?,?) FOR UPDATE")) {
+          lock.setObject(1, contested);
+          lock.setObject(2, doubled);
+          lock.executeQuery();
+        }
+        String sharedKey = UUID.randomUUID().toString();
+        String doubleClick = walkIn(doubled, 2, twoHours);
+        var pending =
+            List.of(
+                executor.submit(
+                    () ->
+                        send(
+                            manager,
+                            "POST",
+                            seat,
+                            walkIn(contested, 2, twoHours),
+                            "Idempotency-Key",
+                            UUID.randomUUID().toString())),
+                executor.submit(
+                    () ->
+                        send(
+                            manager,
+                            "POST",
+                            seat,
+                            walkIn(contested, 3, twoHours),
+                            "Idempotency-Key",
+                            UUID.randomUUID().toString())),
+                executor.submit(
+                    () -> send(manager, "POST", seat, doubleClick, "Idempotency-Key", sharedKey)),
+                executor.submit(
+                    () -> send(manager, "POST", seat, doubleClick, "Idempotency-Key", sharedKey)));
+        assertThatThrownBy(() -> pending.get(0).get(1, java.util.concurrent.TimeUnit.SECONDS))
+            .isInstanceOf(java.util.concurrent.TimeoutException.class);
+        connection.commit();
+        var statuses = new java.util.ArrayList<Integer>();
+        for (int i = 0; i < 2; i++)
+          statuses.add(pending.get(i).get(20, java.util.concurrent.TimeUnit.SECONDS).statusCode());
+        assertThat(statuses).containsExactlyInAnyOrder(201, 409);
+        var first = pending.get(2).get(20, java.util.concurrent.TimeUnit.SECONDS);
+        var second = pending.get(3).get(20, java.util.concurrent.TimeUnit.SECONDS);
+        assertThat(first.statusCode()).as(first.body()).isEqualTo(201);
+        assertThat(second.statusCode()).as(second.body()).isEqualTo(201);
+        assertThat(JSON.readTree(second.body()).get("id").asString())
+            .isEqualTo(JSON.readTree(first.body()).get("id").asString());
+      }
+    }
+    for (var table : List.of(contested, doubled))
+      assertThat(count("SELECT count(*) FROM reservations WHERE table_id=?", table)).isEqualTo(1);
+    assertThat(count(rentalsOfBranch, branch)).isEqualTo(4);
   }
 
   @Test
@@ -1921,5 +2168,241 @@ class TheparlorApiApplicationTests {
     assertThat(get(browser, "/api/v1/me").statusCode()).isEqualTo(401);
     assertThat(get(browser, "/actuator/health/liveness").statusCode()).isEqualTo(200);
     assertThat(get(browser, "/actuator/prometheus").body()).contains("jvm_memory_used_bytes");
+  }
+
+  @Test
+  void deactivatingGameIsRefusedWhileCommittedAndAllowedOnceReleased() throws Exception {
+    var manager = login("manager");
+    var branch = UUID.randomUUID();
+    var table = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Retire Branch', 'Addr')", branch);
+    for (int day = 1; day <= 7; day++) {
+      jdbc.update(
+          "INSERT INTO branch_opening_hours(branch_id,day_of_week,opens_at,closes_at) VALUES (?,?,'00:00','24:00')",
+          branch,
+          day);
+    }
+    jdbc.update(
+        "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor) VALUES (?,?,'T1',4,0)",
+        table,
+        branch);
+    String category = "Retire-" + UUID.randomUUID();
+    assertThat(
+            writeJson(manager, "POST", "/api/v1/categories", "{\"name\":\"" + category + "\"}")
+                .statusCode())
+        .isEqualTo(201);
+    var createdGame =
+        writeJson(
+            manager,
+            "POST",
+            "/api/v1/games",
+            "{\"name\":\"Retire-"
+                + UUID.randomUUID()
+                + "\",\"minPlayers\":1,\"maxPlayers\":4,\"playMinutesMin\":10,\"playMinutesMax\":20,\"active\":true,\"categories\":[\""
+                + category
+                + "\"],\"descriptions\":{\"en-US\":\"Retirement test\"}}");
+    assertThat(createdGame.statusCode()).as(createdGame.body()).isEqualTo(201);
+    UUID gameId = UUID.fromString(JSON.readTree(createdGame.body()).get("id").asString());
+    var reservation =
+        jdbc.queryForObject(
+            "INSERT INTO reservations(branch_id,table_id,guest_name,source,status,starts_at,ends_at,party_size,table_hourly_rate_minor,created_by_subject)"
+                + " VALUES (?,?,'Guest','STAFF_BOOKING','CONFIRMED',now()+interval '1 day',now()+interval '26 hours',2,0,'staff') RETURNING id",
+            UUID.class,
+            branch,
+            table);
+    jdbc.update("INSERT INTO reservation_games VALUES (?,?,1,0)", reservation, gameId);
+
+    var refusedReservation =
+        writeJson(manager, "PATCH", "/api/v1/games/" + gameId, "{\"active\":false}");
+    assertThat(refusedReservation.statusCode()).isEqualTo(409);
+
+    jdbc.update(
+        "UPDATE reservations SET status='CANCELLED', cancelled_at=now() WHERE id=?", reservation);
+    var edition =
+        jdbc.queryForObject(
+            "INSERT INTO game_editions(game_id,kind,language_code) VALUES (?,'BASE_GAME','en') RETURNING id",
+            UUID.class,
+            gameId);
+    var order =
+        jdbc.queryForObject(
+            "INSERT INTO orders(branch_id,contact_name,source,status,fulfillment_method,total_minor,created_by_subject)"
+                + " VALUES (?,'Guest','STAFF_COUNTER','PLACED','PICKUP',0,'staff') RETURNING id",
+            UUID.class,
+            branch);
+    jdbc.update(
+        "INSERT INTO order_items(order_id,edition_id,game_id,game_name,quantity,unit_price_minor,line_total_minor,edition_language)"
+            + " VALUES (?,?,?,'Game',1,0,0,'en')",
+        order,
+        edition,
+        gameId);
+
+    var refusedOrder = writeJson(manager, "PATCH", "/api/v1/games/" + gameId, "{\"active\":false}");
+    assertThat(refusedOrder.statusCode()).isEqualTo(409);
+
+    jdbc.update(
+        "UPDATE orders SET status='CANCELLED', cancelled_at=now(), cancellation_reason='Test released' WHERE id=?",
+        order);
+    var deactivated = writeJson(manager, "PATCH", "/api/v1/games/" + gameId, "{\"active\":false}");
+    assertThat(deactivated.statusCode()).isEqualTo(200);
+    assertThat(JSON.readTree(deactivated.body()).get("active").asBoolean()).isFalse();
+
+    // Reactivating is always allowed even if an open commitment exists.
+    jdbc.update(
+        "UPDATE orders SET status='PLACED', cancelled_at=NULL, cancellation_reason=NULL WHERE id=?",
+        order);
+    var reactivated = writeJson(manager, "PATCH", "/api/v1/games/" + gameId, "{\"active\":true}");
+    assertThat(reactivated.statusCode()).isEqualTo(200);
+    assertThat(JSON.readTree(reactivated.body()).get("active").asBoolean()).isTrue();
+    jdbc.update(
+        "UPDATE orders SET status='CANCELLED', cancelled_at=now(), cancellation_reason='Test released' WHERE id=?",
+        order);
+  }
+
+  @Test
+  void accountDeletionRefusesOpenCommitmentsAndCascadesIdentityAndCartWhileKeepingHistory()
+      throws Exception {
+    var customer = login("other-customer");
+    var manager = login("manager");
+    var provisioned =
+        send(
+            customer,
+            "POST",
+            "/api/v1/me",
+            "{\"firstName\":\"Delete\",\"lastName\":\"Me\",\"phoneNumber\":\"+66812223333\","
+                + "\"preferences\":{\"preferredLocale\":\"en-US\"}}");
+    assertThat(provisioned.statusCode()).isIn(200, 201);
+    UUID accountId = UUID.fromString(JSON.readTree(provisioned.body()).get("id").asString());
+
+    var branch = UUID.randomUUID();
+    var table = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Delete Branch', 'Addr')", branch);
+    for (int day = 1; day <= 7; day++) {
+      jdbc.update(
+          "INSERT INTO branch_opening_hours(branch_id,day_of_week,opens_at,closes_at) VALUES (?,?,'00:00','24:00')",
+          branch,
+          day);
+    }
+    jdbc.update(
+        "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor) VALUES (?,?,'T1',4,0)",
+        table,
+        branch);
+    jdbc.update(
+        "INSERT INTO carts(id,account_id,token_hash,fulfillment_method,pickup_branch_id) VALUES (?,?,?,?,?)",
+        UUID.randomUUID(),
+        accountId,
+        new byte[32],
+        "PICKUP",
+        branch);
+
+    var startsAt = java.time.Instant.now().plus(java.time.Duration.ofDays(2));
+    String base = "/api/v1/branches/" + branch;
+    var booked =
+        send(
+            customer,
+            "POST",
+            base + "/reservations",
+            "{\"tableId\":\""
+                + table
+                + "\",\"partySize\":2,\"games\":[],\"startsAt\":\""
+                + startsAt
+                + "\",\"endsAt\":\""
+                + startsAt.plus(java.time.Duration.ofHours(2))
+                + "\"}",
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(booked.statusCode()).as(booked.body()).isEqualTo(201);
+    String reservationId = JSON.readTree(booked.body()).get("id").asString();
+    String reservationPath = base + "/reservations/" + reservationId;
+
+    var conflict = send(customer, "DELETE", "/api/v1/me", null);
+    assertThat(conflict.statusCode()).isEqualTo(409);
+
+    var cancelled = send(customer, "POST", reservationPath + "/cancel", "{\"reason\":\"Leaving\"}");
+    assertThat(cancelled.statusCode()).isEqualTo(200);
+
+    var deleted = send(customer, "DELETE", "/api/v1/me", null);
+    assertThat(deleted.statusCode()).isEqualTo(204);
+    assertThat(get(customer, "/api/v1/me").statusCode()).isEqualTo(404);
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM account_identities WHERE account_id=?",
+                Integer.class,
+                accountId))
+        .isZero();
+    assertThat(
+            jdbc.queryForObject(
+                "SELECT count(*) FROM carts WHERE account_id=?", Integer.class, accountId))
+        .isZero();
+    var staffRead = get(manager, reservationPath);
+    assertThat(staffRead.statusCode()).isEqualTo(200);
+    assertThat(JSON.readTree(staffRead.body()).get("status").asString()).isEqualTo("CANCELLED");
+  }
+
+  @Test
+  void staffBranchAssignmentsGateBranchAccessAndAdminSearchesOnboardedAccounts() throws Exception {
+    var admin = login("admin");
+    var manager = login("manager");
+    var staff = login("staff");
+
+    var branch = UUID.randomUUID();
+    jdbc.update("INSERT INTO branches(id,name,address) VALUES (?, 'Staff Branch', 'Addr')", branch);
+    String staffSubject =
+        JSON.readTree(get(staff, "/api/auth/session").body())
+            .get("profile")
+            .get("subject")
+            .asString();
+    assertThat(
+            send(
+                    staff,
+                    "POST",
+                    "/api/v1/me",
+                    "{\"firstName\":\"Floor\",\"lastName\":\"Operator\",\"phoneNumber\":\"+66833334444\","
+                        + "\"preferences\":{\"preferredLocale\":\"en-US\"}}")
+                .statusCode())
+        .isIn(200, 201);
+
+    // Search returns onboarded accounts only (admin/manager in this test were not onboarded).
+    var search = get(admin, "/api/v1/admin/accounts?q=Floor");
+    assertThat(search.statusCode()).isEqualTo(200);
+    assertThat(JSON.readTree(search.body()).get("items"))
+        .anySatisfy(item -> assertThat(item.get("subject").asString()).isEqualTo(staffSubject));
+
+    // Staff without assignment gets 403; manager can list but cannot grant.
+    assertThat(get(staff, "/api/v1/branches/" + branch + "/reservations").statusCode())
+        .isEqualTo(403);
+    assertThat(get(manager, "/api/v1/branches/" + branch + "/staff-assignments").statusCode())
+        .isEqualTo(200);
+    assertThat(
+            send(
+                    manager,
+                    "PUT",
+                    "/api/v1/admin/branches/" + branch + "/staff-assignments/" + staffSubject,
+                    null)
+                .statusCode())
+        .isEqualTo(403);
+
+    // Admin grants -> staff gets 200; admin revokes -> staff gets 403 again.
+    var granted =
+        send(
+            admin,
+            "PUT",
+            "/api/v1/admin/branches/" + branch + "/staff-assignments/" + staffSubject,
+            null);
+    assertThat(granted.statusCode()).as(granted.body()).isEqualTo(200);
+    assertThat(JSON.readTree(granted.body()).get("name").asString()).isEqualTo("Floor Operator");
+    assertThat(get(staff, "/api/v1/branches/" + branch + "/reservations").statusCode())
+        .isEqualTo(200);
+
+    var revoked =
+        send(
+            admin,
+            "DELETE",
+            "/api/v1/admin/branches/" + branch + "/staff-assignments/" + staffSubject,
+            null);
+    assertThat(revoked.statusCode()).isEqualTo(204);
+    assertThat(get(staff, "/api/v1/branches/" + branch + "/reservations").statusCode())
+        .isEqualTo(403);
   }
 }

@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import {
   AppButton,
   AppDialog,
@@ -9,21 +8,13 @@ import {
 import { useManagementWorkspace } from '../context';
 const {
   getCustomerName,
-  branchFloorTables,
-  getTableStatus,
+  tableLabel,
   showCancelModal,
   cancelTargetRes,
   cancelReason,
   cancelMutation,
   submitCancel,
 } = useManagementWorkspace();
-const tableNumber = computed(
-  () =>
-    branchFloorTables.find(
-      (table) =>
-        getTableStatus(table).reservation?.id === cancelTargetRes.value?.id,
-    )?.number ?? '—',
-);
 </script>
 <template>
   <AppDialog
@@ -35,7 +26,7 @@ const tableNumber = computed(
     <AppDialogPanel
       title-id="CancelBookingDialog-title"
       title="Cancel booking"
-      :description="`${getCustomerName(cancelTargetRes?.customer)} · Table ${tableNumber}`"
+      :description="`${getCustomerName(cancelTargetRes?.customer)} · ${tableLabel(cancelTargetRes?.tableId)}`"
       as="form"
       @submit.prevent="submitCancel"
       @close="showCancelModal = false"

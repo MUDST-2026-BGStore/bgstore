@@ -77,6 +77,8 @@ class OrderViews {
                                 new Money(item.getLineTotalMinor()))
                             .gameId(item.getGameId()))
                 .toList(),
+            new Money(Math.subtractExact(order.getTotalMinor(), order.getShippingFeeMinor())),
+            new Money(order.getShippingFeeMinor()),
             new Money(order.getTotalMinor()),
             contact,
             Order.FulfillmentMethodEnum.valueOf(order.getFulfillmentMethod().name()),
@@ -84,6 +86,9 @@ class OrderViews {
             order.getCreatedAt().atOffset(ZoneOffset.UTC),
             order.getCreatedBySubject());
     result.setShippingAddress(address(order.getShippingAddress()));
+    if (order.getCarrier() != null)
+      result.setCarrier(Order.CarrierEnum.valueOf(order.getCarrier().name()));
+    result.setTrackingNumber(order.getTrackingNumber());
     result.setNotes(order.getNotes());
     if (order.getFulfilledAt() != null) {
       result.setFulfilledAt(order.getFulfilledAt().atOffset(ZoneOffset.UTC));

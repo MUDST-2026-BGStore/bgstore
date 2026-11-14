@@ -1,0 +1,47 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/StaffSubject.yaml
+put:
+  tags:
+    - Staff Assignments
+  operationId: grantStaffAssignment
+  summary: Assign a staff member to a branch
+  description: Idempotent; an existing assignment is returned unchanged. Roles stay in Keycloak.
+  security:
+    - sessionCookie: []
+  x-access-policy: administrator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/StaffAssignment.yaml
+    '400':
+      $ref: ../../components/responses/BadRequest.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+delete:
+  tags:
+    - Staff Assignments
+  operationId: revokeStaffAssignment
+  summary: Remove a staff member from a branch
+  description: Succeeds whether or not the assignment existed.
+  security:
+    - sessionCookie: []
+  x-access-policy: administrator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  responses:
+    '204':
+      description: Assignment removed
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml

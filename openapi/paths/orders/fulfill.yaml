@@ -16,6 +16,12 @@ post:
   x-access-policy: branch-operator
   parameters:
     - $ref: ../../components/parameters/CsrfToken.yaml
+  requestBody:
+    required: false
+    content:
+      application/json:
+        schema:
+          $ref: ../../components/schemas/FulfillOrderRequest.yaml
   responses:
     '200':
       description: Successful operation
