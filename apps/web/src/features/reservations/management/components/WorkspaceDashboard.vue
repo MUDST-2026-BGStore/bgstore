@@ -226,8 +226,9 @@ const queueColumns = [
         >
           <tr v-for="item in needsYouItems" :key="item.id">
             <th scope="row">
-              <strong class="queue-table-label"
-                >{{ tableLabel(item.reservation.tableId) }}</strong
+              <strong class="queue-table-label">{{
+                tableLabel(item.reservation.tableId)
+              }}</strong
               ><AppBadge :tone="item.type === 'LATE' ? 'danger' : 'success'">{{
                 item.type === 'LATE' ? 'Late arrival' : 'In play'
               }}</AppBadge>

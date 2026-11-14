@@ -133,7 +133,9 @@ watch([search, selectedBranchId], selection.clear);
             @update:model-value="selection.toggle(res.id, $event)"
           />
           <td>
-            <strong class="record-primary">{{ tableLabel(res.tableId) }}</strong>
+            <strong class="record-primary">{{
+              tableLabel(res.tableId)
+            }}</strong>
           </td>
           <td>
             <strong class="record-primary">{{

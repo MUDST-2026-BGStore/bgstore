@@ -46,7 +46,7 @@ test('rejected early check-in keeps the booking unchanged after reload', async (
     .getByRole('button', { name: /^Active sessions/ });
   await expect(activeSessions).toContainText('2');
   await page.getByRole('button', { name: 'Bookings', exact: true }).click();
-  const booking = page.getByRole('row').filter({ hasText: 't-siam-3' });
+  const booking = page.getByRole('row').filter({ hasText: 'Table 3' });
   await expect(booking).toContainText('Confirmed');
   await booking.getByRole('button', { name: 'Check in & seat' }).click();
   await expect(
@@ -60,7 +60,7 @@ test('rejected early check-in keeps the booking unchanged after reload', async (
   await page.reload();
   await page.getByRole('button', { name: 'Bookings', exact: true }).click();
   await expect(
-    page.getByRole('row').filter({ hasText: 't-siam-3' }),
+    page.getByRole('row').filter({ hasText: 'Table 3' }),
   ).toContainText('Confirmed');
   await page.getByRole('button', { name: 'Overview', exact: true }).click();
   await expect(activeSessions).toContainText('2');
@@ -81,7 +81,7 @@ test('rejected early check-in keeps the booking unchanged after reload', async (
   await page.reload();
   await page.getByRole('button', { name: 'Bookings', exact: true }).click();
   await expect(
-    page.getByRole('row').filter({ hasText: 't-siam-3' }),
+    page.getByRole('row').filter({ hasText: 'Table 3' }),
   ).toContainText('Confirmed');
   const repaired = await page.evaluate(() => {
     const reservations = JSON.parse(
