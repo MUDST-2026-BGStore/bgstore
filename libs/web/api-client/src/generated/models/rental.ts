@@ -24,6 +24,8 @@ export interface Rental {
   startedAt: string;
   /** Reservation end; passing it does not release the table or copies. */
   plannedEndsAt: string;
+  /** Server clock when this response was produced (UTC instant). Clients derive elapsed and remaining play time from it, not from the device clock. */
+  serverNow: string;
   checkedInBySubject: string;
   /** @minItems 1 */
   charges: RentalCharge[];

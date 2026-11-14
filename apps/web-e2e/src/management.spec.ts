@@ -91,7 +91,7 @@ test('keeps the complete dashboard information visible together on desktop', asy
     name: 'Upcoming arrivals',
     exact: true,
   });
-  await expect(arrivals.locator('time')).toContainText('PM');
+  await expect(arrivals.locator('time')).toHaveText(/^\d{2}:\d{2}$/);
   await expect(arrivals).toContainText('Khun Parlor Member');
   await expect(arrivals).toContainText('Table 3');
   await expect(arrivals).toContainText('6 guests');
@@ -1593,7 +1593,8 @@ test('loads live branch tables, reservations and rentals and checks out the rent
   const tableId = '00000000-0000-4000-8000-000000000101';
   const reservationId = '00000000-0000-4000-8000-000000000201';
   const rentalId = '00000000-0000-4000-8000-000000000301';
-  const startedAt = new Date(Date.now() - 60 * 60_000).toISOString();
+  // Inside the first started hour, so the estimate is one billable hour.
+  const startedAt = new Date(Date.now() - 50 * 60_000).toISOString();
   const endsAt = new Date(Date.now() + 60 * 60_000).toISOString();
   const checkedOutRentals: string[] = [];
 
@@ -1690,6 +1691,7 @@ test('loads live branch tables, reservations and rentals and checks out the rent
               status: 'COMPLETED',
               startedAt,
               plannedEndsAt: endsAt,
+              serverNow: new Date().toISOString(),
               endedAt,
               checkedInBySubject: 'staff-1',
               checkedOutBySubject: 'staff-1',
@@ -1723,6 +1725,7 @@ test('loads live branch tables, reservations and rentals and checks out the rent
             status: 'ACTIVE',
             startedAt,
             plannedEndsAt: endsAt,
+            serverNow: new Date().toISOString(),
             checkedInBySubject: 'staff-1',
             charges: [
               {
@@ -1750,6 +1753,7 @@ test('loads live branch tables, reservations and rentals and checks out the rent
               status: 'ACTIVE',
               startedAt,
               plannedEndsAt: endsAt,
+              serverNow: new Date().toISOString(),
               checkedInBySubject: 'staff-1',
               charges: [
                 {
@@ -1774,7 +1778,7 @@ test('loads live branch tables, reservations and rentals and checks out the rent
   await expect(
     page.getByRole('button', { name: /^Add refreshments/ }),
   ).toHaveCount(0);
-  await page.getByRole('button', { name: /^Check bill for Table/ }).click();
+  await page.getByRole('button', { name: /^Check bill for / }).click();
 
   const dialog = page.getByRole('dialog', {
     name: 'Table Session Bill',

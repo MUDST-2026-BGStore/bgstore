@@ -4670,7 +4670,7 @@ export const useCreateMyReservation = <TError = ErrorType<BadRequestResponse | U
     }
 
 /**
- * The staff member supplies a registered customer subject or guest contact. source=STAFF_BOOKING requires a future startsAt. source=WALK_IN uses server time as startsAt and only requires endsAt; caller-supplied startsAt is rejected for walk-ins. Both create CONFIRMED reservations and hold the table and selected games atomically. WALK_IN never implies check-in: staff must call the dedicated check-in operation. The creator is always the authenticated operator. Apply the same opening-hour, capacity, offering and allocation checks as customer bookings.
+ * The staff member supplies a registered customer subject or guest contact. source=STAFF_BOOKING requires a future startsAt. source=WALK_IN uses server time as startsAt and only requires endsAt; caller-supplied startsAt is rejected for walk-ins. Both create CONFIRMED reservations and hold the table and selected games atomically. WALK_IN implies check-in only when checkIn=true, which seats the party in the same transaction (all or nothing); otherwise staff must call the dedicated check-in operation. The creator is always the authenticated operator. Apply the same opening-hour, capacity, offering and allocation checks as customer bookings.
  * @summary Book for a customer or register a walk-in
  */
 export const createStaffReservation = (

@@ -389,8 +389,8 @@ const productName = (sku: string, itemName?: string) =>
     >
       <AppField label="Carrier" input-id="dispatch-carrier">
         <AppSelect
-          input-id="dispatch-carrier"
           v-model="dispatchCarrier"
+          input-id="dispatch-carrier"
           label="Carrier"
           :options="carrierOptions"
         />

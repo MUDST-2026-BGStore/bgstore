@@ -15,10 +15,10 @@ import {
 import { useManagementWorkspace } from '../context';
 const {
   activeFloorReservations,
-  branchFloorTables,
-  getTableStatus,
+  tableLabel,
   formatTime,
   getElapsedMinutes,
+  getSessionTiming,
   calculateCurrentPlayFee,
   getCustomerName,
   openWalkInForTable,
@@ -34,22 +34,17 @@ const columns = [
   { label: 'Guest' },
   { label: 'Game' },
   { label: 'Checked in' },
+  { label: 'Scheduled end' },
   { label: 'Played' },
+  { label: 'Remaining' },
   { label: 'Hourly rate', numeric: true },
-  { label: 'Table fee', numeric: true },
+  { label: 'Est. table fee', numeric: true },
   { label: 'Actions', action: true },
 ];
-function sessionTableId(reservation: { id: string; tableId: string }): string {
-  return (
-    branchFloorTables.find(
-      (table) => getTableStatus(table).reservation?.id === reservation.id,
-    )?.id ?? reservation.tableId
-  );
-}
 const search = ref('');
 const visibleSessions = computed(() =>
   activeFloorReservations.value.filter((res) =>
-    `${res.tableId} ${getCustomerName(res.customer)}`
+    `${tableLabel(res.tableId)} ${getCustomerName(res.customer)}`
       .toLowerCase()
       .includes(search.value.trim().toLowerCase()),
   ),
@@ -62,12 +57,12 @@ const returnableSessions = computed(() =>
   visibleSessions.value.filter(
     (res) =>
       selection.selectedIds.value.has(res.id) &&
-      getTableAssignedGames(sessionTableId(res)).length,
+      getTableAssignedGames(res.tableId).length,
   ),
 );
 function returnSelectedGames() {
   for (const res of returnableSessions.value) {
-    const tableId = sessionTableId(res);
+    const tableId = res.tableId;
     for (const game of getTableAssignedGames(tableId))
       unassignGameFromTable(tableId, game);
   }
@@ -136,12 +131,14 @@ watch([search, selectedBranchId], selection.clear);
           :aria-selected="selection.selectedIds.value.has(res.id)"
         >
           <AppTableSelect
-            :label="`Select session at Table ${sessionTableId(res)}`"
+            :label="`Select session at ${tableLabel(res.tableId)}`"
             :model-value="selection.selectedIds.value.has(res.id)"
             @update:model-value="selection.toggle(res.id, $event)"
           />
           <td>
-            <strong class="record-primary">{{ sessionTableId(res) }}</strong>
+            <strong class="record-primary">{{
+              tableLabel(res.tableId)
+            }}</strong>
           </td>
           <td>
             <strong class="record-primary">{{
@@ -151,19 +148,19 @@ watch([search, selectedBranchId], selection.clear);
           </td>
           <td>
             <div
-              v-if="getTableAssignedGames(sessionTableId(res)).length"
+              v-if="getTableAssignedGames(res.tableId).length"
               class="session-chips-wrap"
             >
               <span class="record-primary">{{
-                getTableAssignedGames(sessionTableId(res))[0]
+                getTableAssignedGames(res.tableId)[0]
               }}</span
               ><AppButton
                 appearance="subtle"
-                :aria-label="`Return ${getTableAssignedGames(sessionTableId(res))[0]} from Table ${sessionTableId(res)}`"
+                :aria-label="`Return ${getTableAssignedGames(res.tableId)[0]} from ${tableLabel(res.tableId)}`"
                 @click="
                   unassignGameFromTable(
-                    sessionTableId(res),
-                    getTableAssignedGames(sessionTableId(res))[0],
+                    res.tableId,
+                    getTableAssignedGames(res.tableId)[0],
                   )
                 "
                 >Return to shelf</AppButton
@@ -171,14 +168,40 @@ watch([search, selectedBranchId], selection.clear);
             </div>
             <AppButton
               v-else
-              :aria-label="`Assign game to Table ${sessionTableId(res)}`"
-              @click="openAssignGameForTable(sessionTableId(res))"
+              :aria-label="`Assign game to ${tableLabel(res.tableId)}`"
+              @click="openAssignGameForTable(res.tableId)"
               >Assign game</AppButton
             >
           </td>
           <td>{{ formatTime(res.checkedInAt || res.startsAt) }}</td>
+          <td>{{ formatTime(res.endsAt) }}</td>
           <td>{{ getElapsedMinutes(res) }} min</td>
-          <td class="numeric">฿{{ res.hourlyRate || 200 }}</td>
+          <td>
+            <template v-if="getSessionTiming(res)">
+              <span
+                v-if="getSessionTiming(res)?.expiringSoon"
+                class="record-primary"
+                role="status"
+                >{{
+                  Math.ceil(getSessionTiming(res)!.remainingSeconds / 60)
+                }}
+                min · ending soon</span
+              >
+              <span v-else-if="getSessionTiming(res)?.ended"
+                >Over by
+                {{ Math.ceil(getSessionTiming(res)!.overtimeSeconds / 60) }}
+                min</span
+              >
+              <span v-else
+                >{{
+                  Math.ceil(getSessionTiming(res)!.remainingSeconds / 60)
+                }}
+                min</span
+              >
+            </template>
+            <template v-else>–</template>
+          </td>
+          <td class="numeric">฿{{ res.hourlyRate ?? 200 }}</td>
           <td class="numeric">
             <strong class="record-primary"
               >฿{{ calculateCurrentPlayFee(res) }}</strong
@@ -187,12 +210,12 @@ watch([search, selectedBranchId], selection.clear);
           <AppTableActions
             ><AppButton
               v-if="!res.live"
-              :aria-label="`Add refreshments to Table ${sessionTableId(res)}`"
+              :aria-label="`Add refreshments to ${tableLabel(res.tableId)}`"
               @click="openAddSnacks(res)"
               >Refreshments</AppButton
             ><AppButton
               appearance="primary"
-              :aria-label="`Check bill for Table ${sessionTableId(res)}`"
+              :aria-label="`Check bill for ${tableLabel(res.tableId)}`"
               @click="openCheckBill(res)"
               ><i class="fa-solid fa-receipt" aria-hidden="true"></i>Check
               bill</AppButton

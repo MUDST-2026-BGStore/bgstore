@@ -31,6 +31,7 @@ const {
   openNoShow,
   openCheckBill,
   actionInProgress,
+  tableLabel,
 } = useManagementWorkspace();
 const search = ref('');
 const status = ref('ALL');
@@ -46,7 +47,7 @@ const visibleBookings = computed(() =>
   allReservations.value.filter(
     (res) =>
       (status.value === 'ALL' || res.status === status.value) &&
-      `${getCustomerName(res.customer)} ${res.tableId} ${getCustomerPhone(res.customer)}`
+      `${getCustomerName(res.customer)} ${tableLabel(res.tableId)} ${getCustomerPhone(res.customer)}`
         .toLowerCase()
         .includes(search.value.trim().toLowerCase()),
   ),
@@ -116,7 +117,7 @@ const visibleBookings = computed(() =>
               })
             }}</span>
           </td>
-          <td>{{ res.tableId }}</td>
+          <td>{{ tableLabel(res.tableId) }}</td>
           <td>
             <strong class="record-primary">{{
               getCustomerName(res.customer)
