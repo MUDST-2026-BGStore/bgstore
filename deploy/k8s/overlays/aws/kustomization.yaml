@@ -22,4 +22,4 @@ images:
     newTag: sandbox-20261114-7239ee9-r2
   - name: ghcr.io/theparlor/theparlor-web
     newName: 416604074663.dkr.ecr.ap-southeast-7.amazonaws.com/theparlor/web
-    newTag: sandbox-20261114-7239ee9-r2
+    newTag: sandbox-20261114-login-home-r1
