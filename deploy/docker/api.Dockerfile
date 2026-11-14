@@ -26,7 +26,8 @@ ENTRYPOINT ["java", "-jar", "/app/app.jar"]
 # The AWS helper supplies Nx build output as an isolated named context.
 # The final default stage still supports a fully self-contained Docker build.
 FROM runtime-base AS artifacts-runtime
-COPY --from=artifacts /*-SNAPSHOT.jar app.jar
+# Host build output may be mode 0600 (umask 077); the runtime user needs to read it.
+COPY --chmod=0444 --from=artifacts /*-SNAPSHOT.jar app.jar
 
 FROM runtime-base AS runtime
 COPY --from=build /workspace/apps/api/build/libs/*-SNAPSHOT.jar app.jar

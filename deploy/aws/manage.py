@@ -305,6 +305,9 @@ def main():
                  "--target", "artifacts-runtime", "--build-context", f"artifacts={artifacts}",
                  "--file", f"deploy/docker/{app}.Dockerfile",
                  "--tag", f"theparlor-{app}:{tag}", "."], cwd=ROOT.parent.parent)
+            if app == "api":
+                # The JVM runs as UID 10001 and fails at startup on an unreadable jar.
+                run(["docker", "run", "--rm", "--entrypoint", "sh", f"theparlor-api:{tag}", "-c", "test -r /app/app.jar"])
             if app == "web":
                 # Exercise the runtime UID: nginx's /health endpoint also passes
                 # when host artifacts are root-owned and unreadable (umask 077).
