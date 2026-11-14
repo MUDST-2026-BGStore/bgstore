@@ -1,10 +1,7 @@
 import type { RetailStockSample } from '../management-inventory.samples';
 
 export type StockStatus =
-  | 'In stock'
-  | 'Low stock'
-  | 'Fully reserved'
-  | 'Out of stock';
+  'In stock' | 'Low stock' | 'Fully reserved' | 'Out of stock';
 export interface SaleStockItem {
   id: string;
   sku: string;
