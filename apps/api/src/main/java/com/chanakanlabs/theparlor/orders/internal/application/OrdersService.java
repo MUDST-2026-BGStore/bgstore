@@ -6,6 +6,7 @@ import com.chanakanlabs.theparlor.account.CurrentAccount;
 import com.chanakanlabs.theparlor.branches.BranchAccess;
 import com.chanakanlabs.theparlor.contracts.model.CreateOrderRequest;
 import com.chanakanlabs.theparlor.contracts.model.CreateStaffOrderRequest;
+import com.chanakanlabs.theparlor.contracts.model.FulfillOrderRequest;
 import com.chanakanlabs.theparlor.contracts.model.GuestCustomer;
 import com.chanakanlabs.theparlor.contracts.model.Order;
 import com.chanakanlabs.theparlor.contracts.model.OrderItemRequest;
@@ -21,6 +22,8 @@ import com.chanakanlabs.theparlor.inventory.SaleInventory;
 import com.chanakanlabs.theparlor.orders.OrderPlacement.Line;
 import com.chanakanlabs.theparlor.orders.OrderPlacement.Placement;
 import com.chanakanlabs.theparlor.orders.internal.domain.Order.Buyer;
+import com.chanakanlabs.theparlor.orders.internal.domain.OrderCarrier;
+import com.chanakanlabs.theparlor.orders.internal.domain.OrderFulfillmentMethod;
 import com.chanakanlabs.theparlor.orders.internal.persistence.OrderItemRepository;
 import com.chanakanlabs.theparlor.orders.internal.persistence.OrderRepository;
 import com.chanakanlabs.theparlor.payments.Payments;
@@ -175,10 +178,20 @@ public class OrdersService {
 
   /** PLACED to FULFILLED: consumes the held stock and captures the payment. */
   @Transactional
-  public Order fulfillOrder(UUID branchId, UUID orderId) {
+  public Order fulfillOrder(UUID branchId, UUID orderId, @Nullable FulfillOrderRequest request) {
     String staff = branches.requireOperator(branchId);
     var order = orders.lockByIdAndBranchId(orderId, branchId).orElseThrow(OrdersService::missing);
+    boolean shipping = order.getFulfillmentMethod() == OrderFulfillmentMethod.SHIPPING;
+    boolean hasShipment =
+        request != null && (request.getCarrier() != null || request.getTrackingNumber() != null);
+    if (shipping
+        && (request == null || request.getCarrier() == null || request.getTrackingNumber() == null))
+      throw new IllegalArgumentException("Shipping fulfillment needs carrier and trackingNumber");
+    if (!shipping && hasShipment)
+      throw new IllegalArgumentException("A pickup order cannot have carrier or trackingNumber");
     try {
+      if (shipping)
+        order.ship(OrderCarrier.valueOf(request.getCarrier().name()), request.getTrackingNumber());
       if (order.fulfill(staff, clock.instant())) {
         inventory.fulfill(branchId, selections(orderId));
         payments.capture(Payable.order(orderId));

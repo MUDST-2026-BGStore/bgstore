@@ -4,23 +4,24 @@ import { AppSearchField, AppSelect } from '../../../shared/ui';
 import { useStoreText } from '../data/store-text';
 const props = defineProps<{
   modelValue: string;
-  options: { id: string; name: string }[];
+  options: { id: string; name: string; address?: string }[];
   name: string;
   label: string;
 }>();
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 const { t } = useStoreText();
 const query = ref('');
-const matches = computed(() =>
-  props.options.filter((option) =>
-    t(option.name)
-      .toLocaleLowerCase()
-      .includes(query.value.trim().toLocaleLowerCase()),
-  ),
-);
+const matches = computed(() => {
+  const needle = query.value.trim().toLocaleLowerCase();
+  return props.options.filter(
+    (option) =>
+      t(option.name).toLocaleLowerCase().includes(needle) ||
+      (option.address?.toLocaleLowerCase().includes(needle) ?? false),
+  );
+});
 // Keep the current option in the list while searching. Typing must never clear
-// a saved branch or apply a different branch. TODO(branch-api): server-side branch
-// search/pagination for large directories; include address/city in real results.
+// a saved branch or apply a different branch.
+// Search is client-side over the cached directory.
 const visible = computed(() =>
   props.options.filter(
     (option) =>

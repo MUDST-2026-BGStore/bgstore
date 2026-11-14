@@ -1,0 +1,12 @@
+type: object
+properties:
+  carrier:
+    type: string
+    enum:
+      - THAILAND_POST
+      - KERRY
+      - FLASH
+      - JT
+  trackingNumber:
+    type: string
+    maxLength: 60

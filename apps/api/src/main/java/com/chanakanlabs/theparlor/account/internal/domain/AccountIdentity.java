@@ -14,6 +14,7 @@ public class AccountIdentity {
   private String issuer;
 
   @Id
+  @Getter
   @Column(nullable = false, length = 255)
   private String subject;
 

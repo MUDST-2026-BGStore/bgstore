@@ -17,6 +17,7 @@ import WorkspacePolicies from '../management/components/WorkspacePolicies.vue';
 import AssignGameDialog from '../management/components/AssignGameDialog.vue';
 import WorkspaceBillDialog from '../management/components/WorkspaceBillDialog.vue';
 import CancelBookingDialog from '../management/components/CancelBookingDialog.vue';
+import NoShowDialog from '../management/components/NoShowDialog.vue';
 import WalkInDialog from '../management/components/WalkInDialog.vue';
 import RefreshmentsDialog from '../management/components/RefreshmentsDialog.vue';
 
@@ -120,6 +121,7 @@ function resetViewScroll() {
         <AssignGameDialog />
         <WorkspaceBillDialog />
         <CancelBookingDialog />
+        <NoShowDialog />
         <WalkInDialog />
         <RefreshmentsDialog />
       </template>

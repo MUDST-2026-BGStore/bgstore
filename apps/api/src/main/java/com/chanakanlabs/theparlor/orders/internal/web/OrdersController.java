@@ -33,8 +33,9 @@ public class OrdersController implements OrdersApi {
   }
 
   @Override
-  public Order fulfillOrder(UUID branchId, UUID orderId) {
-    return orders.fulfillOrder(branchId, orderId);
+  public Order fulfillOrder(
+      UUID branchId, UUID orderId, @Nullable FulfillOrderRequest fulfillOrderRequest) {
+    return orders.fulfillOrder(branchId, orderId, fulfillOrderRequest);
   }
 
   @Override

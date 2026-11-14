@@ -1,99 +1,71 @@
 <script setup lang="ts">
-// TODO(staff-admin-api): Staff accounts and branch assignments cannot be read or
-// changed through the API yet. The table below is local sample data; the server
-// enforces branch access from assignments this screen does not manage.
-import { ref } from 'vue';
+// Read-only list of staff assigned to the selected branch; administrators manage
+// assignments on the Administration page.
+import { computed } from 'vue';
+import { useQuery } from '@tanstack/vue-query';
 import {
-  AppBadge,
+  getListStaffAssignmentsQueryKey,
+  listStaffAssignments,
+} from '@theparlor/api-client';
+import {
   AppDataTable,
+  AppEmptyState,
+  AppMessageBar,
   AppPage,
   AppPanel,
 } from '../../../../shared/ui';
-const columns = [
-  { label: 'Team member' },
-  { label: 'Role' },
-  { label: 'Shift' },
-  { label: 'Assigned area' },
-  { label: 'Status' },
-];
-interface StaffMember {
-  id: string;
-  name: string;
-  role: 'Floor Lead' | 'Game Master' | 'Counter & POS' | 'Branch Manager';
-  shift: string;
-  status: 'ON_DUTY' | 'ON_BREAK' | 'OFF_DUTY';
-  assignedZone: string;
-}
+import { useManagementWorkspace } from '../context';
 
-const branchStaffRoster = ref<StaffMember[]>([
-  {
-    id: 's1',
-    name: 'Krit Somchai',
-    role: 'Floor Lead',
-    shift: 'Evening (16:00 - 23:00)',
-    status: 'ON_DUTY',
-    assignedZone: 'Tables 1 - 3',
-  },
-  {
-    id: 's2',
-    name: 'Aom Pornpawee',
-    role: 'Game Master',
-    shift: 'Evening (16:00 - 23:00)',
-    status: 'ON_DUTY',
-    assignedZone: 'Tables 4 - 6 & Recommendations',
-  },
-  {
-    id: 's3',
-    name: 'Natt Worapat',
-    role: 'Counter & POS',
-    shift: 'Evening (16:00 - 23:00)',
-    status: 'ON_DUTY',
-    assignedZone: 'Counter, Bar & Bill Settlement',
-  },
-  {
-    id: 's4',
-    name: 'Thana Meechai',
-    role: 'Branch Manager',
-    shift: 'Full Day (10:00 - 20:00)',
-    status: 'ON_DUTY',
-    assignedZone: 'Branch Operations & Supervision',
-  },
-]);
+const { selectedBranchId } = useManagementWorkspace();
+const columns = [{ label: 'Name' }, { label: 'Phone' }, { label: 'Granted' }];
+const { data, error, isPending } = useQuery({
+  queryKey: computed(() =>
+    getListStaffAssignmentsQueryKey(selectedBranchId.value ?? ''),
+  ),
+  queryFn: ({ signal }) =>
+    listStaffAssignments(selectedBranchId.value!, undefined, signal),
+  enabled: computed(() => !!selectedBranchId.value),
+});
+const assignments = computed(() => data.value?.items ?? []);
+const dateFormat = new Intl.DateTimeFormat('en-GB', {
+  dateStyle: 'medium',
+  timeZone: 'Asia/Bangkok',
+});
 </script>
 
 <template>
-  <AppPage title="Staff & shifts">
-    <AppPanel title="Branch team" title-id="staff-roster-title"
+  <AppPage title="Branch staff">
+    <AppPanel title="Assigned staff" title-id="staff-roster-title"
       ><template #command
         ><span class="workspace-results"
-          >{{ branchStaffRoster.length }} team members</span
+          >{{ assignments.length }} assigned</span
         ></template
       >
+      <AppMessageBar v-if="error" tone="error"
+        >Could not load branch staff. {{ error.message }}</AppMessageBar
+      >
+      <p v-else-if="isPending && selectedBranchId" role="status">
+        Loading branch staff…
+      </p>
+      <AppEmptyState
+        v-else-if="!assignments.length"
+        title="No staff assigned to this branch."
+      />
       <AppDataTable
+        v-else
         class="workspace-records"
-        label="Staff shifts table"
-        caption="Team members, shifts, and assigned areas"
+        label="Branch staff table"
+        caption="Staff assigned to this branch"
         :columns="columns"
       >
-        <tr v-for="staff in branchStaffRoster" :key="staff.id">
+        <tr v-for="staff in assignments" :key="staff.staffSubject">
           <td>
-            <strong class="record-primary">{{ staff.name }}</strong>
+            <strong class="record-primary">{{
+              staff.name || staff.staffSubject
+            }}</strong>
           </td>
-          <td>{{ staff.role }}</td>
-          <td>{{ staff.shift }}</td>
-          <td>{{ staff.assignedZone }}</td>
-          <td>
-            <AppBadge
-              :tone="staff.status === 'ON_DUTY' ? 'success' : 'neutral'"
-              >{{
-                staff.status === 'ON_DUTY'
-                  ? 'On duty'
-                  : staff.status === 'ON_BREAK'
-                    ? 'On break'
-                    : 'Off duty'
-              }}</AppBadge
-            >
-          </td>
+          <td>{{ staff.phone || '—' }}</td>
+          <td>{{ dateFormat.format(new Date(staff.grantedAt)) }}</td>
         </tr>
       </AppDataTable>
     </AppPanel>
