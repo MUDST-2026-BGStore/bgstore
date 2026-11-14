@@ -4,6 +4,28 @@
   "projectType": "application",
   "tags": ["scope:infrastructure"],
   "targets": {
+    "observability": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": { "command": "python3 deploy/aws/observability.py setup" }
+    },
+    "observability-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": { "command": "python3 deploy/aws/observability.py check" }
+    },
+    "observability-public-check": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "python3 deploy/aws/observability.py public-check"
+      }
+    },
+    "grafana": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": { "command": "python3 deploy/aws/observability.py tunnel" }
+    },
     "validate": {
       "executor": "nx:run-commands",
       "cache": false,

@@ -62,6 +62,14 @@ public class Payment {
   @Column(name = "card_last4", updatable = false, length = 4)
   private String cardLast4;
 
+  /** Only for PromptPay: when the QR stops being payable and the payable is cancelled. */
+  @Column(name = "expires_at", updatable = false)
+  private Instant expiresAt;
+
+  /** Only for PromptPay: the QR image the provider issued, as a URL the browser can display. */
+  @Column(name = "promptpay_qr", updatable = false)
+  private String promptPayQr;
+
   @CreationTimestamp
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
@@ -89,6 +97,27 @@ public class Payment {
 
   public static Payment atCounter(Payable payable, long amountMinor) {
     return create(payable, amountMinor, Method.COUNTER, Status.PENDING);
+  }
+
+  public static Payment promptPay(
+      Payable payable,
+      long amountMinor,
+      String gateway,
+      String gatewayReference,
+      String qr,
+      Instant expiresAt) {
+    var payment = create(payable, amountMinor, Method.PROMPTPAY, Status.PENDING);
+    payment.gateway = Objects.requireNonNull(gateway);
+    payment.gatewayReference = Objects.requireNonNull(gatewayReference);
+    if (qr == null || qr.isBlank())
+      throw new IllegalArgumentException("A PromptPay QR is required");
+    payment.promptPayQr = qr;
+    payment.expiresAt = Objects.requireNonNull(expiresAt);
+    return payment;
+  }
+
+  public static Payment cashOnDelivery(Payable payable, long amountMinor) {
+    return create(payable, amountMinor, Method.COD, Status.PENDING);
   }
 
   private static Payment create(Payable payable, long amountMinor, Method method, Status status) {

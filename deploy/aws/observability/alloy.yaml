@@ -1,0 +1,81 @@
+# One API log collector avoids duplicate streams from unclustered DaemonSets.
+controller:
+  type: statefulset
+  replicas: 1
+  volumeClaimTemplates:
+    - metadata:
+        name: alloy-data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: 1Gi }
+alloy:
+  storagePath: /var/lib/alloy
+  mounts:
+    extra:
+      - name: alloy-data
+        mountPath: /var/lib/alloy
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { memory: 384Mi }
+  configMap:
+    content: |
+      logging {
+        level = "warn"
+      }
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+      discovery.relabel "logs" {
+        targets = discovery.kubernetes.pods.targets
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          regex = "theparlor-dev|observability|gateway|envoy-gateway-system"
+          action = "keep"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          regex = "(.+)"
+          target_label = "service"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          regex = "(.+)"
+          target_label = "service"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label = "container"
+        }
+      }
+      loki.source.kubernetes "pods" {
+        targets = discovery.relabel.logs.output
+        forward_to = [loki.process.logs.receiver]
+      }
+      loki.process "logs" {
+        stage.json {
+          expressions = { level = "level" }
+        }
+        stage.labels {
+          values = { level = "" }
+        }
+        // Preserve the JSON line, including traceId, without indexing IDs,
+        // messages, URLs or user data as high-cardinality stream labels.
+        forward_to = [loki.write.local.receiver]
+      }
+      loki.write "local" {
+        endpoint {
+          url = "http://loki-gateway/loki/api/v1/push"
+        }
+      }
+serviceMonitor:
+  enabled: true
+  additionalLabels: { release: monitoring }

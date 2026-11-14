@@ -27,8 +27,11 @@ Keep development/preview notices out of customer-facing copy. Avoid redundant ed
 cards and use compact cart spacing with a single subtotal divider. Storefront retail is live: branches, branch prices
 and stock, the server cart, card checkout and My Orders use the API, and the server is authoritative
 for prices, stock and totals. Card details go only to payment tokenization and are never stored or
-logged. Shipping fees are server-calculated, and staff record a fixed carrier and tracking number at
-dispatch. PromptPay and cash on delivery have no backend; bank transfer is not supported. Customer reservations are live: the booking wizard reads branch
+logged; with Omise as the provider they go from the browser to Omise through Omise.js
+(`shared/lib/card-tokens.ts`). Shipping fees are server-calculated, and staff record a fixed carrier and
+tracking number at dispatch. Signed-in customers can also pay by PromptPay QR (the checkout polls the order
+until it is paid or the server cancels it after 15 minutes) or, for delivery, cash on delivery, which staff
+confirm in the fulfillment queue. Bank transfer has no backend and is not supported. Customer reservations are live: the booking wizard reads branch
 availability, rental games and the branch menu, books through the API and pays food pre-orders by card
 (authorized at booking, captured at check-in, only for visits within six days); My Reservations cancels,
 reschedules and shows rental charges from the API. In-play ordering and the table-bill QR have no backend

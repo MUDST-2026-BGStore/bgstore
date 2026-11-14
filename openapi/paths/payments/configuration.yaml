@@ -1,0 +1,14 @@
+get:
+  tags:
+    - Payments
+  operationId: getPaymentConfiguration
+  summary: How the browser tokenizes cards for the active payment provider
+  security: []
+  x-access-policy: public
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/PaymentConfiguration.yaml

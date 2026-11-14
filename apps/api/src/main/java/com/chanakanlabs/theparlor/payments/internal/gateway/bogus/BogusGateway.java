@@ -2,9 +2,11 @@ package com.chanakanlabs.theparlor.payments.internal.gateway.bogus;
 
 import com.chanakanlabs.theparlor.payments.internal.gateway.PaymentGateway;
 import com.chanakanlabs.theparlor.shared.Sha256;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
@@ -24,7 +26,10 @@ import org.springframework.transaction.annotation.Transactional;
  *   <li>4000 0000 0000 0341: authorizes, then is declined at capture
  * </ul>
  *
- * Never enable it where real orders are taken.
+ * <p>PromptPay charges are never paid on their own. Set bogus_promptpay_charges.paid_at to simulate
+ * the customer paying; the next refresh or provider notice then captures the payment.
+ *
+ * <p>Never enable it where real orders are taken.
  */
 @Component
 @ConditionalOnProperty(name = "theparlor.payments.gateway", havingValue = "bogus")
@@ -50,11 +55,14 @@ public class BogusGateway implements PaymentGateway {
           "4000000000000341", Behavior.CAPTURE_DECLINE);
 
   private final BogusPaymentTokenRepository tokens;
+  private final BogusPromptPayChargeRepository promptPay;
   private final Clock clock;
   private final SecureRandom random = new SecureRandom();
 
-  BogusGateway(BogusPaymentTokenRepository tokens, Clock clock) {
+  BogusGateway(
+      BogusPaymentTokenRepository tokens, BogusPromptPayChargeRepository promptPay, Clock clock) {
     this.tokens = tokens;
+    this.promptPay = promptPay;
     this.clock = clock;
   }
 
@@ -111,5 +119,41 @@ public class BogusGateway implements PaymentGateway {
   @Override
   public void cancel(String reference) {
     // Nothing was ever reserved, so there is nothing to release.
+  }
+
+  @Override
+  @Transactional
+  public PromptPayCharge createPromptPay(
+      long amountMinor, String payableReference, Instant expiresAt) {
+    String reference = "bogus_promptpay_" + UUID.randomUUID();
+    promptPay.save(BogusPromptPayCharge.issue(reference, amountMinor, expiresAt));
+    return new PromptPayCharge(reference, placeholderQr(amountMinor), expiresAt);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public boolean isPaid(String reference) {
+    return promptPay
+        .findById(reference)
+        .map(charge -> charge.getPaidAt() != null)
+        .orElseThrow(() -> new GatewayFailure("Unknown PromptPay charge"));
+  }
+
+  /** A clearly fake QR image, so nobody mistakes a development charge for a real one. */
+  private static String placeholderQr(long amountMinor) {
+    String amount = String.format("%d.%02d", amountMinor / 100, amountMinor % 100);
+    String svg =
+        "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'>"
+            + "<rect width='200' height='200' fill='white'/>"
+            + "<rect x='10' y='10' width='180' height='180' fill='none' stroke='black'"
+            + " stroke-width='4' stroke-dasharray='12 8'/>"
+            + "<text x='100' y='90' font-family='sans-serif' font-size='16' text-anchor='middle'>"
+            + "Development QR</text>"
+            + "<text x='100' y='120' font-family='sans-serif' font-size='14' text-anchor='middle'>"
+            + "THB "
+            + amount
+            + "</text></svg>";
+    return "data:image/svg+xml;base64,"
+        + Base64.getEncoder().encodeToString(svg.getBytes(StandardCharsets.UTF_8));
   }
 }

@@ -3,12 +3,123 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
 
 import manage
+
+
+@unittest.skipUnless(shutil.which("kubectl") and (manage.LOCAL / "venv/bin/python").is_file(),
+                     "Run aws-tools and install kubectl for rendered-manifest checks")
+class ManifestConnectivityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        rendered = subprocess.check_output(
+            ["kubectl", "kustomize", str(manage.ROOT.parent / "k8s/overlays/aws")], text=True)
+        # PyYAML comes from the pinned Ansible environment, without adding an
+        # application dependency just for deployment validation.
+        cls.resources = json.loads(subprocess.check_output(
+            [str(manage.LOCAL / "venv/bin/python"), "-c",
+             "import json, sys, yaml; print(json.dumps(list(yaml.safe_load_all(sys.stdin))))"],
+            input=rendered, text=True))
+
+    def test_api_port_configuration_is_not_overridden_by_service_links(self):
+        api = next(item for item in self.resources
+                   if item["kind"] == "Deployment" and item["metadata"]["name"] == "api")
+        self.assertIs(api["spec"]["template"]["spec"].get("enableServiceLinks", True), False)
+
+    def test_network_policies_allow_required_application_peers(self):
+        workloads = {item["metadata"]["name"]: item["spec"]["template"]["metadata"]["labels"]
+                     for item in self.resources if item["kind"] in ["Deployment", "StatefulSet"]}
+        policies = {item["metadata"]["name"]: item["spec"]
+                    for item in self.resources if item["kind"] == "NetworkPolicy"}
+        for target, peers, denied in [("postgres", ["api", "keycloak"], ["web"]),
+                                      ("valkey", ["api"], ["web", "keycloak"])]:
+            selectors = [peer["podSelector"]["matchLabels"]
+                         for rule in policies[target + "-ingress"]["ingress"]
+                         for peer in rule.get("from", []) if "podSelector" in peer]
+            for name in peers + denied:
+                with self.subTest(target=target, peer=name):
+                    allowed = any(all(workloads[name].get(key) == value for key, value in selector.items())
+                                  for selector in selectors)
+                    self.assertEqual(allowed, name in peers)
+
+
+    def test_api_pays_through_omise_with_keys_from_the_runtime_secret(self):
+        config = next(item for item in self.resources
+                      if item["kind"] == "ConfigMap" and item["metadata"]["name"] == "api-config")
+        self.assertEqual(config["data"]["THEPARLOR_PAYMENT_GATEWAY"], "omise")
+        api = next(item for item in self.resources
+                   if item["kind"] == "Deployment" and item["metadata"]["name"] == "api")
+        env = {item["name"]: item for item in api["spec"]["template"]["spec"]["containers"][0]["env"]}
+        for name in manage.OMISE_KEYS:
+            with self.subTest(name=name):
+                self.assertEqual(env[name]["valueFrom"]["secretKeyRef"],
+                                 {"name": "theparlor-runtime", "key": name})
+
+
+class PaymentSecretTests(unittest.TestCase):
+    PUBLIC = "pkey_test_0123456789abcdefghi"
+    SECRET = "skey_test_0123456789abcdefghi"
+
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.dotenv = Path(self.directory.name) / ".env"
+
+    def keys(self, env):
+        return manage.omise_keys(env=env, dotenv=self.dotenv)
+
+    def test_environment_keys_win_over_the_dotenv_file(self):
+        self.dotenv.write_text("THEPARLOR_OMISE_PUBLIC_KEY=pkey_test_other\n"
+                               "THEPARLOR_OMISE_SECRET_KEY=skey_test_other\n")
+        keys = self.keys({"THEPARLOR_OMISE_PUBLIC_KEY": self.PUBLIC,
+                          "THEPARLOR_OMISE_SECRET_KEY": self.SECRET})
+        self.assertEqual(list(keys.values()), [self.PUBLIC, self.SECRET])
+
+    def test_falls_back_to_the_dotenv_file(self):
+        self.dotenv.write_text(f"OTHER=x\nTHEPARLOR_OMISE_PUBLIC_KEY={self.PUBLIC}\n"
+                               f"THEPARLOR_OMISE_SECRET_KEY='{self.SECRET}'\n")
+        self.assertEqual(list(self.keys({}).values()), [self.PUBLIC, self.SECRET])
+
+    def test_refuses_missing_swapped_or_mixed_keys(self):
+        for env in [{},
+                    {"THEPARLOR_OMISE_PUBLIC_KEY": self.PUBLIC},
+                    {"THEPARLOR_OMISE_PUBLIC_KEY": self.SECRET, "THEPARLOR_OMISE_SECRET_KEY": self.PUBLIC},
+                    {"THEPARLOR_OMISE_PUBLIC_KEY": self.PUBLIC,
+                     "THEPARLOR_OMISE_SECRET_KEY": "skey_0123456789abcdefghijklm"}]:
+            with self.subTest(env=sorted(env)), self.assertRaises(SystemExit) as refused:
+                self.keys(env)
+            self.assertNotIn(self.SECRET, str(refused.exception))
+
+    def patch_with(self, answer):
+        calls = []
+
+        def run(args, *, capture=False, input_text=None, **_):
+            calls.append((args, input_text))
+            return answer if capture else None
+
+        env = {"THEPARLOR_OMISE_PUBLIC_KEY": self.PUBLIC, "THEPARLOR_OMISE_SECRET_KEY": self.SECRET}
+        with patch.object(manage, "ssh_args", return_value=["ssh", "host"]), \
+                patch.object(manage, "run", side_effect=run), \
+                patch.dict(os.environ, env), patch("builtins.print"):
+            manage.payment_secrets()
+        return calls
+
+    def test_keys_travel_on_stdin_and_a_change_restarts_the_api(self):
+        calls = self.patch_with("secret/theparlor-runtime patched\n")
+        (patch_args, patch_input), (restart_args, _) = calls
+        self.assertNotIn(self.SECRET, " ".join(patch_args))
+        self.assertIn("--patch-file=/dev/stdin", patch_args[-1])
+        self.assertEqual(json.loads(patch_input)["stringData"]["THEPARLOR_OMISE_SECRET_KEY"], self.SECRET)
+        self.assertIn("rollout restart deployment/api", restart_args[-1])
+
+    def test_unchanged_keys_do_not_restart_the_api(self):
+        calls = self.patch_with("secret/theparlor-runtime patched (no change)\n")
+        self.assertEqual(len(calls), 1)
 
 
 class AdoptionTests(unittest.TestCase):

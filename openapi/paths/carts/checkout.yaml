@@ -8,8 +8,10 @@ post:
   summary: Place an order from a cart
   description: >-
     Validates every line atomically against the fulfillment location, holds
-    stock (branch_editions stock_held), authorizes the payment token for the
-    total, creates one PLACED order and marks the cart CONVERTED; the cart keeps
+    stock (branch_editions stock_held), settles how the total is paid (CARD
+    authorizes the payment token; PROMPTPAY returns a QR payable for 15
+    minutes; COD waits for cash at delivery), creates one PLACED order and
+    marks the cart CONVERTED; the cart keeps
     its lines and cannot be reused. A declined payment returns 402 and leaves the
     cart open with nothing held. Requires
     Idempotency-Key. Replays with the same key and body return the original

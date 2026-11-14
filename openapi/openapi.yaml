@@ -40,6 +40,10 @@ paths:
     $ref: ./paths/pantry/stock-adjustments.yaml
   /api/v1/payments/tokens:
     $ref: ./paths/payments/tokens.yaml
+  /api/v1/payments/configuration:
+    $ref: ./paths/payments/configuration.yaml
+  /api/v1/payments/omise/webhook:
+    $ref: ./paths/payments/omise-webhook.yaml
   /api/v1/branches:
     $ref: ./paths/branches/collection.yaml
   /api/v1/branches/{branchId}:
@@ -116,6 +120,8 @@ paths:
     $ref: ./paths/orders/cancel.yaml
   /api/v1/branches/{branchId}/orders/{orderId}/fulfill:
     $ref: ./paths/orders/fulfill.yaml
+  /api/v1/branches/{branchId}/orders/{orderId}/payment/confirm:
+    $ref: ./paths/orders/payment-confirm.yaml
 components:
   securitySchemes:
     sessionCookie:
@@ -431,5 +437,5 @@ tags:
   - name: Pantry
     description: Food and drink menu and per-branch pantry stock.
   - name: Payments
-    description: Card tokenization for checkout; money moves only through order placement, fulfillment and cancellation.
+    description: Card tokenization and provider notices; money moves only through order placement, fulfillment, payment confirmation and cancellation.
 security: []

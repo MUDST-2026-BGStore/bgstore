@@ -11,7 +11,7 @@ import type { OrderPaymentMethod } from './orderPaymentMethod';
 import type { OrderPaymentStatus } from './orderPaymentStatus';
 
 /**
- * How the order is paid. Customer orders are authorized on a card at placement, captured at fulfillment and voided on cancellation. Counter sales are settled at the counter: PENDING until handover, then CAPTURED. Only the card brand and last four digits are ever kept.
+ * How the order is paid. CARD is authorized at placement, captured at fulfillment and voided on cancellation. COUNTER sales are settled at the counter: PENDING until handover, then CAPTURED. PROMPTPAY is PENDING with a QR (promptPayQr) until the customer pays it, then CAPTURED; unpaid at expiresAt, the order is cancelled and the payment VOIDED. COD (cash on delivery) stays PENDING through dispatch until staff confirm the cash was received. Only the card brand and last four digits are ever kept.
  */
 export interface OrderPayment {
   method: OrderPaymentMethod;
@@ -20,4 +20,11 @@ export interface OrderPayment {
   cardBrand?: CardBrand;
   /** @pattern ^[0-9]{4}$ */
   cardLast4?: string;
+  /**
+     * Image URL (https or data) of the PromptPay QR to show the customer. Only present while a PROMPTPAY payment is PENDING.
+     * @maxLength 2000000
+     */
+  promptPayQr?: string;
+  /** When an unpaid PROMPTPAY QR stops being payable. Only present while PENDING. */
+  expiresAt?: string;
 }

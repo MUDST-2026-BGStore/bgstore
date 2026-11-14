@@ -123,6 +123,9 @@ class OrderViews {
             new Money(summary.amountMinor()));
     if (summary.cardBrand() != null) result.setCardBrand(CardBrand.valueOf(summary.cardBrand()));
     result.setCardLast4(summary.cardLast4());
+    result.setPromptPayQr(summary.promptPayQr());
+    if (summary.expiresAt() != null)
+      result.setExpiresAt(summary.expiresAt().atOffset(ZoneOffset.UTC));
     return result;
   }
 

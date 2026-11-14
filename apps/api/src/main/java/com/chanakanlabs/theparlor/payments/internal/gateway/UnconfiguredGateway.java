@@ -1,5 +1,6 @@
 package com.chanakanlabs.theparlor.payments.internal.gateway;
 
+import java.time.Instant;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -38,7 +39,18 @@ class UnconfiguredGateway implements PaymentGateway {
     throw unavailable();
   }
 
+  @Override
+  public PromptPayCharge createPromptPay(
+      long amountMinor, String payableReference, Instant expiresAt) {
+    throw unavailable();
+  }
+
+  @Override
+  public boolean isPaid(String reference) {
+    throw unavailable();
+  }
+
   private static GatewayFailure unavailable() {
-    return new GatewayFailure("Card payments are not configured");
+    return new GatewayFailure("Online payments are not configured");
   }
 }

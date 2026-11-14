@@ -18,7 +18,7 @@
 These come from `AGENTS.md` and `apps/web/AGENTS.md`. Read both files once.
 
 - API contract: edit YAML under `openapi/`, then run `pnpm generate:api`. Never hand-edit generated Java (the `contracts` package) or `libs/web/api-client/src/generated/`. New path files must be registered in `openapi/openapi.yaml` (copy how an existing path is registered). Every operation needs `x-access-policy` and, for writes, the `CsrfToken` parameter (copy from `openapi/paths/branches/collection.yaml`). An unquoted `word: text` inside a YAML description breaks parsing; use `>-` block text.
-- Database: add a new Flyway file in `apps/api/src/main/resources/db/migration/`. V001–V009 exist. Use the next free number at the time you write it (the first item to land uses `V010__<name>.sql`, the next `V011`, and so on). Never edit an existing migration.
+- Database: add a new Flyway file in `apps/api/src/main/resources/db/migration/`. V001–V011 exist. Use the next free number at the time you write it (the next item to land uses `V012__<name>.sql`, the one after `V013`, and so on). Never edit an existing migration.
 - Backend modules are Spring Modulith modules. Each `apps/api/src/main/java/com/chanakanlabs/theparlor/<module>/package-info.java` lists `allowedDependencies`. A module may only use another module's top-level public types, or its `spi` package when listed as `<module>::spi`. Never import another module's `internal` package. `ModularityTests` enforces this.
 - Modules reference each other by scalar IDs (`UUID`) and subjects (`String`), never by JPA relations across modules.
 - The "SPI pattern" mentioned below means: the lower module declares an interface in `<module>/spi/` (with a `package-info.java` annotated `@org.springframework.modulith.NamedInterface("spi")`, copy `branches/spi/package-info.java`); higher modules implement it as a Spring bean and add `"<module>::spi"` to their `allowedDependencies`; the lower module injects `List<TheInterface>`. Working example: `branches/spi/TableCommitments.java`, injected in `branches/internal/application/BranchesService.java`, implemented by `reservations/internal/application/ReservationTableCommitments.java`.
@@ -59,12 +59,11 @@ pnpm nx run-many -t lint typecheck
 
 | ID  | Marker                                                                                                       | Area      | Depends on |
 | --- | ------------------------------------------------------------------------------------------------------------ | --------- | ---------- |
-| T5  | `CheckoutPage.vue:17` `checkout-payments`                                                                    | API + Web | —          |
 | T7  | `InPlayOrderModal.vue:2` `in-play-orders-api`; `useWorkspacePantry.ts:1`, `pantry.samples.ts:1` `pantry-api` | API + Web | —          |
 | T8  | `reservations-store.ts:1` `reservation-api`                                                                  | Web       | T7         |
 | T9  | `WorkspaceAnalytics.vue:2` `analytics-api`                                                                   | API + Web | T7         |
 
-Suggested order: T7, T8, T9, T5. T5 is last because it needs Omise credentials from the owner and the largest design.
+Suggested order: T7, T8, T9.
 
 Path prefixes used below:
 
@@ -72,87 +71,6 @@ Path prefixes used below:
 - `APITEST/` = `apps/api/src/test/java/com/chanakanlabs/theparlor/`
 - `WEB/` = `apps/web/src/`
 - `MGMT/` = `apps/web/src/features/reservations/management/`
-
----
-
-## T5 — PromptPay and cash on delivery, with Omise as the payment provider
-
-**Marker:** `WEB/features/home/pages/CheckoutPage.vue:17` — `TODO(checkout-payments)`.
-
-T6 is complete; order totals now include the server-calculated shipping fee.
-
-**Read first:** `API/payments/Payments.java`, `API/payments/internal/application/PaymentsService.java`, `API/payments/internal/application/PaymentTokensService.java`, `API/payments/internal/gateway/PaymentGateway.java`, `UnconfiguredGateway.java`, `bogus/BogusGateway.java`, `API/payments/internal/domain/Payment.java`, V006 lines 22–62 and V009 lines 1–6, `API/orders/internal/application/OrderPlacementService.java`, `OrdersService.java`, `OrderViews.java`, `API/carts/internal/application/CartsService.java` (checkout), `openapi/components/schemas/CheckoutCartRequest.yaml`, `OrderPayment.yaml`, `apps/api/src/main/resources/application.yaml` (the `theparlor.payments` block), `WEB/features/home/pages/CheckoutPage.vue`, `WEB/features/home/components/MyOrdersModal.vue`, `WEB/features/reservations/components/inventory/FulfillmentQueue.vue`.
-
-**Facts:**
-
-- Checkout offers card only. The web tokenizes the card through `POST /api/v1/payments/tokens` (card data passes through our server to the gateway), then checkout authorizes the token. Capture happens at fulfilment, void at cancellation.
-- Payment methods are `CARD` and `COUNTER`; statuses `PENDING`, `AUTHORIZED`, `CAPTURED`, `VOIDED`. Database checks in V006: `chk_payments_method`, `chk_payments_card` (card fields present exactly when method is CARD), `chk_payments_method_status` (CARD is never PENDING; COUNTER is never AUTHORIZED).
-- One gateway adapter is active, chosen by `theparlor.payments.gateway`: `none` (refuses) or `bogus` (development, moves no money). Each payment stores the gateway `name()` so later captures reach the same provider.
-- `OrdersService.fulfillOrder` always calls `payments.capture`; `cancelOrder` always calls `payments.cancel`.
-- Order statuses are `PLACED`, `CANCELLED`, `FULFILLED`. `OrdersService.listMyOrders` reads by customer subject; guests cannot re-read an order.
-- There is no scheduled job anywhere in the API (`@EnableScheduling` is not used).
-- Bank transfer was considered and **rejected**; do not build it.
-
-**Decisions:**
-
-1. Provider: **Omise (Opn Payments)**, for cards and PromptPay. `bogus` stays for development and tests; `none` stays the default.
-2. New methods: **PromptPay QR** and **cash on delivery (COD)**. No bank transfer.
-3. PromptPay and COD are for **signed-in customers only**, and only on retail checkout. Guests keep card only. Reservation food pre-orders stay card only.
-4. PromptPay: the order is placed with stock held and the payment `PENDING`. If it is not paid within **15 minutes** the server cancels the order and releases the stock.
-5. COD: allowed only when the cart ships (`SHIPPING`). The payment is `PENDING` until staff confirm the cash was received; dispatching the parcel does not capture it.
-6. Omise API details are **not** written here on purpose. Before coding any provider call, read the current Omise documentation (charges, tokens, PromptPay source, webhooks, authorize-then-capture, reversing an authorization). Do not write endpoint paths or field names from memory. The owner supplies test keys through `.env`; never commit keys, and never log card data, tokens or keys.
-
-**Design (our side; build exactly this):**
-
-_Schema (one new migration):_
-
-- Replace `chk_payments_method` to allow `'CARD','COUNTER','PROMPTPAY','COD'`.
-- Replace `chk_payments_card` with: CARD rows have gateway, gateway_reference, card_brand, card_last4 all non-null; PROMPTPAY rows have gateway and gateway_reference non-null and card fields null; COUNTER and COD rows have all four null.
-- Replace `chk_payments_method_status` with: CARD is never PENDING; COUNTER, PROMPTPAY and COD are never AUTHORIZED.
-- Add nullable `expires_at TIMESTAMPTZ` on `payments`, non-null exactly for PROMPTPAY rows.
-- Use `ALTER TABLE … DROP CONSTRAINT … , ADD CONSTRAINT …`. Check `EnumStorageLengths` / the `method` column width (20) still fits.
-
-_Payments module:_
-
-- `Payments.Method`: add `PROMPTPAY`, `COD`.
-- `PaymentGateway` port: add `PromptPayCharge createPromptPay(long amountMinor, String payableReference)` returning the provider reference, the QR image/payload the provider gives, and its expiry; and `boolean isPaid(String reference)` which asks the provider for the charge's current state. `UnconfiguredGateway` throws `GatewayFailure` for both. `BogusGateway` implements both for development (verify how it stores state in `bogus_payment_tokens` and add the minimum needed so tests can mark a bogus PromptPay charge paid).
-- `Payments` interface: add
-  - `PaymentSummary startPromptPay(Payable payable, long amountMinor)` — creates the provider charge, stores a `PROMPTPAY` / `PENDING` payment with `expires_at = now + 15 minutes`.
-  - `PaymentSummary payOnDelivery(Payable payable, long amountMinor)` — stores a `COD` / `PENDING` payment.
-  - `PaymentSummary confirmReceived(Payable payable)` — `PENDING` → `CAPTURED` for COD (and for PromptPay once the provider says paid); repeating it changes nothing.
-  - `List<UUID> expiredUnpaid(Kind kind, Instant now)` — payables whose PROMPTPAY payment is still PENDING and past `expires_at`.
-- `capture(payable)`: for `PROMPTPAY`, if still `PENDING` throw a 409 `ProblemException` ("Payment has not been received"); if `CAPTURED` do nothing. For `COD`, do nothing (it stays `PENDING`). CARD and COUNTER behavior is unchanged.
-- `cancel(payable)`: `PENDING` PROMPTPAY/COD → `VOIDED`. A `CAPTURED` PromptPay or COD payment cannot be cancelled here; throw 409 (refunds are out of scope).
-- `PaymentSummary`: add nullable `promptPayQr` (what the web renders) and `expiresAt`. Only filled for PENDING PromptPay.
-- New adapter `API/payments/internal/gateway/omise/OmiseGateway.java`, active when `theparlor.payments.gateway=omise`, implementing every port method through Omise's HTTP API with keys from configuration properties (`theparlor.payments.omise.public-key`, `…secret-key`, bound from environment variables; add empty defaults to `application.yaml` and placeholders wherever `.env` values are generated by `make configure` — find that script from the `Makefile`). Map issuer refusals to `GatewayDeclined` and everything else to `GatewayFailure`, as the port's Javadoc requires. Use Spring's `RestClient` with timeouts. Unit-test it against a local stub HTTP server; never call Omise in automated tests.
-- Webhook: new public endpoint `POST /api/v1/payments/omise/webhook` (contract file under `openapi/paths/payments/`, `x-access-policy: public`, permit it in `API/identity/internal/security/SecurityConfig.java` next to the existing `/api/v1/payments/tokens` rule, and exempt it from CSRF the way that config handles other non-browser posts — verify how). **Do not trust the webhook body.** Use it only to learn which charge changed, then call `gateway.isPaid(reference)` and, if paid, mark the payment `CAPTURED`. Unknown references answer 200 and do nothing.
-
-_Orders module:_
-
-- `OrderPlacement.Placement`: add `paymentMethod` (`CARD`, `PROMPTPAY`, `COD`); `paymentToken` is required only for CARD.
-- `OrderPlacementService.place`: after holding stock and writing the order, call `authorizeCard`, `startPromptPay` or `payOnDelivery` accordingly. Reject with 400: PROMPTPAY or COD from a guest (no `accountId`); COD when `shippingAddress` is null.
-- `OrdersService.fulfillOrder`: unchanged call order; the new `capture` rules make an unpaid PromptPay order un-fulfillable (409) and leave COD pending.
-- New endpoint `POST /api/v1/branches/{branchId}/orders/{orderId}/payment/confirm` (`operationId: confirmOrderPayment`, policy `branch-operator`, CSRF): only for a COD order in status `FULFILLED` with payment `PENDING`; calls `payments.confirmReceived`; otherwise 409. Repeating after success returns the order unchanged.
-- Expiry: add `@EnableScheduling` (on a new small configuration class in `shared/internal`, next to `TimeConfiguration.java`) and a scheduled method in `orders` running every minute: for each order ID from `payments.expiredUnpaid(ORDER, now)`, first call `gateway`-backed re-check through a new `Payments` method or reuse the webhook path so a payment that arrived late is captured instead of cancelled; otherwise cancel the order exactly as `cancelOrder` does (release stock, void payment) with actor `system` and reason `Payment not received in time`. Each order in its own transaction with the order row locked (`lockByIdAndBranchId`), so it cannot race a webhook.
-
-_Contract:_
-
-- `CheckoutCartRequest.yaml`: add `paymentMethod` (enum `CARD`, `PROMPTPAY`, `COD`, default `CARD`); remove `paymentToken` from `required` and document that it is required for CARD. Apply the same to `CreateOrderRequest.yaml` if it carries `paymentToken` (verify).
-- `OrderPayment.yaml`: add the two enum values, `promptPayQr` and `expiresAt`, and update the description.
-- Add the confirm and webhook paths. Run `pnpm generate:api`.
-
-_Web:_
-
-- `CheckoutPage.vue`: in the payment methods card, show three options for signed-in customers (card, PromptPay, cash on delivery) and card only for guests. COD is shown only when `cart.method === 'shipping'`. Card fields render only for card. Submit sends `paymentMethod` and, for card, the token as today.
-- After a PromptPay checkout succeeds, show the QR from `placedOrder.payment.promptPayQr`, the amount and a countdown to `expiresAt`. Poll the order (through the orders store / `listMyOrders` or `getOrder` — verify which the customer may call) every 3 seconds until payment is `CAPTURED` (show the normal success state) or the order is `CANCELLED` (show "payment was not received, the order was cancelled" and a link back to the cart). Stop polling when the component unmounts.
-- `MyOrdersModal.vue`: show the method and state ("Awaiting payment", "Pay on delivery", "Paid"); for a pending PromptPay order show the QR again.
-- `FulfillmentQueue.vue`: show the payment state; disable Fulfil for unpaid PromptPay; add a "Cash received" action for fulfilled COD orders calling `confirmOrderPayment`.
-- Add Thai and English copy alongside existing strings. Remove the `checkout-payments` half of the TODO comment and update the sentence in `apps/web/AGENTS.md` that says PromptPay, bank transfer and cash on delivery have no backend (bank transfer still has none).
-- Delete dead CSS in `CheckoutPage.vue` that the new UI does not use. At HEAD these selectors had zero uses in the template: `.bank-total-card`, `.bank-accounts-box`, `.bank-card-luxury`, `.qr-code-frame`, `.tracking-row`, `.carrier-tag`, `.btn-copy-tracking`, `.dl-code` and their sibling rules. Search the file for each class before deleting; reuse instead of deleting where the new QR view fits.
-
-**Tests:** `PaymentsServiceTests` for every new transition and refusal; `TheparlorApiApplicationTests` with the bogus gateway: PromptPay order paid → fulfillable; unpaid past expiry → cancelled and stock back; fulfil while unpaid → 409; COD pickup → 400; guest PromptPay → 400; COD fulfil then confirm → CAPTURED; webhook with unknown reference → 200. `SchemaIntegrityTests` if it enumerates constraints. Web specs for method visibility (guest vs signed-in, pickup vs shipping) and the polling outcomes.
-
-**Out of scope:** Refunds of captured payments. Bank transfer. PromptPay for reservation pre-orders. Saving cards. Sending raw card data anywhere new. Going live (live keys and switching production to `omise` are the owner's step).
 
 ---
 
@@ -239,7 +157,7 @@ _Web:_
 1. Move the four exported types into `WEB/features/reservations/types.ts`; update every import. Rename `InPlayOrder` only if T7 already replaced it.
 2. `useWorkspaceReservations.ts`: delete `sampleFloorTables`, the `!isLiveFloor` merge in `allReservations` (it returns the API items only), the local branch in `handleStaffWalkInSubmit`, the `found` and fallback branches in `openCheckBill`, the `reservationsStore` calls in `handleCheckIn` and `submitCancel`, and the `reservationsStore` export. `branchFloorTables` holds server tables only. Keep `isLiveFloor` only if something still reads it; otherwise delete it and its uses.
 3. Where the floor, sessions and bookings views render, show an `AppEmptyState` ("No tables set up for this branch.") when the branch has no tables. Do not fall back to sample tables anywhere (also check `MGMT/components/WorkspaceFloor.vue`, `OverviewFloorTable.vue`, `WorkspaceDashboard.vue`).
-4. `TableBillModal.vue`: remove everything that only served non-live sessions — the local settle (`reservationsStore.settleSessionBill`), the customer self-payment QR block and its `qrcode` import, the staff payment-method picker that recorded nothing, and their CSS. The modal always requires a `rentalId`. If `qrcode` has no other importer after this (and after T5), remove the dependency from `package.json`.
+4. `TableBillModal.vue`: remove everything that only served non-live sessions — the local settle (`reservationsStore.settleSessionBill`), the customer self-payment QR block and its `qrcode` import, the staff payment-method picker that recorded nothing, and their CSS. The modal always requires a `rentalId`. If `qrcode` has no other importer after this, remove the dependency from `package.json`.
 5. Delete `reservations-store.ts`. Search for its storage key suffix `workspace-sample-reservations` and for `registerProtectedState` usages tied to it; remove leftovers.
 6. Rewrite the affected cases in `useWorkspaceReservations.spec.ts` against mocked API responses (the file already mocks `fetch` for live cases; follow those).
 7. `apps/web-e2e/src/management.spec.ts` exercises sample-backed UI: give its API fixtures tables, reservations and rentals so the same UI behaviors are covered from server data.

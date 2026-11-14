@@ -14,6 +14,7 @@ import subprocess
 import time
 
 import manage
+import observability
 
 REPO = manage.ROOT.parent.parent
 METADATA = manage.LOCAL / "deployment.json"
@@ -105,7 +106,11 @@ def publish_snapshot(tag, branch):
 def sync(routing_only=False):
     metadata = json.loads(METADATA.read_text())
     source = Path(metadata["source"])
+    if not routing_only:
+        observability.setup(source / "deploy/aws/observability")
     manage.application_secrets()
+    if not routing_only:
+        manage.payment_secrets()
     ssh = manage.ssh_args()
     definitions = "\n---\n".join((source / "deploy/aws/kubernetes" / name).read_text() for name in ["project.yaml", "application.yaml"])
     manage.run([*ssh, "sudo k3s kubectl apply --server-side --field-manager=theparlor-bootstrap -f -"], input_text=definitions)
@@ -135,7 +140,11 @@ def sync(routing_only=False):
                 "sudo k3s kubectl -n theparlor-dev rollout status deployment/api --timeout=300s; "
                 "sudo k3s kubectl -n theparlor-dev rollout status deployment/web --timeout=180s; "
                 "sudo k3s kubectl -n theparlor-dev rollout status deployment/keycloak --timeout=300s"])
+    if not routing_only:
+        observability.check(source / "deploy/aws/observability")
     manage.run([*ssh, "sudo k3s kubectl -n gateway wait --for=condition=Ready certificate --all --timeout=600s"])
+    if not routing_only:
+        observability.check_public()
     print(f"Deployment ready at https://{metadata['hosts']['theparlor']}")
 
 

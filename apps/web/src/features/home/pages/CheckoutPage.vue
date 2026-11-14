@@ -1,7 +1,18 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import {
+  computed,
+  onBeforeUnmount,
+  onMounted,
+  reactive,
+  ref,
+  watch,
+} from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
-import type { Order } from '@theparlor/api-client';
+import {
+  getOrder,
+  type Order,
+  type PaymentMethodChoice,
+} from '@theparlor/api-client';
 import { FREE_SHIPPING_FROM_MINOR, useCartStore } from '../stores/cart';
 import { useOrdersStore } from '../stores/orders';
 import { formatMinor } from '../data/catalog';
@@ -12,10 +23,10 @@ import { useStoreText } from '../data/store-text';
 import { useAuthStore } from '../../../shared/stores/auth';
 import CartFulfillment from '../components/CartFulfillment.vue';
 
-// Checkout places one order from the whole server cart and pays by card. The card
-// is exchanged for a single-use token and never stored; the server authorizes the
+// Checkout places one order from the whole server cart. A card is exchanged for a
+// single-use token and never stored; PromptPay shows the server's QR until it is
+// paid or expires; cash on delivery is paid to the courier. The server charges the
 // total it calculated, so nothing on this page decides what is charged.
-// TODO(checkout-payments): PromptPay QR and cash on delivery have no backend.
 
 const router = useRouter();
 const cart = useCartStore();
@@ -60,6 +71,41 @@ watch(
   },
   { immediate: true },
 );
+
+// PromptPay and cash on delivery need an account; cash only works for delivery.
+const paymentMethod = ref<PaymentMethodChoice>('CARD');
+const paymentMethods = computed<PaymentMethodChoice[]>(() => {
+  if (!auth.authenticated) return ['CARD'];
+  return cart.method === 'shipping'
+    ? ['CARD', 'PROMPTPAY', 'COD']
+    : ['CARD', 'PROMPTPAY'];
+});
+watch(paymentMethods, (methods) => {
+  if (!methods.includes(paymentMethod.value)) paymentMethod.value = 'CARD';
+});
+const paysByCard = computed(() => paymentMethod.value === 'CARD');
+
+function methodName(method: PaymentMethodChoice) {
+  const isTh = locale.value === 'th-TH';
+  if (method === 'PROMPTPAY') return isTh ? 'พร้อมเพย์ (QR)' : 'PromptPay QR';
+  if (method === 'COD') return isTh ? 'เก็บเงินปลายทาง' : 'Cash on Delivery';
+  return isTh ? 'บัตรเครดิต / บัตรเดบิต' : 'Credit / Debit Card';
+}
+
+function methodDescription(method: PaymentMethodChoice) {
+  const isTh = locale.value === 'th-TH';
+  if (method === 'PROMPTPAY')
+    return isTh
+      ? 'สแกน QR ด้วยแอปธนาคารภายใน 15 นาที หากไม่ชำระ คำสั่งซื้อจะถูกยกเลิก'
+      : 'Scan the QR with your banking app within 15 minutes, or the order is cancelled.';
+  if (method === 'COD')
+    return isTh
+      ? 'ชำระเงินสดกับพนักงานส่งพัสดุเมื่อได้รับสินค้า'
+      : 'Pay the courier in cash when your parcel arrives.';
+  return isTh
+    ? 'ระบบจะกันวงเงินไว้เมื่อสั่งซื้อ และเรียกเก็บเมื่อส่งมอบสินค้า'
+    : 'Your card is authorized now and charged when the order is handed over.';
+}
 
 const cardForm = reactive({
   number: '',
@@ -305,15 +351,9 @@ function validateField(field: keyof typeof errors) {
 }
 
 function validateAllFields(): boolean {
-  const fields: (keyof typeof errors)[] = [
-    'name',
-    'phone',
-    'email',
-    'cardNumber',
-    'cardExpiry',
-    'cardCvv',
-    'cardHolder',
-  ];
+  const fields: (keyof typeof errors)[] = ['name', 'phone', 'email'];
+  if (paysByCard.value)
+    fields.push('cardNumber', 'cardExpiry', 'cardCvv', 'cardHolder');
   if (cart.method === 'shipping')
     fields.push('address', 'district', 'province', 'postal');
   for (const field of fields) validateField(field);
@@ -325,21 +365,33 @@ function failureMessage(error: unknown): string {
   const isTh = locale.value === 'th-TH';
   const status = httpStatus(error);
   if (status === 402)
-    return isTh
-      ? 'บัตรถูกปฏิเสธ ไม่มีการเรียกเก็บเงิน กรุณาตรวจสอบข้อมูลบัตรหรือใช้บัตรอื่น'
-      : 'The card was declined and nothing was charged. Check the details or use another card.';
+    return paysByCard.value
+      ? isTh
+        ? 'บัตรถูกปฏิเสธ ไม่มีการเรียกเก็บเงิน กรุณาตรวจสอบข้อมูลบัตรหรือใช้บัตรอื่น'
+        : 'The card was declined and nothing was charged. Check the details or use another card.'
+      : isTh
+        ? 'ไม่สามารถสร้างการชำระเงินได้ ไม่มีการเรียกเก็บเงิน กรุณาเลือกวิธีชำระเงินอื่น'
+        : 'This payment could not be started and nothing was charged. Please choose another way to pay.';
   if (status === 409)
     return isTh
       ? 'ตะกร้าของคุณมีการเปลี่ยนแปลงหรือสินค้าไม่เพียงพอ กรุณาตรวจสอบตะกร้าอีกครั้ง'
       : 'Your cart changed or an item is no longer available. Review your cart and try again.';
   if (status === 502 || problemCode(error) === 'PAYMENT_GATEWAY_ERROR')
-    return isTh
-      ? 'ไม่สามารถชำระเงินด้วยบัตรได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง'
-      : 'Card payment is unavailable right now. Please try again shortly.';
+    return paysByCard.value
+      ? isTh
+        ? 'ไม่สามารถชำระเงินด้วยบัตรได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง'
+        : 'Card payment is unavailable right now. Please try again shortly.'
+      : isTh
+        ? 'ไม่สามารถชำระเงินผ่านพร้อมเพย์ได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง'
+        : 'PromptPay is unavailable right now. Please try again shortly.';
   if (status === 400)
-    return isTh
-      ? 'ข้อมูลบัตรหรือข้อมูลผู้รับไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง'
-      : 'The card or contact details are not valid. Please check them.';
+    return paysByCard.value
+      ? isTh
+        ? 'ข้อมูลบัตรหรือข้อมูลผู้รับไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง'
+        : 'The card or contact details are not valid. Please check them.'
+      : isTh
+        ? 'ไม่สามารถใช้วิธีชำระเงินนี้กับคำสั่งซื้อนี้ได้ กรุณาตรวจสอบอีกครั้ง'
+        : 'This payment method or the contact details cannot be used for this order. Please check them.';
   return isTh
     ? 'ไม่สามารถดำเนินการสั่งซื้อได้ กรุณาลองใหม่อีกครั้ง'
     : 'The order could not be placed. Please try again.';
@@ -370,15 +422,18 @@ async function handleConfirmOrder() {
   const [month, year] = cardForm.expiry.split('/');
   isSubmitting.value = true;
   try {
-    placedOrder.value = await cart.checkout(
+    const order = await cart.checkout(
+      paysByCard.value
+        ? {
+            number: cardForm.number,
+            expMonth: Number(month),
+            expYear: 2000 + Number(year),
+            cvc: cardForm.cvv,
+            holderName: cardForm.holder.trim(),
+          }
+        : null,
       {
-        number: cardForm.number,
-        expMonth: Number(month),
-        expYear: 2000 + Number(year),
-        cvc: cardForm.cvv,
-        holderName: cardForm.holder.trim(),
-      },
-      {
+        paymentMethod: paymentMethod.value,
         contact: {
           name: contact.name.trim(),
           email: contact.email.trim(),
@@ -401,6 +456,8 @@ async function handleConfirmOrder() {
     );
     // Card details are no longer needed once the order exists.
     Object.assign(cardForm, { number: '', expiry: '', cvv: '', holder: '' });
+    placedOrder.value = order;
+    watchPromptPay(order);
   } catch (error) {
     formError.value = failureMessage(error);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -409,16 +466,98 @@ async function handleConfirmOrder() {
   }
 }
 
+// PromptPay: show the QR and ask the server every few seconds until the order is
+// paid or the server cancels it for not being paid in time.
+const POLL_MS = 3000;
+let pollTimer: ReturnType<typeof setInterval> | undefined;
+let clockTimer: ReturnType<typeof setInterval> | undefined;
+const now = ref(Date.now());
+
+const awaitingPromptPay = computed(
+  () =>
+    placedOrder.value?.status === 'PLACED' &&
+    placedOrder.value.payment.method === 'PROMPTPAY' &&
+    placedOrder.value.payment.status === 'PENDING',
+);
+const promptPayCancelled = computed(
+  () =>
+    placedOrder.value?.status === 'CANCELLED' &&
+    placedOrder.value.payment.method === 'PROMPTPAY',
+);
+const secondsLeft = computed(() => {
+  const expiresAt = placedOrder.value?.payment.expiresAt;
+  if (!expiresAt) return 0;
+  return Math.max(0, Math.floor((Date.parse(expiresAt) - now.value) / 1000));
+});
+const countdown = computed(() => {
+  const minutes = Math.floor(secondsLeft.value / 60);
+  const seconds = secondsLeft.value % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+});
+
+function stopWatching() {
+  if (pollTimer) clearInterval(pollTimer);
+  if (clockTimer) clearInterval(clockTimer);
+  pollTimer = clockTimer = undefined;
+}
+
+function watchPromptPay(order: Order) {
+  stopWatching();
+  if (!awaitingPromptPay.value) return;
+  now.value = Date.now();
+  clockTimer = setInterval(() => (now.value = Date.now()), 1000);
+  pollTimer = setInterval(async () => {
+    try {
+      const latest = await getOrder(order.branchId, order.id);
+      if (placedOrder.value?.id !== order.id) return;
+      placedOrder.value = latest;
+      if (!awaitingPromptPay.value) stopWatching();
+    } catch {
+      // A missed poll is retried on the next tick.
+    }
+  }, POLL_MS);
+}
+
+onBeforeUnmount(stopWatching);
+
 function closeSuccessAndExit() {
+  stopWatching();
   placedOrder.value = null;
   router.push('/');
 }
 
+function backToCart() {
+  stopWatching();
+  placedOrder.value = null;
+  router.push('/cart');
+}
+
 function viewOrdersAndExit() {
+  stopWatching();
   const orderId = placedOrder.value?.id;
   placedOrder.value = null;
   router.push('/');
   ordersStore.openOrdersModal(orderId);
+}
+
+function paymentSummary(order: Order) {
+  const isTh = locale.value === 'th-TH';
+  const payment = order.payment;
+  if (payment.method === 'PROMPTPAY')
+    return payment.status === 'CAPTURED'
+      ? isTh
+        ? 'พร้อมเพย์ · ชำระแล้ว'
+        : 'PromptPay · paid'
+      : isTh
+        ? 'พร้อมเพย์ · รอชำระเงิน'
+        : 'PromptPay · awaiting payment';
+  if (payment.method === 'COD')
+    return isTh
+      ? 'เก็บเงินปลายทาง · ชำระเมื่อได้รับสินค้า'
+      : 'Cash on delivery · pay when it arrives';
+  return `${payment.cardBrand ?? ''} •••• ${payment.cardLast4 ?? ''} · ${
+    isTh ? 'เรียกเก็บเมื่อส่งมอบสินค้า' : 'charged at handover'
+  }`;
 }
 </script>
 
@@ -812,35 +951,49 @@ function viewOrdersAndExit() {
               <line x1="2" y1="10" x2="22" y2="10" />
             </svg>
             <h2>
-              {{ locale === 'th-TH' ? 'ชำระเงินด้วยบัตร' : 'Card Payment' }}
+              {{ locale === 'th-TH' ? 'วิธีการชำระเงิน' : 'Payment Method' }}
             </h2>
           </div>
         </div>
 
-        <div class="methods-selection-list">
-          <!-- 2. Credit/Debit Card -->
-          <label class="method-option-row" :class="{ 'is-active': true }">
+        <div
+          class="methods-selection-list"
+          role="radiogroup"
+          :aria-label="
+            locale === 'th-TH' ? 'วิธีการชำระเงิน' : 'Payment method'
+          "
+        >
+          <label
+            v-for="method in paymentMethods"
+            :key="method"
+            class="method-option-row"
+            :class="{ 'is-active': paymentMethod === method }"
+            :data-method="method"
+          >
+            <input
+              v-model="paymentMethod"
+              class="sr-only"
+              type="radio"
+              name="payment-method"
+              :value="method"
+            />
             <div class="method-radio">
               <span class="radio-dot"></span>
             </div>
             <div class="method-info">
               <div class="method-name-line">
-                <strong>{{
-                  locale === 'th-TH'
-                    ? 'บัตรเครดิต / บัตรเดบิต'
-                    : 'Credit / Debit Card'
-                }}</strong>
-                <span class="card-brands">Visa · Mastercard · JCB</span>
+                <strong>{{ methodName(method) }}</strong>
+                <span v-if="method === 'CARD'" class="card-brands"
+                  >Visa · Mastercard · JCB</span
+                >
               </div>
-              <p class="method-desc">
-                {{
-                  locale === 'th-TH'
-                    ? 'ระบบจะกันวงเงินไว้เมื่อสั่งซื้อ และเรียกเก็บเมื่อส่งมอบสินค้า'
-                    : 'Your card is authorized now and charged when the order is handed over.'
-                }}
-              </p>
+              <p class="method-desc">{{ methodDescription(method) }}</p>
 
-              <div class="card-inline-form" @click.stop>
+              <div
+                v-if="method === 'CARD' && paysByCard"
+                class="card-inline-form"
+                @click.stop
+              >
                 <div
                   class="field-wrap"
                   :class="{ 'has-error': !!errors.cardNumber }"
@@ -1001,9 +1154,121 @@ function viewOrdersAndExit() {
         class="checkout-modal-card"
         role="dialog"
         aria-modal="true"
-        aria-labelledby="order-placed-title"
+        :aria-labelledby="
+          awaitingPromptPay
+            ? 'promptpay-title'
+            : promptPayCancelled
+              ? 'promptpay-cancelled-title'
+              : 'order-placed-title'
+        "
       >
-        <div class="modal-body-success">
+        <div v-if="awaitingPromptPay" class="modal-body-payment">
+          <span class="modal-brand">PROMPTPAY</span>
+          <h2 id="promptpay-title" class="modal-title">
+            {{
+              locale === 'th-TH'
+                ? 'สแกนเพื่อชำระเงิน'
+                : 'Scan to pay with PromptPay'
+            }}
+          </h2>
+          <p class="modal-sub">
+            {{
+              locale === 'th-TH'
+                ? 'ทางร้านกันสินค้าไว้ให้แล้ว และจะยืนยันคำสั่งซื้อทันทีที่ได้รับเงิน'
+                : 'Your items are held. The order is confirmed as soon as the payment arrives.'
+            }}
+          </p>
+          <div class="qr-presentation-card">
+            <div class="qr-code-frame">
+              <img
+                class="qr-image"
+                :src="placedOrder.payment.promptPayQr"
+                :alt="
+                  locale === 'th-TH'
+                    ? 'QR พร้อมเพย์สำหรับคำสั่งซื้อนี้'
+                    : 'PromptPay QR code for this order'
+                "
+              />
+            </div>
+            <div class="qr-details-grid">
+              <div class="detail-line">
+                <span class="dl-label">{{
+                  locale === 'th-TH' ? 'ยอดชำระ' : 'Amount'
+                }}</span>
+                <strong class="dl-val amt">{{
+                  formatMinor(placedOrder.payment.amount.amountMinor)
+                }}</strong>
+              </div>
+              <div class="detail-line">
+                <span class="dl-label">{{
+                  locale === 'th-TH' ? 'ชำระภายใน' : 'Pay within'
+                }}</span>
+                <span class="timer-tag" role="timer" aria-live="off">{{
+                  countdown
+                }}</span>
+              </div>
+            </div>
+          </div>
+          <p class="qr-instruction" aria-live="polite">
+            {{
+              secondsLeft > 0
+                ? locale === 'th-TH'
+                  ? 'เปิดแอปธนาคาร สแกน QR นี้ แล้วรอสักครู่ หน้านี้จะอัปเดตเองเมื่อชำระเงินสำเร็จ'
+                  : 'Open your banking app, scan this QR and wait here. This page updates by itself once you have paid.'
+                : locale === 'th-TH'
+                  ? 'หมดเวลาชำระเงินแล้ว กำลังตรวจสอบสถานะคำสั่งซื้อ...'
+                  : 'Time is up. Checking the order status...'
+            }}
+          </p>
+          <div class="success-action-row">
+            <button
+              type="button"
+              class="btn-view-all-orders"
+              @click="viewOrdersAndExit"
+            >
+              <span>{{
+                locale === 'th-TH' ? 'ดูคำสั่งซื้อของฉัน' : 'View My Orders'
+              }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-else-if="promptPayCancelled" class="modal-body-payment">
+          <h2 id="promptpay-cancelled-title" class="modal-title">
+            {{
+              locale === 'th-TH'
+                ? 'ไม่ได้รับการชำระเงิน คำสั่งซื้อถูกยกเลิก'
+                : 'Payment was not received, the order was cancelled'
+            }}
+          </h2>
+          <p class="modal-sub">
+            {{
+              locale === 'th-TH'
+                ? 'ไม่มีการเรียกเก็บเงิน สินค้าถูกคืนเข้าสต็อกแล้ว คุณสามารถสั่งซื้อใหม่ได้จากตะกร้า'
+                : 'Nothing was charged and the items were released. You can order again from your cart.'
+            }}
+          </p>
+          <div class="success-action-row">
+            <button
+              type="button"
+              class="btn-view-all-orders"
+              @click="backToCart"
+            >
+              <span>{{
+                locale === 'th-TH' ? 'กลับไปที่ตะกร้า' : 'Back to Cart'
+              }}</span>
+            </button>
+            <button
+              type="button"
+              class="btn-return-shop"
+              @click="closeSuccessAndExit"
+            >
+              {{ locale === 'th-TH' ? 'กลับสู่หน้าหลัก' : 'Back to Home' }}
+            </button>
+          </div>
+        </div>
+
+        <div v-else class="modal-body-success">
           <div class="success-icon-wrap">
             <svg
               width="38"
@@ -1102,16 +1367,7 @@ function viewOrdersAndExit() {
                 <span>{{
                   locale === 'th-TH' ? 'การชำระเงิน:' : 'Payment:'
                 }}</span>
-                <span class="eta-text">
-                  {{ placedOrder.payment.cardBrand }} ••••
-                  {{ placedOrder.payment.cardLast4 }}
-                  ·
-                  {{
-                    locale === 'th-TH'
-                      ? 'เรียกเก็บเมื่อส่งมอบสินค้า'
-                      : 'charged at handover'
-                  }}
-                </span>
+                <span class="eta-text">{{ paymentSummary(placedOrder) }}</span>
               </div>
             </div>
           </div>
@@ -1409,6 +1665,10 @@ function viewOrdersAndExit() {
   border-color: #c6ad7a;
   background: #fefdf9;
 }
+.method-option-row:has(input:focus-visible) {
+  outline: 2px solid #142a1f;
+  outline-offset: 2px;
+}
 .method-option-row.is-active {
   border-color: #142a1f;
   background: #fbfdfc;
@@ -1456,15 +1716,7 @@ function viewOrdersAndExit() {
   font-size: 14px;
   color: #142a1f;
 }
-.tag-rec {
-  background: #c6ad7a;
-  color: #142a1f;
-  font-size: 10px;
-  font-weight: 800;
-  padding: 2px 7px;
-  border-radius: 3px;
-  letter-spacing: 0.05em;
-}
+
 .card-brands {
   font-size: 11px;
   color: #666666;
@@ -1477,172 +1729,6 @@ function viewOrdersAndExit() {
   color: #666666;
   margin: 0;
   line-height: 1.4;
-}
-
-/* Bank Modal Total & Cards (Clean, Professional, Beautiful) */
-.bank-total-card {
-  width: 100%;
-  background: #f7faf8;
-  border: 1px solid #dce8e1;
-  border-radius: 8px;
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 18px;
-}
-.bt-label {
-  font-size: 13px;
-  color: #4b6356;
-  font-weight: 600;
-}
-.bt-amount {
-  font-size: 22px;
-  font-weight: 800;
-  color: #142a1f;
-}
-
-.bank-accounts-modal-list {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-.bank-card-luxury {
-  width: 100%;
-  background: #ffffff;
-  border: 1px solid #d8e5df;
-  border-radius: 8px;
-  padding: 14px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-}
-.bank-card-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-.bank-brand-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-.badge-icon {
-  font-size: 11px;
-  font-weight: 800;
-  padding: 3px 7px;
-  border-radius: 4px;
-  color: #ffffff;
-}
-.kbank-badge .badge-icon {
-  background: #138f2d;
-}
-.scb-badge .badge-icon {
-  background: #4e2a84;
-}
-.badge-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #142a1f;
-}
-.account-type-tag {
-  font-size: 11px;
-  color: #666666;
-  background: #f0f2f1;
-  padding: 2px 8px;
-  border-radius: 12px;
-}
-.bank-card-body {
-  border-top: 1px solid #f0f4f2;
-  padding-top: 8px;
-}
-.account-name-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-}
-.account-name-row .lbl {
-  color: #666666;
-}
-.account-name-row .val {
-  color: #142a1f;
-}
-
-.bank-note-text {
-  font-size: 12px;
-  color: #666666;
-  line-height: 1.5;
-  margin: 4px 0 16px 0;
-  text-align: center;
-}
-
-/* Card Confirm Box */
-.card-confirm-card {
-  width: 100%;
-  background: #ffffff;
-  border: 1px solid #d8e5df;
-  border-radius: 8px;
-  padding: 14px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 20px;
-}
-.cc-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 13px;
-}
-.cc-row .lbl {
-  color: #666666;
-}
-.cc-row .val {
-  color: #142a1f;
-}
-
-/* Bank accounts inline box */
-.bank-accounts-box {
-  margin-top: 14px;
-  display: flex;
-  gap: 12px;
-}
-.bank-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: #ffffff;
-  border: 1px solid #dcdcdc;
-  border-radius: 4px;
-  flex: 1;
-}
-.bank-code {
-  font-size: 11px;
-  font-weight: 800;
-  padding: 4px 6px;
-  border-radius: 3px;
-  color: #ffffff;
-}
-.bank-code.kbank {
-  background: #138f2d;
-}
-.bank-code.scb {
-  background: #4e2a84;
-}
-.bank-text strong {
-  display: block;
-  font-size: 12px;
-  color: #222222;
-}
-.bank-text p {
-  font-size: 11px;
-  color: #555555;
-  margin: 2px 0 0 0;
 }
 
 /* 4. Final Order Summary */
@@ -1665,10 +1751,7 @@ function viewOrdersAndExit() {
   font-size: 13px;
   color: #555555;
 }
-.summary-line .carrier-tag {
-  color: #777777;
-  font-size: 12px;
-}
+
 .summary-line.line-grand-total {
   margin-top: 6px;
   padding-top: 10px;
@@ -1708,7 +1791,7 @@ function viewOrdersAndExit() {
   transform: translateY(-1px);
 }
 
-/* MODAL STYLES (CENTERED PROMPTPAY / CONFIRMATION) */
+/* Modal: PromptPay QR, cancellation and confirmation */
 .checkout-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1731,26 +1814,6 @@ function viewOrdersAndExit() {
   padding: 32px 28px;
   max-height: 90vh;
   overflow-y: auto;
-}
-.btn-modal-close {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  width: 32px;
-  height: 32px;
-  background: #f0f0f0;
-  border: none;
-  border-radius: 50%;
-  font-size: 14px;
-  color: #555555;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.btn-modal-close:hover {
-  background: #e2e2e2;
-  color: #111111;
 }
 
 /* Modal Payment Body */
@@ -1829,14 +1892,7 @@ function viewOrdersAndExit() {
   font-weight: 800;
   color: #142a1f;
 }
-.dl-code {
-  font-family: monospace;
-  background: #eaefe9;
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-size: 12px;
-  color: #1d3d2e;
-}
+
 .timer-tag {
   display: inline-flex;
   align-items: center;
@@ -1850,52 +1906,6 @@ function viewOrdersAndExit() {
   color: #555555;
   line-height: 1.5;
   margin: 16px 0 20px;
-}
-
-/* Modal Actions */
-.modal-action-row {
-  width: 100%;
-}
-.btn-confirm-payment {
-  width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background: #142a1f;
-  color: #ffd98a;
-  border: 1px solid #365e49;
-  padding: 14px 20px;
-  border-radius: 4px;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 140ms ease;
-}
-.btn-confirm-payment:hover:not(:disabled) {
-  background: #1d3d2e;
-  border-color: #c6ad7a;
-  color: #ffffff;
-}
-.btn-confirm-payment:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-}
-.spinner {
-  width: 18px;
-  height: 18px;
-  animation: spin 800ms linear infinite;
-}
-.spinner circle {
-  stroke: currentColor;
-  stroke-linecap: round;
-  stroke-dasharray: 90, 150;
-  stroke-dashoffset: 0;
-}
-@keyframes spin {
-  100% {
-    transform: rotate(360deg);
-  }
 }
 
 /* State B: Success */
@@ -1962,15 +1972,7 @@ function viewOrdersAndExit() {
   border-radius: 6px;
   border: 1px solid #dce8e1;
 }
-.tracking-left {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.tracking-left .label {
-  font-size: 11px;
-  color: #666666;
-}
+
 .tracking-code {
   font-size: 14px;
   font-weight: 800;
@@ -2061,9 +2063,6 @@ function viewOrdersAndExit() {
   .form-grid-3,
   .form-grid-2 {
     grid-template-columns: 1fr;
-  }
-  .bank-accounts-box {
-    flex-direction: column;
   }
 }
 </style>

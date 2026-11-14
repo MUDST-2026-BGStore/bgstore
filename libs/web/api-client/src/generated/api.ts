@@ -91,8 +91,10 @@ import type {
   MenuStock,
   MergeCartRequest,
   NotFoundResponse,
+  OmiseWebhookEvent,
   Order,
   OrderPage,
+  PaymentConfiguration,
   PaymentDeclinedResponse,
   PaymentGatewayErrorResponse,
   PaymentToken,
@@ -1470,7 +1472,7 @@ export const useRemoveCartItem = <TError = ErrorType<ForbiddenResponse | NotFoun
     }
 
 /**
- * Validates every line atomically against the fulfillment location, holds stock (branch_editions stock_held), authorizes the payment token for the total, creates one PLACED order and marks the cart CONVERTED; the cart keeps its lines and cannot be reused. A declined payment returns 402 and leaves the cart open with nothing held. Requires Idempotency-Key. Replays with the same key and body return the original order. Guests require X-Cart-Token; signed-in accounts may also check out a guest cart they hold. 409 when the cart is empty, has issues, is not OPEN, or any line no longer has enough stock.
+ * Validates every line atomically against the fulfillment location, holds stock (branch_editions stock_held), settles how the total is paid (CARD authorizes the payment token; PROMPTPAY returns a QR payable for 15 minutes; COD waits for cash at delivery), creates one PLACED order and marks the cart CONVERTED; the cart keeps its lines and cannot be reused. A declined payment returns 402 and leaves the cart open with nothing held. Requires Idempotency-Key. Replays with the same key and body return the original order. Guests require X-Cart-Token; signed-in accounts may also check out a guest cart they hold. 409 when the cart is empty, has issues, is not OPEN, or any line no longer has enough stock.
  * @summary Place an order from a cart
  */
 export const checkoutCart = (
@@ -1752,6 +1754,146 @@ export const useCreatePaymentToken = <TError = ErrorType<BadRequestResponse | Fo
         TContext
       > => {
       return useMutation(getCreatePaymentTokenMutationOptions(options), queryClient);
+    }
+
+/**
+ * @summary How the browser tokenizes cards for the active payment provider
+ */
+export const getPaymentConfiguration = (
+
+ options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
+) => {
+
+
+      return apiRequest<PaymentConfiguration>(
+      {url: `/api/v1/payments/configuration`, method: 'GET', signal
+    },
+      options);
+    }
+
+
+
+
+export const getGetPaymentConfigurationQueryKey = () => {
+    return [
+    'api','v1','payments','configuration'
+    ] as const;
+    }
+
+
+export const getGetPaymentConfigurationQueryOptions = <TData = Awaited<ReturnType<typeof getPaymentConfiguration>>, TError = ErrorType<unknown>>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPaymentConfiguration>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  getGetPaymentConfigurationQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPaymentConfiguration>>> = ({ signal }) => getPaymentConfiguration(requestOptions, signal);
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPaymentConfiguration>>, TError, TData>
+}
+
+export type GetPaymentConfigurationQueryResult = NonNullable<Awaited<ReturnType<typeof getPaymentConfiguration>>>
+export type GetPaymentConfigurationQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary How the browser tokenizes cards for the active payment provider
+ */
+
+export function useGetPaymentConfiguration<TData = Awaited<ReturnType<typeof getPaymentConfiguration>>, TError = ErrorType<unknown>>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPaymentConfiguration>>, TError, TData>>, request?: SecondParameter<typeof apiRequest>}
+ , queryClient?: QueryClient
+ ): UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetPaymentConfigurationQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryReturnType<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = unref(queryOptions).queryKey as DataTag<QueryKey, TData, TError>;
+
+  return query;
+}
+
+
+
+
+
+
+
+/**
+ * Called by Omise, not by browsers, so it takes no CSRF token. The body is not trusted: its charge ID is only used to ask Omise for the charge's current state, and a paid PromptPay charge is then recorded as captured. Unknown charges and other events are acknowledged and ignored.
+ * @summary Omise event notices for charges
+ */
+export const receiveOmiseWebhook = (
+    omiseWebhookEvent: MaybeRefOrGetter<OmiseWebhookEvent>,
+ options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
+) => {
+      omiseWebhookEvent = toValue(omiseWebhookEvent);
+
+      return apiRequest<void>(
+      {url: `/api/v1/payments/omise/webhook`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: omiseWebhookEvent, signal
+    },
+      options);
+    }
+
+
+
+
+export const getReceiveOmiseWebhookMutationKey = () => ['receiveOmiseWebhook'] as const;
+
+export const getReceiveOmiseWebhookMutationOptions = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveOmiseWebhook>>, TError,ReceiveOmiseWebhookMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+): UseMutationOptions<Awaited<ReturnType<typeof receiveOmiseWebhook>>, TError,ReceiveOmiseWebhookMutationVariables, TContext> => {
+
+const mutationKey = getReceiveOmiseWebhookMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof receiveOmiseWebhook>>, ReceiveOmiseWebhookMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  receiveOmiseWebhook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReceiveOmiseWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof receiveOmiseWebhook>>>
+    export type ReceiveOmiseWebhookMutationBody = OmiseWebhookEvent
+    export type ReceiveOmiseWebhookMutationError = ErrorType<BadRequestResponse>
+    export type ReceiveOmiseWebhookMutationVariables = {data: OmiseWebhookEvent}
+
+    /**
+ * @summary Omise event notices for charges
+ */
+export const useReceiveOmiseWebhook = <TError = ErrorType<BadRequestResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveOmiseWebhook>>, TError,ReceiveOmiseWebhookMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+ , queryClient?: QueryClient): UseMutationReturnType<
+        Awaited<ReturnType<typeof receiveOmiseWebhook>>,
+        TError,
+        ReceiveOmiseWebhookMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReceiveOmiseWebhookMutationOptions(options), queryClient);
     }
 
 /**
@@ -5768,7 +5910,7 @@ export const useCancelOrder = <TError = ErrorType<BadRequestResponse | Unauthori
     }
 
 /**
- * Only PLACED -> FULFILLED is allowed. Atomically decrement saleOnHand and saleHeld by the ordered quantities, capture the payment, then record server time and staff subject. Customers always receive 403. Repeating fulfillment returns the same order without decrementing stock twice. Cancelled orders return 409.
+ * Only PLACED -> FULFILLED is allowed. Atomically decrement saleOnHand and saleHeld by the ordered quantities, capture the payment, then record server time and staff subject. Customers always receive 403. An unpaid PromptPay order returns 409; a cash-on-delivery payment stays PENDING until confirmed. Repeating fulfillment returns the same order without decrementing stock twice. Cancelled orders return 409.
  * @summary Staff-only handover of purchased games
  */
 export const fulfillOrder = (
@@ -5838,4 +5980,73 @@ export const useFulfillOrder = <TError = ErrorType<BadRequestResponse | Unauthor
         TContext
       > => {
       return useMutation(getFulfillOrderMutationOptions(options), queryClient);
+    }
+
+/**
+ * Only for a FULFILLED order paid by COD whose payment is PENDING; the payment becomes CAPTURED. Repeating it after success returns the order unchanged. Any other order returns 409.
+ * @summary Staff confirm the cash for a delivered cash-on-delivery order
+ */
+export const confirmOrderPayment = (
+    branchId: MaybeRefOrGetter<string>,
+    orderId: MaybeRefOrGetter<string>,
+ options?: SecondParameter<typeof apiRequest>,signal?: AbortSignal
+) => {
+      branchId = toValue(branchId);
+orderId = toValue(orderId);
+
+      return apiRequest<Order>(
+      {url: `/api/v1/branches/${branchId}/orders/${orderId}/payment/confirm`, method: 'POST', signal
+    },
+      options);
+    }
+
+
+
+
+export const getConfirmOrderPaymentMutationKey = () => ['confirmOrderPayment'] as const;
+
+export const getConfirmOrderPaymentMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmOrderPayment>>, TError,ConfirmOrderPaymentMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+): UseMutationOptions<Awaited<ReturnType<typeof confirmOrderPayment>>, TError,ConfirmOrderPaymentMutationVariables, TContext> => {
+
+const mutationKey = getConfirmOrderPaymentMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof confirmOrderPayment>>, ConfirmOrderPaymentMutationVariables> = (props) => {
+          const {branchId,orderId} = props ?? {};
+
+          return  confirmOrderPayment(branchId,orderId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ConfirmOrderPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof confirmOrderPayment>>>
+
+    export type ConfirmOrderPaymentMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type ConfirmOrderPaymentMutationVariables = {branchId: string;orderId: string}
+
+    /**
+ * @summary Staff confirm the cash for a delivered cash-on-delivery order
+ */
+export const useConfirmOrderPayment = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof confirmOrderPayment>>, TError,ConfirmOrderPaymentMutationVariables, TContext>, request?: SecondParameter<typeof apiRequest>}
+ , queryClient?: QueryClient): UseMutationReturnType<
+        Awaited<ReturnType<typeof confirmOrderPayment>>,
+        TError,
+        ConfirmOrderPaymentMutationVariables,
+        TContext
+      > => {
+      return useMutation(getConfirmOrderPaymentMutationOptions(options), queryClient);
     }

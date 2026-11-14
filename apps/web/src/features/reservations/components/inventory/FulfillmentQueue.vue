@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query';
 import {
+  confirmOrderPayment,
   fulfillOrder,
   listBranchOrders,
   type FulfillOrderRequest,
@@ -87,8 +88,32 @@ const fulfillMutation = useMutation({
     ]),
 });
 
+const confirmCashMutation = useMutation({
+  mutationFn: ({ branchId, orderId }: { branchId: string; orderId: string }) =>
+    confirmOrderPayment(branchId, orderId),
+  onSuccess: (_order, { branchId }) =>
+    queryClient.invalidateQueries({
+      queryKey: ['workspace', 'branchOrders', branchId],
+    }),
+});
+
+async function handleCashReceived(order: FulfillmentSample) {
+  if (!order.orderId || !order.awaitingCash) return;
+  fulfillError.value = '';
+  try {
+    await confirmCashMutation.mutateAsync({
+      branchId: selectedBranchId.value,
+      orderId: order.orderId,
+    });
+  } catch (error) {
+    fulfillError.value =
+      problemMessage(error) ??
+      'The cash could not be confirmed. Refresh and try again.';
+  }
+}
+
 async function handleFulfillOrder(order: FulfillmentSample) {
-  if (!order.orderId || !isOpenOrder(order)) return;
+  if (!order.orderId || !isOpenOrder(order) || order.awaitingPromptPay) return;
   if (order.channel === 'shipping') {
     dispatchOrder.value = order;
     dispatchCarrier.value = '';
@@ -209,6 +234,7 @@ const columns = [
   { label: 'Item / SKU' },
   { label: 'Quantity', numeric: true },
   { label: 'Status' },
+  { label: 'Payment' },
   { label: 'Actions', action: true },
 ];
 let detailsTrigger: HTMLElement | null = null;
@@ -321,6 +347,7 @@ const productName = (sku: string, itemName?: string) =>
               >{{ orderStatus(item) }}</AppBadge
             >
           </td>
+          <td>{{ item.payment ?? '—' }}</td>
           <AppTableActions
             ><AppButton
               :aria-label="`View details for ${item.reference}`"
@@ -343,6 +370,9 @@ const productName = (sku: string, itemName?: string) =>
             { label: 'Method', value: channelLabels[selectedOrder.channel] },
             { label: 'Branch', value: branchName },
             { label: 'Status', value: orderStatus(selectedOrder) },
+            ...(selectedOrder.payment
+              ? [{ label: 'Payment', value: selectedOrder.payment }]
+              : []),
           ]"
         />
         <h3 class="order-section-title">Order items</h3>
@@ -362,9 +392,29 @@ const productName = (sku: string, itemName?: string) =>
         >
           <AppButton
             appearance="primary"
-            :disabled="fulfillMutation.isPending.value"
+            :disabled="
+              fulfillMutation.isPending.value || selectedOrder.awaitingPromptPay
+            "
             @click="handleFulfillOrder(selectedOrder)"
             >Fulfill order</AppButton
+          >
+        </div>
+        <p
+          v-if="selectedOrder.awaitingPromptPay"
+          class="order-detail-note"
+          role="status"
+        >
+          Awaiting PromptPay payment. Unpaid orders cancel automatically.
+        </p>
+        <div
+          v-if="selectedOrder.orderId && selectedOrder.awaitingCash"
+          class="order-detail-actions"
+        >
+          <AppButton
+            appearance="primary"
+            :disabled="confirmCashMutation.isPending.value"
+            @click="handleCashReceived(selectedOrder)"
+            >Cash received</AppButton
           >
         </div>
         <AppMessageBar v-if="fulfillError" tone="error">{{
@@ -446,5 +496,10 @@ const productName = (sku: string, itemName?: string) =>
   display: flex;
   gap: 8px;
   margin-top: 16px;
+}
+.order-detail-note {
+  margin: 8px 0 0;
+  color: var(--ui-muted);
+  font-size: 12px;
 }
 </style>

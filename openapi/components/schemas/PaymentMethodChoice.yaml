@@ -1,0 +1,12 @@
+type: string
+description: >-
+  How a customer pays at checkout. CARD authorizes paymentToken now and
+  captures at fulfillment. PROMPTPAY returns a QR to pay within 15 minutes,
+  after which the order is cancelled. COD (cash on delivery) is paid to the
+  courier and confirmed by staff. PROMPTPAY and COD need a signed-in customer,
+  and COD needs a delivery order.
+enum:
+  - CARD
+  - PROMPTPAY
+  - COD
+default: CARD

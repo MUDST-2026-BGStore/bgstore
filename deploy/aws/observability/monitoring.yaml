@@ -1,0 +1,156 @@
+# Single-node k3s: retain actionable application/host signals and avoid absent
+# control-plane endpoints and the large upstream dashboard/rule catalogue.
+defaultRules:
+  create: false
+kubeControllerManager: { enabled: false }
+kubeScheduler: { enabled: false }
+kubeEtcd: { enabled: false }
+kubeProxy: { enabled: false }
+grafana:
+  admin:
+    existingSecret: grafana-admin
+    userKey: username
+    passwordKey: password
+  defaultDashboardsEnabled: false
+  persistence:
+    enabled: true
+    size: 2Gi
+  resources:
+    requests: { cpu: 50m, memory: 256Mi }
+    limits: { memory: 1Gi }
+  grafana.ini:
+    server:
+      domain: observe.devopsandbox.chanakanlabs.com
+      root_url: https://observe.devopsandbox.chanakanlabs.com/
+    security:
+      cookie_secure: true
+      cookie_samesite: lax
+    users:
+      allow_sign_up: false
+    auth.anonymous:
+      enabled: false
+    dashboards:
+      default_home_dashboard_path: /tmp/dashboards/theparlor-overview.json
+    analytics:
+      reporting_enabled: false
+      check_for_updates: false
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: observability
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://loki-gateway
+      jsonData:
+        derivedFields:
+          - name: TraceID
+            matcherRegex: '"traceId"\s*:\s*"([a-f0-9]+)"'
+            datasourceUid: tempo
+            url: '$${__value.raw}'
+    - name: Tempo
+      uid: tempo
+      type: tempo
+      access: proxy
+      url: http://tempo:3200
+      jsonData:
+        tracesToLogsV2:
+          datasourceUid: loki
+          spanStartTimeShift: '-1m'
+          spanEndTimeShift: '1m'
+          customQuery: true
+          query: '{namespace="theparlor-dev",service="api"} | json | traceId = "$${__trace.traceId}"'
+        nodeGraph: { enabled: false }
+prometheus:
+  prometheusSpec:
+    retention: 7d
+    retentionSize: 3GB
+    scrapeInterval: 30s
+    evaluationInterval: 30s
+    resources:
+      requests: { cpu: 100m, memory: 384Mi }
+      limits: { memory: 1Gi }
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: { storage: 5Gi }
+    additionalScrapeConfigs:
+      - job_name: theparlor-api
+        metrics_path: /actuator/prometheus
+        static_configs:
+          - targets: ['api.theparlor-dev.svc.cluster.local:8082']
+            labels: { service: api, namespace: theparlor-dev }
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests: { cpu: 10m, memory: 32Mi }
+      limits: { memory: 128Mi }
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: [ReadWriteOnce]
+          resources:
+            requests: { storage: 1Gi }
+  # Alerts are visible in Grafana/Alertmanager. External delivery requires an
+  # operator-owned receiver; never silently send telemetry to a third party.
+  config:
+    route:
+      receiver: local
+      group_by: [alertname, namespace]
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+      routes: []
+    receivers: [{ name: local }]
+additionalPrometheusRulesMap:
+  theparlor:
+    groups:
+      - name: theparlor
+        rules:
+          - alert: TheParlorApiUnavailable
+            expr: up{job="theparlor-api"} == 0 or absent(up{job="theparlor-api"})
+            for: 2m
+            labels: { severity: critical }
+            annotations:
+              summary: API metrics endpoint is unavailable
+          - alert: TheParlorApiServerErrors
+            expr: sum(rate(http_server_requests_seconds_count{job="theparlor-api",status=~"5..",uri!~"/actuator.*"}[5m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job="theparlor-api",uri!~"/actuator.*"}[5m])), 0.001) > 0.05
+            for: 5m
+            labels: { severity: warning }
+            annotations:
+              summary: More than 5% of API requests fail with server errors
+          - alert: TheParlorPodRestarts
+            expr: increase(kube_pod_container_status_restarts_total{namespace=~"theparlor-dev|observability"}[15m]) > 2
+            for: 2m
+            labels: { severity: warning }
+            annotations:
+              summary: Application or observability container is repeatedly restarting
+          - alert: TheParlorDiskSpaceLow
+            expr: node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"} < 0.15
+            for: 10m
+            labels: { severity: warning }
+            annotations:
+              summary: EC2 root filesystem has less than 15% free space
+          - alert: TheParlorMemoryPressure
+            expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.1
+            for: 10m
+            labels: { severity: warning }
+            annotations:
+              summary: EC2 has less than 10% available memory
+          - alert: TheParlorTelemetryTargetDown
+            expr: up{namespace="observability"} == 0
+            for: 5m
+            labels: { severity: warning }
+            annotations:
+              summary: An observability scrape target is down
+          - alert: TheParlorVolumeSpaceLow
+            expr: kubelet_volume_stats_available_bytes{namespace="observability"} / kubelet_volume_stats_capacity_bytes{namespace="observability"} < 0.15
+            for: 10m
+            labels: { severity: warning }
+            annotations:
+              summary: An observability volume has less than 15% free space

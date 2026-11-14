@@ -4,7 +4,6 @@ import {
   addCartItem,
   checkoutCart,
   createCart,
-  createPaymentToken,
   getCart,
   getMyCart,
   mergeCart,
@@ -20,6 +19,7 @@ import {
 import { useAuthStore } from '../../../shared/stores/auth';
 import { queryClient } from '../../../shared/lib/api';
 import { httpStatus } from '../../../shared/lib/api-errors';
+import { tokenizeCard } from '../../../shared/lib/card-tokens';
 import { useBranchDirectoryStore } from './branch-directory';
 
 /** The guest cart's ID and bearer token: the only cart data kept in the browser. */
@@ -342,27 +342,31 @@ export const useCartStore = defineStore('shopping-cart', () => {
   }
 
   /**
-   * Pays by card and places the order. The card goes to the payment gateway for a
-   * single-use token and is never kept. The idempotency key is reused until the
-   * server gives a definite answer, so a retry after a lost response cannot place
-   * a second order.
+   * Places the order and starts paying for it. For a card (details.paymentMethod
+   * CARD or unset) the card becomes a single-use token first and is never kept;
+   * PromptPay and cash on delivery send no card. The idempotency key is reused
+   * until the server gives a definite answer, so a retry after a lost response
+   * cannot place a second order.
    */
   let checkoutKey: string | undefined;
   async function checkout(
-    card: CreatePaymentTokenRequest,
+    card: CreatePaymentTokenRequest | null,
     details: Omit<CheckoutCartRequest, 'paymentToken'>,
   ): Promise<Order> {
     if (!server.value) throw new Error('There is no cart to check out');
+    const paysByCard = (details.paymentMethod ?? 'CARD') === 'CARD';
+    if (paysByCard && !card) throw new Error('Card payment needs a card');
     busy.value = true;
     try {
       const cartId = server.value.id;
-      const { token } = await createPaymentToken(card);
+      const paymentToken =
+        paysByCard && card ? await tokenizeCard(card) : undefined;
       checkoutKey ??= crypto.randomUUID();
       let order: Order;
       try {
         order = await checkoutCart(
           cartId,
-          { ...details, paymentToken: token },
+          { ...details, paymentToken },
           {
             headers: {
               ...options()?.headers,

@@ -6,19 +6,21 @@
  * OpenAPI spec version: 0.5.0
  */
 import type { OrderContact } from './orderContact';
+import type { PaymentMethodChoice } from './paymentMethodChoice';
 import type { ShippingAddress } from './shippingAddress';
 
 /**
- * Checkout details. Guests must supply contact with name, email and phone; signed-in callers may omit it to use their account profile and sign-in email. shippingAddress is required when the cart ships and rejected when it is picked up. The payment token is authorized for the server-calculated total.
+ * Checkout details. Guests must supply contact with name, email and phone; signed-in callers may omit it to use their account profile and sign-in email. shippingAddress is required when the cart ships and rejected when it is picked up. paymentMethod defaults to CARD; paymentToken is required for CARD, where it is authorized for the server-calculated total, and rejected otherwise. Guests may only pay by CARD.
  */
 export interface CheckoutCartRequest {
   contact?: OrderContact;
   shippingAddress?: ShippingAddress;
   /** @maxLength 1000 */
   notes?: string;
+  paymentMethod?: PaymentMethodChoice;
   /**
      * @minLength 16
      * @maxLength 128
      */
-  paymentToken: string;
+  paymentToken?: string;
 }

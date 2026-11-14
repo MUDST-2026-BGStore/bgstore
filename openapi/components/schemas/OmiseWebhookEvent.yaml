@@ -1,0 +1,22 @@
+type: object
+description: >-
+  An Omise event notice. Only data.id is read, and only as a hint: the charge's
+  real state is fetched from Omise before anything changes.
+additionalProperties: true
+properties:
+  object:
+    type: string
+    maxLength: 40
+  key:
+    type: string
+    maxLength: 100
+  data:
+    type: object
+    additionalProperties: true
+    properties:
+      object:
+        type: string
+        maxLength: 40
+      id:
+        type: string
+        maxLength: 200

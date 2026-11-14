@@ -1,0 +1,22 @@
+tempo:
+  reportingEnabled: false
+  retention: 24h
+  resources:
+    requests: { cpu: 100m, memory: 128Mi }
+    limits: { memory: 512Mi }
+  receivers:
+    jaeger:
+      protocols:
+        grpc: null
+        thrift_binary: null
+        thrift_compact: null
+        thrift_http: null
+    otlp:
+      protocols:
+        grpc: null
+        http:
+          endpoint: 0.0.0.0:4318
+persistence: { enabled: true, size: 3Gi }
+serviceMonitor:
+  enabled: true
+  additionalLabels: { release: monitoring }

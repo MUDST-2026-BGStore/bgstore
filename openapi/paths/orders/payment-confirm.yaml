@@ -1,0 +1,32 @@
+parameters:
+  - $ref: ../../components/parameters/BranchId.yaml
+  - $ref: ../../components/parameters/OrderId.yaml
+post:
+  tags:
+    - Orders
+  operationId: confirmOrderPayment
+  summary: Staff confirm the cash for a delivered cash-on-delivery order
+  description: >-
+    Only for a FULFILLED order paid by COD whose payment is PENDING; the
+    payment becomes CAPTURED. Repeating it after success returns the order
+    unchanged. Any other order returns 409.
+  security:
+    - sessionCookie: []
+  x-access-policy: branch-operator
+  parameters:
+    - $ref: ../../components/parameters/CsrfToken.yaml
+  responses:
+    '200':
+      description: Successful operation
+      content:
+        application/json:
+          schema:
+            $ref: ../../components/schemas/Order.yaml
+    '401':
+      $ref: ../../components/responses/Unauthorized.yaml
+    '403':
+      $ref: ../../components/responses/Forbidden.yaml
+    '404':
+      $ref: ../../components/responses/NotFound.yaml
+    '409':
+      $ref: ../../components/responses/Conflict.yaml
