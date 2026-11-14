@@ -8,6 +8,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/skip-reconcile: 'true'
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
 spec:
   project: theparlor
   source:
@@ -27,6 +28,7 @@ metadata:
   namespace: argocd
   annotations:
     argocd.argoproj.io/skip-reconcile: 'true'
+    argocd.argoproj.io/compare-options: ServerSideDiff=true
 spec:
   project: theparlor
   source:

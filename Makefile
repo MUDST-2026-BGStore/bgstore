@@ -131,7 +131,7 @@ aws-kubeconfig: ## Fetch private local admin kubeconfig; use with aws-kube-tunne
 aws-status: ## Show live Kubernetes nodes, pods and Argo CD application health
 	pnpm nx run aws-infra:status
 .PHONY: aws-secrets aws-gitops-enable aws-build-images aws-publish-images
-aws-secrets: ## Create the new namespace/runtime Secret once; credentials stay outside Git
+aws-secrets: ## Create the runtime Secret once and sync the Omise keys from your env or .env
 	pnpm nx run aws-infra:secrets
 aws-build-images: ## Build/load ARM64 application images locally (IMAGE_TAG=dev)
 	IMAGE_TAG=$(IMAGE_TAG) pnpm nx run aws-infra:build-images

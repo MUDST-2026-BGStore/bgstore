@@ -348,6 +348,18 @@
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       when: existing_cert_manager.rc != 0
 
+    - name: Copy the private single-node observability configuration
+      ansible.builtin.copy:
+        src: '{{ playbook_dir }}/../observability/'
+        dest: /var/tmp/theparlor-observability/
+        owner: root
+        group: root
+        mode: '0755'
+
+    - name: Provision pinned observability charts and useful dashboards
+      ansible.builtin.command: /bin/sh /var/tmp/theparlor-observability/install.sh
+      when: not ansible_check_mode
+
     - name: Register the new The Parlor GitOps configuration
       when: configure_gitops
       block:

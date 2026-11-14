@@ -8,7 +8,11 @@ data:
   SESSION_COOKIE_SECURE: 'true'
   KEYCLOAK_ISSUER_URI: https://auth.devopsandbox.chanakanlabs.com/realms/theparlor
   KEYCLOAK_BACKCHANNEL_ISSUER_URI: http://keycloak:8080/realms/theparlor
-  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo-distributor.observability.svc:4318/v1/traces
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://tempo.observability.svc:4318/v1/traces
+  # Card and PromptPay payments go through Omise. Its keys come from
+  # theparlor-runtime, which make aws-secrets and make aws-deploy fill from the
+  # operator's environment or .env.
+  THEPARLOR_PAYMENT_GATEWAY: omise
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -17,10 +21,33 @@ metadata:
 spec:
   template:
     spec:
+      # Service links inject API_PORT/VALKEY_PORT as tcp:// URLs. Use DNS and
+      # the explicit application configuration for service discovery instead.
+      enableServiceLinks: false
       containers:
         - name: api
           env:
             - { name: SERVER_FORWARD_HEADERS_STRATEGY, value: framework }
+            - name: THEPARLOR_OMISE_PUBLIC_KEY
+              valueFrom:
+                secretKeyRef:
+                  { name: theparlor-runtime, key: THEPARLOR_OMISE_PUBLIC_KEY }
+            - name: THEPARLOR_OMISE_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  { name: theparlor-runtime, key: THEPARLOR_OMISE_SECRET_KEY }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+spec:
+  template:
+    spec:
+      containers:
+        - name: web
+          readinessProbe:
+            httpGet: { path: /index.html, port: http }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -100,3 +127,26 @@ spec:
             matchLabels:
               kubernetes.io/metadata.name: observability
       ports: [{ port: 8082, protocol: TCP }]
+---
+# Base label transformers also label peer selectors with the target workload's
+# name. Restore the actual source selectors after that transformation.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-ingress
+spec:
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: api } }
+        - podSelector: { matchLabels: { app: keycloak } }
+      ports: [{ port: 5432, protocol: TCP }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: valkey-ingress
+spec:
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: api } }
+      ports: [{ port: 6379, protocol: TCP }]

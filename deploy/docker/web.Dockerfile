@@ -18,7 +18,8 @@ COPY deploy/docker/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 8080
 
 FROM runtime-base AS artifacts-runtime
-COPY --from=artifacts / /usr/share/nginx/html
+# Host builds may use umask 077. The serving user must own those private files.
+COPY --from=artifacts --chown=nginx:nginx / /usr/share/nginx/html
 
 FROM runtime-base AS runtime
 COPY --from=build /workspace/apps/web/dist /usr/share/nginx/html

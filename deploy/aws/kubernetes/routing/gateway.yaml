@@ -43,6 +43,19 @@ spec:
         certificateRefs: [{ name: keycloak-tls }]
       allowedRoutes:
         namespaces: { from: All }
+    - name: observe
+      hostname: observe.devopsandbox.chanakanlabs.com
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs: [{ name: observe-tls, group: '', kind: Secret }]
+      allowedRoutes:
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
     - name: argocd
       hostname: argocd.devopsandbox.chanakanlabs.com
       protocol: HTTPS

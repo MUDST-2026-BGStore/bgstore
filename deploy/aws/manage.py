@@ -213,6 +213,47 @@ def application_secrets():
     print(f"Created theparlor-runtime; its private recovery copy is {path} (ignored by Git).")
 
 
+OMISE_KEYS = ("THEPARLOR_OMISE_PUBLIC_KEY", "THEPARLOR_OMISE_SECRET_KEY")
+
+
+def omise_keys(env=None, dotenv=ROOT.parent.parent / ".env"):
+    """The Omise keys from the environment, else the repository's .env; never printed."""
+    values = {name: (env if env is not None else os.environ).get(name, "").strip() for name in OMISE_KEYS}
+    if not all(values.values()) and dotenv.is_file():
+        for line in dotenv.read_text().splitlines():
+            name, _, value = line.partition("=")
+            if name.strip() in OMISE_KEYS and not values[name.strip()]:
+                values[name.strip()] = value.strip().strip("\"'")
+    public, secret = values[OMISE_KEYS[0]], values[OMISE_KEYS[1]]
+    if not public or not secret:
+        raise SystemExit("Set THEPARLOR_OMISE_PUBLIC_KEY and THEPARLOR_OMISE_SECRET_KEY in your "
+                         "environment or the repository .env; the AWS API pays through Omise.")
+    if not public.startswith("pkey_") or not secret.startswith("skey_"):
+        raise SystemExit("The Omise keys must be a public key (pkey_...) and a secret key (skey_...).")
+    if ("_test_" in public) != ("_test_" in secret):
+        raise SystemExit("The Omise public and secret keys must both be test keys or both be live keys.")
+    return values
+
+
+def payment_secrets():
+    """Copies the Omise keys into theparlor-runtime. Unlike generated credentials they can be
+    replaced at any time, so this runs on every deploy."""
+    values = omise_keys()
+    patch = json.dumps({"stringData": values})
+    ssh = ssh_args()
+    # The keys travel on stdin, never on a command line or in a local file.
+    result = run([*ssh, "sudo k3s kubectl -n theparlor-dev patch secret theparlor-runtime "
+                  "--type=merge --patch-file=/dev/stdin"], input_text=patch, capture=True)
+    mode = "test" if "_test_" in values[OMISE_KEYS[0]] else "LIVE"
+    if "no change" in result:
+        print(f"Omise {mode} keys in theparlor-runtime are already current.")
+        return
+    print(f"Omise {mode} keys stored in theparlor-runtime.")
+    # Environment variables are read at start-up; a running API keeps the old keys until restarted.
+    run([*ssh, "if sudo k3s kubectl -n theparlor-dev get deployment api -o name >/dev/null 2>&1; "
+         "then sudo k3s kubectl -n theparlor-dev rollout restart deployment/api; fi"])
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["tools", "init", "fmt", "validate", "plan", "adopt", "apply",
@@ -247,6 +288,7 @@ def main():
         ansible()
     elif args.command == "secrets":
         application_secrets()
+        payment_secrets()
     elif args.command == "gitops-enable":
         # Enable comparisons, not sync. Publishing and manual sync stay explicit.
         run([*ssh_args(), "sudo k3s kubectl -n argocd annotate application theparlor-dev theparlor-routing argocd.argoproj.io/skip-reconcile-"])
@@ -263,6 +305,11 @@ def main():
                  "--target", "artifacts-runtime", "--build-context", f"artifacts={artifacts}",
                  "--file", f"deploy/docker/{app}.Dockerfile",
                  "--tag", f"theparlor-{app}:{tag}", "."], cwd=ROOT.parent.parent)
+            if app == "web":
+                # Exercise the runtime UID: nginx's /health endpoint also passes
+                # when host artifacts are root-owned and unreadable (umask 077).
+                run(["docker", "run", "--rm", "--entrypoint", "sh", f"theparlor-web:{tag}", "-c",
+                     "test -r /usr/share/nginx/html/index.html && test -x /usr/share/nginx/html/assets"])
     elif args.command == "publish-images":
         tag = os.environ.get("IMAGE_TAG")
         if not tag:
