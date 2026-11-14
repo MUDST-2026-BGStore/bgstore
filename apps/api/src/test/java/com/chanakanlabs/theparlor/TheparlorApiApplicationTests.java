@@ -1340,6 +1340,7 @@ class TheparlorApiApplicationTests {
       var result = JSON.readTree(left.body());
       assertThat(result.get("rental").get("status").asString()).isEqualTo("COMPLETED");
       assertThat(result.get("rental").get("billableHours").asInt()).isEqualTo(2);
+      assertThat(result.get("rental").get("serverNow")).isNotNull();
       assertThat(result.get("rental").get("total").get("amountMinor").asLong()).isEqualTo(18000);
       assertThat(result.get("rental").get("charges").get(0).get("kind").asString())
           .isEqualTo("TABLE");
@@ -1377,6 +1378,241 @@ class TheparlorApiApplicationTests {
                 .get("items"))
         .hasSize(1);
     assertThat(get(customer, rentalPath).statusCode()).isEqualTo(404);
+  }
+
+  static String walkIn(UUID table, int partySize, java.time.Duration length) {
+    return "{\"source\":\"WALK_IN\",\"checkIn\":true,"
+        + "\"customer\":{\"kind\":\"GUEST\",\"displayName\":\"QA Capacity Test\"},"
+        + "\"tableId\":\""
+        + table
+        + "\",\"partySize\":"
+        + partySize
+        + ",\"games\":[],\"endsAt\":\""
+        + java.time.Instant.now().plus(length)
+        + "\"}";
+  }
+
+  int count(String sql, Object... args) {
+    return jdbc.queryForObject(sql, Integer.class, args);
+  }
+
+  @Test
+  void seatingAWalkInChecksInAtomicallyAndNeverDisturbsAnotherVisit() throws Exception {
+    var branch = UUID.randomUUID();
+    var closedBranch = UUID.randomUUID();
+    var large = UUID.randomUUID();
+    var small = UUID.randomUUID();
+    var broken = UUID.randomUUID();
+    var contested = UUID.randomUUID();
+    var doubled = UUID.randomUUID();
+    var closedTable = UUID.randomUUID();
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Walk-in test', 'Address')", branch);
+    jdbc.update(
+        "INSERT INTO branches(id,name,address) VALUES (?, 'Closed walk-in test', 'Address')",
+        closedBranch);
+    for (int day = 1; day <= 7; day++)
+      jdbc.update(
+          "INSERT INTO branch_opening_hours(branch_id,day_of_week,opens_at,closes_at) VALUES (?,?,'00:00','24:00')",
+          branch,
+          day);
+    String insertTable =
+        "INSERT INTO branch_tables(id,branch_id,label,seats,hourly_rate_minor,operational_status)"
+            + " VALUES (?,?,?,?,5000,?)";
+    jdbc.update(insertTable, large, branch, "T1", 4, "IN_SERVICE");
+    jdbc.update(insertTable, small, branch, "T2", 2, "IN_SERVICE");
+    jdbc.update(insertTable, broken, branch, "T3", 4, "OUT_OF_SERVICE");
+    jdbc.update(insertTable, contested, branch, "T4", 4, "IN_SERVICE");
+    jdbc.update(insertTable, doubled, branch, "T5", 4, "IN_SERVICE");
+    jdbc.update(insertTable, closedTable, closedBranch, "T1", 4, "IN_SERVICE");
+
+    String base = "/api/v1/branches/" + branch;
+    String seat = base + "/staff/reservations";
+    var manager = login("manager");
+    var anonymous = browser();
+    var twoHours = java.time.Duration.ofHours(2);
+    String visitsOfBranch = "SELECT count(*) FROM reservations WHERE branch_id=?";
+    String rentalsOfBranch = "SELECT count(*) FROM rentals WHERE branch_id=?";
+
+    // A later booking on T1 limits how long a walk-in may stay there.
+    var laterStart = java.time.Instant.now().plus(java.time.Duration.ofHours(1));
+    var later =
+        send(
+            manager,
+            "POST",
+            seat,
+            "{\"source\":\"STAFF_BOOKING\",\"customer\":{\"kind\":\"GUEST\",\"displayName\":\"Later party\"},"
+                + "\"tableId\":\""
+                + large
+                + "\",\"partySize\":2,\"games\":[],\"startsAt\":\""
+                + laterStart
+                + "\",\"endsAt\":\""
+                + laterStart.plus(twoHours)
+                + "\"}",
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(later.statusCode()).as(later.body()).isEqualTo(201);
+
+    // Every rejected seating leaves the branch exactly as it was.
+    for (var rejected :
+        List.of(
+            java.util.Map.entry(walkIn(large, 2, twoHours), 409), // overlaps the later booking
+            java.util.Map.entry(walkIn(small, 3, twoHours), 409), // party exceeds capacity
+            java.util.Map.entry(walkIn(broken, 2, twoHours), 409), // out of service
+            java.util.Map.entry(walkIn(UUID.randomUUID(), 2, twoHours), 404))) {
+      var response =
+          send(
+              manager,
+              "POST",
+              seat,
+              rejected.getKey(),
+              "Idempotency-Key",
+              UUID.randomUUID().toString());
+      assertThat(response.statusCode()).as(response.body()).isEqualTo(rejected.getValue());
+    }
+    var outsideHours =
+        send(
+            manager,
+            "POST",
+            "/api/v1/branches/" + closedBranch + "/staff/reservations",
+            walkIn(closedTable, 2, twoHours),
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(outsideHours.statusCode()).as(outsideHours.body()).isEqualTo(409);
+    assertThat(count(visitsOfBranch, branch)).isEqualTo(1);
+    assertThat(count(visitsOfBranch, closedBranch)).isZero();
+    assertThat(count(rentalsOfBranch, branch)).isZero();
+
+    // A failure while seating rolls back the walk-in too, and frees the key for a retry.
+    String seatSmall = walkIn(small, 2, twoHours);
+    String key = UUID.randomUUID().toString();
+    jdbc.execute(
+        "CREATE FUNCTION fail_walk_in_rental() RETURNS trigger AS $$"
+            + " BEGIN RAISE EXCEPTION 'rental store unavailable'; END $$ LANGUAGE plpgsql");
+    jdbc.execute(
+        "CREATE TRIGGER fail_walk_in_rental BEFORE INSERT ON rentals FOR EACH ROW"
+            + " WHEN (NEW.branch_id = '"
+            + branch
+            + "'::uuid) EXECUTE FUNCTION fail_walk_in_rental()");
+    try {
+      var failed = send(manager, "POST", seat, seatSmall, "Idempotency-Key", key);
+      assertThat(failed.statusCode()).as(failed.body()).isEqualTo(500);
+    } finally {
+      jdbc.execute("DROP TRIGGER fail_walk_in_rental ON rentals");
+      jdbc.execute("DROP FUNCTION fail_walk_in_rental()");
+    }
+    assertThat(count(visitsOfBranch, branch)).isEqualTo(1);
+    assertThat(count(rentalsOfBranch, branch)).isZero();
+    assertThat(
+            JSON.readTree(get(anonymous, base + "/tables/" + small).body()).get("state").asString())
+        .isEqualTo("AVAILABLE");
+
+    // A walk-in that fits seats the party at once; retries and double submits replay it.
+    String visitId = null;
+    for (int attempt = 0; attempt < 3; attempt++) {
+      var seated = send(manager, "POST", seat, seatSmall, "Idempotency-Key", key);
+      assertThat(seated.statusCode()).as(seated.body()).isEqualTo(201);
+      var visit = JSON.readTree(seated.body());
+      assertThat(visit.get("status").asString()).isEqualTo("CHECKED_IN");
+      assertThat(visit.get("source").asString()).isEqualTo("WALK_IN");
+      assertThat(visit.get("tableId").asString()).isEqualTo(small.toString());
+      assertThat(visit.get("rentalId").isNull()).isFalse();
+      if (visitId != null) assertThat(visit.get("id").asString()).isEqualTo(visitId);
+      visitId = visit.get("id").asString();
+    }
+    assertThat(count(rentalsOfBranch, branch)).isEqualTo(1);
+    assertThat(
+            send(manager, "POST", seat, walkIn(small, 1, twoHours), "Idempotency-Key", key)
+                .statusCode())
+        .isEqualTo(409);
+    var fitsBeforeLater =
+        send(
+            manager,
+            "POST",
+            seat,
+            walkIn(large, 2, java.time.Duration.ofMinutes(30)),
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(fitsBeforeLater.statusCode()).as(fitsBeforeLater.body()).isEqualTo(201);
+
+    // An occupied table refuses another walk-in and keeps its guest.
+    var occupied =
+        send(
+            manager,
+            "POST",
+            seat,
+            walkIn(small, 2, twoHours),
+            "Idempotency-Key",
+            UUID.randomUUID().toString());
+    assertThat(occupied.statusCode()).as(occupied.body()).isEqualTo(409);
+    var kept = JSON.readTree(get(manager, base + "/reservations/" + visitId).body());
+    assertThat(kept.get("status").asString()).isEqualTo("CHECKED_IN");
+    assertThat(kept.get("tableId").asString()).isEqualTo(small.toString());
+    assertThat(kept.get("customer").get("displayName").asString()).isEqualTo("QA Capacity Test");
+    assertThat(
+            JSON.readTree(get(anonymous, base + "/tables/" + small).body()).get("state").asString())
+        .isEqualTo("OCCUPIED");
+    assertThat(
+            count(
+                "SELECT count(*) FROM reservations WHERE table_id=? AND status='CHECKED_IN'",
+                small))
+        .isEqualTo(1);
+
+    // Simultaneous seatings wait for the table; one wins, and a shared key is one seating.
+    try (var executor = java.util.concurrent.Executors.newFixedThreadPool(4)) {
+      try (var connection = jdbc.getDataSource().getConnection()) {
+        connection.setAutoCommit(false);
+        try (var lock =
+            connection.prepareStatement(
+                "SELECT id FROM branch_tables WHERE id IN (?,?) FOR UPDATE")) {
+          lock.setObject(1, contested);
+          lock.setObject(2, doubled);
+          lock.executeQuery();
+        }
+        String sharedKey = UUID.randomUUID().toString();
+        String doubleClick = walkIn(doubled, 2, twoHours);
+        var pending =
+            List.of(
+                executor.submit(
+                    () ->
+                        send(
+                            manager,
+                            "POST",
+                            seat,
+                            walkIn(contested, 2, twoHours),
+                            "Idempotency-Key",
+                            UUID.randomUUID().toString())),
+                executor.submit(
+                    () ->
+                        send(
+                            manager,
+                            "POST",
+                            seat,
+                            walkIn(contested, 3, twoHours),
+                            "Idempotency-Key",
+                            UUID.randomUUID().toString())),
+                executor.submit(
+                    () -> send(manager, "POST", seat, doubleClick, "Idempotency-Key", sharedKey)),
+                executor.submit(
+                    () -> send(manager, "POST", seat, doubleClick, "Idempotency-Key", sharedKey)));
+        assertThatThrownBy(() -> pending.get(0).get(1, java.util.concurrent.TimeUnit.SECONDS))
+            .isInstanceOf(java.util.concurrent.TimeoutException.class);
+        connection.commit();
+        var statuses = new java.util.ArrayList<Integer>();
+        for (int i = 0; i < 2; i++)
+          statuses.add(pending.get(i).get(20, java.util.concurrent.TimeUnit.SECONDS).statusCode());
+        assertThat(statuses).containsExactlyInAnyOrder(201, 409);
+        var first = pending.get(2).get(20, java.util.concurrent.TimeUnit.SECONDS);
+        var second = pending.get(3).get(20, java.util.concurrent.TimeUnit.SECONDS);
+        assertThat(first.statusCode()).as(first.body()).isEqualTo(201);
+        assertThat(second.statusCode()).as(second.body()).isEqualTo(201);
+        assertThat(JSON.readTree(second.body()).get("id").asString())
+            .isEqualTo(JSON.readTree(first.body()).get("id").asString());
+      }
+    }
+    for (var table : List.of(contested, doubled))
+      assertThat(count("SELECT count(*) FROM reservations WHERE table_id=?", table)).isEqualTo(1);
+    assertThat(count(rentalsOfBranch, branch)).isEqualTo(4);
   }
 
   @Test

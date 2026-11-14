@@ -248,6 +248,7 @@ public class RentalsService implements RentalDesk {
               RentalStatus.valueOf(rental.getStatus().name()),
               rental.getStartedAt().atOffset(ZoneOffset.UTC),
               rental.getPlannedEndsAt().atOffset(ZoneOffset.UTC),
+              clock.instant().atOffset(ZoneOffset.UTC),
               rental.getCheckedInBy(),
               lines);
       if (!rental.isActive()) {

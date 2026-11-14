@@ -1,7 +1,7 @@
 type: object
 description: >-
   startsAt is assigned from server time; endsAt must be later. A separate staff
-  check-in is required.
+  check-in is required unless checkIn is true.
 additionalProperties: false
 required:
   - source
@@ -38,3 +38,11 @@ properties:
   notes:
     type: string
     maxLength: 1000
+  checkIn:
+    type: boolean
+    default: false
+    description: >-
+      When true the party is seated now. The walk-in is created and checked in
+      in one transaction under the same idempotency key, so either both happen
+      or neither does, and the response is CHECKED_IN with its rental. When
+      false the walk-in stays CONFIRMED until the check-in operation is called.

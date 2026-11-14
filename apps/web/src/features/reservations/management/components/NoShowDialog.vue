@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import {
   AppButton,
   AppDialog,
@@ -9,21 +8,13 @@ import {
 import { useManagementWorkspace } from '../context';
 const {
   getCustomerName,
-  branchFloorTables,
-  getTableStatus,
+  tableLabel,
   showNoShowModal,
   noShowTargetRes,
   noShowReason,
   noShowMutation,
   submitNoShow,
 } = useManagementWorkspace();
-const tableNumber = computed(
-  () =>
-    branchFloorTables.find(
-      (table) =>
-        getTableStatus(table).reservation?.id === noShowTargetRes.value?.id,
-    )?.number ?? '—',
-);
 </script>
 <template>
   <AppDialog
@@ -35,7 +26,7 @@ const tableNumber = computed(
     <AppDialogPanel
       title-id="NoShowDialog-title"
       title="Mark no-show"
-      :description="`${getCustomerName(noShowTargetRes?.customer)} · Table ${tableNumber}`"
+      :description="`${getCustomerName(noShowTargetRes?.customer)} · ${tableLabel(noShowTargetRes?.tableId)}`"
       as="form"
       @submit.prevent="submitNoShow"
       @close="showNoShowModal = false"

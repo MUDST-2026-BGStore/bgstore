@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed } from 'vue';
 import {
   AppBadge,
   AppButton,
@@ -10,8 +9,7 @@ import {
 import { useManagementWorkspace } from '../context';
 const {
   getCustomerName,
-  branchFloorTables,
-  getTableStatus,
+  tableLabel,
   branchStockItems,
   staffSnackReservation,
   getStaffSnackQty,
@@ -20,14 +18,6 @@ const {
   staffSnackSubtotal,
   submitStaffSnackOrder,
 } = useManagementWorkspace();
-const tableNumber = computed(
-  () =>
-    branchFloorTables.find(
-      (table) =>
-        getTableStatus(table).reservation?.id ===
-        staffSnackReservation.value?.id,
-    )?.number ?? '—',
-);
 </script>
 <template>
   <AppDialog
@@ -39,7 +29,7 @@ const tableNumber = computed(
     <AppDialogPanel
       title-id="RefreshmentsDialog-title"
       title="Add refreshments"
-      :description="`Table ${tableNumber} · ${getCustomerName(staffSnackReservation.customer)}`"
+      :description="`${tableLabel(staffSnackReservation.tableId)} · ${getCustomerName(staffSnackReservation.customer)}`"
       @close="staffSnackReservation = null"
     >
       <div class="refreshment-list">

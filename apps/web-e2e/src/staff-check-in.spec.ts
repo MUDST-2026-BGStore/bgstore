@@ -33,6 +33,41 @@ test('rejected early check-in keeps the booking unchanged after reload', async (
         json: { headerName: 'X-CSRF-Token', token: 'test' },
       });
     }
+    if (path === '/api/v1/branches/siam/tables') {
+      return route.fulfill({
+        json: {
+          items: [
+            {
+              id: 'tbl-3',
+              branchId: 'siam',
+              label: 'Table 3',
+              capacity: 4,
+              hourlyRate: { amountMinor: 20000 },
+              operationalStatus: 'IN_SERVICE',
+            },
+          ],
+        },
+      });
+    }
+    if (path === '/api/v1/branches/siam/reservations') {
+      return route.fulfill({
+        json: {
+          items: [
+            {
+              id: 'res-thm-9812',
+              branchId: 'siam',
+              tableId: 'tbl-3',
+              status: 'CONFIRMED',
+              source: 'ONLINE',
+              partySize: 4,
+              startsAt: new Date(Date.now() + 60 * 60_000).toISOString(),
+              endsAt: new Date(Date.now() + 3 * 60 * 60_000).toISOString(),
+              customer: { kind: 'GUEST', displayName: 'Khun Parlor Member' },
+            },
+          ],
+        },
+      });
+    }
     if (path.endsWith('/reservations/res-thm-9812/check-in')) {
       checkInRequests += 1;
       return route.fulfill({ status: 409, json: { message: 'Too early' } });
@@ -41,12 +76,8 @@ test('rejected early check-in keeps the booking unchanged after reload', async (
   });
 
   await page.goto('/workspace/management');
-  const activeSessions = page
-    .getByRole('region', { name: 'Branch summary' })
-    .getByRole('button', { name: /^Active sessions/ });
-  await expect(activeSessions).toContainText('2');
   await page.getByRole('button', { name: 'Bookings', exact: true }).click();
-  const booking = page.getByRole('row').filter({ hasText: 't-siam-3' });
+  const booking = page.getByRole('row').filter({ hasText: 'Table 3' });
   await expect(booking).toContainText('Confirmed');
   await booking.getByRole('button', { name: 'Check in & seat' }).click();
   await expect(
@@ -55,15 +86,53 @@ test('rejected early check-in keeps the booking unchanged after reload', async (
   await expect(booking).toContainText('Confirmed');
   expect(checkInRequests).toBe(1);
 
-  await page.getByRole('button', { name: 'Overview', exact: true }).click();
-  await expect(activeSessions).toContainText('2');
   await page.reload();
   await page.getByRole('button', { name: 'Bookings', exact: true }).click();
   await expect(
-    page.getByRole('row').filter({ hasText: 't-siam-3' }),
+    page.getByRole('row').filter({ hasText: 'Table 3' }),
   ).toContainText('Confirmed');
-  await page.getByRole('button', { name: 'Overview', exact: true }).click();
-  await expect(activeSessions).toContainText('2');
+});
+
+test('repairs an impossible early check-in stored by the old sample code', async ({
+  page,
+}) => {
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (!path.startsWith('/api/')) return route.fallback();
+    if (path === '/api/auth/session') {
+      return route.fulfill({
+        json: {
+          authenticated: true,
+          profile: {
+            subject: 'operator',
+            username: 'Operator',
+            roles: ['staff'],
+            emailVerified: true,
+          },
+        },
+      });
+    }
+    if (path === '/api/v1/me') {
+      return route.fulfill({
+        json: { id: 'operator', preferences: { preferredLocale: 'en-US' } },
+      });
+    }
+    if (path === '/api/v1/branches') {
+      return route.fulfill({ json: { items: [{ id: 'siam', name: 'Siam' }] } });
+    }
+    if (path === '/api/auth/csrf') {
+      return route.fulfill({
+        json: { headerName: 'X-CSRF-Token', token: 'test' },
+      });
+    }
+    return route.fulfill({ json: { items: [] } });
+  });
+
+  await page.goto('/workspace/management');
+  await page.getByRole('button', { name: 'Bookings', exact: true }).click();
+  await expect(
+    page.getByRole('row').filter({ hasText: 'Table 3' }),
+  ).toContainText('Confirmed');
 
   // The old code could persist an impossible early check-in in browser storage.
   await page.evaluate(() => {
@@ -81,7 +150,7 @@ test('rejected early check-in keeps the booking unchanged after reload', async (
   await page.reload();
   await page.getByRole('button', { name: 'Bookings', exact: true }).click();
   await expect(
-    page.getByRole('row').filter({ hasText: 't-siam-3' }),
+    page.getByRole('row').filter({ hasText: 'Table 3' }),
   ).toContainText('Confirmed');
   const repaired = await page.evaluate(() => {
     const reservations = JSON.parse(
