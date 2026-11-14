@@ -132,6 +132,7 @@ it('keeps anonymous sign-in inside the account dropdown and follows its login ro
   await page.get('#account-panel a').trigger('click');
   await flushPromises();
   expect(router.currentRoute.value.name).toBe('AuthLogin');
+  expect(router.currentRoute.value.query).toEqual({ redirect: '/' });
   expect(trigger.attributes('aria-expanded')).toBe('false');
 });
 

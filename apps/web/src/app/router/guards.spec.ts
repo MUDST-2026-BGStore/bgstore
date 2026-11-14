@@ -193,6 +193,36 @@ it('sends a signed-in user to the storefront after a standard login', async () =
   expect(router.currentRoute.value.name).toBe('HomeIndex');
 });
 
+it('replaces an earlier reservation return path for an explicit storefront sign-in', async () => {
+  sessionStorage.setItem('theparlor.returnTo', '/reservations');
+
+  await router.push('/login?redirect=/');
+
+  expect(login).toHaveBeenCalledOnce();
+  expect(sessionStorage.getItem('theparlor.returnTo')).toBe('/');
+
+  await signIn();
+  respond();
+  await router.push('/login');
+
+  expect(router.currentRoute.value.name).toBe('HomeIndex');
+  expect(sessionStorage.getItem('theparlor.returnTo')).toBeNull();
+});
+
+it('preserves the requested protected page through login', async () => {
+  await router.push('/profile');
+
+  expect(login).toHaveBeenCalledOnce();
+  expect(sessionStorage.getItem('theparlor.returnTo')).toBe('/profile');
+
+  await signIn();
+  respond();
+  await router.push('/login');
+
+  expect(router.currentRoute.value.name).toBe('AuthProfile');
+  expect(sessionStorage.getItem('theparlor.returnTo')).toBeNull();
+});
+
 it('does not swallow account lookup errors while the identity is unchanged', async () => {
   await signIn();
   respond(500);
