@@ -1,6 +1,6 @@
 plugins {
 	java
-	id("org.springframework.boot") version "4.1.2"
+	id("org.springframework.boot") version "4.2.0"
 	id("io.spring.dependency-management") version "1.1.7"
 	id("com.diffplug.spotless") version "7.0.4"
     id("org.openapi.generator") version "7.27.0"
@@ -21,7 +21,7 @@ repositories {
 }
 
 dependencyManagement {
-    imports { mavenBom("org.springframework.modulith:spring-modulith-bom:2.1.2") }
+    imports { mavenBom("org.springframework.modulith:spring-modulith-bom:2.2.0") }
 }
 
 dependencies {
@@ -56,7 +56,7 @@ dependencies {
 	// Property-based tests: invariants checked over generated inputs (JUnit Platform engine).
 	testImplementation("net.jqwik:jqwik:1.10.2")
 	testImplementation("org.testcontainers:testcontainers-postgresql")
-	testImplementation("com.github.dasniko:testcontainers-keycloak:4.4.0")
+	testImplementation("com.github.dasniko:testcontainers-keycloak:4.4.1")
 	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testCompileOnly("org.projectlombok:lombok")
     testAnnotationProcessor("org.projectlombok:lombok")
